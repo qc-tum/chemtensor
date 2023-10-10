@@ -1,0 +1,5 @@
+# treat HDF5 files as binary files
+*.hdf5 binary
+
+# treat data files as binary files
+*.dat binary
