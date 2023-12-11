@@ -27,7 +27,7 @@ struct dense_tensor
 
 void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* restrict t);
 
-void delete_dense_tensor(struct dense_tensor* restrict t);
+void delete_dense_tensor(struct dense_tensor* t);
 
 void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_tensor* restrict dst);
 
@@ -44,6 +44,45 @@ static inline long dense_tensor_num_elements(const struct dense_tensor* t)
 	assert(nelem > 0);
 
 	return nelem;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Convert tensor index to data offset.
+///
+static inline long tensor_index_to_offset(const int ndim, const long* restrict dim, const long* restrict index)
+{
+	long offset = 0;
+	long dimfac = 1;
+	for (int i = ndim - 1; i >= 0; i--)
+	{
+		offset += dimfac * index[i];
+		dimfac *= dim[i];
+	}
+
+	return offset;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the lexicographically next tensor index.
+///
+static inline void next_tensor_index(const int ndim, const long* restrict dim, long* restrict index)
+{
+	for (int i = ndim - 1; i >= 0; i--)
+	{
+		index[i]++;
+		if (index[i] < dim[i])
+		{
+			return;
+		}
+		else
+		{
+			index[i] = 0;
+		}
+	}
 }
 
 
@@ -87,6 +126,8 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 void dense_tensor_scalar_multiply_add(const numeric alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
 
 void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r);
+
+void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const numeric beta);
 
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
 

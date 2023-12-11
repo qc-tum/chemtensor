@@ -66,6 +66,50 @@ def dense_tensor_dot_data():
         file["t_dot_v"] = interleave_complex(t_dot_v)
 
 
+def dense_tensor_dot_update_data():
+
+    # random number generator
+    rng = np.random.default_rng(170)
+
+    alpha =  1.2 - 0.3j
+    beta  = -0.7 + 0.8j
+
+    t = crandn((2, 3, 4, 5), rng)
+
+    # general dot product
+    s = crandn((4, 5, 7, 6), rng)
+    t_dot_s_0 = crandn((2, 3, 7, 6), rng)
+    t_dot_s_1 = alpha * np.tensordot(t, s, 2) + beta * t_dot_s_0
+
+    # matrix-vector multiplication
+    p = crandn(5, rng)
+    t_dot_p_0 = crandn((2, 3, 4), rng)
+    t_dot_p_1 = alpha * np.tensordot(t, p, 1) + beta * t_dot_p_0
+    q = crandn(2, rng)
+    q_dot_t_0 = crandn((3, 4, 5), rng)
+    q_dot_t_1 = alpha * np.tensordot(q, t, 1) + beta * q_dot_t_0
+
+    # inner product of two vectors
+    v = crandn(120, rng)
+    t_dot_v_0 = crandn(1, rng)
+    t_dot_v_1 = alpha * np.dot(t.reshape(-1), v) + beta * t_dot_v_0
+
+    with h5py.File("data/test_dense_tensor_dot_update.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file["s"] = interleave_complex(s)
+        file["p"] = interleave_complex(p)
+        file["q"] = interleave_complex(q)
+        file["v"] = interleave_complex(v)
+        file["t_dot_s_0"] = interleave_complex(t_dot_s_0)
+        file["t_dot_s_1"] = interleave_complex(t_dot_s_1)
+        file["t_dot_p_0"] = interleave_complex(t_dot_p_0)
+        file["t_dot_p_1"] = interleave_complex(t_dot_p_1)
+        file["q_dot_t_0"] = interleave_complex(q_dot_t_0)
+        file["q_dot_t_1"] = interleave_complex(q_dot_t_1)
+        file["t_dot_v_0"] = interleave_complex(t_dot_v_0)
+        file["t_dot_v_1"] = interleave_complex(t_dot_v_1)
+
+
 def dense_tensor_kronecker_product_data():
 
     # random number generator
@@ -104,6 +148,7 @@ def main():
     dense_tensor_trace_data()
     dense_tensor_transpose_data()
     dense_tensor_dot_data()
+    dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()
     dense_tensor_block_data()
 

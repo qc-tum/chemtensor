@@ -1,39 +1,5 @@
-#include <math.h>
-#include <memory.h>
-#include <stdbool.h>
 #include "dense_tensor.h"
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Test whether two tensor agree elementwise within tolerance 'tol'.
-///
-static bool dense_tensor_allclose(const struct dense_tensor* s, const struct dense_tensor* t, double tol)
-{
-	// compare degrees
-	if (s->ndim != t->ndim) {
-		return false;
-	}
-
-	// compare dimensions
-	for (int i = 0; i < s->ndim; i++)
-	{
-		if (s->dim[i] != t->dim[i]) {
-			return false;
-		}
-	}
-
-	// compare entries
-	const long nelem = dense_tensor_num_elements(s);
-	for (long j = 0; j < nelem; j++)
-	{
-		if (cabs(s->data[j] - t->data[j]) > tol) {
-			return false;
-		}
-	}
-
-	return true;
-}
+#include "test_dense_tensor.h"
 
 
 char* test_dense_tensor_trace()
@@ -273,6 +239,205 @@ char* test_dense_tensor_dot()
 		// compare
 		if (!dense_tensor_allclose(&t_dot_v, &t_dot_v_ref, 1e-13)) {
 			return "dot product of tensors does not match reference";
+		}
+
+		// clean up
+		delete_dense_tensor(&t_dot_v_ref);
+		delete_dense_tensor(&t_dot_v);
+		delete_dense_tensor(&v);
+		delete_dense_tensor(&t1);
+	}
+
+	// clean up
+	delete_dense_tensor(&t);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_dense_tensor_dot_update()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_dot_update.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_dot_update failed";
+	}
+
+	const numeric alpha =  1.2 - 0.3*I;
+	const numeric beta  = -0.7 + 0.8*I;
+
+	// create tensor 't'
+	struct dense_tensor t;
+	const long dim[4] = { 2, 3, 4, 5 };
+	allocate_dense_tensor(4, dim,  &t);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// general dot product
+	{
+		// create another tensor 's'
+		struct dense_tensor s;
+		const long sdim[4] = { 4, 5, 7, 6 };
+		allocate_dense_tensor(4, sdim, &s);
+		// read values from disk
+		if (read_hdf5_dataset(file, "s", H5T_NATIVE_DOUBLE, s.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// multiply tensors and update 't_dot_s' with result
+		struct dense_tensor t_dot_s;
+		const long t_dot_s_dim[4] = { 2, 3, 7, 6 };
+		allocate_dense_tensor(4, t_dot_s_dim, &t_dot_s);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_s_0", H5T_NATIVE_DOUBLE, t_dot_s.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+		dense_tensor_dot_update(alpha, &t, &s, 2, &t_dot_s, beta);
+
+		// reference tensor for checking
+		const long refdim[4] = { 2, 3, 7, 6 };
+		struct dense_tensor t_dot_s_ref;
+		allocate_dense_tensor(4, refdim, &t_dot_s_ref);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_s_1", H5T_NATIVE_DOUBLE, t_dot_s_ref.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-13)) {
+			return "tensor updated by dot product of two other tensors does not match reference";
+		}
+
+		// clean up
+		delete_dense_tensor(&t_dot_s_ref);
+		delete_dense_tensor(&t_dot_s);
+		delete_dense_tensor(&s);
+	}
+
+	// matrix-vector multiplication
+	{
+		// create another tensor 'p'
+		struct dense_tensor p;
+		const long pdim[1] = { 5 };
+		allocate_dense_tensor(1, pdim, &p);
+		// read values from disk
+		if (read_hdf5_dataset(file, "p", H5T_NATIVE_DOUBLE, p.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// multiply tensors and update 't_dot_p' with result
+		struct dense_tensor t_dot_p;
+		const long t_dot_p_dim[3] = { 2, 3, 4 };
+		allocate_dense_tensor(3, t_dot_p_dim, &t_dot_p);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_p_0", H5T_NATIVE_DOUBLE, t_dot_p.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+		dense_tensor_dot_update(alpha, &t, &p, 1, &t_dot_p, beta);
+
+		// reference tensor for checking
+		const long refdim[3] = { 2, 3, 4 };
+		struct dense_tensor t_dot_p_ref;
+		allocate_dense_tensor(3, refdim, &t_dot_p_ref);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_p_1", H5T_NATIVE_DOUBLE, t_dot_p_ref.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&t_dot_p, &t_dot_p_ref, 1e-13)) {
+			return "tensor updated by dot product of two other tensors does not match reference";
+		}
+
+		// clean up
+		delete_dense_tensor(&t_dot_p_ref);
+		delete_dense_tensor(&t_dot_p);
+		delete_dense_tensor(&p);
+	}
+
+	// vector-matrix multiplication
+	{
+		// create another tensor 'q'
+		struct dense_tensor q;
+		const long qdim[1] = { 2 };
+		allocate_dense_tensor(1, qdim, &q);
+		// read values from disk
+		if (read_hdf5_dataset(file, "q", H5T_NATIVE_DOUBLE, q.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// multiply tensors and update 'q_dot_t' with result
+		struct dense_tensor q_dot_t;
+		const long q_dot_t_dim[3] = { 3, 4, 5 };
+		allocate_dense_tensor(3, q_dot_t_dim, &q_dot_t);
+		// read values from disk
+		if (read_hdf5_dataset(file, "q_dot_t_0", H5T_NATIVE_DOUBLE, q_dot_t.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+		dense_tensor_dot_update(alpha, &q, &t, 1, &q_dot_t, beta);
+
+		// reference tensor for checking
+		const long refdim[3] = { 3, 4, 5 };
+		struct dense_tensor q_dot_t_ref;
+		allocate_dense_tensor(3, refdim, &q_dot_t_ref);
+		// read values from disk
+		if (read_hdf5_dataset(file, "q_dot_t_1", H5T_NATIVE_DOUBLE, q_dot_t_ref.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&q_dot_t, &q_dot_t_ref, 1e-13)) {
+			return "tensor updated by dot product of two other tensors does not match reference";
+		}
+
+		// clean up
+		delete_dense_tensor(&q_dot_t_ref);
+		delete_dense_tensor(&q_dot_t);
+		delete_dense_tensor(&q);
+	}
+
+	// vector-vector multiplication (i.e., inner product)
+	{
+		const long nelem = dense_tensor_num_elements(&t);
+
+		// interpret as vector
+		struct dense_tensor t1;
+		copy_dense_tensor(&t, &t1);
+		reshape_dense_tensor(1, &nelem, &t1);
+
+		// create another tensor 'v'
+		struct dense_tensor v;
+		allocate_dense_tensor(1, &nelem, &v);
+		// read values from disk
+		if (read_hdf5_dataset(file, "v", H5T_NATIVE_DOUBLE, v.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// multiply tensors and update 't_dot_v' with result
+		struct dense_tensor t_dot_v;
+		// formally a zero-dimensional tensor
+		allocate_dense_tensor(0, NULL, &t_dot_v);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_v_0", H5T_NATIVE_DOUBLE, t_dot_v.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+		dense_tensor_dot_update(alpha, &t1, &v, 1, &t_dot_v, beta);
+
+		// reference tensor for checking
+		struct dense_tensor t_dot_v_ref;
+		// formally a zero-dimensional tensor
+		allocate_dense_tensor(0, NULL, &t_dot_v_ref);
+		// read values from disk
+		if (read_hdf5_dataset(file, "t_dot_v_1", H5T_NATIVE_DOUBLE, t_dot_v_ref.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&t_dot_v, &t_dot_v_ref, 1e-13)) {
+			return "tensor updated by dot product of two other tensors does not match reference";
 		}
 
 		// clean up

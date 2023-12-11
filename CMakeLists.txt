@@ -7,8 +7,8 @@ find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS C)
 
-set(CHEMTENSOR_SOURCES "src/tensor/dense_tensor.c" "src/util/util.c")
-set(TEST_SOURCES "test/test_dense_tensor.c" "test/run_tests.c")
+set(CHEMTENSOR_SOURCES "src/tensor/dense_tensor.c" "src/tensor/block_sparse_tensor.c" "src/util/util.c")
+set(TEST_SOURCES "test/test_dense_tensor.c" "test/test_block_sparse_tensor.c" "test/run_tests.c")
 
 add_executable(chemtensor_test ${CHEMTENSOR_SOURCES} ${TEST_SOURCES})
 

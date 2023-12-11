@@ -39,6 +39,8 @@ double uniform_distance(const long n, const numeric* restrict x, const numeric* 
 
 herr_t read_hdf5_dataset(hid_t file, const char* name, hid_t mem_type, void* data);
 
+herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* data);
+
 herr_t write_hdf5_dataset(hid_t file, const char* name, int degree, const hsize_t dims[], hid_t mem_type_store, hid_t mem_type_input, const void* data);
 
 herr_t write_hdf5_scalar_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data);

@@ -9,45 +9,7 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Convert tensor index to data offset.
-///
-static inline long index_to_offset(const int ndim, const long* restrict dim, const long* restrict index)
-{
-	long offset = 0;
-	long dimfac = 1;
-	for (int i = ndim - 1; i >= 0; i--)
-	{
-		offset += dimfac * index[i];
-		dimfac *= dim[i];
-	}
-
-	return offset;
-}
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Compute the lexicographically next tensor index.
-///
-static inline void next_index(const int ndim, const long* restrict dim, long* restrict index)
-{
-	for (int i = ndim - 1; i >= 0; i--)
-	{
-		index[i]++;
-		if (index[i] < dim[i])
-		{
-			return;
-		}
-		else
-		{
-			index[i] = 0;
-		}
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Allocate memory for a dense tensor.
+/// \brief Allocate memory for a dense tensor, and initialize the data entries with zeros.
 ///
 void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* restrict t)
 {
@@ -83,14 +45,14 @@ void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dens
 ///
 void delete_dense_tensor(struct dense_tensor* t)
 {
+	aligned_free(t->data);
+	t->data = NULL;
+
 	if (t->ndim > 0)
 	{
 		aligned_free(t->dim);
 	}
 	t->ndim = 0;
-
-	aligned_free(t->data);
-	t->data = NULL;
 }
 
 
@@ -237,11 +199,22 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 {
 	// TODO: consider using an optimized library like https://github.com/springer13/hptt
 
-	// dimensions of new tensor 'r'
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	// ensure that 'perm' is a valid permutation
+	int* ax_list = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(int));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		assert(0 <= perm[i] && perm[i] < t->ndim);
+		ax_list[perm[i]] = 1;
+	}
+	for (int i = 0; i < t->ndim; i++)
+	{
+		assert(ax_list[i] == 1);
+	}
+	aligned_free(ax_list);
+
+	// dimensions of new tensor 'r'
+	long* rdim = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	for (int i = 0; i < t->ndim; i++) {
 		rdim[i] = t->dim[perm[i]];
 	}
 	// create new tensor 'r'
@@ -271,7 +244,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			index_r[i] = index_t[perm[i]];
 		}
 		// convert back to offset of tensor 'r'
-		const long or = index_to_offset(r->ndim, r->dim, index_r);
+		const long or = tensor_index_to_offset(r->ndim, r->dim, index_r);
 
 		// main copy loop
 		const long n = t->dim[t->ndim - 1];
@@ -284,7 +257,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 		}
 
 		// advance index of tensor 't' by t->dim[t->ndim - 1] elements
-		next_index(t->ndim - 1, t->dim, index_t);
+		next_tensor_index(t->ndim - 1, t->dim, index_t);
 	}
 
 	// clean up
@@ -338,7 +311,7 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 	}
 
 	// dimensions of new tensor 'r'
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2 * ndim_mult) * sizeof(long));
+	long* rdim = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2*ndim_mult) * sizeof(long));
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
 	{
 		rdim[i] = s->dim[i];
@@ -348,7 +321,7 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 		rdim[s->ndim + i - 2*ndim_mult] = t->dim[i];
 	}
 	// create new tensor 'r'
-	allocate_dense_tensor(s->ndim + t->ndim - 2 * ndim_mult, rdim, r);
+	allocate_dense_tensor(s->ndim + t->ndim - 2*ndim_mult, rdim, r);
 	aligned_free(rdim);
 
 	// leading dimension of 's' as a matrix
@@ -406,6 +379,79 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', scale by 'alpha' and
+/// add result to 'r' scaled by beta: r <- alpha * s @ t + beta * r
+///
+/// Assuming that 'r' has the appropriate dimensions.
+///
+void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const numeric beta)
+{
+	assert(ndim_mult >= 1);
+	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
+	for (int i = 0; i < ndim_mult; i++)
+	{
+		assert(s->dim[s->ndim - ndim_mult + i] == t->dim[i]);
+	}
+	for (int i = 0; i < s->ndim - ndim_mult; i++)
+	{
+		assert(r->dim[i] == s->dim[i]);
+	}
+	for (int i = ndim_mult; i < t->ndim; i++)
+	{
+		assert(r->dim[s->ndim + i - 2*ndim_mult] == t->dim[i]);
+	}
+
+	// leading dimension of 's' as a matrix
+	const long lds = integer_product(s->dim, s->ndim - ndim_mult);
+	// trailing dimension of 's' as a matrix
+	const long tds = integer_product(&s->dim[s->ndim - ndim_mult], ndim_mult);
+	// overall number of entries in 's'
+	const long nelem_s = lds * tds;
+
+	// leading dimension of 't' as a matrix
+	const long ldt = integer_product(t->dim, ndim_mult);
+	// trailing dimension of 't' as a matrix
+	const long tdt = integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult);
+	// overall number of entries in 't'
+	const long nelem_t = ldt * tdt;
+
+	assert(tds == ldt);
+
+	if (lds == 1)
+	{
+		if (tdt == 1)
+		{
+			// inner product of two vectors
+			assert(nelem_s == nelem_t);
+			assert(dense_tensor_num_elements(r) == 1);
+			numeric u = 0;
+			cblas_zdotu_sub((int)nelem_s, s->data, 1, t->data, 1, &u);
+			r->data[0] = alpha * u + beta * r->data[0];
+		}
+		else    // tdt > 1
+		{
+			// multiply vector 's' from left, i.e., (t^T * s)^T
+			cblas_zgemv(CblasRowMajor, CblasTrans, (int)ldt, (int)tdt, &alpha, t->data, (int)tdt, s->data, 1, &beta, r->data, 1);
+		}
+	}
+	else    // lds > 1
+	{
+		if (tdt == 1)
+		{
+			// matrix-vector multiplication
+			cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)lds, (int)ldt, &alpha, s->data, (int)tds, t->data, 1, &beta, r->data, 1);
+		}
+		else    // tdt > 1
+		{
+			// matrix-matrix multiplication
+			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, (int)lds, (int)tdt, (int)ldt, &alpha, s->data, (int)tds, t->data, (int)tdt, &beta, r->data, (int)tdt);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the Kronecker product of two tensors; the tensors must have the same degree.
 ///
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
@@ -440,15 +486,15 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 			index_s[i] = index_r[2*i  ];
 			index_t[i] = index_r[2*i+1];
 		}
-		const long os = index_to_offset(s->ndim, s->dim, index_s);
-		const long ot = index_to_offset(t->ndim, t->dim, index_t);
+		const long os = tensor_index_to_offset(s->ndim, s->dim, index_s);
+		const long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 
 		// outer product; r->data must have been initialized with zeros
 		const numeric one = 1;
 		cblas_zgeru(CblasRowMajor, (int)last_dim_s, (int)last_dim_t, &one, s->data + os, 1, t->data + ot, 1, r->data + or, (int)last_dim_t);
 
 		// advance index of tensor 'r' by last_dim_s*last_dim_t elements
-		next_index(r->ndim - 2, r->dim, index_r);
+		next_tensor_index(r->ndim - 2, r->dim, index_r);
 	}
 
 	aligned_free(index_r);
@@ -493,7 +539,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 		index_t[i] = idx[i][0];
 	}
 	// convert back to offset of tensor 't'
-	long ot = index_to_offset(t->ndim, t->dim, index_t);
+	long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 
 	const long* last_idx = idx[b->ndim - 1];
 
@@ -511,13 +557,13 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 		}
 
 		// advance index of tensor 'b' by b->dim[b->ndim - 1] elements
-		next_index(b->ndim - 1, b->dim, index_b);
+		next_tensor_index(b->ndim - 1, b->dim, index_b);
 		// map index of tensor 'b' to index of tensor 't', except for last dimension (will be handled in copy loop)
 		for (int i = 0; i < t->ndim - 1; i++) {
 			index_t[i] = idx[i][index_b[i]];
 		}
 		// convert back to offset of tensor 't'
-		ot = index_to_offset(t->ndim, t->dim, index_t);
+		ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 	}
 
 	// clean up
