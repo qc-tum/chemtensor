@@ -237,6 +237,40 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Scale tensor t by alpha.
+///
+void scale_block_sparse_tensor(const double alpha, struct block_sparse_tensor* t)
+{
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	for (long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL) {
+			scale_dense_tensor(alpha, b);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Elementwise conjugation of a block-sparse tensor.
+///
+void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
+{
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	for (long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL) {
+			conjugate_dense_tensor(b);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Convert a block-sparse to an equivalent dense tensor.
 ///
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t)
@@ -374,6 +408,126 @@ void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const e
 	}
 
 	aligned_free(index_block);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Generalized transpose of a tensor 't' such that
+/// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
+///
+/// Memory will be allocated for 'r'.
+///
+void transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
+{
+	r->ndim = t->ndim;
+
+	if (t->ndim == 0)  // special case
+	{
+		r->dim_logical = NULL;
+		r->dim_blocks  = NULL;
+
+		r->axis_dir = NULL;
+
+		r->qnums_logical = NULL;
+		r->qnums_blocks  = NULL;
+
+		// allocate memory for a single block
+		r->blocks = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor*));
+		r->blocks[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		allocate_dense_tensor(0, NULL, r->blocks[0]);
+		// copy single number
+		r->blocks[0]->data[0] = t->blocks[0]->data[0];
+
+		return;
+	}
+
+	// ensure that 'perm' is a valid permutation
+	int* ax_list = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(int));
+	for (int i = 0; i < t->ndim; i++)
+	{
+		assert(0 <= perm[i] && perm[i] < t->ndim);
+		ax_list[perm[i]] = 1;
+	}
+	for (int i = 0; i < t->ndim; i++)
+	{
+		assert(ax_list[i] == 1);
+	}
+	aligned_free(ax_list);
+
+	// dimensions
+	r->dim_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	r->dim_blocks  = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	r->axis_dir    = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(enum tensor_axis_direction));
+	for (int i = 0; i < t->ndim; i++)
+	{
+		r->dim_logical[i] = t->dim_logical[perm[i]];
+		r->dim_blocks [i] = t->dim_blocks [perm[i]];
+		r->axis_dir   [i] = t->axis_dir   [perm[i]];
+	}
+
+	// logical quantum numbers
+	r->qnums_logical = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(qnumber*));
+	for (int i = 0; i < t->ndim; i++)
+	{
+		r->qnums_logical[i] = aligned_alloc(MEM_DATA_ALIGN, r->dim_logical[i] * sizeof(qnumber));
+		memcpy(r->qnums_logical[i], t->qnums_logical[perm[i]], r->dim_logical[i] * sizeof(qnumber));
+	}
+
+	// block quantum numbers
+	r->qnums_blocks = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(qnumber*));
+	for (int i = 0; i < t->ndim; i++)
+	{
+		r->qnums_blocks[i] = aligned_alloc(MEM_DATA_ALIGN, r->dim_blocks[i] * sizeof(qnumber));
+		memcpy(r->qnums_blocks[i], t->qnums_blocks[perm[i]], r->dim_blocks[i] * sizeof(qnumber));
+	}
+
+	// dense tensor blocks
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	r->blocks = aligned_calloc(MEM_DATA_ALIGN, nblocks, sizeof(struct dense_tensor*));
+	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block_t))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < t->ndim; i++)
+		{
+			qsum += t->axis_dir[i] * t->qnums_blocks[i][index_block_t[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		assert(t->blocks[k] != NULL);
+
+		// corresponding block index in 'r'
+		for (int i = 0; i < t->ndim; i++) {
+			index_block_r[i] = index_block_t[perm[i]];
+		}
+		long j = tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r);
+
+		// transpose dense tensor block
+		r->blocks[j] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		transpose_dense_tensor(perm, t->blocks[k], r->blocks[j]);
+	}
+	aligned_free(index_block_r);
+	aligned_free(index_block_t);
+}
+
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Generalized conjugate transpose of a tensor 't' such that
+/// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
+///
+/// Memory will be allocated for 'r'.
+///
+void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
+{
+	transpose_block_sparse_tensor(perm, t, r);
+	conjugate_block_sparse_tensor(r);
 }
 
 

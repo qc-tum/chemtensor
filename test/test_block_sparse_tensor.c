@@ -2,7 +2,6 @@
 #include "test_dense_tensor.h"
 
 
-
 char* test_block_sparse_tensor_get_block()
 {
 	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_get_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -82,6 +81,82 @@ char* test_block_sparse_tensor_get_block()
 	aligned_free(qnums);
 	aligned_free(axis_dir);
 	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_block_sparse_tensor_transpose()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_transpose failed";
+	}
+
+	const int ndim = 4;
+	const long dims[4] = { 5, 4, 11, 7 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(4, dims, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+	struct dense_tensor t_tp_dns_ref;
+	const long dim_ref[4] = { 4, 7, 11, 5 };
+	allocate_dense_tensor(4, dim_ref, &t_tp_dns_ref);
+	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_DOUBLE, t_tp_dns_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber **)qnums, &t);
+
+	// transpose the block-sparse tensor
+	const int perm[4] = { 1, 3, 2, 0 };
+	struct block_sparse_tensor t_tp;
+	transpose_block_sparse_tensor(perm, &t, &t_tp);
+
+	// convert back to a dense tensor
+	struct dense_tensor t_tp_dns;
+	block_sparse_to_dense_tensor(&t_tp, &t_tp_dns);
+
+	// compare
+	if (!dense_tensor_allclose(&t_tp_dns, &t_tp_dns_ref, 0.)) {
+		return "transposed block-sparse tensor does not match reference";
+	}
+
+	// clean up
+	for (int i = 0; i < ndim; i++)
+	{
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
+	delete_block_sparse_tensor(&t_tp);
+	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_tp_dns);
+	delete_dense_tensor(&t_tp_dns_ref);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);

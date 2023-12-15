@@ -48,11 +48,31 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 //________________________________________________________________________________________________________________________
 //
 
+// in-place manipulation
+
+void scale_block_sparse_tensor(const double alpha, struct block_sparse_tensor* t);
+
+void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // conversion between dense and block-sparse tensors
 
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t);
 
 void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// transposition
+
+void transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r);
+
+void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

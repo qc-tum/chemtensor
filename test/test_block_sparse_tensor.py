@@ -25,14 +25,49 @@ def block_sparse_tensor_get_block_data():
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
-        qsum = 0
-        for i in range(ndim):
-            qsum += axis_dir[i] * qnums[i][it.multi_index[i]]
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
         if qsum != 0:
             x[...] = 0
 
     with h5py.File("data/test_block_sparse_tensor_get_block.hdf5", "w") as file:
         file["t"] = interleave_complex(t)
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+
+
+def block_sparse_tensor_transpose_data():
+
+    # random number generator
+    rng = np.random.default_rng(432)
+
+    # dimensions
+    dims = (5, 4, 11, 7)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d) for d in dims]
+
+    # tensor with random entries
+    t = crandn(dims, rng)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    # transpose tensor
+    t_tp = np.transpose(t, (1, 3, 2, 0))
+
+    with h5py.File("data/test_block_sparse_tensor_transpose.hdf5", "w") as file:
+        file["t"]    = interleave_complex(t)
+        file["t_tp"] = interleave_complex(t_tp)
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -64,17 +99,14 @@ def block_sparse_tensor_dot_data():
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
-        qsum = 0
-        for i in range(s.ndim):
-            qsum += axis_dir[i] * qnums[i][it.multi_index[i]]
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(s.ndim))
         if qsum != 0:
             x[...] = 0
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
-        qsum = 0
-        for i in range(t.ndim):
-            # reversed sign of to-be contracted axes for 't' tensor
-            qsum += (-1 if i < ndim_mult else 1)*axis_dir[s.ndim - ndim_mult + i] * qnums[s.ndim - ndim_mult + i][it.multi_index[i]]
+        # reversed sign of to-be contracted axes for 't' tensor
+        qsum = sum((-1 if i < ndim_mult else 1) * axis_dir[s.ndim - ndim_mult + i]
+                   * qnums[s.ndim - ndim_mult + i][it.multi_index[i]] for i in range(t.ndim))
         if qsum != 0:
             x[...] = 0
 
@@ -92,6 +124,7 @@ def block_sparse_tensor_dot_data():
 
 def main():
     block_sparse_tensor_get_block_data()
+    block_sparse_tensor_transpose_data()
     block_sparse_tensor_dot_data()
 
 
