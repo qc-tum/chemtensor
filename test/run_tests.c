@@ -19,21 +19,23 @@ char* test_dense_tensor_kronecker_product();
 char* test_dense_tensor_block();
 char* test_block_sparse_tensor_get_block();
 char* test_block_sparse_tensor_transpose();
+char* test_block_sparse_tensor_flatten_axes();
 char* test_block_sparse_tensor_dot();
 
 
 int main()
 {
 	struct test tests[] = {
-		{ .func = test_dense_tensor_trace,              .name = "test_dense_tensor_trace" },
-		{ .func = test_dense_tensor_transpose,          .name = "test_dense_tensor_transpose" },
-		{ .func = test_dense_tensor_dot,                .name = "test_dense_tensor_dot" },
-		{ .func = test_dense_tensor_dot_update,         .name = "test_dense_tensor_dot_update" },
-		{ .func = test_dense_tensor_kronecker_product,  .name = "test_dense_tensor_kronecker_product" },
-		{ .func = test_dense_tensor_block,              .name = "test_dense_tensor_block" },
-		{ .func = test_block_sparse_tensor_get_block,   .name = "test_block_sparse_tensor_get_block" },
-		{ .func = test_block_sparse_tensor_transpose,   .name = "test_block_sparse_tensor_transpose" },
-		{ .func = test_block_sparse_tensor_dot,         .name = "test_block_sparse_tensor_dot" },
+		{ .func = test_dense_tensor_trace,               .name = "test_dense_tensor_trace" },
+		{ .func = test_dense_tensor_transpose,           .name = "test_dense_tensor_transpose" },
+		{ .func = test_dense_tensor_dot,                 .name = "test_dense_tensor_dot" },
+		{ .func = test_dense_tensor_dot_update,          .name = "test_dense_tensor_dot_update" },
+		{ .func = test_dense_tensor_kronecker_product,   .name = "test_dense_tensor_kronecker_product" },
+		{ .func = test_dense_tensor_block,               .name = "test_dense_tensor_block" },
+		{ .func = test_block_sparse_tensor_get_block,    .name = "test_block_sparse_tensor_get_block" },
+		{ .func = test_block_sparse_tensor_transpose,    .name = "test_block_sparse_tensor_transpose" },
+		{ .func = test_block_sparse_tensor_flatten_axes, .name = "test_block_sparse_tensor_flatten_axes" },
+		{ .func = test_block_sparse_tensor_dot,          .name = "test_block_sparse_tensor_dot" },
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

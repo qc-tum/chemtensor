@@ -78,6 +78,13 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 //________________________________________________________________________________________________________________________
 //
 
+
+void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict t, const long i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // binary operations
 
 void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const int ndim_mult, struct block_sparse_tensor* restrict r);

@@ -97,11 +97,11 @@ char* test_block_sparse_tensor_transpose()
 	}
 
 	const int ndim = 4;
-	const long dims[4] = { 5, 4, 11, 7 };
+	const long dim[4] = { 5, 4, 11, 7 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(4, dims, &t_dns);
+	allocate_dense_tensor(4, dim, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -120,7 +120,7 @@ char* test_block_sparse_tensor_transpose()
 	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -157,6 +157,80 @@ char* test_block_sparse_tensor_transpose()
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_tp_dns);
 	delete_dense_tensor(&t_tp_dns_ref);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_block_sparse_tensor_flatten_axes()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_flatten_axes.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_flatten_axes failed";
+	}
+
+	const int ndim = 5;
+	const long dim[5] = { 5, 7, 4, 11, 3 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(5, dim, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber **)qnums, &t);
+
+	// flatten axes
+	const int i_ax = 1;
+	const enum tensor_axis_direction new_axis_dir = TENSOR_AXIS_OUT;
+	struct block_sparse_tensor r;
+	flatten_block_sparse_tensor_axes(&t, i_ax, new_axis_dir, &r);
+
+	// reshape original dense tensor, as reference
+	const long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
+	reshape_dense_tensor(ndim - 1, dim_reshape, &t_dns);
+
+	// convert block-sparse back to a dense tensor
+	struct dense_tensor r_dns;
+	block_sparse_to_dense_tensor(&r, &r_dns);
+
+	// compare
+	if (!dense_tensor_allclose(&r_dns, &t_dns, 0.)) {
+		return "flattened block-sparse tensor does not match reference";
+	}
+
+	// clean up
+	delete_dense_tensor(&r_dns);
+	delete_block_sparse_tensor(&r);
+	delete_block_sparse_tensor(&t);
+	for (int i = 0; i < ndim; i++)
+	{
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
