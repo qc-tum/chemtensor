@@ -165,11 +165,11 @@ char* test_block_sparse_tensor_transpose()
 }
 
 
-char* test_block_sparse_tensor_flatten_axes()
+char* test_block_sparse_tensor_reshape()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_flatten_axes.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_reshape.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_block_sparse_tensor_flatten_axes failed";
+		return "'H5Fopen' in test_block_sparse_tensor_reshape failed";
 	}
 
 	const int ndim = 5;
@@ -205,25 +205,43 @@ char* test_block_sparse_tensor_flatten_axes()
 	// flatten axes
 	const int i_ax = 1;
 	const enum tensor_axis_direction new_axis_dir = TENSOR_AXIS_OUT;
-	struct block_sparse_tensor r;
-	flatten_block_sparse_tensor_axes(&t, i_ax, new_axis_dir, &r);
+	struct block_sparse_tensor t_flat;
+	flatten_block_sparse_tensor_axes(&t, i_ax, new_axis_dir, &t_flat);
 
 	// reshape original dense tensor, as reference
 	const long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
 	reshape_dense_tensor(ndim - 1, dim_reshape, &t_dns);
 
 	// convert block-sparse back to a dense tensor
-	struct dense_tensor r_dns;
-	block_sparse_to_dense_tensor(&r, &r_dns);
+	struct dense_tensor t_flat_dns;
+	block_sparse_to_dense_tensor(&t_flat, &t_flat_dns);
 
 	// compare
-	if (!dense_tensor_allclose(&r_dns, &t_dns, 0.)) {
+	if (!dense_tensor_allclose(&t_flat_dns, &t_dns, 0.)) {
 		return "flattened block-sparse tensor does not match reference";
 	}
 
+	// split axis again
+	struct block_sparse_tensor s;
+	split_block_sparse_tensor_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.qnums_logical + i_ax), &s);
+
+	// convert block-sparse tensor 's' to a dense tensor
+	struct dense_tensor s_dns;
+	block_sparse_to_dense_tensor(&s, &s_dns);
+
+	// restore shape of original dense tensor, as reference
+	reshape_dense_tensor(ndim, dim, &t_dns);
+
+	// compare
+	if (!dense_tensor_allclose(&s_dns, &t_dns, 0.)) {
+		return "block-sparse tensor with split axes does not match reference";
+	}
+
 	// clean up
-	delete_dense_tensor(&r_dns);
-	delete_block_sparse_tensor(&r);
+	delete_dense_tensor(&s_dns);
+	delete_dense_tensor(&t_flat_dns);
+	delete_block_sparse_tensor(&s);
+	delete_block_sparse_tensor(&t_flat);
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++)
 	{

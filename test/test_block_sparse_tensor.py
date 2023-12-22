@@ -74,7 +74,7 @@ def block_sparse_tensor_transpose_data():
 
 
 
-def block_sparse_tensor_flatten_axes_data():
+def block_sparse_tensor_reshape_data():
 
     # random number generator
     rng = np.random.default_rng(431)
@@ -101,7 +101,7 @@ def block_sparse_tensor_flatten_axes_data():
             x[...] = 0
 
     # save tensor to disk - reshaping of dense tensor is straightforward
-    with h5py.File("data/test_block_sparse_tensor_flatten_axes.hdf5", "w") as file:
+    with h5py.File("data/test_block_sparse_tensor_reshape.hdf5", "w") as file:
         file["t"] = interleave_complex(t)
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
@@ -160,7 +160,7 @@ def block_sparse_tensor_dot_data():
 def main():
     block_sparse_tensor_get_block_data()
     block_sparse_tensor_transpose_data()
-    block_sparse_tensor_flatten_axes_data()
+    block_sparse_tensor_reshape_data()
     block_sparse_tensor_dot_data()
 
 

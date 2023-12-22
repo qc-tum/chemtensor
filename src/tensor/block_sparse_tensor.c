@@ -709,6 +709,186 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 }
 
 
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Split the axis (tensor leg) 'i_ax' into two neighboring axes, using the provided quantum numbers.
+///
+/// Memory will be allocated for 'r'.
+///
+/// Note: this operation changes the internal dense block structure.
+///
+void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t, const long i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	assert(new_dim_logical[0] * new_dim_logical[1] == t->dim_logical[i_ax]);
+	// consistency check of provided quantum numbers
+	for (long j = 0; j < new_dim_logical[0]; j++) {
+		for (long k = 0; k < new_dim_logical[1]; k++) {
+			assert(t->axis_dir[i_ax] * t->qnums_logical[i_ax][j*new_dim_logical[1] + k]
+				== new_axis_dir[0] * new_qnums_logical[0][j] + new_axis_dir[1] * new_qnums_logical[1][k]);
+		}
+	}
+
+	// construct new block-sparse tensor 'r'
+	{
+		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(long));
+		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(enum tensor_axis_direction));
+		for (int i = 0; i < i_ax; i++)
+		{
+			r_dim_logical[i] = t->dim_logical[i];
+			r_axis_dir   [i] = t->axis_dir   [i];
+		}
+		r_dim_logical[i_ax    ] = new_dim_logical[0];
+		r_dim_logical[i_ax + 1] = new_dim_logical[1];
+		r_axis_dir[i_ax    ] = new_axis_dir[0];
+		r_axis_dir[i_ax + 1] = new_axis_dir[1];
+		for (int i = i_ax + 1; i < t->ndim; i++)
+		{
+			r_dim_logical[i + 1] = t->dim_logical[i];
+			r_axis_dir   [i + 1] = t->axis_dir   [i];
+		}
+		// logical quantum numbers
+		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(qnumber*));
+		for (int i = 0; i < i_ax; i++)
+		{
+			// simply copy the pointer
+			r_qnums_logical[i] = t->qnums_logical[i];
+		}
+		r_qnums_logical[i_ax    ] = new_qnums_logical[0];
+		r_qnums_logical[i_ax + 1] = new_qnums_logical[1];
+		for (int i = i_ax + 1; i < t->ndim; i++)
+		{
+			// simply copy the pointer
+			r_qnums_logical[i + 1] = t->qnums_logical[i];
+		}
+
+		// allocate new block-sparse tensor 'r'
+		allocate_block_sparse_tensor(t->ndim + 1, r_dim_logical, r_axis_dir, r_qnums_logical, r);
+
+		aligned_free(r_qnums_logical);
+		aligned_free(r_axis_dir);
+		aligned_free(r_dim_logical);
+	}
+
+	// for each block with matching quantum numbers...
+	const long nblocks = integer_product(r->dim_blocks, r->ndim);
+	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		const struct dense_tensor* br = r->blocks[k];
+		assert(br != NULL);
+		assert(br->ndim == r->ndim);
+
+		const qnumber qnums_i_ax[2] = {
+			r->qnums_blocks[i_ax    ][index_block_r[i_ax    ]],
+			r->qnums_blocks[i_ax + 1][index_block_r[i_ax + 1]] };
+
+		const qnumber qnum_flat =
+			t->axis_dir[i_ax] * (r->axis_dir[i_ax    ] * qnums_i_ax[0] +
+			                     r->axis_dir[i_ax + 1] * qnums_i_ax[1]);
+
+		// corresponding block index in 't'
+		for (int i = 0; i < i_ax; i++) {
+			index_block_t[i] = index_block_r[i];
+		}
+		index_block_t[i_ax] = -1;
+		for (long j = 0; j < t->dim_blocks[i_ax]; j++)
+		{
+			if (t->qnums_blocks[i_ax][j] == qnum_flat) {
+				index_block_t[i_ax] = j;
+				break;
+			}
+		}
+		assert(index_block_t[i_ax] != -1);
+		for (int i = i_ax + 1; i < t->ndim; i++)
+		{
+			index_block_t[i] = index_block_r[i + 1];
+		}
+		const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+		assert(bt != NULL);
+		assert(bt->ndim == t->ndim);
+
+		// construct index map for dense block entries along to-be split dimensions
+		long* index_map_block = aligned_alloc(MEM_DATA_ALIGN, br->dim[i_ax] * br->dim[i_ax + 1] * sizeof(long));
+		{
+			// fan-out dense to logical indices for new axes 'i_ax' and 'i_ax + 1'
+			long* index_map_fanout[2];
+			for (int i = 0; i < 2; i++)
+			{
+				index_map_fanout[i] = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax + i], sizeof(long));
+				long c = 0;
+				for (long j = 0; j < r->dim_logical[i_ax + i]; j++)
+				{
+					if (r->qnums_logical[i_ax + i][j] == qnums_i_ax[i])
+					{
+						index_map_fanout[i][c] = j;
+						c++;
+					}
+				}
+				assert(c == br->dim[i_ax + i]);
+			}
+			// fan-in logical to block indices for original axis
+			long* index_map_fanin = aligned_calloc(MEM_DATA_ALIGN, t->dim_logical[i_ax], sizeof(long));
+			long c = 0;
+			for (long j = 0; j < t->dim_logical[i_ax]; j++)
+			{
+				if (t->qnums_logical[i_ax][j] == qnum_flat) {
+					index_map_fanin[j] = c;
+					c++;
+				}
+			}
+			for (long j0 = 0; j0 < br->dim[i_ax]; j0++)
+			{
+				for (long j1 = 0; j1 < br->dim[i_ax + 1]; j1++)
+				{
+					index_map_block[j0*br->dim[i_ax + 1] + j1] = index_map_fanin[index_map_fanout[0][j0] * r->dim_logical[i_ax + 1] + index_map_fanout[1][j1]];
+				}
+			}
+			aligned_free(index_map_fanin);
+			for (int i = 0; i < 2; i++) {
+				aligned_free(index_map_fanout[i]);
+			}
+		}
+
+		// copy block tensor entries
+		const long nslices = integer_product(br->dim, i_ax + 2);
+		long* index_slice_bt = aligned_calloc(MEM_DATA_ALIGN, i_ax + 1, sizeof(long));
+		long* index_slice_br = aligned_calloc(MEM_DATA_ALIGN, i_ax + 2, sizeof(long));
+		const long stride = integer_product(br->dim + (i_ax + 2), br->ndim - (i_ax + 2));
+		assert(stride == integer_product(bt->dim + (i_ax + 1), bt->ndim - (i_ax + 1)));
+		for (long j = 0; j < nslices; j++, next_tensor_index(i_ax + 2, br->dim, index_slice_br))
+		{
+			for (int i = 0; i < i_ax; i++) {
+				index_slice_bt[i] = index_slice_br[i];
+			}
+			index_slice_bt[i_ax] = index_map_block[index_slice_br[i_ax]*br->dim[i_ax + 1] + index_slice_br[i_ax + 1]];
+			const long l = tensor_index_to_offset(i_ax + 1, bt->dim, index_slice_bt);
+			// copy slice of entries
+			memcpy(br->data + j*stride, bt->data + l*stride, stride * sizeof(numeric));
+		}
+		aligned_free(index_slice_bt);
+		aligned_free(index_slice_br);
+
+		aligned_free(index_map_block);
+	}
+
+	aligned_free(index_block_t);
+	aligned_free(index_block_r);
+}
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', and store result in 'r'.
