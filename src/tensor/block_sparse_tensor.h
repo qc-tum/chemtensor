@@ -37,6 +37,8 @@ void allocate_block_sparse_tensor(const int ndim, const long* restrict dim, cons
 
 void delete_block_sparse_tensor(struct block_sparse_tensor* t);
 
+void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
+
 
 //________________________________________________________________________________________________________________________
 //
@@ -63,6 +65,8 @@ void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t);
 
 void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s);
+
+void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t, struct block_sparse_tensor* restrict s);
 
 
 //________________________________________________________________________________________________________________________

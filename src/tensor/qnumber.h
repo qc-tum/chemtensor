@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -11,6 +13,9 @@
 /// For half-integer quantum numbers like spins, we store the physical quantum number times 2 to avoid rounding issues.
 ///
 typedef int qnumber;
+
+
+bool qnumber_all_equal(const long n, const qnumber* restrict qnums0, const qnumber* restrict qnums1);
 
 
 //________________________________________________________________________________________________________________________

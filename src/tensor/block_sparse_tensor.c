@@ -203,6 +203,84 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Copy a block-sparse tensor, allocating memory for the copy.
+///
+void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst)
+{
+	const int ndim = src->ndim;
+	dst->ndim = ndim;
+
+	if (ndim == 0)  // special case
+	{
+		dst->dim_logical = NULL;
+		dst->dim_blocks  = NULL;
+
+		dst->axis_dir = NULL;
+
+		dst->qnums_logical = NULL;
+		dst->qnums_blocks  = NULL;
+
+		// allocate memory for a single block
+		dst->blocks = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor*));
+		dst->blocks[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		allocate_dense_tensor(0, NULL, dst->blocks[0]);
+		// copy single number
+		dst->blocks[0]->data[0] = src->blocks[0]->data[0];
+
+		return;
+	}
+
+	dst->dim_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	memcpy(dst->dim_blocks, src->dim_blocks, ndim * sizeof(long));
+
+	dst->dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+	memcpy(dst->dim_logical, src->dim_logical, ndim * sizeof(long));
+
+	dst->axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	memcpy(dst->axis_dir, src->axis_dir, ndim * sizeof(enum tensor_axis_direction));
+
+	dst->qnums_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		dst->qnums_blocks[i] = aligned_alloc(MEM_DATA_ALIGN, src->dim_blocks[i] * sizeof(qnumber));
+		memcpy(dst->qnums_blocks[i], src->qnums_blocks[i], src->dim_blocks[i] * sizeof(qnumber));
+	}
+
+	dst->qnums_logical = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		dst->qnums_logical[i] = aligned_alloc(MEM_DATA_ALIGN, src->dim_logical[i] * sizeof(qnumber));
+		memcpy(dst->qnums_logical[i], src->qnums_logical[i], src->dim_logical[i] * sizeof(qnumber));
+	}
+
+	// copy dense tensor blocks
+	const long nblocks = integer_product(src->dim_blocks, ndim);
+	dst->blocks = aligned_calloc(MEM_DATA_ALIGN, nblocks, sizeof(struct dense_tensor*));
+	long* index_block = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(ndim, src->dim_blocks, index_block))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < ndim; i++)
+		{
+			qsum += src->axis_dir[i] * src->qnums_blocks[i][index_block[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		assert(src->blocks[k] != NULL);
+
+		// allocate and copy dense tensor block
+		dst->blocks[k] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		copy_dense_tensor(src->blocks[k], dst->blocks[k]);
+	}
+	aligned_free(index_block);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Retrieve a dense block based on its quantum numbers.
 ///
 struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_tensor* t, const qnumber* qnums)
@@ -348,6 +426,24 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s)
 {
 	allocate_block_sparse_tensor(t->ndim, t->dim, axis_dir, qnums, s);
+
+	dense_to_block_sparse_tensor_entries(t, s);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Copy entries of a dense to an already allocated block-sparse tensor.
+///
+/// Entries in the dense tensor not adhering to the quantum number sparsity pattern are ignored.
+///
+void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t, struct block_sparse_tensor* restrict s)
+{
+	// dimensions must match
+	assert(t->ndim == s->ndim);
+	for (int i = 0; i < t->ndim; i++) {
+		assert(t->dim[i] == s->dim_logical[i]);
+	}
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(s->dim_blocks, s->ndim);
