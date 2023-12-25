@@ -24,7 +24,7 @@ struct mps
 
 // allocation and construction
 
-void allocate_mps(const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps);
+void allocate_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps);
 
 void delete_mps(struct mps* mps);
 

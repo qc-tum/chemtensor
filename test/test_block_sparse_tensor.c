@@ -1,5 +1,6 @@
 #include "block_sparse_tensor.h"
 #include "test_dense_tensor.h"
+#include "config.h"
 
 
 char* test_block_sparse_tensor_copy()
@@ -14,7 +15,7 @@ char* test_block_sparse_tensor_copy()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(4, dims, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 4, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -82,7 +83,7 @@ char* test_block_sparse_tensor_get_block()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(5, dims, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -169,13 +170,13 @@ char* test_block_sparse_tensor_transpose()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(4, dim, &t_dns);
+	allocate_dense_tensor(DOUBLE_REAL, 4, dim, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor t_tp_dns_ref;
 	const long dim_ref[4] = { 4, 7, 11, 5 };
-	allocate_dense_tensor(4, dim_ref, &t_tp_dns_ref);
+	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &t_tp_dns_ref);
 	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_DOUBLE, t_tp_dns_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -245,7 +246,7 @@ char* test_block_sparse_tensor_reshape()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(5, dim, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, dim, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -339,19 +340,19 @@ char* test_block_sparse_tensor_dot()
 	// read dense tensors from disk
 	struct dense_tensor s_dns;
 	const long sdim[5] = { 4, 11, 5, 7, 6 };
-	allocate_dense_tensor(5, sdim, &s_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, sdim, &s_dns);
 	if (read_hdf5_dataset(file, "s", H5T_NATIVE_DOUBLE, s_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor t_dns;
 	const long tdim[6] = { 5, 7, 6, 13, 3, 5 };
-	allocate_dense_tensor(6, tdim, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 6, tdim, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor r_dns_ref;
 	const long rdim_ref[5] = { 4, 11, 13, 3, 5 };
-	allocate_dense_tensor(5, rdim_ref, &r_dns_ref);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, rdim_ref, &r_dns_ref);
 	if (read_hdf5_dataset(file, "r", H5T_NATIVE_DOUBLE, r_dns_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}

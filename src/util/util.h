@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <hdf5.h>
-#include "config.h"
+#include "numeric.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -30,7 +30,7 @@ long integer_product(const long* x, const int n);
 //
 
 
-double uniform_distance(const long n, const numeric* restrict x, const numeric* restrict y);
+double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y);
 
 
 //________________________________________________________________________________________________________________________

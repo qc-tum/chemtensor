@@ -6,7 +6,6 @@
 #include <assert.h>
 #include "dense_tensor.h"
 #include "qnumber.h"
-#include "config.h"
 #include "util.h"
 
 
@@ -24,6 +23,7 @@ struct block_sparse_tensor
 	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
 	qnumber** qnums_blocks;                 //!< block quantum numbers along each dimension (must be sorted and pairwise different)
 	qnumber** qnums_logical;                //!< logical quantum numbers along each dimension (not necessarily sorted, can be duplicate)
+	enum numeric_type dtype;                //!< numeric data type
 	int ndim;                               //!< number of dimensions (degree)
 };
 
@@ -33,7 +33,7 @@ struct block_sparse_tensor
 
 // allocation and construction
 
-void allocate_block_sparse_tensor(const int ndim, const long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t);
+void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t);
 
 void delete_block_sparse_tensor(struct block_sparse_tensor* t);
 
@@ -52,7 +52,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 
 // in-place manipulation
 
-void scale_block_sparse_tensor(const double alpha, struct block_sparse_tensor* t);
+void scale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t);
 
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 

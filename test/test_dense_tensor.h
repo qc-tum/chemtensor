@@ -11,6 +11,11 @@
 ///
 static inline bool dense_tensor_allclose(const struct dense_tensor* s, const struct dense_tensor* t, double tol)
 {
+	// compare data types
+	if (s->dtype != t->dtype) {
+		return false;
+	}
+
 	// compare degrees
 	if (s->ndim != t->ndim) {
 		return false;
@@ -26,11 +31,8 @@ static inline bool dense_tensor_allclose(const struct dense_tensor* s, const str
 
 	// compare entries
 	const long nelem = dense_tensor_num_elements(s);
-	for (long j = 0; j < nelem; j++)
-	{
-		if (cabs(s->data[j] - t->data[j]) > tol) {
-			return false;
-		}
+	if (uniform_distance(s->dtype, nelem, s->data, t->data) > tol) {
+		return false;
 	}
 
 	return true;

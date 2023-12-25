@@ -1,18 +1,18 @@
 /// \file mps.c
 /// \brief Matrix product state (MPS) data structure.
 
-#include "mps.h"
-#include "util.h"
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
+#include "mps.h"
+#include "config.h"
 
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Allocate memory for a matrix product state. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
-void allocate_mps(const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps)
+void allocate_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -29,7 +29,7 @@ void allocate_mps(const int nsites, const long d, const qnumber* qsite, const lo
 		const long dim[3] = { d, dim_bonds[i], dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		const qnumber* qnums[3] = { qsite, qbonds[i], qbonds[i + 1] };
-		allocate_block_sparse_tensor(3, dim, axis_dir, qnums, &mps->a[i]);
+		allocate_block_sparse_tensor(dtype, 3, dim, axis_dir, qnums, &mps->a[i]);
 	}
 }
 

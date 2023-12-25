@@ -4,7 +4,7 @@
 #pragma once
 
 #include <assert.h>
-#include "config.h"
+#include "numeric.h"
 #include "util.h"
 
 
@@ -14,9 +14,10 @@
 ///
 struct dense_tensor
 {
-	numeric* data;  //!< data entries, array of size dim[0] x ... x dim[ndim-1]
-	long* dim;      //!< dimensions (width, height, ...)
-	int ndim;       //!< number of dimensions (degree)
+	void* data;               //!< data entries, array of dimension dim[0] x ... x dim[ndim-1]
+	long* dim;                //!< dimensions (width, height, ...)
+	enum numeric_type dtype;  //!< numeric data type
+	int ndim;                 //!< number of dimensions (degree)
 };
 
 
@@ -25,7 +26,7 @@ struct dense_tensor
 
 // allocation and construction
 
-void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* restrict t);
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, struct dense_tensor* restrict t);
 
 void delete_dense_tensor(struct dense_tensor* t);
 
@@ -91,7 +92,7 @@ static inline void next_tensor_index(const int ndim, const long* restrict dim, l
 
 // trace
 
-numeric dense_tensor_trace(const struct dense_tensor* t);
+void dense_tensor_trace(const struct dense_tensor* t, void* ret);
 
 
 //________________________________________________________________________________________________________________________
@@ -99,9 +100,11 @@ numeric dense_tensor_trace(const struct dense_tensor* t);
 
 // in-place manipulation
 
-void scale_dense_tensor(const double alpha, struct dense_tensor* t);
+void scale_dense_tensor(const void* alpha, struct dense_tensor* t);
 
-void reshape_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* restrict t);
+void rscale_dense_tensor(const void* alpha, struct dense_tensor* t);
+
+void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* t);
 
 void conjugate_dense_tensor(struct dense_tensor* t);
 
@@ -123,11 +126,11 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 // binary operations
 
-void dense_tensor_scalar_multiply_add(const numeric alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
+void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
 
 void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r);
 
-void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const numeric beta);
+void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta);
 
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
 

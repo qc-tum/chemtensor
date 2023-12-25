@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <memory.h>
+#include <complex.h>
 #include <assert.h>
 #include "util.h"
 
@@ -16,8 +17,7 @@ long integer_product(const long* x, const int n)
 	assert(n >= 0); // n == 0 is still reasonable
 
 	long prod = 1;
-	int i;
-	for (i = 0; i < n; i++)
+	for (int i = 0; i < n; i++)
 	{
 		prod *= x[i];
 	}
@@ -30,15 +30,63 @@ long integer_product(const long* x, const int n)
 ///
 /// \brief Uniform distance (infinity norm) between 'x' and 'y'.
 ///
-double uniform_distance(const long n, const numeric* restrict x, const numeric* restrict y)
+/// The result is cast to double format (even if the actual entries are of single precision).
+///
+double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y)
 {
-	double d = 0;
-	for (long i = 0; i < n; i++)
+	switch (dtype)
 	{
-		d = fmax(d, cabs(x[i] - y[i]));
+		case SINGLE_REAL:
+		{
+			const float* xv = x;
+			const float* yv = y;
+			float d = 0;
+			for (long i = 0; i < n; i++)
+			{
+				d = fmaxf(d, fabsf(xv[i] - yv[i]));
+			}
+			return d;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* xv = x;
+			const double* yv = y;
+			double d = 0;
+			for (long i = 0; i < n; i++)
+			{
+				d = fmax(d, fabs(xv[i] - yv[i]));
+			}
+			return d;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* xv = x;
+			const scomplex* yv = y;
+			float d = 0;
+			for (long i = 0; i < n; i++)
+			{
+				d = fmaxf(d, cabsf(xv[i] - yv[i]));
+			}
+			return d;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* xv = x;
+			const dcomplex* yv = y;
+			double d = 0;
+			for (long i = 0; i < n; i++)
+			{
+				d = fmax(d, cabs(xv[i] - yv[i]));
+			}
+			return d;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
 	}
-
-	return d;
 }
 
 

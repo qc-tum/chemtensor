@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>
-#include <complex.h>
-
-
-typedef double complex numeric;
 
 
 #define MEM_DATA_ALIGN 64

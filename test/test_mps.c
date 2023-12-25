@@ -1,5 +1,6 @@
 #include "mps.h"
 #include "test_dense_tensor.h"
+#include "config.h"
 
 
 char* test_mps_to_statevector()
@@ -34,7 +35,7 @@ char* test_mps_to_statevector()
 	}
 
 	struct mps mps;
-	allocate_mps(nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+	allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -43,7 +44,7 @@ char* test_mps_to_statevector()
 
 		// read dense tensors from disk
 		struct dense_tensor a_dns;
-		allocate_dense_tensor(3, dims, &a_dns);
+		allocate_dense_tensor(DOUBLE_COMPLEX, 3, dims, &a_dns);
 		char varname[1024];
 		sprintf(varname, "a%i", i);
 		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
@@ -76,7 +77,7 @@ char* test_mps_to_statevector()
 	// read reference state vector from disk
 	struct dense_tensor vec_ref;
 	const long dim_vec_ref[3] = { 243, 1, 1 };  // include dummy virtual bond dimensions
-	allocate_dense_tensor(3, dim_vec_ref, &vec_ref);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_vec_ref, &vec_ref);
 	if (read_hdf5_dataset(file, "vec", H5T_NATIVE_DOUBLE, vec_ref.data) < 0) {
 		return "reading state vector entries from disk failed";
 	}

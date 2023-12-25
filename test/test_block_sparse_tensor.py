@@ -87,7 +87,7 @@ def block_sparse_tensor_transpose_data():
     qnums = [rng.integers(-2, 3, size=d) for d in dims]
 
     # tensor with random entries
-    t = crandn(dims, rng)
+    t = rng.standard_normal(dims)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -99,8 +99,8 @@ def block_sparse_tensor_transpose_data():
     t_tp = np.transpose(t, (1, 3, 2, 0))
 
     with h5py.File("data/test_block_sparse_tensor_transpose.hdf5", "w") as file:
-        file["t"]    = interleave_complex(t)
-        file["t_tp"] = interleave_complex(t_tp)
+        file["t"]    = t
+        file["t_tp"] = t_tp
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn

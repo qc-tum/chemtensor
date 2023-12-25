@@ -1,18 +1,22 @@
 /// \file dense_tensor.c
 /// \brief Dense tensor structure, using row-major storage convention.
 
+#include <stdbool.h>
 #include <memory.h>
+#include <complex.h>
 #include <cblas.h>
 #include "dense_tensor.h"
-#include "util.h"
+#include "config.h"
 
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Allocate memory for a dense tensor, and initialize the data entries with zeros.
 ///
-void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* restrict t)
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, struct dense_tensor* restrict t)
 {
+	t->dtype = dtype;
+
 	assert(ndim >= 0);
 	t->ndim = ndim;
 
@@ -20,22 +24,18 @@ void allocate_dense_tensor(const int ndim, const long* restrict dim, struct dens
 	{
 		t->dim = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
 		memcpy(t->dim, dim, ndim * sizeof(long));
-
-		const long nelem = dense_tensor_num_elements(t);
-		// dimensions must be strictly positive
-		assert(nelem > 0);
-		t->data = aligned_calloc(MEM_DATA_ALIGN, nelem, sizeof(numeric));
-		assert(t->data != NULL);
 	}
 	else    // ndim == 0
 	{
 		// aligned_alloc(MEM_DATA_ALIGN, 0) not guaranteed to return NULL
 		t->dim = NULL;
-
-		// allocate memory for a single number
-		t->data = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(numeric));
-		assert(t->data != NULL);
 	}
+
+	const long nelem = dense_tensor_num_elements(t);
+	// dimensions must be strictly positive
+	assert(nelem > 0);
+	t->data = aligned_calloc(MEM_DATA_ALIGN, nelem, sizeof_numeric_type(dtype));
+	assert(t->data != NULL);
 }
 
 
@@ -62,13 +62,13 @@ void delete_dense_tensor(struct dense_tensor* t)
 ///
 void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_tensor* restrict dst)
 {
-	allocate_dense_tensor(src->ndim, src->dim, dst);
+	allocate_dense_tensor(src->dtype, src->ndim, src->dim, dst);
 
 	const long nelem = dense_tensor_num_elements(src);
 
 	////assume_aligned(src->data);
 	////assume_aligned(dst->data);
-	memcpy(dst->data, src->data, nelem * sizeof(numeric));
+	memcpy(dst->data, src->data, nelem * sizeof_numeric_type(src->dtype));
 }
 
 
@@ -78,6 +78,8 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 ///
 void move_dense_tensor_data(struct dense_tensor* restrict src, struct dense_tensor* restrict dst)
 {
+	dst->dtype = src->dtype;
+
 	dst->ndim = src->ndim;
 
 	// move dimension pointers
@@ -94,7 +96,7 @@ void move_dense_tensor_data(struct dense_tensor* restrict src, struct dense_tens
 ///
 /// \brief Compute the 'trace' of a tensor (generalization of the matrix trace); all dimensions of the tensor must agree.
 ///
-numeric dense_tensor_trace(const struct dense_tensor* t)
+void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 {
 	assert(t->ndim >= 1);
 	const long n = t->dim[0];
@@ -109,23 +111,132 @@ numeric dense_tensor_trace(const struct dense_tensor* t)
 		stride += dp;
 	}
 
-	numeric tr = 0;
-	for (long j = 0; j < n; j++)
+	switch (t->dtype)
 	{
-		tr += t->data[j * stride];
+		case SINGLE_REAL:
+		{
+			float tr = 0;
+			const float* data = t->data;
+			for (long j = 0; j < n; j++)
+			{
+				tr += data[j * stride];
+			}
+			*((float*)ret) = tr;
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			double tr = 0;
+			const double* data = t->data;
+			for (long j = 0; j < n; j++)
+			{
+				tr += data[j * stride];
+			}
+			*((double*)ret) = tr;
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex tr = 0;
+			const scomplex* data = t->data;
+			for (long j = 0; j < n; j++)
+			{
+				tr += data[j * stride];
+			}
+			*((scomplex*)ret) = tr;
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex tr = 0;
+			const dcomplex* data = t->data;
+			for (long j = 0; j < n; j++)
+			{
+				tr += data[j * stride];
+			}
+			*((dcomplex*)ret) = tr;
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
 	}
-
-	return tr;
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Scale tensor t by alpha.
+/// \brief Scale tensor 't' by 'alpha', which must be of the same data type as the tensor entries.
 ///
-void scale_dense_tensor(const double alpha, struct dense_tensor* t)
+void scale_dense_tensor(const void* alpha, struct dense_tensor* t)
 {
-	cblas_zdscal(dense_tensor_num_elements(t), alpha, t->data, 1);
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			cblas_sscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			cblas_dscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			cblas_cscal(dense_tensor_num_elements(t), alpha, t->data, 1);
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			cblas_zscal(dense_tensor_num_elements(t), alpha, t->data, 1);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Scale tensor 't' by a real number 'alpha', which must be of the same precision as the tensor entries.
+///
+void rscale_dense_tensor(const void* alpha, struct dense_tensor* t)
+{
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			cblas_sscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			cblas_dscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			cblas_csscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			cblas_zdscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
 }
 
 
@@ -133,7 +244,7 @@ void scale_dense_tensor(const double alpha, struct dense_tensor* t)
 ///
 /// \brief Reshape dimensions, i.e., interpret as tensor of different dimension with the same number of elements.
 ///
-void reshape_dense_tensor(const int ndim, const long* restrict dim, struct dense_tensor* t)
+void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* t)
 {
 	// consistency check: number of elements must not change
 	assert(integer_product(dim, ndim) == dense_tensor_num_elements(t));
@@ -148,14 +259,45 @@ void reshape_dense_tensor(const int ndim, const long* restrict dim, struct dense
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Elementwise conjugation of a dense tensor.
+/// \brief Elementwise complex conjugation of a dense tensor.
+///
+/// Function has no effect if entries are real-valued.
 ///
 void conjugate_dense_tensor(struct dense_tensor* t)
 {
-	const long nelem = dense_tensor_num_elements(t);
-	for (long i = 0; i < nelem; i++)
+	switch (t->dtype)
 	{
-		t->data[i] = conj(t->data[i]);
+		case SINGLE_REAL:
+		case DOUBLE_REAL:
+		{
+			// no effect
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const long nelem = dense_tensor_num_elements(t);
+			scomplex* data = t->data;
+			for (long i = 0; i < nelem; i++)
+			{
+				data[i] = conjf(data[i]);
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const long nelem = dense_tensor_num_elements(t);
+			dcomplex* data = t->data;
+			for (long i = 0; i < nelem; i++)
+			{
+				data[i] = conj(data[i]);
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
 	}
 }
 
@@ -180,10 +322,53 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 	}
 	assert(dense_tensor_num_elements(t) == n*dp);
 
-	memset(t->data, 0, n*dp * sizeof(numeric));
-	for (long j = 0; j < n; j++)
+	switch (t->dtype)
 	{
-		t->data[j*stride] = 1;
+		case SINGLE_REAL:
+		{
+			float* data = t->data;
+			memset(data, 0, n*dp * sizeof(float));
+			for (long j = 0; j < n; j++)
+			{
+				data[j*stride] = 1;
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			double* data = t->data;
+			memset(data, 0, n*dp * sizeof(double));
+			for (long j = 0; j < n; j++)
+			{
+				data[j*stride] = 1;
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex* data = t->data;
+			memset(data, 0, n*dp * sizeof(scomplex));
+			for (long j = 0; j < n; j++)
+			{
+				data[j*stride] = 1;
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex* data = t->data;
+			memset(data, 0, n*dp * sizeof(dcomplex));
+			for (long j = 0; j < n; j++)
+			{
+				data[j*stride] = 1;
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
 	}
 }
 
@@ -198,6 +383,14 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
 	// TODO: consider using an optimized library like https://github.com/springer13/hptt
+
+	if (t->ndim == 0)
+	{
+		allocate_dense_tensor(t->dtype, 0, NULL, r);
+		// copy single scalar entry
+		memcpy(r->data, t->data, sizeof_numeric_type(t->dtype));
+		return;
+	}
 
 	// ensure that 'perm' is a valid permutation
 	int* ax_list = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(int));
@@ -218,7 +411,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 		rdim[i] = t->dim[perm[i]];
 	}
 	// create new tensor 'r'
-	allocate_dense_tensor(t->ndim, rdim, r);
+	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
 	aligned_free(rdim);
 
 	// stride (offset between successive elements) in new tensor 'r' corresponding to original last axis
@@ -248,12 +441,65 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 
 		// main copy loop
 		const long n = t->dim[t->ndim - 1];
-		////assume_aligned(t->data);
-		////assume_aligned(r->data);
-		#pragma ivdep
-		for (long j = 0; j < n; j++)
+		switch (t->dtype)
 		{
-			r->data[or + j*stride] = t->data[ot + j];
+			case SINGLE_REAL:
+			{
+				const float* tdata = (const float*)t->data + ot;
+				float*       rdata =       (float*)r->data + or;
+				////assume_aligned(tdata);
+				////assume_aligned(rdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					rdata[j*stride] = tdata[j];
+				}
+				break;
+			}
+			case DOUBLE_REAL:
+			{
+				const double* tdata = (const double*)t->data + ot;
+				double*       rdata =       (double*)r->data + or;
+				////assume_aligned(tdata);
+				////assume_aligned(rdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					rdata[j*stride] = tdata[j];
+				}
+				break;
+			}
+			case SINGLE_COMPLEX:
+			{
+				const scomplex* tdata = (const scomplex*)t->data + ot;
+				scomplex*       rdata =       (scomplex*)r->data + or;
+				////assume_aligned(tdata);
+				////assume_aligned(rdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					rdata[j*stride] = tdata[j];
+				}
+				break;
+			}
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex* tdata = (const dcomplex*)t->data + ot;
+				dcomplex*       rdata =       (dcomplex*)r->data + or;
+				////assume_aligned(tdata);
+				////assume_aligned(rdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					rdata[j*stride] = tdata[j];
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
 		}
 
 		// advance index of tensor 't' by t->dim[t->ndim - 1] elements
@@ -282,16 +528,47 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions of s and t must agree.
+/// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions and data types of s and t must agree,
+/// and alpha must be of the same data type as tensor entries.
 ///
-void dense_tensor_scalar_multiply_add(const numeric alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t)
+void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t)
 {
+	// data types must agree
+	assert(s->dtype == t->dtype);
+
 	const long nelem = dense_tensor_num_elements(s);
 
 	assert(s->ndim == t->ndim);
 	assert(nelem == dense_tensor_num_elements(t));
 
-	cblas_zaxpy((int)nelem, &alpha, s->data, 1, t->data, 1);
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			cblas_saxpy(nelem, *((float*)alpha), s->data, 1, t->data, 1);
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			cblas_daxpy(nelem, *((double*)alpha), s->data, 1, t->data, 1);
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			cblas_caxpy(nelem, alpha, s->data, 1, t->data, 1);
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			cblas_zaxpy(nelem, alpha, s->data, 1, t->data, 1);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
 }
 
 
@@ -303,6 +580,9 @@ void dense_tensor_scalar_multiply_add(const numeric alpha, const struct dense_te
 ///
 void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r)
 {
+	// data types must agree
+	assert(s->dtype == t->dtype);
+
 	assert(ndim_mult >= 1);
 	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
 	for (int i = 0; i < ndim_mult; i++)
@@ -321,57 +601,52 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 		rdim[s->ndim + i - 2*ndim_mult] = t->dim[i];
 	}
 	// create new tensor 'r'
-	allocate_dense_tensor(s->ndim + t->ndim - 2*ndim_mult, rdim, r);
+	allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2*ndim_mult, rdim, r);
 	aligned_free(rdim);
 
 	// leading dimension of 's' as a matrix
 	const long lds = integer_product(s->dim, s->ndim - ndim_mult);
 	// trailing dimension of 's' as a matrix
 	const long tds = integer_product(&s->dim[s->ndim - ndim_mult], ndim_mult);
-	// overall number of entries in 's'
-	const long nelem_s = lds * tds;
 
 	// leading dimension of 't' as a matrix
 	const long ldt = integer_product(t->dim, ndim_mult);
 	// trailing dimension of 't' as a matrix
 	const long tdt = integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult);
-	// overall number of entries in 't'
-	const long nelem_t = ldt * tdt;
 
 	assert(tds == ldt);
 
-	if (lds == 1)
+	// matrix-matrix multiplication
+	switch (s->dtype)
 	{
-		if (tdt == 1)
+		case SINGLE_REAL:
 		{
-			// inner product of two vectors
-			assert(nelem_s == nelem_t);
-			assert(dense_tensor_num_elements(r) == 1);
-			cblas_zdotu_sub((int)nelem_s, s->data, 1, t->data, 1, &r->data[0]);
+			cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, 1.f, s->data, tds, t->data, tdt, 0.f, r->data, tdt);
+			break;
 		}
-		else    // tdt > 1
+		case DOUBLE_REAL:
 		{
-			// multiply vector 's' from left, i.e., (t^T * s)^T
-			const numeric one  = 1;
-			const numeric zero = 0;
-			cblas_zgemv(CblasRowMajor, CblasTrans, (int)ldt, (int)tdt, &one, t->data, (int)tdt, s->data, 1, &zero, r->data, 1);
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, 1.0, s->data, tds, t->data, tdt, 0.0, r->data, tdt);
+			break;
 		}
-	}
-	else    // lds > 1
-	{
-		if (tdt == 1)
+		case SINGLE_COMPLEX:
 		{
-			// matrix-vector multiplication
-			const numeric one  = 1;
-			const numeric zero = 0;
-			cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)lds, (int)ldt, &one, s->data, (int)tds, t->data, 1, &zero, r->data, 1);
+			const scomplex one  = 1;
+			const scomplex zero = 0;
+			cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, &one, s->data, tds, t->data, tdt, &zero, r->data, tdt);
+			break;
 		}
-		else    // tdt > 1
+		case DOUBLE_COMPLEX:
 		{
-			// matrix-matrix multiplication
-			const numeric one  = 1;
-			const numeric zero = 0;
-			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, (int)lds, (int)tdt, (int)ldt, &one, s->data, (int)tds, t->data, (int)tdt, &zero, r->data, (int)tdt);
+			const dcomplex one  = 1;
+			const dcomplex zero = 0;
+			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, &one, s->data, tds, t->data, tdt, &zero, r->data, tdt);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }
@@ -384,8 +659,11 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 ///
 /// Assuming that 'r' has the appropriate dimensions.
 ///
-void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const numeric beta)
+void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta)
 {
+	// data types must agree
+	assert(s->dtype == t->dtype);
+
 	assert(ndim_mult >= 1);
 	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
 	for (int i = 0; i < ndim_mult; i++)
@@ -405,46 +683,41 @@ void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* res
 	const long lds = integer_product(s->dim, s->ndim - ndim_mult);
 	// trailing dimension of 's' as a matrix
 	const long tds = integer_product(&s->dim[s->ndim - ndim_mult], ndim_mult);
-	// overall number of entries in 's'
-	const long nelem_s = lds * tds;
 
 	// leading dimension of 't' as a matrix
 	const long ldt = integer_product(t->dim, ndim_mult);
 	// trailing dimension of 't' as a matrix
 	const long tdt = integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult);
-	// overall number of entries in 't'
-	const long nelem_t = ldt * tdt;
 
 	assert(tds == ldt);
 
-	if (lds == 1)
+	// matrix-matrix multiplication
+	switch (s->dtype)
 	{
-		if (tdt == 1)
+		case SINGLE_REAL:
 		{
-			// inner product of two vectors
-			assert(nelem_s == nelem_t);
-			assert(dense_tensor_num_elements(r) == 1);
-			numeric u = 0;
-			cblas_zdotu_sub((int)nelem_s, s->data, 1, t->data, 1, &u);
-			r->data[0] = alpha * u + beta * r->data[0];
+			cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, *((float*)alpha), s->data, tds, t->data, tdt, *((float*)beta), r->data, tdt);
+			break;
 		}
-		else    // tdt > 1
+		case DOUBLE_REAL:
 		{
-			// multiply vector 's' from left, i.e., (t^T * s)^T
-			cblas_zgemv(CblasRowMajor, CblasTrans, (int)ldt, (int)tdt, &alpha, t->data, (int)tdt, s->data, 1, &beta, r->data, 1);
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, *((double*)alpha), s->data, tds, t->data, tdt, *((double*)beta), r->data, tdt);
+			break;
 		}
-	}
-	else    // lds > 1
-	{
-		if (tdt == 1)
+		case SINGLE_COMPLEX:
 		{
-			// matrix-vector multiplication
-			cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)lds, (int)ldt, &alpha, s->data, (int)tds, t->data, 1, &beta, r->data, 1);
+			cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, alpha, s->data, tds, t->data, tdt, beta, r->data, tdt);
+			break;
 		}
-		else    // tdt > 1
+		case DOUBLE_COMPLEX:
 		{
-			// matrix-matrix multiplication
-			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, (int)lds, (int)tdt, (int)ldt, &alpha, s->data, (int)tds, t->data, (int)tdt, &beta, r->data, (int)tdt);
+			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, alpha, s->data, tds, t->data, tdt, beta, r->data, tdt);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }
@@ -456,8 +729,60 @@ void dense_tensor_dot_update(const numeric alpha, const struct dense_tensor* res
 ///
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
+	// data types must agree
+	assert(s->dtype == t->dtype);
+
 	// tensors must have the same degree
 	assert(s->ndim == t->ndim);
+
+	if (s->ndim == 0)
+	{
+		allocate_dense_tensor(s->dtype, 0, NULL, r);
+
+		// multiply single scalar entries
+		switch (s->dtype)
+		{
+			case SINGLE_REAL:
+			{
+				const float* sdata = s->data;
+				const float* tdata = t->data;
+				float*       rdata = r->data;
+				rdata[0] = sdata[0] * tdata[0];
+				break;
+			}
+			case DOUBLE_REAL:
+			{
+				const double* sdata = s->data;
+				const double* tdata = t->data;
+				double*       rdata = r->data;
+				rdata[0] = sdata[0] * tdata[0];
+				break;
+			}
+			case SINGLE_COMPLEX:
+			{
+				const scomplex* sdata = s->data;
+				const scomplex* tdata = t->data;
+				scomplex*       rdata = r->data;
+				rdata[0] = sdata[0] * tdata[0];
+				break;
+			}
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex* sdata = s->data;
+				const dcomplex* tdata = t->data;
+				dcomplex*       rdata = r->data;
+				rdata[0] = sdata[0] * tdata[0];
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
+
+		return;
+	}
 
 	// interleave dimensions of 's' and 't'
 	long* rdim_il = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim) * sizeof(long));
@@ -466,7 +791,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		rdim_il[2*i  ] = s->dim[i];
 		rdim_il[2*i+1] = t->dim[i];
 	}
-	allocate_dense_tensor(s->ndim + t->ndim, rdim_il, r);
+	allocate_dense_tensor(s->dtype, s->ndim + t->ndim, rdim_il, r);
 	aligned_free(rdim_il);
 
 	long* index_s = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
@@ -478,7 +803,8 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 
 	const long nelem = dense_tensor_num_elements(r);
 
-	for (long or = 0; or < nelem; or += last_dim_s*last_dim_t)
+	// advance index of tensor 'r' by last_dim_s*last_dim_t elements in each iteration
+	for (long or = 0; or < nelem; or += last_dim_s*last_dim_t, next_tensor_index(r->ndim - 2, r->dim, index_r))
 	{
 		// decode indices for 's' and 't'
 		for (int i = 0; i < s->ndim; i++)
@@ -490,11 +816,36 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		const long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 
 		// outer product; r->data must have been initialized with zeros
-		const numeric one = 1;
-		cblas_zgeru(CblasRowMajor, (int)last_dim_s, (int)last_dim_t, &one, s->data + os, 1, t->data + ot, 1, r->data + or, (int)last_dim_t);
-
-		// advance index of tensor 'r' by last_dim_s*last_dim_t elements
-		next_tensor_index(r->ndim - 2, r->dim, index_r);
+		switch (s->dtype)
+		{
+			case SINGLE_REAL:
+			{
+				cblas_sger(CblasRowMajor, last_dim_s, last_dim_t, 1.f, (const float*)s->data + os, 1, (const float*)t->data + ot, 1, (float*)r->data + or, last_dim_t);
+				break;
+			}
+			case DOUBLE_REAL:
+			{
+				cblas_dger(CblasRowMajor, last_dim_s, last_dim_t, 1.0, (const double*)s->data + os, 1, (const double*)t->data + ot, 1, (double*)r->data + or, last_dim_t);
+				break;
+			}
+			case SINGLE_COMPLEX:
+			{
+				const scomplex one = 1;
+				cblas_cgeru(CblasRowMajor, last_dim_s, last_dim_t, &one, (const scomplex*)s->data + os, 1, (const scomplex*)t->data + ot, 1, (scomplex*)r->data + or, last_dim_t);
+				break;
+			}
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex one = 1;
+				cblas_zgeru(CblasRowMajor, last_dim_s, last_dim_t, &one, (const dcomplex*)s->data + os, 1, (const dcomplex*)t->data + ot, 1, (dcomplex*)r->data + or, last_dim_t);
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
 	}
 
 	aligned_free(index_r);
@@ -519,18 +870,20 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 ///
 void dense_tensor_block(const struct dense_tensor* restrict t, const long* restrict bdim, const long* restrict* idx, struct dense_tensor* restrict b)
 {
-	// create new tensor 'b'; degree agrees with 't'
-	allocate_dense_tensor(t->ndim, bdim, b);
+	// create new tensor 'b' of same data type and degree as 't'
+	allocate_dense_tensor(t->dtype, t->ndim, bdim, b);
+
 	if (t->ndim == 0)
 	{
-		b->data[0] = t->data[0];
+		// copy single scalar entry
+		memcpy(b->data, t->data, sizeof_numeric_type(t->dtype));
 		return;
 	}
 
 	const long nelem = dense_tensor_num_elements(b);
 
-	long *index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long *index_b = aligned_calloc(MEM_DATA_ALIGN, b->ndim, sizeof(long));
+	long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_b = aligned_calloc(MEM_DATA_ALIGN, b->ndim, sizeof(long));
 
 	// map first index of tensor 'b' to index of tensor 't', except for last dimension (will be handled in copy loop)
 	for (int i = 0; i < t->ndim - 1; i++)
@@ -543,17 +896,70 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 
 	const long* last_idx = idx[b->ndim - 1];
 
-	for (long os = 0; os < nelem; os += b->dim[b->ndim - 1])
+	for (long ob = 0; ob < nelem; ob += b->dim[b->ndim - 1])
 	{
 		// main copy loop along last dimension
 		// (treating last dimension separately to avoid calling index conversion function for each single element)
 		const long n = b->dim[b->ndim - 1];
-		////assume_aligned(t->data);
-		////assume_aligned(b->data);
-		#pragma ivdep
-		for (long j = 0; j < n; j++)
+		switch (t->dtype)
 		{
-			b->data[os + j] = t->data[ot + last_idx[j]];
+			case SINGLE_REAL:
+			{
+				const float* tdata = (const float*)t->data + ot;
+				float*       bdata =       (float*)b->data + ob;
+				////assume_aligned(tdata);
+				////assume_aligned(bdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					bdata[j] = tdata[last_idx[j]];
+				}
+				break;
+			}
+			case DOUBLE_REAL:
+			{
+				const double* tdata = (const double*)t->data + ot;
+				double*       bdata =       (double*)b->data + ob;
+				////assume_aligned(tdata);
+				////assume_aligned(bdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					bdata[j] = tdata[last_idx[j]];
+				}
+				break;
+			}
+			case SINGLE_COMPLEX:
+			{
+				const scomplex* tdata = (const scomplex*)t->data + ot;
+				scomplex*       bdata =       (scomplex*)b->data + ob;
+				////assume_aligned(tdata);
+				////assume_aligned(bdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					bdata[j] = tdata[last_idx[j]];
+				}
+				break;
+			}
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex* tdata = (const dcomplex*)t->data + ot;
+				dcomplex*       bdata =       (dcomplex*)b->data + ob;
+				////assume_aligned(tdata);
+				////assume_aligned(bdata);
+				#pragma ivdep
+				for (long j = 0; j < n; j++)
+				{
+					bdata[j] = tdata[last_idx[j]];
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
 		}
 
 		// advance index of tensor 'b' by b->dim[b->ndim - 1] elements
