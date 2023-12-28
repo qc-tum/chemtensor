@@ -1,6 +1,7 @@
 #include <complex.h>
 #include "dense_tensor.h"
 #include "test_dense_tensor.h"
+#include "config.h"
 
 
 char* test_dense_tensor_trace()
@@ -304,6 +305,85 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 	delete_dense_tensor(&r);
 	delete_dense_tensor(&t);
 	delete_dense_tensor(&s);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_dense_tensor_qr()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_qr failed";
+	}
+
+	const enum numeric_type dtypes[4] = { SINGLE_REAL, DOUBLE_REAL, SINGLE_COMPLEX, DOUBLE_COMPLEX };
+
+	// cases m >= n and m < n
+	for (int i = 0; i < 2; i++)
+	{
+		// data types
+		for (int j = 0; j < 4; j++)
+		{
+			const double tol = (j % 2 == 0 ? 1e-6 : 1e-13);
+
+			// matrix 'a'
+			struct dense_tensor a;
+			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
+			allocate_dense_tensor(dtypes[j], 2, dim, &a);
+			// read values from disk
+			char varname[1024];
+			sprintf(varname, "a_s%i_t%i", i, j);
+			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+
+			// perform QR decomposition
+			struct dense_tensor q, r;
+			dense_tensor_qr(&a, &q, &r);
+
+			// matrix product 'q r' must be equal to 'a'
+			struct dense_tensor qr;
+			dense_tensor_dot(&q, &r, 1, &qr);
+			if (!dense_tensor_allclose(&qr, &a, tol)) {
+				return "matrix product Q R is not equal to original A matrix";
+			}
+			delete_dense_tensor(&qr);
+
+			// 'q' must be an isometry
+			struct dense_tensor qh;
+			const int perm[2] = { 1, 0 };
+			conjugate_transpose_dense_tensor(perm, &q, &qh);
+			struct dense_tensor qhq;
+			dense_tensor_dot(&qh, &q, 1, &qhq);
+			struct dense_tensor id;
+			const long dim_id[2] = { q.dim[1], q.dim[1] };
+			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
+			dense_tensor_set_identity(&id);
+			if (!dense_tensor_allclose(&qhq, &id, tol)) {
+				return "Q matrix is not an isometry";
+			}
+			delete_dense_tensor(&id);
+			delete_dense_tensor(&qhq);
+			delete_dense_tensor(&qh);
+
+			// 'r' must be upper triangular
+			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
+			void* zero_vec = aligned_calloc(MEM_DATA_ALIGN, k, sizeof_numeric_type(r.dtype));
+			for (long l = 0; l < k; l++) {
+				if (uniform_distance(r.dtype, l, (char*)r.data + (l*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
+					return "R matrix is not upper triangular";
+				}
+			}
+			aligned_free(zero_vec);
+
+			delete_dense_tensor(&r);
+			delete_dense_tensor(&q);
+			delete_dense_tensor(&a);
+		}
+	}
 
 	H5Fclose(file);
 

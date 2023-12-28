@@ -102,6 +102,31 @@ def dense_tensor_kronecker_product_degree_zero_data():
         file["r"] = interleave_complex(r)
 
 
+def dense_tensor_qr_data():
+
+    # random number generator
+    rng = np.random.default_rng(317)
+
+    sizes = [(11, 7), (5, 13)]
+
+    with h5py.File("data/test_dense_tensor_qr.hdf5", "w") as file:
+        for i, size in enumerate(sizes):
+            for j in range(4):
+                if j == 0:
+                    # single precision real
+                    a = rng.standard_normal(size).astype(np.float32)
+                elif j == 1:
+                    # double precision real
+                    a = rng.standard_normal(size)
+                elif j == 2:
+                    # single precision complex
+                    a = crandn(size, rng).astype(np.complex64)
+                else:
+                    # double precision complex
+                    a = crandn(size, rng)
+                file[f"a_s{i}_t{j}"] = a if j < 2 else interleave_complex(a)
+
+
 def dense_tensor_block_data():
 
     # random number generator
@@ -127,6 +152,7 @@ def main():
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()
     dense_tensor_kronecker_product_degree_zero_data()
+    dense_tensor_qr_data()
     dense_tensor_block_data()
 
 

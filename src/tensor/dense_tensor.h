@@ -138,6 +138,16 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 //________________________________________________________________________________________________________________________
 //
 
+// QR decomposition
+
+int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+
+int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // extract a sub-block
 
 void dense_tensor_block(const struct dense_tensor* restrict t, const long* restrict sdim, const long* restrict* idx, struct dense_tensor* restrict r);

@@ -1258,3 +1258,157 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 	aligned_free(index_block_t);
 	aligned_free(index_block_s);
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Minimum of two integers.
+///
+static inline long minl(const long a, const long b)
+{
+	if (a <= b) {
+		return a;
+	}
+	else {
+		return b;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the logical QR decomposition of a block-sparse matrix.
+///
+/// The logical quantum numbers of the axis connecting Q and R will be sorted.
+/// The logical R matrix is upper-triangular after sorting its second dimension by quantum numbers.
+///
+int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r)
+{
+	// require a matrix
+	assert(a->ndim == 2);
+
+	// determine dimensions and quantum numbers of intermediate axis connecting Q and R,
+	// and allocate Q and R matrices
+
+	long dim_interm = 0;
+
+	// allocating array of maximum possible length
+	qnumber* qnums_interm = aligned_calloc(MEM_DATA_ALIGN, a->dim_logical[1], sizeof(qnumber));
+
+	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
+	for (long j = 0; j < a->dim_blocks[1]; j++)
+	{
+		for (long i = 0; i < a->dim_blocks[0]; i++)
+		{
+			// probe whether quantum numbers sum to zero
+			qnumber qsum = a->axis_dir[0] * a->qnums_blocks[0][i] + a->axis_dir[1] * a->qnums_blocks[1][j];
+			if (qsum != 0) {
+				continue;
+			}
+
+			const struct dense_tensor* b = a->blocks[i*a->dim_blocks[1] + j];
+			assert(b != NULL);
+			assert(b->ndim == 2);
+			assert(b->dtype == a->dtype);
+
+			const long k = minl(b->dim[0], b->dim[1]);
+
+			// append a sequence of logical quantum numbers of length k
+			for (long l = 0; l < k; l++) {
+				qnums_interm[dim_interm + l] = a->qnums_blocks[1][j];
+			}
+			dim_interm += k;
+		}
+	}
+	assert(dim_interm <= a->dim_logical[1]);
+
+	bool create_dummy_qr = false;
+
+	if (dim_interm == 0)
+	{
+		// special case: 'a' does not contain any non-zero blocks
+		// -> create dummy 'q' and 'r' matrices
+		create_dummy_qr = true;
+		dim_interm = 1;
+
+		// use first block quantum number in 'a' to create a non-zero entry in 'q'
+		const qnumber qnum_ax0 = a->qnums_blocks[0][0];
+		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		qnums_interm[0] = qnum_ax1;
+	}
+
+	// allocate the 'q' matrix
+	const long dim_q[2] = { a->dim_logical[0], dim_interm };
+	const qnumber* qnums_q[2] = { a->qnums_logical[0], qnums_interm };
+	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->axis_dir, qnums_q, q);
+
+	// allocate the 'r' matrix
+	const long dim_r[2] = { dim_interm, a->dim_logical[1] };
+	const enum tensor_axis_direction axis_dir_r[2] = { -a->axis_dir[1], a->axis_dir[1] };
+	const qnumber* qnums_r[2] = { qnums_interm, a->qnums_logical[1] };
+	allocate_block_sparse_tensor(a->dtype, 2, dim_r, axis_dir_r, qnums_r, r);
+
+	aligned_free(qnums_interm);
+
+	if (create_dummy_qr)
+	{
+		// make 'q' an isometry with a single non-zero entry 1
+
+		// use first block quantum number in 'a' to create a non-zero entry in 'q'
+		const qnumber qnum_ax0 = a->qnums_blocks[0][0];
+		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		const qnumber qnums_block[2] = { qnum_ax0, qnum_ax1 };
+		struct dense_tensor* bq = block_sparse_tensor_get_block(q, qnums_block);
+		assert(bq != NULL);
+		// set first entry in block to 1
+		memcpy(bq->data, numeric_one(q->dtype), sizeof_numeric_type(q->dtype));
+
+		// 'r' matrix is logically zero
+
+		return 0;
+	}
+
+	// perform QR decompositions of the individual blocks
+	for (long i = 0; i < a->dim_blocks[0]; i++)
+	{
+		for (long j = 0; j < a->dim_blocks[1]; j++)
+		{
+			// probe whether quantum numbers sum to zero
+			qnumber qsum = a->axis_dir[0] * a->qnums_blocks[0][i] + a->axis_dir[1] * a->qnums_blocks[1][j];
+			if (qsum != 0) {
+				continue;
+			}
+
+			const struct dense_tensor* bt = a->blocks[i*a->dim_blocks[1] + j];
+			assert(bt != NULL);
+			assert(bt->ndim == 2);
+			assert(bt->dtype == a->dtype);
+
+			// find corresponding blocks in 'q' and 'r'
+			assert(q->qnums_blocks[0][i] == a->qnums_blocks[0][i]);
+			assert(r->qnums_blocks[1][j] == a->qnums_blocks[1][j]);
+			// connecting axis contains only the quantum numbers of non-empty blocks in 't', so cannot use the block index from 't'
+			long k;
+			for (k = 0; k < q->dim_blocks[1]; k++) {
+				if (q->qnums_blocks[1][k] == a->qnums_blocks[1][j]) {
+					break;
+				}
+			}
+			assert(k < q->dim_blocks[1]);
+			assert(q->qnums_blocks[1][k] == a->qnums_blocks[1][j]);
+			assert(r->qnums_blocks[0][k] == a->qnums_blocks[1][j]);
+			struct dense_tensor* bq = q->blocks[i*q->dim_blocks[1] + k];
+			struct dense_tensor* br = r->blocks[k*r->dim_blocks[1] + j];
+			assert(bq != NULL);
+			assert(br != NULL);
+
+			// perform QR decomposition of block
+			int ret = dense_tensor_qr_fill(bt, bq, br);
+			if (ret != 0) {
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}

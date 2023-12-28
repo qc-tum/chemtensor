@@ -95,3 +95,11 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 // binary operations
 
 void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const int ndim_mult, struct block_sparse_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// QR decomposition
+
+int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r);

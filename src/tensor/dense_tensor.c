@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <complex.h>
 #include <cblas.h>
+#include <lapacke.h>
 #include "dense_tensor.h"
 #include "config.h"
 
@@ -860,6 +861,353 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	}
 	reshape_dense_tensor(s->ndim, rdim, r);
 	aligned_free(rdim);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Minimum of two integers.
+///
+static inline long minl(const long a, const long b)
+{
+	if (a <= b) {
+		return a;
+	}
+	else {
+		return b;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the QR decomposition of the matrix 'a', and store the result in 'q' and 'r' (will be allocated).
+/// The matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'.
+///
+int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
+{
+	// require a matrix
+	assert(a->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	const long dim_q[2] = { m, k };
+	const long dim_r[2] = { k, n };
+	allocate_dense_tensor(a->dtype, 2, dim_q, q);
+	allocate_dense_tensor(a->dtype, 2, dim_r, r);
+
+	return dense_tensor_qr_fill(a, q, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the QR decomposition of the matrix 'a', and store the result in 'q' and 'r', which must have been allocated beforehand.
+/// The matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'.
+///
+int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
+{
+	assert(q->dtype == a->dtype);
+	assert(r->dtype == a->dtype);
+
+	// require matrices
+	assert(a->ndim == 2);
+	assert(q->ndim == 2);
+	assert(r->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	assert(q->dim[0] == m);
+	assert(q->dim[1] == k);
+	assert(r->dim[0] == k);
+	assert(r->dim[1] == n);
+
+	switch (a->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
+
+			if (m >= n)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_sgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				float* qdata = q->data;
+				float* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*n + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*n + j] = qdata[l*k + j];
+					}
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_sgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				float* qdata = q->data;
+				float* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*k + j] = rdata[l*n + j];
+						rdata[l*n + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*k + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_sorgqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'sorgqr()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
+
+			if (m >= n)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_dgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				double* qdata = q->data;
+				double* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*n + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*n + j] = qdata[l*k + j];
+					}
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_dgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				double* qdata = q->data;
+				double* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*k + j] = rdata[l*n + j];
+						rdata[l*n + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*k + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_dorgqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dorgqr()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
+
+			if (m >= n)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_cgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				scomplex* qdata = q->data;
+				scomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*n + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*n + j] = qdata[l*k + j];
+					}
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_cgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				scomplex* qdata = q->data;
+				scomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*k + j] = rdata[l*n + j];
+						rdata[l*n + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*k + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_cungqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cungqr()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
+
+			if (m >= n)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_zgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				dcomplex* qdata = q->data;
+				dcomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*n + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*n + j] = qdata[l*k + j];
+					}
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_zgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgeqrf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				dcomplex* qdata = q->data;
+				dcomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*k + j] = rdata[l*n + j];
+						rdata[l*n + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*k + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_zungqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zungqr()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	return 0;
 }
 
 

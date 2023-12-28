@@ -17,12 +17,14 @@ char* test_dense_tensor_dot();
 char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
 char* test_dense_tensor_kronecker_product_degree_zero();
+char* test_dense_tensor_qr();
 char* test_dense_tensor_block();
 char* test_block_sparse_tensor_copy();
 char* test_block_sparse_tensor_get_block();
 char* test_block_sparse_tensor_transpose();
 char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_dot();
+char* test_block_sparse_tensor_qr();
 char* test_mps_to_statevector();
 
 
@@ -38,12 +40,14 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot_update),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product_degree_zero),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_block),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_copy),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_get_block),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_reshape),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
