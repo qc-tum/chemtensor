@@ -12,7 +12,7 @@
 ///
 struct mps
 {
-	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions d x D_i x D_{i+1}; array of length nsites
+	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions D_i x d x D_{i+1}; array of length 'nsites'
 	long d;                         //!< local physical dimension of each site
 	qnumber* qsite;                 //!< physical quantum numbers at each site
 	int nsites;                     //!< number of sites
@@ -37,7 +37,7 @@ bool mps_is_consistent(const struct mps* mps);
 ///
 static inline long mps_bond_dim(const struct mps* mps, const int i)
 {
-	return (i < mps->nsites ? mps->a[i].dim_logical[1] : mps->a[mps->nsites - 1].dim_logical[2]);
+	return (i < mps->nsites ? mps->a[i].dim_logical[0] : mps->a[mps->nsites - 1].dim_logical[2]);
 }
 
 

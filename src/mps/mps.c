@@ -26,9 +26,9 @@ void allocate_mps(const enum numeric_type dtype, const int nsites, const long d,
 
 	for (int i = 0; i < nsites; i++)
 	{
-		const long dim[3] = { d, dim_bonds[i], dim_bonds[i + 1] };
+		const long dim[3] = { dim_bonds[i], d, dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
-		const qnumber* qnums[3] = { qsite, qbonds[i], qbonds[i + 1] };
+		const qnumber* qnums[3] = { qbonds[i], qsite, qbonds[i + 1] };
 		allocate_block_sparse_tensor(dtype, 3, dim, axis_dir, qnums, &mps->a[i]);
 	}
 }
@@ -73,10 +73,10 @@ bool mps_is_consistent(const struct mps* mps)
 		if (mps->a[i].ndim != 3) {
 			return false;
 		}
-		if (mps->a[i].dim_logical[0] != mps->d) {
+		if (mps->a[i].dim_logical[1] != mps->d) {
 			return false;
 		}
-		if (!qnumber_all_equal(mps->d, mps->a[i].qnums_logical[0], mps->qsite)) {
+		if (!qnumber_all_equal(mps->d, mps->a[i].qnums_logical[1], mps->qsite)) {
 			return false;
 		}
 	}
@@ -84,10 +84,10 @@ bool mps_is_consistent(const struct mps* mps)
 	// virtual bond quantum numbers must match
 	for (int i = 0; i < mps->nsites - 1; i++)
 	{
-		if (mps->a[i].dim_logical[2] != mps->a[i + 1].dim_logical[1]) {
+		if (mps->a[i].dim_logical[2] != mps->a[i + 1].dim_logical[0]) {
 			return false;
 		}
-		if (!qnumber_all_equal(mps->a[i].dim_logical[2], mps->a[i].qnums_logical[2], mps->a[i + 1].qnums_logical[1])) {
+		if (!qnumber_all_equal(mps->a[i].dim_logical[2], mps->a[i].qnums_logical[2], mps->a[i + 1].qnums_logical[0])) {
 			return false;
 		}
 	}
@@ -107,22 +107,11 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 	// combine a0 and a1 by contracting the shared bond
 	struct block_sparse_tensor a0_a1_dot;
-	const int perm01[3] = { 1, 0, 2 };
-	struct block_sparse_tensor a1_tp;
-	transpose_block_sparse_tensor(perm01, a1, &a1_tp);
-	block_sparse_tensor_dot(a0, &a1_tp, 1, &a0_a1_dot);
-	delete_block_sparse_tensor(&a1_tp);
-
-	// pair original physical dimensions of a0 and a1
-	struct block_sparse_tensor a0_a1_dot_reorder;
-	assert(a0_a1_dot.ndim == 4);
-	const int perm12[4] = { 0, 2, 1, 3 };
-	transpose_block_sparse_tensor(perm12, &a0_a1_dot, &a0_a1_dot_reorder);
-	delete_block_sparse_tensor(&a0_a1_dot);
+	block_sparse_tensor_dot(a0, a1, 1, &a0_a1_dot);
 
 	// combine original physical dimensions of a0 and a1 into one dimension
-	flatten_block_sparse_tensor_axes(&a0_a1_dot_reorder, 0, TENSOR_AXIS_OUT, a);
-	delete_block_sparse_tensor(&a0_a1_dot_reorder);
+	flatten_block_sparse_tensor_axes(&a0_a1_dot, 1, TENSOR_AXIS_OUT, a);
+	delete_block_sparse_tensor(&a0_a1_dot);
 }
 
 

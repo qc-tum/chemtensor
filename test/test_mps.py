@@ -29,7 +29,8 @@ def mps_to_statevector_data():
         for i, qbond in enumerate(qD):
             file.attrs[f"qbond{i}"] = qbond
         for i, ai in enumerate(mps.A):
-            file[f"a{i}"] = interleave_complex(ai)
+            # transposition due to different convention for axis ordering
+            file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
         file["vec"] = interleave_complex(vec)
 
 
