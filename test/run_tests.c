@@ -26,6 +26,7 @@ char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_mps_to_statevector();
+char* test_queue();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -49,6 +50,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
+		TEST_FUNCTION_ENTRY(test_queue),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 
