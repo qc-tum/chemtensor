@@ -96,5 +96,7 @@ char* test_mps_to_statevector()
 	aligned_free(qbonds);
 	aligned_free(qsite);
 
+	H5Fclose(file);
+
 	return 0;
 }

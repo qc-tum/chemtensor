@@ -27,6 +27,8 @@ char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_mps_to_statevector();
 char* test_queue();
+char* test_bipartite_graph_maximum_cardinality_matching();
+char* test_bipartite_graph_minimum_vertex_cover();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -51,6 +53,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),
+		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),
+		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

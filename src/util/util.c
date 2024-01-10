@@ -92,6 +92,65 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Get the number of dimensions (degree) of an HDF5 dataset.
+///
+herr_t get_hdf5_dataset_ndims(hid_t file, const char* name, int* ndims)
+{
+	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
+	if (dset < 0)
+	{
+		fprintf(stderr, "'H5Dopen' for '%s' failed, return value: %" PRId64 "\n", name, dset);
+		return -1;
+	}
+
+	hid_t space = H5Dget_space(dset);
+	if (space < 0)
+	{
+		fprintf(stderr, "'H5Dget_space' for '%s' failed, return value: %" PRId64 "\n", name, space);
+		return -1;
+	}
+
+	*ndims = H5Sget_simple_extent_ndims(space);
+
+	H5Sclose(space);
+	H5Dclose(dset);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Get the dimensions of an HDF5 dataset.
+///
+herr_t get_hdf5_dataset_dims(hid_t file, const char* name, hsize_t* dims)
+{
+	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
+	if (dset < 0)
+	{
+		fprintf(stderr, "'H5Dopen' for '%s' failed, return value: %" PRId64 "\n", name, dset);
+		return -1;
+	}
+
+	hid_t space = H5Dget_space(dset);
+	if (space < 0)
+	{
+		fprintf(stderr, "'H5Dget_space' for '%s' failed, return value: %" PRId64 "\n", name, space);
+		return -1;
+	}
+
+	// get dimensions
+	H5Sget_simple_extent_dims(space, dims, NULL);
+
+	H5Sclose(space);
+	H5Dclose(dset);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Read an HDF5 dataset from a file.
 ///
 herr_t read_hdf5_dataset(hid_t file, const char* name, hid_t mem_type, void* data)

@@ -37,6 +37,10 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 //
 
 
+herr_t get_hdf5_dataset_ndims(hid_t file, const char* name, int* ndims);
+
+herr_t get_hdf5_dataset_dims(hid_t file, const char* name, hsize_t* dims);
+
 herr_t read_hdf5_dataset(hid_t file, const char* name, hid_t mem_type, void* data);
 
 herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* data);
