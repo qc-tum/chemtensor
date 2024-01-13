@@ -1,5 +1,5 @@
+#include <math.h>
 #include "block_sparse_tensor.h"
-#include "test_dense_tensor.h"
 #include "config.h"
 
 
@@ -44,12 +44,8 @@ char* test_block_sparse_tensor_copy()
 	struct block_sparse_tensor t2;
 	copy_block_sparse_tensor(&t, &t2);
 
-	// convert back to a dense tensor
-	struct dense_tensor t2_dns;
-	block_sparse_to_dense_tensor(&t2, &t2_dns);
-
 	// compare
-	if (!dense_tensor_allclose(&t2_dns, &t_dns, 0.)) {
+	if (!block_sparse_tensor_allclose(&t2, &t, 0.)) {
 		return "copy of a block-sparse tensor does not match reference";
 	}
 
@@ -62,7 +58,6 @@ char* test_block_sparse_tensor_copy()
 	aligned_free(axis_dir);
 	delete_block_sparse_tensor(&t2);
 	delete_block_sparse_tensor(&t);
-	delete_dense_tensor(&t2_dns);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
@@ -83,7 +78,7 @@ char* test_block_sparse_tensor_get_block()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(DOUBLE_COMPLEX, 5, dims, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, ndim, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -141,6 +136,71 @@ char* test_block_sparse_tensor_get_block()
 		aligned_free(qnums_block);
 	}
 	aligned_free(index_block);
+
+	// clean up
+	for (int i = 0; i < ndim; i++)
+	{
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
+	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_block_sparse_tensor_norm2()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_norm2.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_norm2 failed";
+	}
+
+	const int ndim = 4;
+	const long dims[4] = { 4, 6, 13, 5 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(DOUBLE_COMPLEX, ndim, dims, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	double nrm = block_sparse_tensor_norm2(&t);
+
+	double nrm_ref;
+	if (read_hdf5_dataset(file, "nrm", H5T_NATIVE_DOUBLE, &nrm_ref) < 0) {
+		return "reading tensor norm from disk failed";
+	}
+
+	// compare
+	if (fabs(nrm - nrm_ref) / nrm_ref > 1e-13) {
+		return "block-sparse tensor norm does not match reference";
+	}
 
 	// clean up
 	for (int i = 0; i < ndim; i++)
@@ -293,6 +353,11 @@ char* test_block_sparse_tensor_reshape()
 	// split axis again
 	struct block_sparse_tensor s;
 	split_block_sparse_tensor_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.qnums_logical + i_ax), &s);
+
+	// compare
+	if (!block_sparse_tensor_allclose(&s, &t, 0.)) {
+		return "block-sparse tensor after axes flattening and splitting does not agree with original tensor";
+	}
 
 	// convert block-sparse tensor 's' to a dense tensor
 	struct dense_tensor s_dns;
@@ -476,12 +541,9 @@ char* test_block_sparse_tensor_qr()
 		// matrix product 'q r' must be equal to 'a'
 		struct block_sparse_tensor qr;
 		block_sparse_tensor_dot(&q, &r, 1, &qr);
-		struct dense_tensor qr_dns;
-		block_sparse_to_dense_tensor(&qr, &qr_dns);
-		if (!dense_tensor_allclose(&qr_dns, &a_dns, 1e-13)) {
+		if (!block_sparse_tensor_allclose(&qr, &a, 1e-13)) {
 			return "matrix product Q R is not equal to original A matrix";
 		}
-		delete_dense_tensor(&qr_dns);
 		delete_block_sparse_tensor(&qr);
 
 		// 'q' must be an isometry
@@ -508,6 +570,100 @@ char* test_block_sparse_tensor_qr()
 		delete_block_sparse_tensor(&qh);
 
 		// 'r' only upper triangular after sorting second axis by quantum numbers
+
+		// clean up
+		delete_block_sparse_tensor(&r);
+		delete_block_sparse_tensor(&q);
+		delete_block_sparse_tensor(&a);
+		for (int i = 0; i < 2; i++) {
+			aligned_free(qnums[i]);
+		}
+		delete_dense_tensor(&a_dns);
+	}
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_block_sparse_tensor_rq()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_rq failed";
+	}
+
+	// generic version and dummy special case
+	for (int c = 0; c < 2; c++)
+	{
+		// read dense tensor from disk
+		struct dense_tensor a_dns;
+		const long dim[2] = { 163, 115 };
+		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim, &a_dns);
+		char varname[1024];
+		sprintf(varname, "a%i", c);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		enum tensor_axis_direction axis_dir[2];
+		sprintf(varname, "axis_dir%i", c);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, axis_dir) < 0) {
+			return "reading axis directions from disk failed";
+		}
+
+		qnumber* qnums[2];
+		for (int i = 0; i < 2; i++)
+		{
+			qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+			char varname[1024];
+			sprintf(varname, "qnums%i%i", c, i);
+			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+				return "reading quantum numbers from disk failed";
+			}
+		}
+
+		// convert dense to block-sparse tensor
+		struct block_sparse_tensor a;
+		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+
+		// perform RQ decomposition
+		struct block_sparse_tensor r, q;
+		block_sparse_tensor_rq(&a, &r, &q);
+
+		// matrix product 'r q' must be equal to 'a'
+		struct block_sparse_tensor rq;
+		block_sparse_tensor_dot(&r, &q, 1, &rq);
+		if (!block_sparse_tensor_allclose(&rq, &a, 1e-13)) {
+			return "matrix product R Q is not equal to original A matrix";
+		}
+		delete_block_sparse_tensor(&rq);
+
+		// 'q' must be an isometry
+		struct block_sparse_tensor qh;
+		const int perm[2] = { 1, 0 };
+		conjugate_transpose_block_sparse_tensor(perm, &q, &qh);
+		// revert tensor axes directions for multiplication
+		qh.axis_dir[0] = -qh.axis_dir[0];
+		qh.axis_dir[1] = -qh.axis_dir[1];
+		struct block_sparse_tensor qqh;
+		block_sparse_tensor_dot(&q, &qh, 1, &qqh);
+		struct dense_tensor qqh_dns;
+		block_sparse_to_dense_tensor(&qqh, &qqh_dns);
+		struct dense_tensor id;
+		const long dim_id[2] = { q.dim_logical[0], q.dim_logical[0] };
+		allocate_dense_tensor(q.dtype, 2, dim_id, &id);
+		dense_tensor_set_identity(&id);
+		if (!dense_tensor_allclose(&qqh_dns, &id, 1e-13)) {
+			return "Q matrix is not an isometry";
+		}
+		delete_dense_tensor(&id);
+		delete_dense_tensor(&qqh_dns);
+		delete_block_sparse_tensor(&qqh);
+		delete_block_sparse_tensor(&qh);
+
+		// 'r' only upper triangular after sorting first axis by quantum numbers
 
 		// clean up
 		delete_block_sparse_tensor(&r);

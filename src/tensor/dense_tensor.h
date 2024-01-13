@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <assert.h>
 #include "numeric.h"
 #include "util.h"
@@ -90,9 +91,11 @@ static inline void next_tensor_index(const int ndim, const long* restrict dim, l
 //________________________________________________________________________________________________________________________
 //
 
-// trace
+// trace and norm
 
 void dense_tensor_trace(const struct dense_tensor* t, void* ret);
+
+double dense_tensor_norm2(const struct dense_tensor* t);
 
 
 //________________________________________________________________________________________________________________________
@@ -138,11 +141,16 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 //________________________________________________________________________________________________________________________
 //
 
-// QR decomposition
+// QR and RQ decomposition
 
 int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
 
 int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+
+
+int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+
+int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
 
 
 //________________________________________________________________________________________________________________________
@@ -151,3 +159,11 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 // extract a sub-block
 
 void dense_tensor_block(const struct dense_tensor* restrict t, const long* restrict sdim, const long* restrict* idx, struct dense_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// comparison
+
+bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const double tol);

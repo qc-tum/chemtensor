@@ -39,6 +39,8 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t);
 
 void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
 
+void move_block_sparse_tensor_data(struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
+
 
 //________________________________________________________________________________________________________________________
 //
@@ -50,9 +52,19 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 //________________________________________________________________________________________________________________________
 //
 
+// norm
+
+double block_sparse_tensor_norm2(const struct block_sparse_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // in-place manipulation
 
 void scale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t);
+
+void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t);
 
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 
@@ -100,6 +112,16 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 //________________________________________________________________________________________________________________________
 //
 
-// QR decomposition
+// QR and RQ decomposition
 
 int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r);
+
+int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// comparison
+
+bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const double tol);

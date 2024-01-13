@@ -169,6 +169,44 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the 2-norm (Frobenius norm) of the tensor.
+///
+/// Result is returned as double also for single-precision tensor entries.
+///
+double dense_tensor_norm2(const struct dense_tensor* t)
+{
+	const long nelem = dense_tensor_num_elements(t);
+
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			return cblas_snrm2(nelem, t->data, 1);
+		}
+		case DOUBLE_REAL:
+		{
+			return cblas_dnrm2(nelem, t->data, 1);
+		}
+		case SINGLE_COMPLEX:
+		{
+			return cblas_scnrm2(nelem, t->data, 1);
+		}
+		case DOUBLE_COMPLEX:
+		{
+			return cblas_dznrm2(nelem, t->data, 1);
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scale tensor 't' by 'alpha', which must be of the same data type as the tensor entries.
 ///
 void scale_dense_tensor(const void* alpha, struct dense_tensor* t)
@@ -1213,6 +1251,338 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the RQ decomposition (upper triangular times isometry) of the matrix 'a', and store the result in 'r' and 'q' (will be allocated).
+/// The matrix dimension between 'r' and 'q' is the minimum of the dimensions of 'a'.
+///
+int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
+{
+	// require a matrix
+	assert(a->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	const long dim_r[2] = { m, k };
+	const long dim_q[2] = { k, n };
+	allocate_dense_tensor(a->dtype, 2, dim_r, r);
+	allocate_dense_tensor(a->dtype, 2, dim_q, q);
+
+	return dense_tensor_rq_fill(a, r, q);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the RQ decomposition (upper triangular times isometry) of the matrix 'a', and store the result in 'r' and 'q', which must have been allocated beforehand.
+/// The matrix dimension between 'r' and 'q' is the minimum of the dimensions of 'a'.
+///
+int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
+{
+	assert(q->dtype == a->dtype);
+	assert(r->dtype == a->dtype);
+
+	// require matrices
+	assert(a->ndim == 2);
+	assert(r->ndim == 2);
+	assert(q->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	assert(r->dim[0] == m);
+	assert(r->dim[1] == k);
+	assert(q->dim[0] == k);
+	assert(q->dim[1] == n);
+
+	switch (a->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
+
+			if (n >= m)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_sgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				float* qdata = q->data;
+				float* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*k + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*k + j] = qdata[l*n + (n - k + j)];
+					}
+				}
+			}
+			else  // n < m
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_sgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				float* qdata = q->data;
+				float* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*n + j] = rdata[(m - k + l)*k + j];
+						rdata[(m - k + l)*k + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*n + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_sorgrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'sorgrq()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
+
+			if (n >= m)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_dgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				double* qdata = q->data;
+				double* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*k + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*k + j] = qdata[l*n + (n - k + j)];
+					}
+				}
+			}
+			else  // n < m
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_dgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				double* qdata = q->data;
+				double* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*n + j] = rdata[(m - k + l)*k + j];
+						rdata[(m - k + l)*k + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*n + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_dorgrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dorgrq()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
+
+			if (n >= m)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_cgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				scomplex* qdata = q->data;
+				scomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*k + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*k + j] = qdata[l*n + (n - k + j)];
+					}
+				}
+			}
+			else  // n < m
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_cgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				scomplex* qdata = q->data;
+				scomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*n + j] = rdata[(m - k + l)*k + j];
+						rdata[(m - k + l)*k + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*n + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_cungrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cungrq()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
+
+			if (n >= m)
+			{
+				// copy 'a' into 'q' (as temporary matrix)
+				memcpy(q->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'q' are overwritten
+				int info = LAPACKE_zgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// copy entries in upper triangular part into 'r' matrix
+				dcomplex* qdata = q->data;
+				dcomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						rdata[l*k + j] = 0;
+					}
+					for (long j = l; j < k; j++) {
+						rdata[l*k + j] = qdata[l*n + (n - k + j)];
+					}
+				}
+			}
+			else  // n < m
+			{
+				// copy 'a' into 'r' (as temporary matrix)
+				memcpy(r->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'r' are overwritten
+				int info = LAPACKE_zgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgerqf()' failed, return value: %i\n", info);
+					return -1;
+				}
+
+				// transfer entries in first k columns below diagonal to 'q'
+				dcomplex* qdata = q->data;
+				dcomplex* rdata = r->data;
+				for (long l = 0; l < k; l++)
+				{
+					for (long j = 0; j < l; j++) {
+						qdata[l*n + j] = rdata[(m - k + l)*k + j];
+						rdata[(m - k + l)*k + j] = 0;
+					}
+					// set other entries to zero (to avoid NaN test failures)
+					for (long j = l; j < k; j++) {
+						qdata[l*n + j] = 0;
+					}
+				}
+			}
+
+			// generate the final 'q' matrix
+			int info = LAPACKE_zungrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zungrq()' failed, return value: %i\n", info);
+				return -2;
+			}
+
+			aligned_free(tau);
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Extract the sub-block with dimensions 'bdim' by taking elements indexed by 'idx' along each dimension
 /// from the original tensor 't'; the degree remains the same as in 't'.
 ///
@@ -1323,4 +1693,38 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 	// clean up
 	aligned_free(index_b);
 	aligned_free(index_t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether two dense tensors agree elementwise within tolerance 'tol'.
+///
+bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const double tol)
+{
+	// compare data types
+	if (s->dtype != t->dtype) {
+		return false;
+	}
+
+	// compare degrees
+	if (s->ndim != t->ndim) {
+		return false;
+	}
+
+	// compare dimensions
+	for (int i = 0; i < s->ndim; i++)
+	{
+		if (s->dim[i] != t->dim[i]) {
+			return false;
+		}
+	}
+
+	// compare entries
+	const long nelem = dense_tensor_num_elements(s);
+	if (uniform_distance(s->dtype, nelem, s->data, t->data) > tol) {
+		return false;
+	}
+
+	return true;
 }

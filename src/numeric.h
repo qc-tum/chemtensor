@@ -63,6 +63,40 @@ static inline size_t sizeof_numeric_type(const enum numeric_type dtype)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Real numeric data type of the same precision.
+///
+static inline enum numeric_type numeric_real_type(const enum numeric_type dtype)
+{
+	switch (dtype)
+	{
+		case SINGLE_REAL:
+		{
+			return SINGLE_REAL;
+		}
+		case DOUBLE_REAL:
+		{
+			return DOUBLE_REAL;
+		}
+		case SINGLE_COMPLEX:
+		{
+			return SINGLE_REAL;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			return DOUBLE_REAL;
+		}
+		default:
+		{
+			// unknown data type
+			assert(0);
+			return DOUBLE_REAL;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Return a pointer to a static constant variable of the provided data type representing one.
 ///
 static inline const void* numeric_one(const enum numeric_type dtype)
@@ -126,6 +160,44 @@ static inline const void* numeric_zero(const enum numeric_type dtype)
 		{
 			static const dcomplex zero = 0;
 			return &zero;
+		}
+		default:
+		{
+			// unknown data type
+			assert(0);
+			return NULL;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Return a pointer to a static constant variable of the provided data type representing -1.
+///
+static inline const void* numeric_neg_one(const enum numeric_type dtype)
+{
+	switch (dtype)
+	{
+		case SINGLE_REAL:
+		{
+			static const float neg_one = -1;
+			return &neg_one;
+		}
+		case DOUBLE_REAL:
+		{
+			static const double neg_one = -1;
+			return &neg_one;
+		}
+		case SINGLE_COMPLEX:
+		{
+			static const scomplex neg_one = -1;
+			return &neg_one;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			static const dcomplex neg_one = -1;
+			return &neg_one;
 		}
 		default:
 		{

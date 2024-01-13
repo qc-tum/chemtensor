@@ -44,6 +44,26 @@ static inline long mps_bond_dim(const struct mps* mps, const int i)
 //________________________________________________________________________________________________________________________
 //
 
+// orthonormalization and canonical forms
+
+void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next);
+
+void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev);
+
+
+/// \brief MPS orthonormalization mode.
+enum mps_orthonormalization_mode
+{
+	MPS_ORTHONORMAL_LEFT,    //!< left-orthonormal
+	MPS_ORTHONORMAL_RIGHT,   //!< right-orthonormal
+};
+
+double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_mode mode);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // conversion to a statevector (intended for testing)
 
 void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const struct block_sparse_tensor* restrict a1, struct block_sparse_tensor* restrict a);

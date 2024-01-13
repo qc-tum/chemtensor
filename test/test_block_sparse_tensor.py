@@ -69,6 +69,42 @@ def block_sparse_tensor_get_block_data():
             file.attrs[f"qnums{i}"] = qn
 
 
+def block_sparse_tensor_norm2_data():
+
+    # random number generator
+    rng = np.random.default_rng(765)
+
+    # dimensions
+    dims = (4, 6, 13, 5)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
+
+    # dense tensor
+    t = crandn(dims, rng)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    nrm = np.linalg.norm(t.reshape(-1), ord=2)
+
+    with h5py.File("data/test_block_sparse_tensor_norm2.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file["nrm"] = nrm
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+
+
 def block_sparse_tensor_transpose_data():
 
     # random number generator
@@ -222,13 +258,48 @@ def block_sparse_tensor_qr_data():
                 file.attrs[f"qnums{c}{i}"] = qn
 
 
+def block_sparse_tensor_rq_data():
+
+    # random number generator
+    rng = np.random.default_rng(491)
+
+    # dimensions
+    dims = (163, 115)
+
+    with h5py.File("data/test_block_sparse_tensor_rq.hdf5", "w") as file:
+        for c in range(2):
+
+            # axis directions
+            axis_dir = np.array([-1, 1]) if c == 0 else np.array([-1, -1])
+
+            # quantum numbers (can never match for c == 1)
+            qnums = [rng.integers(-2, 3, size=d).astype(np.int32) if c == 0
+                else rng.integers(-3, 0, size=d).astype(np.int32) for d in dims]
+
+            # dense tensor
+            a = crandn(dims, rng)
+            # enforce sparsity pattern based on quantum numbers
+            it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
+            for x in it:
+                qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(a.ndim))
+                if qsum != 0:
+                    x[...] = 0
+
+            file[f"a{c}"] = interleave_complex(a)
+            file.attrs[f"axis_dir{c}"] = axis_dir
+            for i, qn in enumerate(qnums):
+                file.attrs[f"qnums{c}{i}"] = qn
+
+
 def main():
     block_sparse_tensor_copy_data()
     block_sparse_tensor_get_block_data()
+    block_sparse_tensor_norm2_data()
     block_sparse_tensor_transpose_data()
     block_sparse_tensor_reshape_data()
     block_sparse_tensor_dot_data()
     block_sparse_tensor_qr_data()
+    block_sparse_tensor_rq_data()
 
 
 if __name__ == "__main__":

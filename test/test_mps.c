@@ -1,6 +1,113 @@
+#include <math.h>
 #include "mps.h"
-#include "test_dense_tensor.h"
 #include "config.h"
+
+
+char* test_mps_orthonormalize_qr()
+{
+	hid_t file = H5Fopen("../test/data/test_mps_orthonormalize_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_mps_orthonormalize_qr failed";
+	}
+
+	// number of lattice sites
+	const int nsites = 6;
+	// local physical dimension
+	const long d = 3;
+
+	// physical quantum numbers
+	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
+		return "reading physical quantum numbers from disk failed";
+	}
+
+	// virtual bond quantum numbers
+	const long dim_bonds[7] = { 1, 4, 11, 9, 7, 3, 1 };
+	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qbond%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
+			return "reading virtual bond quantum numbers from disk failed";
+		}
+	}
+
+	for (int m = 0; m < 2; m++)
+	{
+		struct mps mps;
+		allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+
+		// read MPS tensors from disk
+		for (int i = 0; i < nsites; i++)
+		{
+			// read dense tensors from disk
+			struct dense_tensor a_dns;
+			allocate_dense_tensor(mps.a[i].dtype, mps.a[i].ndim, mps.a[i].dim_logical, &a_dns);
+			char varname[1024];
+			sprintf(varname, "a%i", i);
+			if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+
+			dense_to_block_sparse_tensor_entries(&a_dns, &mps.a[i]);
+
+			delete_dense_tensor(&a_dns);
+		}
+
+		if (!mps_is_consistent(&mps)) {
+			return "internal MPS consistency check failed";
+		}
+
+		for (int i = 0; i < nsites + 1; i++) {
+			if (mps_bond_dim(&mps, i) != dim_bonds[i]) {
+				return "MPS virtual bond dimension does not match reference";
+			}
+		}
+
+		// convert original MPS to state vector
+		struct block_sparse_tensor vec_ref;
+		mps_to_statevector(&mps, &vec_ref);
+
+		double nrm = mps_orthonormalize_qr(&mps, m == 0 ? MPS_ORTHONORMAL_LEFT : MPS_ORTHONORMAL_RIGHT);
+
+		if (!mps_is_consistent(&mps)) {
+			return "internal MPS consistency check failed";
+		}
+
+		// convert normalized MPS to state vector
+		struct block_sparse_tensor vec;
+		mps_to_statevector(&mps, &vec);
+
+		// must be normalized
+		if (fabs(block_sparse_tensor_norm2(&vec) - 1) > 1e-6) {
+			return "vector representation of MPS after orthonormalization does not have norm 1";
+		}
+
+		// scaled vector representation must agree with original vector
+		float nrmf = (float)nrm;
+		rscale_block_sparse_tensor(&nrmf, &vec);
+		if (!block_sparse_tensor_allclose(&vec, &vec_ref, nrm * 1e-6)) {
+			return "vector representation of MPS after orthonormalization does not match reference";
+		}
+
+		delete_block_sparse_tensor(&vec_ref);
+		delete_block_sparse_tensor(&vec);
+		delete_mps(&mps);
+	}
+
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		aligned_free(qbonds[i]);
+	}
+	aligned_free(qbonds);
+	aligned_free(qsite);
+
+	H5Fclose(file);
+
+	return 0;
+}
 
 
 char* test_mps_to_statevector()

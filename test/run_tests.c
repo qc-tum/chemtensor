@@ -18,13 +18,17 @@ char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
 char* test_dense_tensor_kronecker_product_degree_zero();
 char* test_dense_tensor_qr();
+char* test_dense_tensor_rq();
 char* test_dense_tensor_block();
 char* test_block_sparse_tensor_copy();
 char* test_block_sparse_tensor_get_block();
+char* test_block_sparse_tensor_norm2();
 char* test_block_sparse_tensor_transpose();
 char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
+char* test_block_sparse_tensor_rq();
+char* test_mps_orthonormalize_qr();
 char* test_mps_to_statevector();
 char* test_queue();
 char* test_bipartite_graph_maximum_cardinality_matching();
@@ -44,13 +48,17 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product_degree_zero),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_qr),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_block),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_copy),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_get_block),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_norm2),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_reshape),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
+		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),

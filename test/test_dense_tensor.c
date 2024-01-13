@@ -1,6 +1,6 @@
+#include <math.h>
 #include <complex.h>
 #include "dense_tensor.h"
-#include "test_dense_tensor.h"
 #include "config.h"
 
 
@@ -374,6 +374,85 @@ char* test_dense_tensor_qr()
 			void* zero_vec = aligned_calloc(MEM_DATA_ALIGN, k, sizeof_numeric_type(r.dtype));
 			for (long l = 0; l < k; l++) {
 				if (uniform_distance(r.dtype, l, (char*)r.data + (l*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
+					return "R matrix is not upper triangular";
+				}
+			}
+			aligned_free(zero_vec);
+
+			delete_dense_tensor(&r);
+			delete_dense_tensor(&q);
+			delete_dense_tensor(&a);
+		}
+	}
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_dense_tensor_rq()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_rq failed";
+	}
+
+	const enum numeric_type dtypes[4] = { SINGLE_REAL, DOUBLE_REAL, SINGLE_COMPLEX, DOUBLE_COMPLEX };
+
+	// cases m >= n and m < n
+	for (int i = 0; i < 2; i++)
+	{
+		// data types
+		for (int j = 0; j < 4; j++)
+		{
+			const double tol = (j % 2 == 0 ? 1e-6 : 1e-13);
+
+			// matrix 'a'
+			struct dense_tensor a;
+			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
+			allocate_dense_tensor(dtypes[j], 2, dim, &a);
+			// read values from disk
+			char varname[1024];
+			sprintf(varname, "a_s%i_t%i", i, j);
+			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+
+			// perform RQ decomposition
+			struct dense_tensor r, q;
+			dense_tensor_rq(&a, &r, &q);
+
+			// matrix product 'r q' must be equal to 'a'
+			struct dense_tensor rq;
+			dense_tensor_dot(&r, &q, 1, &rq);
+			if (!dense_tensor_allclose(&rq, &a, tol)) {
+				return "matrix product R Q is not equal to original A matrix";
+			}
+			delete_dense_tensor(&rq);
+
+			// 'q' must be an isometry
+			struct dense_tensor qh;
+			const int perm[2] = { 1, 0 };
+			conjugate_transpose_dense_tensor(perm, &q, &qh);
+			struct dense_tensor qqh;
+			dense_tensor_dot(&q, &qh, 1, &qqh);
+			struct dense_tensor id;
+			const long dim_id[2] = { q.dim[0], q.dim[0] };
+			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
+			dense_tensor_set_identity(&id);
+			if (!dense_tensor_allclose(&qqh, &id, tol)) {
+				return "Q matrix is not an isometry";
+			}
+			delete_dense_tensor(&id);
+			delete_dense_tensor(&qqh);
+			delete_dense_tensor(&qh);
+
+			// 'r' must be upper triangular (referenced from the bottom right entry)
+			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
+			void* zero_vec = aligned_calloc(MEM_DATA_ALIGN, k, sizeof_numeric_type(r.dtype));
+			for (long l = 0; l < k; l++) {
+				if (uniform_distance(r.dtype, l, (char*)r.data + ((dim[0] - k + l)*k)*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
 					return "R matrix is not upper triangular";
 				}
 			}
