@@ -1,3 +1,6 @@
+/// \file queue.h
+/// \brief Queue data structure.
+
 #pragma once
 
 #include <stdbool.h>
@@ -31,4 +34,4 @@ void* peek_queue(const struct queue* q);
 
 bool queue_is_empty(const struct queue* q);
 
-void free_queue(struct queue* q);
+void free_queue(struct queue* q, void (*free_func)(void*));

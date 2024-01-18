@@ -31,6 +31,7 @@ char* test_block_sparse_tensor_rq();
 char* test_mps_orthonormalize_qr();
 char* test_mps_to_statevector();
 char* test_queue();
+char* test_hash_table();
 char* test_bipartite_graph_maximum_cardinality_matching();
 char* test_bipartite_graph_minimum_vertex_cover();
 
@@ -61,6 +62,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),
+		TEST_FUNCTION_ENTRY(test_hash_table),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
 	};

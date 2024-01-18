@@ -2,6 +2,11 @@
 #include "config.h"
 
 
+static void dummy_free_func(void*)
+{
+}
+
+
 char* test_queue()
 {
 	// empty queue
@@ -40,7 +45,7 @@ char* test_queue()
 		return "peeked item of queue does not have expected value";
 	}
 
-	free_queue(&q);
+	free_queue(&q, dummy_free_func);
 
 	return 0;
 }

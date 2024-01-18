@@ -1,3 +1,6 @@
+/// \file queue.c
+/// \brief Queue data structure.
+
 #include <assert.h>
 #include "queue.h"
 #include "config.h"
@@ -67,9 +70,12 @@ bool queue_is_empty(const struct queue* q)
 ///
 /// \brief Delete a queue (free memory).
 ///
-void free_queue(struct queue* q)
+/// The function 'free_func' is called for each value pointer stored in the queue.
+///
+void free_queue(struct queue* q, void (*free_func)(void*))
 {
 	while (!queue_is_empty(q)) {
-		dequeue(q);
+		void* d = dequeue(q);
+		free_func(d);
 	}
 }
