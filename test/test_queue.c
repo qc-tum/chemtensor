@@ -1,10 +1,5 @@
 #include "queue.h"
-#include "config.h"
-
-
-static void dummy_free_func(void*)
-{
-}
+#include "aligned_memory.h"
 
 
 char* test_queue()
@@ -16,36 +11,54 @@ char* test_queue()
 		return "expecting empty queue";
 	}
 
-	enqueue(&q, (void*)-1);
+	int static_data[6] = { -1, 3, 4, 7, 5, -2 };
+	int* data[6];
+	for (int i = 0; i < 6; i++) {
+		data[i] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+		*data[i] = static_data[i];
+	}
+
+	enqueue(&q, data[0]);
 	if (queue_is_empty(&q)) {
 		return "expecting non-empty queue";
 	}
-	enqueue(&q, (void*)3);
-	enqueue(&q, (void*)4);
-	if ((int)dequeue(&q) != -1) {
+	enqueue(&q, data[1]);
+	enqueue(&q, data[2]);
+
+	int* d = dequeue(&q);
+	if (*d != static_data[0]) {
 		return "dequeued item does not have expected value";
 	}
-	if ((int)peek_queue(&q) != 3) {
+	aligned_free(d);
+
+	d = peek_queue(&q);
+	if (*d != static_data[1]) {
 		return "peeked item of queue does not have expected value";
 	}
-	enqueue(&q, (void*)7);
-	if ((int)dequeue(&q) != 3) {
+
+	enqueue(&q, data[3]);
+
+	d = dequeue(&q);
+	if (*d != static_data[1]) {
 		return "dequeued item does not have expected value";
 	}
+	aligned_free(d);
 
 	while (q.head != NULL) {
-		dequeue(&q);
+		aligned_free(dequeue(&q));
 	}
 	if (!queue_is_empty(&q)) {
 		return "expecting empty queue";
 	}
-	enqueue(&q, (void*)5);
-	enqueue(&q, (void*)-2);
-	if ((int)peek_queue(&q) != 5) {
+
+	enqueue(&q, data[4]);
+	enqueue(&q, data[5]);
+	d = peek_queue(&q);
+	if (*d != static_data[4]) {
 		return "peeked item of queue does not have expected value";
 	}
 
-	free_queue(&q, dummy_free_func);
+	free_queue(&q, aligned_free);
 
 	return 0;
 }

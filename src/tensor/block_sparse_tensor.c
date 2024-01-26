@@ -5,7 +5,7 @@
 #include <math.h>
 #include <cblas.h>
 #include "block_sparse_tensor.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________

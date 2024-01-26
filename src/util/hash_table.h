@@ -38,8 +38,8 @@ typedef hash_type hash_function_type(const void* key);
 ///
 struct hash_table
 {
+	hash_table_key_comp* key_equal;     //!< key equality test function
 	hash_function_type* hash_func;      //!< hash function
-	hash_table_key_comp* key_eq;        //!< key comparison function
 	size_t key_size;                    //!< size of a key, in bytes
 	struct hash_table_entry** buckets;  //!< each bucket is a linked list of entries
 	long num_buckets;                   //!< number of buckets
@@ -47,7 +47,7 @@ struct hash_table
 };
 
 
-void create_hash_table(hash_function_type* hash_func, hash_table_key_comp* key_eq, const size_t key_size, const long num_buckets, struct hash_table* ht);
+void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const long num_buckets, struct hash_table* ht);
 
 void delete_hash_table(struct hash_table* ht, void (*free_func)(void*));
 

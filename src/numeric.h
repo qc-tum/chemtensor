@@ -207,3 +207,40 @@ static inline const void* numeric_neg_one(const enum numeric_type dtype)
 		}
 	}
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Convert the double number 'x' to the specified type and store result in 'alpha'.
+///
+static inline void numeric_from_double(const double x, const enum numeric_type dtype, void* alpha)
+{
+	switch (dtype)
+	{
+		case SINGLE_REAL:
+		{
+			*((float*)alpha) = (float)x;
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			*((double*)alpha) = x;
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			*((scomplex*)alpha) = (scomplex)x;
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			*((dcomplex*)alpha) = (dcomplex)x;
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(0);
+		}
+	}
+}

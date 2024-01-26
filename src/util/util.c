@@ -28,6 +28,27 @@ long integer_product(const long* x, const int n)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the integer power `base^exp`.
+///
+long ipow(long base, int exp)
+{
+	assert(exp >= 0);
+
+	long result = 1;
+	while (exp != 0)
+	{
+		if ((exp & 1) == 1) {
+			result *= base;
+		}
+		exp >>= 1;
+		base *= base;
+	}
+	return result;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Uniform distance (infinity norm) between 'x' and 'y'.
 ///
 /// The result is cast to double format (even if the actual entries are of single precision).

@@ -3,7 +3,7 @@
 
 #include "bipartite_graph.h"
 #include "queue.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________

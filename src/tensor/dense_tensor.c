@@ -7,7 +7,7 @@
 #include <cblas.h>
 #include <lapacke.h>
 #include "dense_tensor.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________

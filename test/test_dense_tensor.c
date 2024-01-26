@@ -1,7 +1,7 @@
 #include <math.h>
 #include <complex.h>
 #include "dense_tensor.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 char* test_dense_tensor_trace()

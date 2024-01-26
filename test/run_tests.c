@@ -34,6 +34,8 @@ char* test_queue();
 char* test_hash_table();
 char* test_bipartite_graph_maximum_cardinality_matching();
 char* test_bipartite_graph_minimum_vertex_cover();
+char* test_mpo_graph_from_opchains_basic();
+char* test_mpo_graph_from_opchains_advanced();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -65,6 +67,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_hash_table),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
+		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_basic),
+		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

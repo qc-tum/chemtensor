@@ -2,17 +2,17 @@
 /// \brief Separate chaining hash table.
 
 #include "hash_table.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Initialize and allocate memory for a hash table
 ///
-void create_hash_table(hash_function_type* hash_func, hash_table_key_comp* key_eq, const size_t key_size, const long num_buckets, struct hash_table* ht)
+void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const long num_buckets, struct hash_table* ht)
 {
+	ht->key_equal   = key_equal;
 	ht->hash_func   = hash_func;
-	ht->key_eq      = key_eq;
 	ht->key_size    = key_size;
 	ht->buckets     = aligned_calloc(MEM_DATA_ALIGN, num_buckets, sizeof(struct hash_table_entry*));
 	ht->num_buckets = num_buckets;
@@ -64,7 +64,7 @@ void* hash_table_insert(struct hash_table* ht, void* key, void* val)
 		// current entry
 		struct hash_table_entry* entry = *p_entry;
 
-		if (ht->key_eq(key, entry->key))
+		if (ht->key_equal(key, entry->key))
 		{
 			// key already exists...
 			void* ret = entry->val;
@@ -100,7 +100,7 @@ void* hash_table_get(const struct hash_table* ht, void* key)
 	struct hash_table_entry* entry;
 	for (entry = ht->buckets[i]; entry != NULL; entry = entry->next)
 	{
-		if (ht->key_eq(key, entry->key)) {
+		if (ht->key_equal(key, entry->key)) {
 			return entry->val;
 		}
 	}
@@ -126,7 +126,7 @@ void* hash_table_remove(struct hash_table* ht, void* key)
 		// current entry
 		struct hash_table_entry* entry = *p_entry;
 
-		if (ht->key_eq(key, entry->key))
+		if (ht->key_equal(key, entry->key))
 		{
 			// key found
 

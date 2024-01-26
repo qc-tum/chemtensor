@@ -5,7 +5,7 @@
 #include <memory.h>
 #include <complex.h>
 #include "mps.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________

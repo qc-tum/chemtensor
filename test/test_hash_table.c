@@ -1,6 +1,6 @@
 #include <string.h>
 #include "hash_table.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 struct key_struct
@@ -10,34 +10,7 @@ struct key_struct
 };
 
 
-//
-// Fowler-Noll-Vo FNV-1a (64-bit) hash function, see
-// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function and
-// http://www.isthe.com/chongo/tech/comp/fnv/index.html
-//
-static uint64_t fnv1a(const char *key)
-{
-	uint64_t hash = 14695981039346656037U;
-	while (*key)
-	{
-		hash = (hash ^ (*key)) * 1099511628211U;
-		key++;
-	}
-	return hash;
-}
-
-
-static hash_type hash_func(const void* k)
-{
-	const struct key_struct* key = k;
-	hash_type hash = fnv1a(key->s);
-	// include integer variable in key
-	hash = (hash ^ (key->i)) * 1099511628211U;
-	return hash;
-}
-
-
-static bool key_comp(const void* k1, const void* k2)
+static bool key_equal(const void* k1, const void* k2)
 {
 	const struct key_struct* key1 = k1;
 	const struct key_struct* key2 = k2;
@@ -46,11 +19,32 @@ static bool key_comp(const void* k1, const void* k2)
 }
 
 
+static hash_type hash_func(const void* k)
+{
+	const struct key_struct* key = k;
+
+	// Fowler-Noll-Vo FNV-1a (64-bit) hash function, see
+	// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+	const uint64_t offset = 14695981039346656037U;
+	const uint64_t prime  = 1099511628211U;
+	hash_type hash = offset;
+	const char* c = key->s;
+	while (*c)
+	{
+		hash = (hash ^ (*c)) * prime;
+		c++;
+	}
+	// include integer variable in key
+	hash = (hash ^ key->i) * prime;
+	return hash;
+}
+
+
 char* test_hash_table()
 {
 	// create a hash table with an artifically small number of buckets, such that collisions will occur
 	struct hash_table ht;
-	create_hash_table(hash_func, key_comp, sizeof(struct key_struct), 5, &ht);
+	create_hash_table(key_equal, hash_func, sizeof(struct key_struct), 5, &ht);
 
 	struct key_struct keys[9] = {
 		{ .i = 13, .s = "first key"   },

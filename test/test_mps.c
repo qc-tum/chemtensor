@@ -1,6 +1,6 @@
 #include <math.h>
 #include "mps.h"
-#include "config.h"
+#include "aligned_memory.h"
 
 
 char* test_mps_orthonormalize_qr()

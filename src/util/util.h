@@ -26,6 +26,9 @@ static inline double square(const double x)
 long integer_product(const long* x, const int n);
 
 
+long ipow(long base, int exp);
+
+
 //________________________________________________________________________________________________________________________
 //
 
