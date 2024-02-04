@@ -675,6 +675,9 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 			}
 			for (int j = 0; j < node->num_edges[0]; j++)
 			{
+				if (node->eids[0][j] < 0 || node->eids[0][j] >= mpo_graph->num_edges[l - 1]) {
+					return false;
+				}
 				const struct mpo_graph_edge* edge = &mpo_graph->edges[l - 1][node->eids[0][j]];
 				if (edge->nids[1] != i) {
 					return false;
@@ -682,6 +685,9 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 			}
 			for (int j = 0; j < node->num_edges[1]; j++)
 			{
+				if (node->eids[1][j] < 0 || node->eids[1][j] >= mpo_graph->num_edges[l]) {
+					return false;
+				}
 				const struct mpo_graph_edge* edge = &mpo_graph->edges[l][node->eids[1][j]];
 				if (edge->nids[0] != i) {
 					return false;

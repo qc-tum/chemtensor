@@ -92,6 +92,16 @@ bool mps_is_consistent(const struct mps* mps)
 		}
 	}
 
+	// axis directions
+	for (int i = 0; i < mps->nsites; i++)
+	{
+		if (mps->a[i].axis_dir[0] != TENSOR_AXIS_OUT ||
+		    mps->a[i].axis_dir[1] != TENSOR_AXIS_OUT ||
+		    mps->a[i].axis_dir[2] != TENSOR_AXIS_IN) {
+			return false;
+		}
+	}
+
 	return true;
 }
 

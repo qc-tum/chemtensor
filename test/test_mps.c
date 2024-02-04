@@ -181,7 +181,7 @@ char* test_mps_to_statevector()
 
 	// read reference state vector from disk
 	struct dense_tensor vec_ref;
-	const long dim_vec_ref[3] = { 1, 243, 1 };  // include dummy virtual bond dimensions
+	const long dim_vec_ref[3] = { 1, ipow(d, nsites), 1 };  // include dummy virtual bond dimensions
 	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_vec_ref, &vec_ref);
 	if (read_hdf5_dataset(file, "vec", H5T_NATIVE_DOUBLE, vec_ref.data) < 0) {
 		return "reading state vector entries from disk failed";
