@@ -470,6 +470,92 @@ char* test_dense_tensor_rq()
 }
 
 
+char* test_dense_tensor_svd()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_svd failed";
+	}
+
+	const enum numeric_type dtypes[4] = { SINGLE_REAL, DOUBLE_REAL, SINGLE_COMPLEX, DOUBLE_COMPLEX };
+
+	// cases m >= n and m < n
+	for (int i = 0; i < 2; i++)
+	{
+		// data types
+		for (int j = 0; j < 4; j++)
+		{
+			const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
+
+			// matrix 'a'
+			struct dense_tensor a;
+			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
+			allocate_dense_tensor(dtypes[j], 2, dim, &a);
+			// read values from disk
+			char varname[1024];
+			sprintf(varname, "a_s%i_t%i", i, j);
+			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+
+			// compute singular value decomposition
+			struct dense_tensor u, s, vh;
+			dense_tensor_svd(&a, &u, &s, &vh);
+
+			// matrix product 'u s vh' must be equal to 'a'
+			struct dense_tensor us;
+			dense_tensor_multiply_pointwise_real(&u, &s, &us);
+			struct dense_tensor usvh;
+			dense_tensor_dot(&us, &vh, 1, &usvh);
+			delete_dense_tensor(&us);
+			if (!dense_tensor_allclose(&usvh, &a, tol)) {
+				return "matrix product U S V^dag is not equal to original A matrix";
+			}
+			delete_dense_tensor(&usvh);
+
+			struct dense_tensor id;
+			const long dim_id[2] = { s.dim[0], s.dim[0] };
+			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
+			dense_tensor_set_identity(&id);
+
+			// 'u' must be an isometry
+			struct dense_tensor uh;
+			const int perm_u[2] = { 1, 0 };
+			conjugate_transpose_dense_tensor(perm_u, &u, &uh);
+			struct dense_tensor uhu;
+			dense_tensor_dot(&uh, &u, 1, &uhu);
+			if (!dense_tensor_allclose(&uhu, &id, tol)) {
+				return "U matrix is not an isometry";
+			}
+			delete_dense_tensor(&uhu);
+			delete_dense_tensor(&uh);
+
+			// 'v' must be an isometry
+			struct dense_tensor v;
+			const int perm_v[2] = { 1, 0 };
+			conjugate_transpose_dense_tensor(perm_v, &vh, &v);
+			struct dense_tensor vhv;
+			dense_tensor_dot(&vh, &v, 1, &vhv);
+			if (!dense_tensor_allclose(&vhv, &id, tol)) {
+				return "V matrix is not an isometry";
+			}
+			delete_dense_tensor(&vhv);
+			delete_dense_tensor(&v);
+
+			delete_dense_tensor(&id);
+			delete_dense_tensor(&vh);
+			delete_dense_tensor(&s);
+			delete_dense_tensor(&u);
+			delete_dense_tensor(&a);
+		}
+	}
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_block()
 {
 	hid_t file = H5Fopen("../test/data/test_dense_tensor_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

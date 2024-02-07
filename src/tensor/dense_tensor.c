@@ -613,6 +613,190 @@ void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tens
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Pointwise multiplication of two tensors, using broadcasting.
+/// The output tensor has the same data type and dimension as 's.'
+/// The dimensions of 's' and 't' (starting from the last dimension) must match.
+///
+/// Memory will be allocated for 'r'.
+///
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+{
+	assert(s->dtype == t->dtype);
+
+	const int ndim_diff = s->ndim - t->ndim;
+	assert(ndim_diff >= 0);
+	// check dimension compatibility
+	for (int i = 0; i < t->ndim; i++) {
+		assert(t->dim[i] == s->dim[ndim_diff + i]);
+	}
+
+	const long nt = dense_tensor_num_elements(t);
+	const long lds = integer_product(s->dim, ndim_diff);
+
+	// allocate 'r' with same type and dimension as 's'
+	allocate_dense_tensor(s->dtype, s->ndim, s->dim, r);
+
+	switch (s->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* sdata = s->data;
+			const float* tdata = t->data;
+			float* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* sdata = s->data;
+			const double* tdata = t->data;
+			double* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* sdata = s->data;
+			const scomplex* tdata = t->data;
+			scomplex* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* sdata = s->data;
+			const dcomplex* tdata = t->data;
+			dcomplex* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Pointwise multiplication of two tensors, using broadcasting, for real-valued tensor 't'.
+/// The output tensor has the same data type and dimension as 's.'
+/// The dimensions of 's' and 't' (starting from the last dimension) must match.
+///
+/// Memory will be allocated for 'r'.
+///
+void dense_tensor_multiply_pointwise_real(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+{
+	assert(numeric_real_type(s->dtype) == t->dtype);
+
+	const int ndim_diff = s->ndim - t->ndim;
+	assert(ndim_diff >= 0);
+	// check dimension compatibility
+	for (int i = 0; i < t->ndim; i++) {
+		assert(t->dim[i] == s->dim[ndim_diff + i]);
+	}
+
+	const long nt = dense_tensor_num_elements(t);
+	const long lds = integer_product(s->dim, ndim_diff);
+
+	// allocate 'r' with same type and dimension as 's'
+	allocate_dense_tensor(s->dtype, s->ndim, s->dim, r);
+
+	switch (s->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* sdata = s->data;
+			const float* tdata = t->data;
+			float* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* sdata = s->data;
+			const double* tdata = t->data;
+			double* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* sdata = s->data;
+			const float*    tdata = t->data;  // 't' has real data type
+			scomplex* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* sdata = s->data;
+			const double*   tdata = t->data;  // 't' has real data type
+			dcomplex* rdata = r->data;
+			for (long j = 0; j < lds; j++)
+			{
+				for (long k = 0; k < nt; k++)
+				{
+					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', and store result in 'r'.
 ///
 /// Memory will be allocated for 'r'.
@@ -1576,6 +1760,190 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 			assert(false);
 		}
 	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the "economical" SVD decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh' (will be allocated).
+/// The singular values 's' are returned as vector.
+///
+int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh)
+{
+	// require a matrix
+	assert(a->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	const long dim_u[2]  = { m, k };
+	const long dim_s[1]  = { k };
+	const long dim_vh[2] = { k, n };
+	allocate_dense_tensor(a->dtype, 2, dim_u, u);
+	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_s, s);
+	allocate_dense_tensor(a->dtype, 2, dim_vh, vh);
+
+	return dense_tensor_svd_fill(a, u, s, vh);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the "economical" SVD decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh',
+/// which must have been allocated beforehand. The singular values 's' are returned as vector.
+///
+int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh)
+{
+	assert( u->dtype == a->dtype);
+	assert( s->dtype == numeric_real_type(a->dtype));
+	assert(vh->dtype == a->dtype);
+
+	assert( a->ndim == 2);
+	assert( u->ndim == 2);
+	assert( s->ndim == 1);
+	assert(vh->ndim == 2);
+
+	const long m = a->dim[0];
+	const long n = a->dim[1];
+	const long k = minl(m, n);
+
+	assert( u->dim[0] == m);
+	assert( u->dim[1] == k);
+	assert( s->dim[0] == k);
+	assert(vh->dim[0] == k);
+	assert(vh->dim[1] == n);
+
+	void* superb = aligned_alloc(MEM_DATA_ALIGN, (k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)));
+
+	switch (a->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			if (m >= n)
+			{
+				// copy 'a' into 'u'
+				memcpy(u->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'u' are overwritten with result
+				int info = LAPACKE_sgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'vh'
+				memcpy(vh->data, a->data, m*n * sizeof(float));
+
+				// data entries of 'vh' are overwritten with result
+				int info = LAPACKE_sgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			if (m >= n)
+			{
+				// copy 'a' into 'u'
+				memcpy(u->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'u' are overwritten with result
+				int info = LAPACKE_dgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'vh'
+				memcpy(vh->data, a->data, m*n * sizeof(double));
+
+				// data entries of 'vh' are overwritten with result
+				int info = LAPACKE_dgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			if (m >= n)
+			{
+				// copy 'a' into 'u'
+				memcpy(u->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'u' are overwritten with result
+				int info = LAPACKE_cgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'vh'
+				memcpy(vh->data, a->data, m*n * sizeof(scomplex));
+
+				// data entries of 'vh' are overwritten with result
+				int info = LAPACKE_cgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			if (m >= n)
+			{
+				// copy 'a' into 'u'
+				memcpy(u->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'u' are overwritten with result
+				int info = LAPACKE_zgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+			else  // m < n
+			{
+				// copy 'a' into 'vh'
+				memcpy(vh->data, a->data, m*n * sizeof(dcomplex));
+
+				// data entries of 'vh' are overwritten with result
+				int info = LAPACKE_zgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgesvd()' failed, return value: %i\n", info);
+					return -1;
+				}
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	aligned_free(superb);
 
 	return 0;
 }

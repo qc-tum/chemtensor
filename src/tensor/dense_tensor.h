@@ -131,6 +131,10 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
 
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+
+void dense_tensor_multiply_pointwise_real(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+
 void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r);
 
 void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta);
@@ -151,6 +155,16 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
 
 int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// singular value decomposition
+
+int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh);
+
+int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh);
 
 
 //________________________________________________________________________________________________________________________
