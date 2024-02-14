@@ -122,6 +122,16 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 //________________________________________________________________________________________________________________________
 //
 
+// singular value decomposition
+
+int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict u, struct dense_tensor* restrict s, struct block_sparse_tensor* restrict vh);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // comparison
 
 bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const double tol);
+
+bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol);

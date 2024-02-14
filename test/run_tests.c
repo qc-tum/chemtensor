@@ -28,6 +28,7 @@ char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
+char* test_block_sparse_tensor_svd();
 char* test_dense_tensor_svd();
 char* test_mps_orthonormalize_qr();
 char* test_mps_to_statevector();
@@ -64,6 +65,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),

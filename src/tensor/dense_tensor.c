@@ -2,6 +2,7 @@
 /// \brief Dense tensor structure, using row-major storage convention.
 
 #include <stdbool.h>
+#include <math.h>
 #include <memory.h>
 #include <complex.h>
 #include <cblas.h>
@@ -2092,6 +2093,86 @@ bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct d
 	const long nelem = dense_tensor_num_elements(s);
 	if (uniform_distance(s->dtype, nelem, s->data, t->data) > tol) {
 		return false;
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether a dense tensors is close to the identity matrix within tolerance 'tol'.
+///
+bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
+{
+	// must be a matrix
+	if (t->ndim != 2) {
+		return false;
+	}
+
+	// must be a square matrix
+	if (t->dim[0] != t->dim[1]) {
+		return false;
+	}
+
+	// entries
+	const long n = t->dim[0] * t->dim[1];
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* data = t->data;
+			for (long i = 0; i < n; i++)
+			{
+				const float ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
+				if (fabsf(data[i] - ref) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* data = t->data;
+			for (long i = 0; i < n; i++)
+			{
+				const double ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
+				if (fabs(data[i] - ref) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* data = t->data;
+			for (long i = 0; i < n; i++)
+			{
+				const scomplex ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
+				if (cabsf(data[i] - ref) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* data = t->data;
+			for (long i = 0; i < n; i++)
+			{
+				const dcomplex ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
+				if (cabs(data[i] - ref) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
+		}
 	}
 
 	return true;

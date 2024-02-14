@@ -181,3 +181,5 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 // comparison
 
 bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const double tol);
+
+bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol);

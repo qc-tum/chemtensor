@@ -358,14 +358,9 @@ char* test_dense_tensor_qr()
 			conjugate_transpose_dense_tensor(perm, &q, &qh);
 			struct dense_tensor qhq;
 			dense_tensor_dot(&qh, &q, 1, &qhq);
-			struct dense_tensor id;
-			const long dim_id[2] = { q.dim[1], q.dim[1] };
-			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
-			dense_tensor_set_identity(&id);
-			if (!dense_tensor_allclose(&qhq, &id, tol)) {
+			if (!dense_tensor_is_identity(&qhq, tol)) {
 				return "Q matrix is not an isometry";
 			}
-			delete_dense_tensor(&id);
 			delete_dense_tensor(&qhq);
 			delete_dense_tensor(&qh);
 
@@ -437,14 +432,9 @@ char* test_dense_tensor_rq()
 			conjugate_transpose_dense_tensor(perm, &q, &qh);
 			struct dense_tensor qqh;
 			dense_tensor_dot(&q, &qh, 1, &qqh);
-			struct dense_tensor id;
-			const long dim_id[2] = { q.dim[0], q.dim[0] };
-			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
-			dense_tensor_set_identity(&id);
-			if (!dense_tensor_allclose(&qqh, &id, tol)) {
+			if (!dense_tensor_is_identity(&qqh, tol)) {
 				return "Q matrix is not an isometry";
 			}
-			delete_dense_tensor(&id);
 			delete_dense_tensor(&qqh);
 			delete_dense_tensor(&qh);
 
@@ -513,18 +503,13 @@ char* test_dense_tensor_svd()
 			}
 			delete_dense_tensor(&usvh);
 
-			struct dense_tensor id;
-			const long dim_id[2] = { s.dim[0], s.dim[0] };
-			allocate_dense_tensor(dtypes[j], 2, dim_id, &id);
-			dense_tensor_set_identity(&id);
-
 			// 'u' must be an isometry
 			struct dense_tensor uh;
 			const int perm_u[2] = { 1, 0 };
 			conjugate_transpose_dense_tensor(perm_u, &u, &uh);
 			struct dense_tensor uhu;
 			dense_tensor_dot(&uh, &u, 1, &uhu);
-			if (!dense_tensor_allclose(&uhu, &id, tol)) {
+			if (!dense_tensor_is_identity(&uhu, tol)) {
 				return "U matrix is not an isometry";
 			}
 			delete_dense_tensor(&uhu);
@@ -536,13 +521,12 @@ char* test_dense_tensor_svd()
 			conjugate_transpose_dense_tensor(perm_v, &vh, &v);
 			struct dense_tensor vhv;
 			dense_tensor_dot(&vh, &v, 1, &vhv);
-			if (!dense_tensor_allclose(&vhv, &id, tol)) {
+			if (!dense_tensor_is_identity(&vhv, tol)) {
 				return "V matrix is not an isometry";
 			}
 			delete_dense_tensor(&vhv);
 			delete_dense_tensor(&v);
 
-			delete_dense_tensor(&id);
 			delete_dense_tensor(&vh);
 			delete_dense_tensor(&s);
 			delete_dense_tensor(&u);
