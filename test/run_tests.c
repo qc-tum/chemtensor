@@ -39,6 +39,7 @@ char* test_bipartite_graph_minimum_vertex_cover();
 char* test_mpo_graph_from_opchains_basic();
 char* test_mpo_graph_from_opchains_advanced();
 char* test_mpo_from_graph();
+char* test_retained_bond_indices();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -75,6 +76,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_basic),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
 		TEST_FUNCTION_ENTRY(test_mpo_from_graph),
+		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

@@ -36,6 +36,9 @@ long ipow(long base, int exp);
 double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y);
 
 
+double norm2(const enum numeric_type dtype, const long n, const void* x);
+
+
 //________________________________________________________________________________________________________________________
 //
 

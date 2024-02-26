@@ -4,6 +4,7 @@
 #include <math.h>
 #include <memory.h>
 #include <complex.h>
+#include <cblas.h>
 #include <assert.h>
 #include "util.h"
 
@@ -100,6 +101,42 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 				d = fmax(d, cabs(xv[i] - yv[i]));
 			}
 			return d;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Euclidean norm of a vector.
+///
+double norm2(const enum numeric_type dtype, const long n, const void* x)
+{
+	assert(n >= 0);
+
+	switch (dtype)
+	{
+		case SINGLE_REAL:
+		{
+			return cblas_snrm2(n, x, 1);
+		}
+		case DOUBLE_REAL:
+		{
+			return cblas_dnrm2(n, x, 1);
+		}
+		case SINGLE_COMPLEX:
+		{
+			return cblas_scnrm2(n, x, 1);
+		}
+		case DOUBLE_COMPLEX:
+		{
+			return cblas_dznrm2(n, x, 1);
 		}
 		default:
 		{
