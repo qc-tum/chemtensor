@@ -391,6 +391,92 @@ char* test_block_sparse_tensor_reshape()
 }
 
 
+char* test_block_sparse_tensor_slice()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_slice failed";
+	}
+
+	const int ndim = 4;
+	const long dim[4] = { 6, 7, 11, 13 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(SINGLE_REAL, 4, dim, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	// slicing indices
+	const long nind = 17;
+	long *ind = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(long));
+	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
+		return "reading slice indices from disk failed";
+	}
+
+	// perform slicing
+	struct block_sparse_tensor s;
+	block_sparse_tensor_slice(&t, 2, ind, nind, &s);
+
+	// convert block-sparse tensor 's' to a dense tensor
+	struct dense_tensor s_dns;
+	block_sparse_to_dense_tensor(&s, &s_dns);
+
+	// read reference tensor from disk
+	struct dense_tensor s_ref;
+	const long dim_s_ref[4] = { 6, 7, nind, 13 };
+	allocate_dense_tensor(SINGLE_REAL, 4, dim_s_ref, &s_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// compare with reference
+	if (!dense_tensor_allclose(&s_dns, &s_ref, 0.)) {
+		return "block-sparse tensor with split axes does not match reference";
+	}
+
+	// clean up
+	delete_dense_tensor(&s_ref);
+	delete_dense_tensor(&s_dns);
+	delete_block_sparse_tensor(&s);
+	aligned_free(ind);
+	delete_block_sparse_tensor(&t);
+	for (int i = 0; i < ndim; i++)
+	{
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_block_sparse_tensor_dot()
 {
 	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

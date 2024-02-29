@@ -33,6 +33,23 @@ def dense_tensor_transpose_data():
         file["t_tp"] = t_tp
 
 
+def dense_tensor_slice_data():
+
+    # random number generator
+    rng = np.random.default_rng(143)
+
+    t = crandn((2, 7, 3, 5, 4), rng).astype(np.complex64)
+
+    # slice along axis 1
+    ind = rng.integers(0, t.shape[1], 10)
+    s = t[:, ind, :, :, :]
+
+    with h5py.File("data/test_dense_tensor_slice.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file["s"] = interleave_complex(s)
+        file.attrs["ind"] = ind
+
+
 def dense_tensor_dot_data():
 
     # random number generator
@@ -198,6 +215,7 @@ def dense_tensor_block_data():
 def main():
     dense_tensor_trace_data()
     dense_tensor_transpose_data()
+    dense_tensor_slice_data()
     dense_tensor_dot_data()
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()

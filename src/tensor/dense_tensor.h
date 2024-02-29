@@ -127,6 +127,16 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 //________________________________________________________________________________________________________________________
 //
 
+// slicing
+
+void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r);
+
+void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // binary operations
 
 void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);

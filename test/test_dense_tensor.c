@@ -88,6 +88,57 @@ char* test_dense_tensor_transpose()
 }
 
 
+char* test_dense_tensor_slice()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_slice failed";
+	}
+
+	// create tensor 't'
+	struct dense_tensor t;
+	const long dim[5] = { 2, 7, 3, 5, 4 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, dim, &t);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+	// read indices from disk
+	const long nind = 10;
+	long *ind = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(long));
+	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
+		return "reading slice indices from disk failed";
+	}
+
+	struct dense_tensor s;
+	dense_tensor_slice(&t, 1, ind, nind, &s);
+
+	// read reference tensor from disk
+	struct dense_tensor s_ref;
+	const long dim_ref[5] = { 2, 10, 3, 5, 4 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, dim_ref, &s_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// compare
+	if (!dense_tensor_allclose(&s, &s_ref, 0.)) {
+		return "sliced tensor does not match reference";
+	}
+
+	// clean up
+	delete_dense_tensor(&s_ref);
+	delete_dense_tensor(&s);
+	aligned_free(ind);
+	delete_dense_tensor(&t);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_dot()
 {
 	hid_t file = H5Fopen("../test/data/test_dense_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

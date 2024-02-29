@@ -13,6 +13,7 @@ struct test
 
 char* test_dense_tensor_trace();
 char* test_dense_tensor_transpose();
+char* test_dense_tensor_slice();
 char* test_dense_tensor_dot();
 char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
@@ -25,6 +26,7 @@ char* test_block_sparse_tensor_get_block();
 char* test_block_sparse_tensor_norm2();
 char* test_block_sparse_tensor_transpose();
 char* test_block_sparse_tensor_reshape();
+char* test_block_sparse_tensor_slice();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
@@ -50,6 +52,7 @@ int main()
 	struct test tests[] = {
 		TEST_FUNCTION_ENTRY(test_dense_tensor_trace),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_transpose),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_slice),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot_update),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
@@ -63,6 +66,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_norm2),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_reshape),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_slice),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),

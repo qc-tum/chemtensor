@@ -568,6 +568,59 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Slice an axis of the tensor by selecting logical indices 'ind' along this axis.
+///
+/// Indices 'ind' can be duplicate and need not be sorted.
+/// Memory will be allocated for 'r'.
+///
+void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	assert(nind > 0);
+
+	long* rdim = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	memcpy(rdim, t->dim, t->ndim * sizeof(long));
+	rdim[i_ax] = nind;
+	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
+	aligned_free(rdim);
+
+	dense_tensor_slice_fill(t, i_ax, ind, nind, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Slice an axis of the tensor by selecting logical indices 'ind' along this axis.
+///
+/// Indices 'ind' can be duplicate and need not be sorted.
+/// 'r' must have been allocated beforehand.
+///
+void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	assert(nind > 0);
+	assert(r->dim[i_ax] == nind);
+
+	// leading dimension of 't' and 'r'
+	const long ld = integer_product(t->dim, i_ax);
+	// trailing dimension of 't' and 'r'
+	const long td = integer_product(&t->dim[i_ax + 1], t->ndim - (i_ax + 1));
+
+	const long stride = td * sizeof_numeric_type(t->dtype);
+	for (long j = 0; j < ld; j++)
+	{
+		for (long k = 0; k < nind; k++)
+		{
+			assert(0 <= ind[k] && ind[k] < t->dim[i_ax]);
+			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+			memcpy((int8_t*)r->data + (j * nind + k) * stride, (int8_t*)t->data + (j * t->dim[i_ax] + ind[k]) * stride, stride);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions and data types of s and t must agree,
 /// and alpha must be of the same data type as tensor entries.
 ///

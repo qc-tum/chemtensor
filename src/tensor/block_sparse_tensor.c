@@ -827,7 +827,7 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 ///
 /// Note: this operation changes the internal dense block structure.
 ///
-void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict t, const long i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r)
+void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r)
 {
 	assert(0 <= i_ax && i_ax + 1 < t->ndim);
 
@@ -1003,7 +1003,6 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 }
 
 
-
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Split the axis (tensor leg) 'i_ax' into two neighboring axes, using the provided quantum numbers.
@@ -1012,7 +1011,7 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 ///
 /// Note: this operation changes the internal dense block structure.
 ///
-void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t, const long i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r)
+void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r)
 {
 	assert(0 <= i_ax && i_ax < t->ndim);
 	assert(new_dim_logical[0] * new_dim_logical[1] == t->dim_logical[i_ax]);
@@ -1185,6 +1184,129 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 
 	aligned_free(index_block_t);
 	aligned_free(index_block_r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Slice an axis of the tensor by selecting logical indices 'ind' along this axis.
+///
+/// Indices 'ind' can be duplicate and need not be sorted.
+/// Memory will be allocated for 'r'.
+///
+void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct block_sparse_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	assert(nind > 0);
+
+	// construct new block-sparse tensor 'r'
+	{
+		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+		memcpy(r_dim_logical, t->dim_logical, t->ndim * sizeof(long));
+		r_dim_logical[i_ax] = nind;
+		// logical quantum numbers
+		qnumber* r_qnums_logical_i_ax = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(qnumber));
+		for (long j = 0; j < nind; j++) {
+			assert(0 <= ind[j] && ind[j] < t->dim_logical[i_ax]);
+			r_qnums_logical_i_ax[j] = t->qnums_logical[i_ax][ind[j]];
+		}
+		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(qnumber*));
+		for (int i = 0; i < t->ndim; i++)
+		{
+			// simply copy the pointer for i != i_ax
+			r_qnums_logical[i] = (i == i_ax ? r_qnums_logical_i_ax : t->qnums_logical[i]);
+		}
+
+		// allocate new block-sparse tensor 'r'
+		allocate_block_sparse_tensor(t->dtype, t->ndim, r_dim_logical, t->axis_dir, r_qnums_logical, r);
+
+		aligned_free(r_qnums_logical);
+		aligned_free(r_qnums_logical_i_ax);
+		aligned_free(r_dim_logical);
+	}
+
+	// for each block with matching quantum numbers...
+	const long nblocks = integer_product(r->dim_blocks, r->ndim);
+	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		struct dense_tensor* br = r->blocks[k];
+		assert(br != NULL);
+		assert(br->ndim == r->ndim);
+		assert(br->dtype == r->dtype);
+
+		const qnumber qnum = r->qnums_blocks[i_ax][index_block_r[i_ax]];
+
+		// find corresponding block index in 't' tensor
+		memcpy(index_block_t, index_block_r, t->ndim * sizeof(long));
+		index_block_t[i_ax] = -1;
+		for (long j = 0; j < t->dim_blocks[i_ax]; j++)
+		{
+			if (t->qnums_blocks[i_ax][j] == qnum) {
+				index_block_t[i_ax] = j;
+				break;
+			}
+		}
+		assert(index_block_t[i_ax] != -1);
+
+		const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+		assert(bt != NULL);
+		assert(bt->ndim == t->ndim);
+		assert(bt->dtype == t->dtype);
+
+		// fan-out dense to logical indices for axis 'i_ax' in 'r'
+		long* index_map_fanout_r = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax], sizeof(long));
+		long c = 0;
+		for (long j = 0; j < r->dim_logical[i_ax]; j++)
+		{
+			if (r->qnums_logical[i_ax][j] == qnum)
+			{
+				index_map_fanout_r[c] = j;
+				c++;
+			}
+		}
+		assert(c == br->dim[i_ax]);
+
+		// fan-in logical to block indices for axis i_ax in 't'
+		long* index_map_fanin_t = aligned_calloc(MEM_DATA_ALIGN, t->dim_logical[i_ax], sizeof(long));
+		c = 0;
+		for (long j = 0; j < t->dim_logical[i_ax]; j++)
+		{
+			if (t->qnums_logical[i_ax][j] == qnum) {
+				index_map_fanin_t[j] = c;
+				c++;
+			}
+		}
+
+		// indices for slicing of current block
+		long* ind_block = aligned_alloc(MEM_DATA_ALIGN, br->dim[i_ax] * sizeof(long));
+		for (long j = 0; j < br->dim[i_ax]; j++)
+		{
+			assert(t->qnums_logical[i_ax][ind[index_map_fanout_r[j]]] == qnum);
+			ind_block[j] = index_map_fanin_t[ind[index_map_fanout_r[j]]];
+		}
+
+		// slice block
+		dense_tensor_slice_fill(bt, i_ax, ind_block, br->dim[i_ax], br);
+
+		aligned_free(ind_block);
+		aligned_free(index_map_fanin_t);
+		aligned_free(index_map_fanout_r);
+	}
+
+	aligned_free(index_block_r);
+	aligned_free(index_block_t);
 }
 
 
@@ -1632,8 +1754,8 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	// require a matrix
 	assert(a->ndim == 2);
 
-	// determine dimensions and quantum numbers of intermediate axis connecting U and Vh,
-	// and allocate U and Vh matrices
+	// determine dimensions and quantum numbers of intermediate axis connecting 'u' and 'vh',
+	// and allocate 'u' and 'vh' matrices
 
 	long dim_interm = 0;
 

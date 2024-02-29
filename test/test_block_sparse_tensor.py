@@ -176,6 +176,45 @@ def block_sparse_tensor_reshape_data():
             file.attrs[f"qnums{i}"] = qn
 
 
+def block_sparse_tensor_slice_data():
+
+    # random number generator
+    rng = np.random.default_rng(741)
+
+    # dimensions
+    dims = (6, 7, 11, 13)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
+
+    # tensor with random entries
+    t = rng.standard_normal(dims).astype(np.float32)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    # slice along axis 2
+    ind = rng.integers(0, t.shape[2], 17)
+    s = t[:, :, ind, :]
+
+    with h5py.File("data/test_block_sparse_tensor_slice.hdf5", "w") as file:
+        file["t"] = t
+        file["s"] = s
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+        file.attrs["ind"] = ind
+
+
 def block_sparse_tensor_dot_data():
 
     # random number generator
@@ -330,6 +369,7 @@ def main():
     block_sparse_tensor_norm2_data()
     block_sparse_tensor_transpose_data()
     block_sparse_tensor_reshape_data()
+    block_sparse_tensor_slice_data()
     block_sparse_tensor_dot_data()
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
