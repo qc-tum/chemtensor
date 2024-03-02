@@ -1312,6 +1312,71 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Pointwise multiply the entries of 's' along its leading or trailing axis with the vector 't'.
+/// The output tensor 'r' has the same data type and dimension as 's'.
+///
+/// Memory will be allocated for 'r'.
+///
+void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct block_sparse_tensor* restrict r)
+{
+	assert(t->ndim == 1);
+
+	const int i_ax = (align == TENSOR_AXIS_ALIGN_LEADING ? 0 : s->ndim - 1);
+	assert(t->dim[0] == s->dim_logical[i_ax]);
+
+	// allocate new block-sparse tensor 'r' with same layout as 's'
+	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->axis_dir, (const qnumber**)s->qnums_logical, r);
+
+	// for each block with matching quantum numbers...
+	const long nblocks = integer_product(r->dim_blocks, r->ndim);
+	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		struct dense_tensor* br = r->blocks[k];
+		assert(br != NULL);
+
+		// corresponding block in 's'
+		const struct dense_tensor* bs = s->blocks[k];
+		assert(bs != NULL);
+
+		// fan-out dense to logical indices
+		long* index_map = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax], sizeof(long));
+		long c = 0;
+		for (long j = 0; j < r->dim_logical[i_ax]; j++)
+		{
+			if (r->qnums_logical[i_ax][j] == r->qnums_blocks[i_ax][index_block_r[i_ax]])
+			{
+				index_map[c] = j;
+				c++;
+			}
+		}
+		assert(c == br->dim[i_ax]);
+
+		struct dense_tensor t_slice;
+		dense_tensor_slice(t, 0, index_map, br->dim[i_ax], &t_slice);
+
+		dense_tensor_multiply_pointwise_fill(bs, &t_slice, align, br);
+
+		delete_dense_tensor(&t_slice);
+		aligned_free(index_map);
+	}
+
+	aligned_free(index_block_r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', and store result in 'r'.
 ///
 /// Memory will be allocated for 'r'. Operation requires that the quantum numbers of the to-be contracted axes match,

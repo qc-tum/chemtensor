@@ -489,7 +489,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				float*       rdata =       (float*)r->data + or;
 				////assume_aligned(tdata);
 				////assume_aligned(rdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -502,7 +502,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				double*       rdata =       (double*)r->data + or;
 				////assume_aligned(tdata);
 				////assume_aligned(rdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -515,7 +515,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				scomplex*       rdata =       (scomplex*)r->data + or;
 				////assume_aligned(tdata);
 				////assume_aligned(rdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -528,7 +528,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				dcomplex*       rdata =       (dcomplex*)r->data + or;
 				////assume_aligned(tdata);
 				////assume_aligned(rdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -668,182 +668,250 @@ void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tens
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Pointwise multiplication of two tensors, using broadcasting.
-/// The output tensor has the same data type and dimension as 's.'
-/// The dimensions of 's' and 't' (starting from the last dimension) must match.
+/// The output tensor 'r' has the same data type and dimension as 's'.
+/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'align') must match.
 ///
 /// Memory will be allocated for 'r'.
 ///
-void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r)
 {
-	assert(s->dtype == t->dtype);
-
-	const int ndim_diff = s->ndim - t->ndim;
-	assert(ndim_diff >= 0);
-	// check dimension compatibility
-	for (int i = 0; i < t->ndim; i++) {
-		assert(t->dim[i] == s->dim[ndim_diff + i]);
-	}
-
-	const long nt = dense_tensor_num_elements(t);
-	const long lds = integer_product(s->dim, ndim_diff);
-
 	// allocate 'r' with same type and dimension as 's'
 	allocate_dense_tensor(s->dtype, s->ndim, s->dim, r);
 
-	switch (s->dtype)
-	{
-		case SINGLE_REAL:
-		{
-			const float* sdata = s->data;
-			const float* tdata = t->data;
-			float* rdata = r->data;
-			for (long j = 0; j < lds; j++)
-			{
-				for (long k = 0; k < nt; k++)
-				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
-				}
-			}
-			break;
-		}
-		case DOUBLE_REAL:
-		{
-			const double* sdata = s->data;
-			const double* tdata = t->data;
-			double* rdata = r->data;
-			for (long j = 0; j < lds; j++)
-			{
-				for (long k = 0; k < nt; k++)
-				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
-				}
-			}
-			break;
-		}
-		case SINGLE_COMPLEX:
-		{
-			const scomplex* sdata = s->data;
-			const scomplex* tdata = t->data;
-			scomplex* rdata = r->data;
-			for (long j = 0; j < lds; j++)
-			{
-				for (long k = 0; k < nt; k++)
-				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
-				}
-			}
-			break;
-		}
-		case DOUBLE_COMPLEX:
-		{
-			const dcomplex* sdata = s->data;
-			const dcomplex* tdata = t->data;
-			dcomplex* rdata = r->data;
-			for (long j = 0; j < lds; j++)
-			{
-				for (long k = 0; k < nt; k++)
-				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
-				}
-			}
-			break;
-		}
-		default:
-		{
-			// unknown data type
-			assert(false);
-		}
-	}
+	dense_tensor_multiply_pointwise_fill(s, t, align, r);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Pointwise multiplication of two tensors, using broadcasting, for real-valued tensor 't'.
-/// The output tensor has the same data type and dimension as 's.'
-/// The dimensions of 's' and 't' (starting from the last dimension) must match.
+/// \brief Pointwise multiplication of two tensors, using broadcasting.
+/// The output tensor 'r' has the same data type and dimension as 's'.
+/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'align') must match.
 ///
-/// Memory will be allocated for 'r'.
+/// 'r' must have been allocated beforehand.
 ///
-void dense_tensor_multiply_pointwise_real(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r)
 {
-	assert(numeric_real_type(s->dtype) == t->dtype);
+	assert(s->dtype == t->dtype || numeric_real_type(s->dtype) == t->dtype);
+	assert(s->dtype == r->dtype);
+	assert(s->ndim  == r->ndim);
+	for (int i = 0; i < s->ndim; i++) {
+		assert(s->dim[i] == r->dim[i]);
+	}
 
 	const int ndim_diff = s->ndim - t->ndim;
 	assert(ndim_diff >= 0);
-	// check dimension compatibility
-	for (int i = 0; i < t->ndim; i++) {
-		assert(t->dim[i] == s->dim[ndim_diff + i]);
-	}
 
-	const long nt = dense_tensor_num_elements(t);
-	const long lds = integer_product(s->dim, ndim_diff);
-
-	// allocate 'r' with same type and dimension as 's'
-	allocate_dense_tensor(s->dtype, s->ndim, s->dim, r);
-
-	switch (s->dtype)
+	if (align == TENSOR_AXIS_ALIGN_LEADING)
 	{
-		case SINGLE_REAL:
-		{
-			const float* sdata = s->data;
-			const float* tdata = t->data;
-			float* rdata = r->data;
-			for (long j = 0; j < lds; j++)
-			{
-				for (long k = 0; k < nt; k++)
-				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
-				}
-			}
-			break;
+		// check dimension compatibility
+		for (int i = 0; i < t->ndim; i++) {
+			assert(t->dim[i] == s->dim[i]);
 		}
-		case DOUBLE_REAL:
+
+		const long nt = dense_tensor_num_elements(t);
+		const long tds = integer_product(&s->dim[t->ndim], ndim_diff);
+
+		switch (s->dtype)
 		{
-			const double* sdata = s->data;
-			const double* tdata = t->data;
-			double* rdata = r->data;
-			for (long j = 0; j < lds; j++)
+			case SINGLE_REAL:
 			{
-				for (long k = 0; k < nt; k++)
+				const float* sdata = s->data;
+				const float* tdata = t->data;
+				float*       rdata = r->data;
+				for (long j = 0; j < nt; j++)
 				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+					for (long k = 0; k < tds; k++)
+					{
+						rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+					}
 				}
+				break;
 			}
-			break;
-		}
-		case SINGLE_COMPLEX:
-		{
-			const scomplex* sdata = s->data;
-			const float*    tdata = t->data;  // 't' has real data type
-			scomplex* rdata = r->data;
-			for (long j = 0; j < lds; j++)
+			case DOUBLE_REAL:
 			{
-				for (long k = 0; k < nt; k++)
+				const double* sdata = s->data;
+				const double* tdata = t->data;
+				double*       rdata = r->data;
+				for (long j = 0; j < nt; j++)
 				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+					for (long k = 0; k < tds; k++)
+					{
+						rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+					}
 				}
+				break;
 			}
-			break;
-		}
-		case DOUBLE_COMPLEX:
-		{
-			const dcomplex* sdata = s->data;
-			const double*   tdata = t->data;  // 't' has real data type
-			dcomplex* rdata = r->data;
-			for (long j = 0; j < lds; j++)
+			case SINGLE_COMPLEX:
 			{
-				for (long k = 0; k < nt; k++)
+				const scomplex* sdata = s->data;
+				scomplex*       rdata = r->data;
+				if (t->dtype == SINGLE_COMPLEX)
 				{
-					rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+					const scomplex* tdata = t->data;
+					for (long j = 0; j < nt; j++)
+					{
+						for (long k = 0; k < tds; k++)
+						{
+							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+						}
+					}
 				}
+				else
+				{
+					assert(t->dtype == SINGLE_REAL);
+					const float* tdata = t->data;
+					for (long j = 0; j < nt; j++)
+					{
+						for (long k = 0; k < tds; k++)
+						{
+							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+						}
+					}
+				}
+				break;
 			}
-			break;
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex* sdata = s->data;
+				dcomplex*       rdata = r->data;
+				if (t->dtype == DOUBLE_COMPLEX)
+				{
+					const dcomplex* tdata = t->data;
+					for (long j = 0; j < nt; j++)
+					{
+						for (long k = 0; k < tds; k++)
+						{
+							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+						}
+					}
+				}
+				else
+				{
+					assert(t->dtype == DOUBLE_REAL);
+					const double* tdata = t->data;
+					for (long j = 0; j < nt; j++)
+					{
+						for (long k = 0; k < tds; k++)
+						{
+							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
+						}
+					}
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
 		}
-		default:
+	}
+	else
+	{
+		assert(align == TENSOR_AXIS_ALIGN_TRAILING);
+
+		// check dimension compatibility
+		for (int i = 0; i < t->ndim; i++) {
+			assert(t->dim[i] == s->dim[ndim_diff + i]);
+		}
+
+		const long nt = dense_tensor_num_elements(t);
+		const long lds = integer_product(s->dim, ndim_diff);
+
+		switch (s->dtype)
 		{
-			// unknown data type
-			assert(false);
+			case SINGLE_REAL:
+			{
+				const float* sdata = s->data;
+				const float* tdata = t->data;
+				float*       rdata = r->data;
+				for (long j = 0; j < lds; j++)
+				{
+					for (long k = 0; k < nt; k++)
+					{
+						rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+					}
+				}
+				break;
+			}
+			case DOUBLE_REAL:
+			{
+				const double* sdata = s->data;
+				const double* tdata = t->data;
+				double*       rdata = r->data;
+				for (long j = 0; j < lds; j++)
+				{
+					for (long k = 0; k < nt; k++)
+					{
+						rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+					}
+				}
+				break;
+			}
+			case SINGLE_COMPLEX:
+			{
+				const scomplex* sdata = s->data;
+				scomplex*       rdata = r->data;
+				if (t->dtype == SINGLE_COMPLEX)
+				{
+					const scomplex* tdata = t->data;
+					for (long j = 0; j < lds; j++)
+					{
+						for (long k = 0; k < nt; k++)
+						{
+							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+						}
+					}
+				}
+				else
+				{
+					assert(t->dtype == SINGLE_REAL);
+					const float* tdata = t->data;
+					for (long j = 0; j < lds; j++)
+					{
+						for (long k = 0; k < nt; k++)
+						{
+							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+						}
+					}
+				}
+				break;
+			}
+			case DOUBLE_COMPLEX:
+			{
+				const dcomplex* sdata = s->data;
+				dcomplex*       rdata = r->data;
+				if (t->dtype == DOUBLE_COMPLEX)
+				{
+					const dcomplex* tdata = t->data;
+					for (long j = 0; j < lds; j++)
+					{
+						for (long k = 0; k < nt; k++)
+						{
+							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+						}
+					}
+				}
+				else
+				{
+					assert(t->dtype == DOUBLE_REAL);
+					const double* tdata = t->data;
+					for (long j = 0; j < lds; j++)
+					{
+						for (long k = 0; k < nt; k++)
+						{
+							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
+						}
+					}
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
 		}
 	}
 }
@@ -2049,7 +2117,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				float*       bdata =       (float*)b->data + ob;
 				////assume_aligned(tdata);
 				////assume_aligned(bdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -2062,7 +2130,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				double*       bdata =       (double*)b->data + ob;
 				////assume_aligned(tdata);
 				////assume_aligned(bdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -2075,7 +2143,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				scomplex*       bdata =       (scomplex*)b->data + ob;
 				////assume_aligned(tdata);
 				////assume_aligned(bdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -2088,7 +2156,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				dcomplex*       bdata =       (dcomplex*)b->data + ob;
 				////assume_aligned(tdata);
 				////assume_aligned(bdata);
-				#pragma ivdep
+				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];

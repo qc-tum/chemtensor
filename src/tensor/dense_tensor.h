@@ -135,15 +135,26 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 
 //________________________________________________________________________________________________________________________
+///
+/// \brief Tensor axis alignment, used to specify pointwise multiplication.
+///
+enum tensor_axis_alignment
+{
+	TENSOR_AXIS_ALIGN_LEADING,
+	TENSOR_AXIS_ALIGN_TRAILING,
+};
+
+
+//________________________________________________________________________________________________________________________
 //
 
 // binary operations
 
 void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
 
-void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r);
 
-void dense_tensor_multiply_pointwise_real(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r);
 
 void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r);
 

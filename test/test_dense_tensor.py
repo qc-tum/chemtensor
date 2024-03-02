@@ -50,6 +50,23 @@ def dense_tensor_slice_data():
         file.attrs["ind"] = ind
 
 
+def dense_tensor_multiply_pointwise_data():
+
+    # random number generator
+    rng = np.random.default_rng(631)
+
+    t = crandn((2, 6, 5), rng).astype(np.complex64)
+    s = [rng.standard_normal(dim).astype(np.float32) for dim in [(2, 6), (6, 5)]]
+
+    t_mult_s = [t * s[0][:, :, None], t * s[1]]
+
+    with h5py.File("data/test_dense_tensor_multiply_pointwise.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        for i in range(2):
+            file[f"s{i}"] = s[i]
+            file[f"t_mult_s{i}"] = interleave_complex(t_mult_s[i])
+
+
 def dense_tensor_dot_data():
 
     # random number generator
@@ -216,6 +233,7 @@ def main():
     dense_tensor_trace_data()
     dense_tensor_transpose_data()
     dense_tensor_slice_data()
+    dense_tensor_multiply_pointwise_data()
     dense_tensor_dot_data()
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()

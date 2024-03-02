@@ -139,6 +139,66 @@ char* test_dense_tensor_slice()
 }
 
 
+char* test_dense_tensor_multiply_pointwise()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_multiply_pointwise.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_multiply_pointwise failed";
+	}
+
+	// create tensor 't'
+	struct dense_tensor t;
+	const long tdim[3] = { 2, 6, 5 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 3, tdim,  &t);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	for (int i = 0; i < 2; i++)
+	{
+		// create another tensor 's'
+		struct dense_tensor s;
+		allocate_dense_tensor(SINGLE_REAL, 2, &tdim[i], &s);
+		// read values from disk
+		char varname[1024];
+		sprintf(varname, "s%i", i);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, s.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// multiply tensors pointwise
+		struct dense_tensor t_mult_s;
+		dense_tensor_multiply_pointwise(&t, &s, i == 0 ? TENSOR_AXIS_ALIGN_LEADING : TENSOR_AXIS_ALIGN_TRAILING, &t_mult_s);
+
+		// reference tensors for checking
+		const long refdim[3] = { 2, 6, 5 };
+		struct dense_tensor t_mult_s_ref;
+		allocate_dense_tensor(SINGLE_COMPLEX, 3, refdim, &t_mult_s_ref);
+		// read values from disk
+		sprintf(varname, "t_mult_s%i", i);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, t_mult_s_ref.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&t_mult_s, &t_mult_s_ref, 1e-13)) {
+			return "pointwise product of tensors does not match reference";
+		}
+
+		delete_dense_tensor(&t_mult_s_ref);
+		delete_dense_tensor(&t_mult_s);
+		delete_dense_tensor(&s);
+	}
+
+	delete_dense_tensor(&t);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_dot()
 {
 	hid_t file = H5Fopen("../test/data/test_dense_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -148,8 +208,8 @@ char* test_dense_tensor_dot()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[4] = { 2, 3, 4, 5 };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 4, dim,  &t);
+	const long tdim[4] = { 2, 3, 4, 5 };
+	allocate_dense_tensor(DOUBLE_COMPLEX, 4, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -545,7 +605,7 @@ char* test_dense_tensor_svd()
 
 			// matrix product 'u s vh' must be equal to 'a'
 			struct dense_tensor us;
-			dense_tensor_multiply_pointwise_real(&u, &s, &us);
+			dense_tensor_multiply_pointwise(&u, &s, TENSOR_AXIS_ALIGN_TRAILING, &us);
 			struct dense_tensor usvh;
 			dense_tensor_dot(&us, &vh, 1, &usvh);
 			delete_dense_tensor(&us);
