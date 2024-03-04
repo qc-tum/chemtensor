@@ -35,6 +35,7 @@ char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
 char* test_dense_tensor_svd();
 char* test_mps_orthonormalize_qr();
+char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
 char* test_queue();
 char* test_hash_table();
@@ -44,6 +45,8 @@ char* test_mpo_graph_from_opchains_basic();
 char* test_mpo_graph_from_opchains_advanced();
 char* test_mpo_from_graph();
 char* test_retained_bond_indices();
+char* test_split_block_sparse_matrix_svd();
+char* test_split_block_sparse_matrix_svd_zero();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -76,6 +79,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
+		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_hash_table),
@@ -85,6 +89,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
 		TEST_FUNCTION_ENTRY(test_mpo_from_graph),
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
+		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
+		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

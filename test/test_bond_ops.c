@@ -81,3 +81,230 @@ char* test_retained_bond_indices()
 
 	return 0;
 }
+
+
+char* test_split_block_sparse_matrix_svd()
+{
+	hid_t file = H5Fopen("../test/data/test_split_block_sparse_matrix_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_split_block_sparse_matrix_svd failed";
+	}
+
+	const long dim[2] = { 181, 191 };
+	const long max_vdim = 200;
+
+	// read dense tensor from disk
+	struct dense_tensor a_dns;
+	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_dns);
+	if (read_hdf5_dataset(file, "a", H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction axis_dir[2];
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber* qnums[2];
+	for (int i = 0; i < 2; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor a;
+	dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+
+	double tol;
+	if (read_hdf5_attribute(file, "tol", H5T_NATIVE_DOUBLE, &tol) < 0) {
+		return "reading tolerance from disk failed";
+	}
+
+	long num_retained_ref;
+	if (read_hdf5_attribute(file, "num_retained", H5T_NATIVE_LONG, &num_retained_ref) < 0) {
+		return "reading number of retained singular values from disk failed";
+	}
+
+	// reference reassembled matrix after splitting
+	// without renormalization
+	struct dense_tensor a_trunc_plain_ref;
+	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_trunc_plain_ref);
+	if (read_hdf5_dataset(file, "a_trunc_plain", H5T_NATIVE_FLOAT, a_trunc_plain_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+	// with renormalization
+	struct dense_tensor a_trunc_renrm_ref;
+	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_trunc_renrm_ref);
+	if (read_hdf5_dataset(file, "a_trunc_renrm", H5T_NATIVE_FLOAT, a_trunc_renrm_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// renormalization
+	for (int r = 0; r < 2; r++)
+	{
+		// singular value distribution mode
+		for (int d = 0; d < 2; d++)
+		{
+			const enum singular_value_distr svd_distr = (d == 0 ? SVD_DISTR_LEFT : SVD_DISTR_RIGHT);
+
+			struct block_sparse_tensor a0, a1;
+			struct trunc_info info;
+			if (split_block_sparse_matrix_svd(&a, tol, max_vdim, r == 0 ? false : true, svd_distr, &a0, &a1, &info) < 0) {
+				return "'split_block_sparse_matrix_svd' failed internally";
+			}
+
+			if (a0.dim_logical[1] != num_retained_ref || a1.dim_logical[0] != num_retained_ref) {
+				return "number of retained singular values does not match reference";
+			}
+
+			if (d == 0)
+			{
+				// a1 must be an isometry
+				struct block_sparse_tensor a1h;
+				const int perm[2] = { 1, 0 };
+				conjugate_transpose_block_sparse_tensor(perm, &a1, &a1h);
+				// revert tensor axes directions for multiplication
+				a1h.axis_dir[0] = -a1h.axis_dir[0];
+				a1h.axis_dir[1] = -a1h.axis_dir[1];
+				struct block_sparse_tensor p;
+				block_sparse_tensor_dot(&a1, &a1h, 1, &p);
+				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
+					return "'a1' matrix is not an isometry";
+				}
+				delete_block_sparse_tensor(&p);
+				delete_block_sparse_tensor(&a1h);
+			}
+			else
+			{
+				// a0 must be an isometry
+				struct block_sparse_tensor a0h;
+				const int perm[2] = { 1, 0 };
+				conjugate_transpose_block_sparse_tensor(perm, &a0, &a0h);
+				// revert tensor axes directions for multiplication
+				a0h.axis_dir[0] = -a0h.axis_dir[0];
+				a0h.axis_dir[1] = -a0h.axis_dir[1];
+				struct block_sparse_tensor p;
+				block_sparse_tensor_dot(&a0h, &a0, 1, &p);
+				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
+					return "'a1' matrix is not an isometry";
+				}
+				delete_block_sparse_tensor(&p);
+				delete_block_sparse_tensor(&a0h);
+			}
+
+			// reassemble matrix after splitting, for comparison with reference
+			struct block_sparse_tensor a_trunc;
+			block_sparse_tensor_dot(&a0, &a1, 1, &a_trunc);
+			struct dense_tensor a_trunc_dns;
+			block_sparse_to_dense_tensor(&a_trunc, &a_trunc_dns);
+			// compare
+			if (!dense_tensor_allclose(&a_trunc_dns, r == 0 ? &a_trunc_plain_ref : &a_trunc_renrm_ref, 2e-6)) {
+				return "merge matrix after truncation does not match reference";
+			}
+
+			delete_dense_tensor(&a_trunc_dns);
+			delete_block_sparse_tensor(&a_trunc);
+			delete_block_sparse_tensor(&a0);
+			delete_block_sparse_tensor(&a1);
+		}
+	}
+
+	delete_dense_tensor(&a_trunc_renrm_ref);
+	delete_dense_tensor(&a_trunc_plain_ref);
+	delete_block_sparse_tensor(&a);
+	for (int i = 0; i < 2; i++) {
+		aligned_free(qnums[i]);
+	}
+	delete_dense_tensor(&a_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_split_block_sparse_matrix_svd_zero()
+{
+	const long dim[2] = { 7, 5 };
+	const long max_vdim = 10;
+
+	// incompatible axis direction and quantum number combination
+	enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
+	const qnumber qnums0[7] = { 1, 3, 2, 2, 1, 2, 3 };
+	const qnumber qnums1[5] = { 0, 2, 1, 0, 1 };
+	const qnumber* qnums[2] = { qnums0, qnums1 };
+
+	struct block_sparse_tensor a;
+	allocate_block_sparse_tensor(SINGLE_COMPLEX, 2, dim, axis_dir, qnums, &a);
+	if (block_sparse_tensor_norm2(&a) != 0) {
+		return "block-sparse matrix should be logically zero";
+	}
+
+	const double tol = 0.1;
+
+	// singular value distribution mode
+	for (int d = 0; d < 2; d++)
+	{
+		const enum singular_value_distr svd_distr = (d == 0 ? SVD_DISTR_LEFT : SVD_DISTR_RIGHT);
+
+		struct block_sparse_tensor a0, a1;
+		struct trunc_info info;
+		int ret = split_block_sparse_matrix_svd(&a, tol, max_vdim, true, svd_distr, &a0, &a1, &info);
+		if (ret < 0) {
+			return "'split_block_sparse_matrix_svd' failed internally";
+		}
+
+		// dummy bond
+		if (a0.dim_logical[1] != 1 || a1.dim_logical[0] != 1) {
+			return "number of retained singular values does not match reference";
+		}
+
+		if (info.norm_sigma != 0) {
+			return "norm of singular values should be zero";
+		}
+
+		if (block_sparse_tensor_norm2(&a1) != 0) {
+			return "expecting a zero block-sparse matrix";
+		}
+
+		// a1 cannot be an isometry for SVD_DISTR_LEFT due to quantum number incompatibility
+
+		if (d == 1)
+		{
+			// a0 must be an isometry
+			struct block_sparse_tensor a0h;
+			const int perm[2] = { 1, 0 };
+			conjugate_transpose_block_sparse_tensor(perm, &a0, &a0h);
+			// revert tensor axes directions for multiplication
+			a0h.axis_dir[0] = -a0h.axis_dir[0];
+			a0h.axis_dir[1] = -a0h.axis_dir[1];
+			struct block_sparse_tensor p;
+			block_sparse_tensor_dot(&a0h, &a0, 1, &p);
+			if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
+				return "'a1' matrix is not an isometry";
+			}
+			delete_block_sparse_tensor(&p);
+			delete_block_sparse_tensor(&a0h);
+		}
+
+		// reassemble matrix after splitting, to ensure dimension compatibilty
+		struct block_sparse_tensor a_trunc;
+		block_sparse_tensor_dot(&a0, &a1, 1, &a_trunc);
+		if (block_sparse_tensor_norm2(&a_trunc) != 0) {
+			return "truncated matrix should be logically zero";
+		}
+
+		delete_block_sparse_tensor(&a_trunc);
+		delete_block_sparse_tensor(&a0);
+		delete_block_sparse_tensor(&a1);
+	}
+
+	delete_block_sparse_tensor(&a);
+
+	return 0;
+}

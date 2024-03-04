@@ -894,24 +894,9 @@ char* test_block_sparse_tensor_svd()
 			return "expecting double data type for singular values";
 		}
 
-		// temporarily convert 's' to a block-sparse diagonal matrix
-		const long dim_s[2] = { s.dim[0], s.dim[0] };
-		struct dense_tensor s_mat;
-		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim_s, &s_mat);
-		const double* s_src = s.data;
-		dcomplex* s_dst = s_mat.data;
-		for (long j = 0; j < s.dim[0]; j++)
-		{
-			s_dst[(s.dim[0] + 1) * j] = s_src[j];
-		}
-		struct block_sparse_tensor s_blk;
-		const enum tensor_axis_direction axis_dir_s[2] = { -u.axis_dir[1], -vh.axis_dir[0] };
-		const qnumber* qnums_s[2] = { u.qnums_logical[1], vh.qnums_logical[0] };
-		dense_to_block_sparse_tensor(&s_mat, axis_dir_s, qnums_s, &s_blk);
-
 		// matrix product 'u s vh' must be equal to 'a'
 		struct block_sparse_tensor us;
-		block_sparse_tensor_dot(&u, &s_blk, 1, &us);
+		block_sparse_tensor_multiply_pointwise_vector(&u, &s, TENSOR_AXIS_ALIGN_TRAILING, &us);
 		struct block_sparse_tensor usvh;
 		block_sparse_tensor_dot(&us, &vh, 1, &usvh);
 		delete_block_sparse_tensor(&us);
@@ -919,9 +904,6 @@ char* test_block_sparse_tensor_svd()
 			return "matrix product U S V^dag is not equal to original A matrix";
 		}
 		delete_block_sparse_tensor(&usvh);
-
-		delete_block_sparse_tensor(&s_blk);
-		delete_dense_tensor(&s_mat);
 
 		// 'u' must be an isometry
 		struct block_sparse_tensor uh;

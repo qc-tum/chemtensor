@@ -32,6 +32,51 @@ def mps_orthonormalize_qr_data():
             file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
 
 
+def mps_split_tensor_svd_data():
+
+    # random number generator
+    rng = np.random.default_rng(294)
+
+    # physical dimensions
+    d = [4, 5]
+    # outer virtual bond dimensions
+    D = [13, 17]
+
+    a_pair = rng.standard_normal((d[0]*d[1], D[0], D[1])) / np.sqrt(d[0]*d[1]*D[0]*D[1])
+
+    # fictitious quantum numbers
+    qd = [rng.integers(-2, 3, size=di) for di in d]
+    qD = [rng.integers(-2, 3, size=Di) for Di in D]
+
+    # enforce block sparsity structure dictated by quantum numbers
+    mask = ptn.qnumber_outer_sum([ptn.qnumber_flatten(qd), qD[0], -qD[1]])
+    a_pair = np.where(mask == 0, a_pair, 0)
+
+    with h5py.File("data/test_mps_split_tensor_svd.hdf5", "w") as file:
+
+        # transposition due to different ordering convention
+        file["a_pair"] = a_pair.transpose((1, 0, 2))
+
+        for i in range(2):
+            file.attrs[f"qsite{i}"] = qd[i]
+        for i in range(2):
+            file.attrs[f"qbonds{i}"] = qD[i]
+
+        tol = 0.04
+        file.attrs["tol"] = tol
+
+        a0, a1, qbond = ptn.split_mps_tensor(a_pair, qd[0], qd[1], qD, svd_distr="left", tol=tol)
+
+        assert ptn.is_qsparse(a0, [qd[0], qD[0], -qbond])
+        assert ptn.is_qsparse(a1, [qd[1], qbond, -qD[1]])
+
+        # merge tensors again, as reference
+        a_mrg = ptn.merge_mps_tensor_pair(a0, a1)
+
+        # transposition due to different ordering convention
+        file["a_mrg"] = a_mrg.transpose((1, 0, 2))
+
+
 def mps_to_statevector_data():
 
     # random number generator
@@ -64,6 +109,7 @@ def mps_to_statevector_data():
 
 def main():
     mps_orthonormalize_qr_data()
+    mps_split_tensor_svd_data()
     mps_to_statevector_data()
 
 

@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <stdbool.h>
+#include "block_sparse_tensor.h"
+
 
 double von_neumann_entropy(const double* sigma, const long n);
 
@@ -34,3 +37,19 @@ void delete_index_list(struct index_list* list);
 
 void retained_bond_indices(const double* sigma, const long n, const double tol, const long max_vdim,
 	struct index_list* list, struct trunc_info* info);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Singular value distribution mode.
+///
+enum singular_value_distr
+{
+	SVD_DISTR_LEFT,
+	SVD_DISTR_RIGHT,
+};
+
+
+int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
+	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);

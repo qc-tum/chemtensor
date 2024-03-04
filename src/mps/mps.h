@@ -4,6 +4,7 @@
 #pragma once
 
 #include "block_sparse_tensor.h"
+#include "bond_ops.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -64,8 +65,19 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 //________________________________________________________________________________________________________________________
 //
 
-// conversion to a statevector (intended for testing)
+// splitting and merging
+
+int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const long d[2], const qnumber* new_qsite[2],
+	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);
+
 
 void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const struct block_sparse_tensor* restrict a1, struct block_sparse_tensor* restrict a);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// conversion to a statevector (intended for testing)
 
 void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* a);

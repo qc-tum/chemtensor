@@ -350,6 +350,54 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Split a MPS tensor with dimension `D0 x d0*d1 x D2` into two MPS tensors
+/// with dimensions `D0 x d0 x D1` and `D1 x d1 x D2`, respectively, using SVD.
+///
+int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const long d[2], const qnumber* new_qsite[2],
+	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info)
+{
+	assert(a->ndim == 3);
+	// physical dimension of MPS tensor must be equal to product of new dimensions
+	assert(d[0] * d[1] == a->dim_logical[1]);
+
+	// reshape to tensor with two physical legs
+	struct block_sparse_tensor a_twosite;
+	assert(a->axis_dir[1] == TENSOR_AXIS_OUT);
+	const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
+	split_block_sparse_tensor_axis(a, 1, d, axis_dir, new_qsite, &a_twosite);
+	// reshape to a matrix
+	struct block_sparse_tensor tmp;
+	flatten_block_sparse_tensor_axes(&a_twosite, 0, TENSOR_AXIS_OUT, &tmp);
+	assert(tmp.ndim == 3);
+	struct block_sparse_tensor a_mat;
+	flatten_block_sparse_tensor_axes(&tmp, 1, TENSOR_AXIS_IN, &a_mat);
+	delete_block_sparse_tensor(&tmp);
+
+	// split by truncated SVD
+	struct block_sparse_tensor m0, m1;
+	int ret = split_block_sparse_matrix_svd(&a_mat, tol, max_vdim, renormalize, svd_distr, &m0, &m1, info);
+	delete_block_sparse_tensor(&a_mat);
+	if (ret < 0) {
+		return ret;
+	}
+
+	// restore original virtual bonds and physical axes
+	assert(a_twosite.ndim == 4);
+	split_block_sparse_tensor_axis(&m0, 0, a_twosite.dim_logical,     a_twosite.axis_dir,     (const qnumber**) a_twosite.qnums_logical,      a0);
+	split_block_sparse_tensor_axis(&m1, 1, a_twosite.dim_logical + 2, a_twosite.axis_dir + 2, (const qnumber**)(a_twosite.qnums_logical + 2), a1);
+
+	delete_block_sparse_tensor(&m1);
+	delete_block_sparse_tensor(&m0);
+
+	delete_block_sparse_tensor(&a_twosite);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Merge two neighboring MPS tensors.
 ///
 void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const struct block_sparse_tensor* restrict a1, struct block_sparse_tensor* restrict a)

@@ -197,3 +197,134 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	aligned_free(retained);
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Split a block-sparse matrix by singular value decomposition,
+/// and truncate small singular values based on tolerance and maximum bond dimension.
+///
+int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
+	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info)
+{
+	assert(a->ndim == 2);
+
+	struct block_sparse_tensor u, vh;
+	struct dense_tensor s;
+	int ret = block_sparse_tensor_svd(a, &u, &s, &vh);
+	if (ret < 0) {
+		return ret;
+	}
+
+	// determine retained bond indices
+	struct index_list retained;
+	if (s.dtype == DOUBLE_REAL)
+	{
+		retained_bond_indices(s.data, s.dim[0], tol, max_vdim, &retained, info);
+	}
+	else
+	{
+		assert(s.dtype == SINGLE_REAL);
+
+		// temporarily convert singular values to double format
+		const float* sdata = s.data;
+		double* sigma = aligned_alloc(MEM_DATA_ALIGN, s.dim[0] * sizeof(double));
+		for (long i = 0; i < s.dim[0]; i++) {
+			sigma[i] = (double)sdata[i];
+		}
+
+		retained_bond_indices(sigma, s.dim[0], tol, max_vdim, &retained, info);
+
+		aligned_free(sigma);
+	}
+
+	if (retained.num == 0)
+	{
+		// use dummy virtual bond dimension 1
+		const long ind[1] = { 0 };
+		block_sparse_tensor_slice(&u, 1, ind, 1, a0);
+		delete_block_sparse_tensor(&u);
+		// note: 'vh' is not an isometry in the special case of incompatible quantum numbers in 'a'
+		block_sparse_tensor_slice(&vh, 0, ind, 1, a1);
+		delete_block_sparse_tensor(&vh);
+
+		// dummy singular value vector with a single entry 0
+		struct dense_tensor s_zero;
+		const long sdim[1] = { 1 };
+		allocate_dense_tensor(s.dtype, 1, sdim, &s_zero);
+		delete_dense_tensor(&s);
+
+		if (svd_distr == SVD_DISTR_LEFT)
+		{
+			struct block_sparse_tensor tmp;
+			block_sparse_tensor_multiply_pointwise_vector(a0, &s_zero, TENSOR_AXIS_ALIGN_TRAILING, &tmp);
+			delete_block_sparse_tensor(a0);
+			move_block_sparse_tensor_data(&tmp, a0);
+		}
+		else
+		{
+			struct block_sparse_tensor tmp;
+			block_sparse_tensor_multiply_pointwise_vector(a1, &s_zero, TENSOR_AXIS_ALIGN_LEADING, &tmp);
+			delete_block_sparse_tensor(a1);
+			move_block_sparse_tensor_data(&tmp, a1);
+		}
+
+		delete_dense_tensor(&s_zero);
+
+		return 0;
+	}
+
+	// select retained singular values and corresponding matrix slices
+
+	block_sparse_tensor_slice(&u, 1, retained.ind, retained.num, a0);
+	delete_block_sparse_tensor(&u);
+
+	block_sparse_tensor_slice(&vh, 0, retained.ind, retained.num, a1);
+	delete_block_sparse_tensor(&vh);
+
+	struct dense_tensor s_ret;
+	dense_tensor_slice(&s, 0, retained.ind, retained.num, &s_ret);
+	if (renormalize)
+	{
+		// norm of all singular values
+		const double norm_sigma_all = dense_tensor_norm2(&s);
+
+		// rescale retained singular values
+		assert(info->norm_sigma > 0);
+		const double scale = norm_sigma_all / info->norm_sigma;
+		if (s_ret.dtype == SINGLE_REAL)
+		{
+			const float scalef = (float)scale;
+			scale_dense_tensor(&scalef, &s_ret);
+		}
+		else
+		{
+			assert(s_ret.dtype == DOUBLE_REAL);
+			scale_dense_tensor(&scale, &s_ret);
+		}
+	}
+	delete_dense_tensor(&s);
+
+	delete_index_list(&retained);
+
+	// multiply retained singular values with left or right isometry
+	if (svd_distr == SVD_DISTR_LEFT)
+	{
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_pointwise_vector(a0, &s_ret, TENSOR_AXIS_ALIGN_TRAILING, &tmp);
+		delete_block_sparse_tensor(a0);
+		move_block_sparse_tensor_data(&tmp, a0);
+	}
+	else
+	{
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_pointwise_vector(a1, &s_ret, TENSOR_AXIS_ALIGN_LEADING, &tmp);
+		delete_block_sparse_tensor(a1);
+		move_block_sparse_tensor_data(&tmp, a1);
+	}
+
+	delete_dense_tensor(&s_ret);
+
+	return 0;
+}
