@@ -21,6 +21,7 @@ char* test_dense_tensor_kronecker_product();
 char* test_dense_tensor_kronecker_product_degree_zero();
 char* test_dense_tensor_qr();
 char* test_dense_tensor_rq();
+char* test_dense_tensor_svd();
 char* test_dense_tensor_block();
 char* test_block_sparse_tensor_copy();
 char* test_block_sparse_tensor_get_block();
@@ -33,10 +34,10 @@ char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
-char* test_dense_tensor_svd();
 char* test_mps_orthonormalize_qr();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
+char* test_mps_vdot();
 char* test_queue();
 char* test_hash_table();
 char* test_bipartite_graph_maximum_cardinality_matching();
@@ -81,6 +82,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
+		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_hash_table),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),

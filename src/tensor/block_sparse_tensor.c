@@ -367,6 +367,21 @@ double block_sparse_tensor_norm2(const struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Reverse the tensor axis directions.
+///
+/// Reversing the axis directions does not affect the block sparsity structure.
+///
+void block_sparse_tensor_reverse_axis_directions(struct block_sparse_tensor* t)
+{
+	for (int i = 0; i < t->ndim; i++)
+	{
+		t->axis_dir[i] *= (-1);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scale tensor 't' by 'alpha'.
 ///
 /// Data types of all blocks and of 'alpha' must match.
