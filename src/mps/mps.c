@@ -146,7 +146,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 
 	// update 'a_next' tensor: multiply with 'r' from left
 	struct block_sparse_tensor a_next_update;
-	block_sparse_tensor_dot(&r, a_next, 1, &a_next_update);
+	block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, a_next, TENSOR_AXIS_RANGE_LEADING, 1, &a_next_update);
 	delete_block_sparse_tensor(a_next);
 	move_block_sparse_tensor_data(&a_next_update, a_next);
 	delete_block_sparse_tensor(&r);
@@ -193,7 +193,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 
 	// update 'a_prev' tensor: multiply with 'r' from right
 	struct block_sparse_tensor a_prev_update;
-	block_sparse_tensor_dot(a_prev, &r, 1, &a_prev_update);
+	block_sparse_tensor_dot(a_prev, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &a_prev_update);
 	delete_block_sparse_tensor(a_prev);
 	move_block_sparse_tensor_data(&a_prev_update, a_prev);
 	delete_block_sparse_tensor(&r);
@@ -407,7 +407,7 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 	// combine a0 and a1 by contracting the shared bond
 	struct block_sparse_tensor a0_a1_dot;
-	block_sparse_tensor_dot(a0, a1, 1, &a0_a1_dot);
+	block_sparse_tensor_dot(a0, TENSOR_AXIS_RANGE_TRAILING, a1, TENSOR_AXIS_RANGE_LEADING, 1, &a0_a1_dot);
 
 	// combine original physical dimensions of a0 and a1 into one dimension
 	flatten_block_sparse_tensor_axes(&a0_a1_dot, 1, TENSOR_AXIS_OUT, a);

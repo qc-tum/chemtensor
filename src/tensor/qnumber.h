@@ -25,5 +25,5 @@ bool qnumber_all_equal(const long n, const qnumber* restrict qnums0, const qnumb
 enum tensor_axis_direction
 {
 	TENSOR_AXIS_IN  = -1,
-	TENSOR_AXIS_OUT =  1
+	TENSOR_AXIS_OUT =  1,
 };

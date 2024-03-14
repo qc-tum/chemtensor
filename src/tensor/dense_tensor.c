@@ -422,7 +422,8 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 ///
 void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
-	// TODO: consider using an optimized library like https://github.com/springer13/hptt
+	// TODO: consider using an optimized library like https://github.com/springer13/hptt,
+	// and fuse neighboring to-be transposed axes
 
 	if (t->ndim == 0)
 	{
@@ -669,16 +670,16 @@ void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tens
 ///
 /// \brief Pointwise multiplication of two tensors, using broadcasting.
 /// The output tensor 'r' has the same data type and dimension as 's'.
-/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'align') must match.
+/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'axrange') must match.
 ///
 /// Memory will be allocated for 'r'.
 ///
-void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r)
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r)
 {
 	// allocate 'r' with same type and dimension as 's'
 	allocate_dense_tensor(s->dtype, s->ndim, s->dim, r);
 
-	dense_tensor_multiply_pointwise_fill(s, t, align, r);
+	dense_tensor_multiply_pointwise_fill(s, t, axrange, r);
 }
 
 
@@ -686,11 +687,11 @@ void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, cons
 ///
 /// \brief Pointwise multiplication of two tensors, using broadcasting.
 /// The output tensor 'r' has the same data type and dimension as 's'.
-/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'align') must match.
+/// The dimensions of 's' and 't' (starting from the leading or trailing dimension depending on 'axrange') must match.
 ///
 /// 'r' must have been allocated beforehand.
 ///
-void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r)
+void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r)
 {
 	assert(s->dtype == t->dtype || numeric_real_type(s->dtype) == t->dtype);
 	assert(s->dtype == r->dtype);
@@ -702,7 +703,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 	const int ndim_diff = s->ndim - t->ndim;
 	assert(ndim_diff >= 0);
 
-	if (align == TENSOR_AXIS_ALIGN_LEADING)
+	if (axrange == TENSOR_AXIS_RANGE_LEADING)
 	{
 		// check dimension compatibility
 		for (int i = 0; i < t->ndim; i++) {
@@ -809,7 +810,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 	}
 	else
 	{
-		assert(align == TENSOR_AXIS_ALIGN_TRAILING);
+		assert(axrange == TENSOR_AXIS_RANGE_TRAILING);
 
 		// check dimension compatibility
 		for (int i = 0; i < t->ndim; i++) {
@@ -919,11 +920,12 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', and store result in 'r'.
+/// \brief Multiply (leading or trailing) 'ndim_mult' axes in 's' by 'ndim_mult' axes in 't', and store result in 'r'.
+/// Whether to use leading or trailing axes is specified by axis range.
 ///
 /// Memory will be allocated for 'r'.
 ///
-void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r)
+void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r)
 {
 	// data types must agree
 	assert(s->dtype == t->dtype);
@@ -932,60 +934,72 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
 	for (int i = 0; i < ndim_mult; i++)
 	{
-		assert(s->dim[s->ndim - ndim_mult + i] == t->dim[i]);
+		assert(s->dim[(axrange_s == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim - ndim_mult) + i]
+		    == t->dim[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - ndim_mult) + i]);
 	}
 
 	// dimensions of new tensor 'r'
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2*ndim_mult) * sizeof(long));
+	const int ndimr = s->ndim + t->ndim - 2*ndim_mult;
+	long* rdim = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(long));
+	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
 	{
-		rdim[i] = s->dim[i];
+		rdim[i] = s->dim[offset_s + i];
 	}
-	for (int i = ndim_mult; i < t->ndim; i++)
+	for (int i = 0; i < t->ndim - ndim_mult; i++)
 	{
-		rdim[s->ndim + i - 2*ndim_mult] = t->dim[i];
+		rdim[(s->ndim - ndim_mult) + i] = t->dim[offset_t + i];
 	}
 	// create new tensor 'r'
-	allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2*ndim_mult, rdim, r);
+	allocate_dense_tensor(s->dtype, ndimr, rdim, r);
 	aligned_free(rdim);
 
+	const int nlds = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : s->ndim - ndim_mult);
+	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
+
 	// leading dimension of 's' as a matrix
-	const long lds = integer_product(s->dim, s->ndim - ndim_mult);
+	const long lds = integer_product(s->dim, nlds);
 	// trailing dimension of 's' as a matrix
-	const long tds = integer_product(&s->dim[s->ndim - ndim_mult], ndim_mult);
+	const long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
 
 	// leading dimension of 't' as a matrix
-	const long ldt = integer_product(t->dim, ndim_mult);
+	const long ldt = integer_product(t->dim, nldt);
 	// trailing dimension of 't' as a matrix
-	const long tdt = integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult);
+	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
-	assert(tds == ldt);
+	const CBLAS_TRANSPOSE transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
+	const CBLAS_TRANSPOSE transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
 
 	// matrix-matrix multiplication
+	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
+	const long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
+	const long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
+	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
 	switch (s->dtype)
 	{
 		case SINGLE_REAL:
 		{
-			cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, 1.f, s->data, tds, t->data, tdt, 0.f, r->data, tdt);
+			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, 1.f, s->data, tds, t->data, tdt, 0.f, r->data, n);
 			break;
 		}
 		case DOUBLE_REAL:
 		{
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, 1.0, s->data, tds, t->data, tdt, 0.0, r->data, tdt);
+			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, 1.0, s->data, tds, t->data, tdt, 0.0, r->data, n);
 			break;
 		}
 		case SINGLE_COMPLEX:
 		{
 			const scomplex one  = 1;
 			const scomplex zero = 0;
-			cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, &one, s->data, tds, t->data, tdt, &zero, r->data, tdt);
+			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, &one, s->data, tds, t->data, tdt, &zero, r->data, n);
 			break;
 		}
 		case DOUBLE_COMPLEX:
 		{
 			const dcomplex one  = 1;
 			const dcomplex zero = 0;
-			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, &one, s->data, tds, t->data, tdt, &zero, r->data, tdt);
+			cblas_zgemm(CblasRowMajor, transa, transb, m, n, k, &one, s->data, tds, t->data, tdt, &zero, r->data, n);
 			break;
 		}
 		default:
@@ -999,12 +1013,13 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', scale by 'alpha' and
-/// add result to 'r' scaled by beta: r <- alpha * s @ t + beta * r
+/// \brief Multiply (leading or trailing) 'ndim_mult' axes in 's' by 'ndim_mult' axes in 't', scale by 'alpha' and
+/// add result to 'r' scaled by beta: r <- alpha * s @ t + beta * r.
+/// Whether to use leading or trailing axes is specified by axis range.
 ///
 /// Assuming that 'r' has the appropriate dimensions.
 ///
-void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta)
+void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta)
 {
 	// data types must agree
 	assert(s->dtype == t->dtype);
@@ -1013,50 +1028,64 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
 	for (int i = 0; i < ndim_mult; i++)
 	{
-		assert(s->dim[s->ndim - ndim_mult + i] == t->dim[i]);
+		assert(s->dim[(axrange_s == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim - ndim_mult) + i] ==
+		       t->dim[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - ndim_mult) + i]);
 	}
+	assert(r->ndim == s->ndim + t->ndim - 2*ndim_mult);
+	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
 	{
-		assert(r->dim[i] == s->dim[i]);
+		assert(r->dim[i] == s->dim[offset_s + i]);
 	}
-	for (int i = ndim_mult; i < t->ndim; i++)
+	for (int i = 0; i < t->ndim - ndim_mult; i++)
 	{
-		assert(r->dim[s->ndim + i - 2*ndim_mult] == t->dim[i]);
+		assert(r->dim[(s->ndim - ndim_mult) + i] == t->dim[offset_t + i]);
 	}
+
+	const int nlds = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : s->ndim - ndim_mult);
+	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
 
 	// leading dimension of 's' as a matrix
-	const long lds = integer_product(s->dim, s->ndim - ndim_mult);
+	const long lds = integer_product(s->dim, nlds);
 	// trailing dimension of 's' as a matrix
-	const long tds = integer_product(&s->dim[s->ndim - ndim_mult], ndim_mult);
+	const long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
 
 	// leading dimension of 't' as a matrix
-	const long ldt = integer_product(t->dim, ndim_mult);
+	const long ldt = integer_product(t->dim, nldt);
 	// trailing dimension of 't' as a matrix
-	const long tdt = integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult);
+	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
-	assert(tds == ldt);
+	const CBLAS_TRANSPOSE transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
+	const CBLAS_TRANSPOSE transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
+
+	// matrix-matrix multiplication
+	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
+	const long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
+	const long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
+	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
 
 	// matrix-matrix multiplication
 	switch (s->dtype)
 	{
 		case SINGLE_REAL:
 		{
-			cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, *((float*)alpha), s->data, tds, t->data, tdt, *((float*)beta), r->data, tdt);
+			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, *((float*)alpha), s->data, tds, t->data, tdt, *((float*)beta), r->data, n);
 			break;
 		}
 		case DOUBLE_REAL:
 		{
-			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, *((double*)alpha), s->data, tds, t->data, tdt, *((double*)beta), r->data, tdt);
+			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, *((double*)alpha), s->data, tds, t->data, tdt, *((double*)beta), r->data, n);
 			break;
 		}
 		case SINGLE_COMPLEX:
 		{
-			cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, alpha, s->data, tds, t->data, tdt, beta, r->data, tdt);
+			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, beta, r->data, n);
 			break;
 		}
 		case DOUBLE_COMPLEX:
 		{
-			cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, lds, tdt, ldt, alpha, s->data, tds, t->data, tdt, beta, r->data, tdt);
+			cblas_zgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, beta, r->data, n);
 			break;
 		}
 		default:

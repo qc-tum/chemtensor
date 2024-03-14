@@ -169,7 +169,7 @@ char* test_dense_tensor_multiply_pointwise()
 
 		// multiply tensors pointwise
 		struct dense_tensor t_mult_s;
-		dense_tensor_multiply_pointwise(&t, &s, i == 0 ? TENSOR_AXIS_ALIGN_LEADING : TENSOR_AXIS_ALIGN_TRAILING, &t_mult_s);
+		dense_tensor_multiply_pointwise(&t, &s, i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &t_mult_s);
 
 		// reference tensors for checking
 		const long refdim[3] = { 2, 6, 5 };
@@ -208,8 +208,8 @@ char* test_dense_tensor_dot()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long tdim[4] = { 2, 3, 4, 5 };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 4, tdim,  &t);
+	const long tdim[5] = { 2, 11, 3, 4, 5 };
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -224,27 +224,56 @@ char* test_dense_tensor_dot()
 		return "reading tensor entries from disk failed";
 	}
 
-	// multiply tensors and store result in 'r'
-	struct dense_tensor t_dot_s;
-	dense_tensor_dot(&t, &s, 2, &t_dot_s);
-
 	// reference tensor for checking
-	const long refdim[4] = { 2, 3, 7, 6 };
+	const long refdim[5] = { 2, 11, 3, 7, 6 };
 	struct dense_tensor t_dot_s_ref;
-	allocate_dense_tensor(DOUBLE_COMPLEX, 4, refdim, &t_dot_s_ref);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t_dot_s", H5T_NATIVE_DOUBLE, t_dot_s_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
-	// compare
-	if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-13)) {
-		return "dot product of tensors does not match reference";
+	for (enum tensor_axis_range axrange_t = 0; axrange_t < TENSOR_AXIS_RANGE_NUM; axrange_t++)
+	{
+		struct dense_tensor tp;
+		if (axrange_t == TENSOR_AXIS_RANGE_TRAILING) {
+			copy_dense_tensor(&t, &tp);
+		}
+		else {
+			const int perm[5] = { 3, 4, 0, 1, 2 };
+			transpose_dense_tensor(perm, &t, &tp);
+		}
+
+		for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
+		{
+			struct dense_tensor sp;
+			if (axrange_s == TENSOR_AXIS_RANGE_LEADING) {
+				copy_dense_tensor(&s, &sp);
+			}
+			else {
+				const int perm[4] = { 2, 3, 0, 1 };
+				transpose_dense_tensor(perm, &s, &sp);
+			}
+
+			// multiply tensors and store result in 't_dot_s'
+			struct dense_tensor t_dot_s;
+			dense_tensor_dot(&tp, axrange_t, &sp, axrange_s, 2, &t_dot_s);
+
+			// compare
+			if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-13)) {
+				return "dot product of tensors does not match reference";
+			}
+
+			delete_dense_tensor(&t_dot_s);
+
+			delete_dense_tensor(&sp);
+		}
+
+		delete_dense_tensor(&tp);
 	}
 
 	// clean up
 	delete_dense_tensor(&t_dot_s_ref);
-	delete_dense_tensor(&t_dot_s);
 	delete_dense_tensor(&s);
 	delete_dense_tensor(&t);
 
@@ -266,8 +295,8 @@ char* test_dense_tensor_dot_update()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[4] = { 2, 3, 4, 5 };
-	allocate_dense_tensor(SINGLE_COMPLEX, 4, dim,  &t);
+	const long dim[5] = { 2, 11, 3, 4, 5 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, dim, &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -282,33 +311,62 @@ char* test_dense_tensor_dot_update()
 		return "reading tensor entries from disk failed";
 	}
 
-	// multiply tensors and update 't_dot_s' with result
-	struct dense_tensor t_dot_s;
-	const long t_dot_s_dim[4] = { 2, 3, 7, 6 };
-	allocate_dense_tensor(SINGLE_COMPLEX, 4, t_dot_s_dim, &t_dot_s);
-	// read values from disk
-	if (read_hdf5_dataset(file, "t_dot_s_0", H5T_NATIVE_FLOAT, t_dot_s.data) < 0) {
-		return "reading tensor entries from disk failed";
-	}
-	dense_tensor_dot_update(&alpha, &t, &s, 2, &t_dot_s, &beta);
-
 	// reference tensor for checking
-	const long refdim[4] = { 2, 3, 7, 6 };
+	const long refdim[5] = { 2, 11, 3, 7, 6 };
 	struct dense_tensor t_dot_s_ref;
-	allocate_dense_tensor(SINGLE_COMPLEX, 4, refdim, &t_dot_s_ref);
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t_dot_s_1", H5T_NATIVE_FLOAT, t_dot_s_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
-	// compare
-	if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-5)) {
-		return "tensor updated by dot product of two other tensors does not match reference";
+	for (enum tensor_axis_range axrange_t = 0; axrange_t < TENSOR_AXIS_RANGE_NUM; axrange_t++)
+	{
+		struct dense_tensor tp;
+		if (axrange_t == TENSOR_AXIS_RANGE_TRAILING) {
+			copy_dense_tensor(&t, &tp);
+		}
+		else {
+			const int perm[5] = { 3, 4, 0, 1, 2 };
+			transpose_dense_tensor(perm, &t, &tp);
+		}
+
+		for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
+		{
+			struct dense_tensor sp;
+			if (axrange_s == TENSOR_AXIS_RANGE_LEADING) {
+				copy_dense_tensor(&s, &sp);
+			}
+			else {
+				const int perm[4] = { 2, 3, 0, 1 };
+				transpose_dense_tensor(perm, &s, &sp);
+			}
+
+			// multiply tensors and update 't_dot_s' with result
+			struct dense_tensor t_dot_s;
+			const long t_dot_s_dim[5] = { 2, 11, 3, 7, 6 };
+			allocate_dense_tensor(SINGLE_COMPLEX, 5, t_dot_s_dim, &t_dot_s);
+			// read values from disk
+			if (read_hdf5_dataset(file, "t_dot_s_0", H5T_NATIVE_FLOAT, t_dot_s.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+			dense_tensor_dot_update(&alpha, &tp, axrange_t, &sp, axrange_s, 2, &t_dot_s, &beta);
+
+			// compare
+			if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-5)) {
+				return "tensor updated by dot product of two other tensors does not match reference";
+			}
+
+			delete_dense_tensor(&t_dot_s);
+
+			delete_dense_tensor(&sp);
+		}
+
+		delete_dense_tensor(&tp);
 	}
 
 	// clean up
 	delete_dense_tensor(&t_dot_s_ref);
-	delete_dense_tensor(&t_dot_s);
 	delete_dense_tensor(&s);
 	delete_dense_tensor(&t);
 
@@ -457,23 +515,23 @@ char* test_dense_tensor_qr()
 
 			// matrix product 'q r' must be equal to 'a'
 			struct dense_tensor qr;
-			dense_tensor_dot(&q, &r, 1, &qr);
+			dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
 			if (!dense_tensor_allclose(&qr, &a, tol)) {
 				return "matrix product Q R is not equal to original A matrix";
 			}
 			delete_dense_tensor(&qr);
 
 			// 'q' must be an isometry
-			struct dense_tensor qh;
-			const int perm[2] = { 1, 0 };
-			conjugate_transpose_dense_tensor(perm, &q, &qh);
+			struct dense_tensor qc;
+			copy_dense_tensor(&q, &qc);
+			conjugate_dense_tensor(&qc);
 			struct dense_tensor qhq;
-			dense_tensor_dot(&qh, &q, 1, &qhq);
+			dense_tensor_dot(&qc, TENSOR_AXIS_RANGE_LEADING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &qhq);
 			if (!dense_tensor_is_identity(&qhq, tol)) {
 				return "Q matrix is not an isometry";
 			}
 			delete_dense_tensor(&qhq);
-			delete_dense_tensor(&qh);
+			delete_dense_tensor(&qc);
 
 			// 'r' must be upper triangular
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
@@ -531,23 +589,23 @@ char* test_dense_tensor_rq()
 
 			// matrix product 'r q' must be equal to 'a'
 			struct dense_tensor rq;
-			dense_tensor_dot(&r, &q, 1, &rq);
+			dense_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
 			if (!dense_tensor_allclose(&rq, &a, tol)) {
 				return "matrix product R Q is not equal to original A matrix";
 			}
 			delete_dense_tensor(&rq);
 
 			// 'q' must be an isometry
-			struct dense_tensor qh;
-			const int perm[2] = { 1, 0 };
-			conjugate_transpose_dense_tensor(perm, &q, &qh);
+			struct dense_tensor qc;
+			copy_dense_tensor(&q, &qc);
+			conjugate_dense_tensor(&qc);
 			struct dense_tensor qqh;
-			dense_tensor_dot(&q, &qh, 1, &qqh);
+			dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &qc, TENSOR_AXIS_RANGE_TRAILING, 1, &qqh);
 			if (!dense_tensor_is_identity(&qqh, tol)) {
 				return "Q matrix is not an isometry";
 			}
 			delete_dense_tensor(&qqh);
-			delete_dense_tensor(&qh);
+			delete_dense_tensor(&qc);
 
 			// 'r' must be upper triangular (referenced from the bottom right entry)
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
@@ -605,9 +663,9 @@ char* test_dense_tensor_svd()
 
 			// matrix product 'u s vh' must be equal to 'a'
 			struct dense_tensor us;
-			dense_tensor_multiply_pointwise(&u, &s, TENSOR_AXIS_ALIGN_TRAILING, &us);
+			dense_tensor_multiply_pointwise(&u, &s, TENSOR_AXIS_RANGE_TRAILING, &us);
 			struct dense_tensor usvh;
-			dense_tensor_dot(&us, &vh, 1, &usvh);
+			dense_tensor_dot(&us, TENSOR_AXIS_RANGE_TRAILING, &vh, TENSOR_AXIS_RANGE_LEADING, 1, &usvh);
 			delete_dense_tensor(&us);
 			if (!dense_tensor_allclose(&usvh, &a, tol)) {
 				return "matrix product U S V^dag is not equal to original A matrix";
@@ -615,28 +673,28 @@ char* test_dense_tensor_svd()
 			delete_dense_tensor(&usvh);
 
 			// 'u' must be an isometry
-			struct dense_tensor uh;
-			const int perm_u[2] = { 1, 0 };
-			conjugate_transpose_dense_tensor(perm_u, &u, &uh);
+			struct dense_tensor uc;
+			copy_dense_tensor(&u, &uc);
+			conjugate_dense_tensor(&uc);
 			struct dense_tensor uhu;
-			dense_tensor_dot(&uh, &u, 1, &uhu);
+			dense_tensor_dot(&uc, TENSOR_AXIS_RANGE_LEADING, &u, TENSOR_AXIS_RANGE_LEADING, 1, &uhu);
 			if (!dense_tensor_is_identity(&uhu, tol)) {
 				return "U matrix is not an isometry";
 			}
 			delete_dense_tensor(&uhu);
-			delete_dense_tensor(&uh);
+			delete_dense_tensor(&uc);
 
 			// 'v' must be an isometry
-			struct dense_tensor v;
-			const int perm_v[2] = { 1, 0 };
-			conjugate_transpose_dense_tensor(perm_v, &vh, &v);
+			struct dense_tensor vt;
+			copy_dense_tensor(&vh, &vt);
+			conjugate_dense_tensor(&vt);
 			struct dense_tensor vhv;
-			dense_tensor_dot(&vh, &v, 1, &vhv);
+			dense_tensor_dot(&vh, TENSOR_AXIS_RANGE_TRAILING, &vt, TENSOR_AXIS_RANGE_TRAILING, 1, &vhv);
 			if (!dense_tensor_is_identity(&vhv, tol)) {
 				return "V matrix is not an isometry";
 			}
 			delete_dense_tensor(&vhv);
-			delete_dense_tensor(&v);
+			delete_dense_tensor(&vt);
 
 			delete_dense_tensor(&vh);
 			delete_dense_tensor(&s);

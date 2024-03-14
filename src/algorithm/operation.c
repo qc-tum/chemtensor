@@ -33,23 +33,24 @@ static void mps_contraction_step_right(const struct block_sparse_tensor* restric
 
 	// multiply with 'a' tensor
 	struct block_sparse_tensor t;
-	block_sparse_tensor_dot(a, r, 1, &t);
+	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &t);
 
 	// multiply with conjugated 'b' tensor
-	struct block_sparse_tensor b_conj;
-	copy_block_sparse_tensor(b, &b_conj);  // TODO: fuse conjugation with dot product
-	conjugate_block_sparse_tensor(&b_conj);
-	block_sparse_tensor_reverse_axis_directions(&b_conj);
-	const int perm0[5] = { 1, 2, 0, 3, 4 };
+	struct block_sparse_tensor bc;
+	copy_block_sparse_tensor(b, &bc);  // TODO: fuse conjugation with dot product
+	conjugate_block_sparse_tensor(&bc);
+	block_sparse_tensor_reverse_axis_directions(&bc);
+	// temporarily make trailing dimensions in 't' the leading dimensions
+	const int perm0[5] = { 3, 4, 0, 1, 2 };
 	struct block_sparse_tensor tp;
 	transpose_block_sparse_tensor(perm0, &t, &tp);
 	delete_block_sparse_tensor(&t);
-	block_sparse_tensor_dot(&b_conj, &tp, 2, &t);
-	delete_block_sparse_tensor(&b_conj);
+	block_sparse_tensor_dot(&tp, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
+	delete_block_sparse_tensor(&bc);
 	delete_block_sparse_tensor(&tp);
 
-	// re-order first two dimensions
-	const int perm1[5] = { 1, 0, 2, 3, 4 };
+	// restore original trailing dimensions
+	const int perm1[4] = { 2, 3, 0, 1 };
 	transpose_block_sparse_tensor(perm1, &t, r_next);
 	delete_block_sparse_tensor(&t);
 }

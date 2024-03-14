@@ -136,12 +136,13 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Tensor axis alignment, used to specify pointwise multiplication.
+/// \brief Tensor axis alignment, used to specify multiplication.
 ///
-enum tensor_axis_alignment
+enum tensor_axis_range
 {
-	TENSOR_AXIS_ALIGN_LEADING,
-	TENSOR_AXIS_ALIGN_TRAILING,
+	TENSOR_AXIS_RANGE_LEADING  = 0,  //!< leading tensor axes
+	TENSOR_AXIS_RANGE_TRAILING = 1,  //!< trailing tensor axes
+	TENSOR_AXIS_RANGE_NUM      = 2,  //!< number of tensor axis alignment modes
 };
 
 
@@ -152,13 +153,13 @@ enum tensor_axis_alignment
 
 void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
 
-void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r);
 
-void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r);
 
-void dense_tensor_dot(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r);
+void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r);
 
-void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta);
+void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta);
 
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
 

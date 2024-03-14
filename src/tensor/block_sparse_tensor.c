@@ -1332,11 +1332,11 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 ///
 /// Memory will be allocated for 'r'.
 ///
-void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_alignment align, struct block_sparse_tensor* restrict r)
+void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct block_sparse_tensor* restrict r)
 {
 	assert(t->ndim == 1);
 
-	const int i_ax = (align == TENSOR_AXIS_ALIGN_LEADING ? 0 : s->ndim - 1);
+	const int i_ax = (axrange == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim - 1);
 	assert(t->dim[0] == s->dim_logical[i_ax]);
 
 	// allocate new block-sparse tensor 'r' with same layout as 's'
@@ -1380,7 +1380,7 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 		struct dense_tensor t_slice;
 		dense_tensor_slice(t, 0, index_map, br->dim[i_ax], &t_slice);
 
-		dense_tensor_multiply_pointwise_fill(bs, &t_slice, align, br);
+		dense_tensor_multiply_pointwise_fill(bs, &t_slice, axrange, br);
 
 		delete_dense_tensor(&t_slice);
 		aligned_free(index_map);
@@ -1392,68 +1392,73 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply trailing 'ndim_mult' axes in 's' by leading 'ndim_mult' axes in 't', and store result in 'r'.
+/// \brief Multiply (leading or trailing) 'ndim_mult' axes in 's' by 'ndim_mult' axes in 't', and store result in 'r'.
+/// Whether to use leading or trailing axes is specified by axis range.
 ///
 /// Memory will be allocated for 'r'. Operation requires that the quantum numbers of the to-be contracted axes match,
 /// and that the axis directions are reversed between the tensors.
 ///
-void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const int ndim_mult, struct block_sparse_tensor* restrict r)
+void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* restrict r)
 {
 	assert(s->dtype == t->dtype);
+
+	const int shift_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim - ndim_mult);
+	const int shift_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - ndim_mult);
 
 	// dimension and quantum number compatibility checks
 	assert(ndim_mult >= 1);
 	assert(s->ndim >= ndim_mult && t->ndim >= ndim_mult);
 	for (int i = 0; i < ndim_mult; i++)
 	{
-		assert(s->dim_logical[s->ndim - ndim_mult + i] ==  t->dim_logical[i]);
-		assert(s->dim_blocks [s->ndim - ndim_mult + i] ==  t->dim_blocks [i]);
-		assert(s->axis_dir   [s->ndim - ndim_mult + i] == -t->axis_dir   [i]);
+		assert(s->dim_logical[shift_s + i] ==  t->dim_logical[shift_t + i]);
+		assert(s->dim_blocks [shift_s + i] ==  t->dim_blocks [shift_t + i]);
+		assert(s->axis_dir   [shift_s + i] == -t->axis_dir   [shift_t + i]);
 		// quantum numbers must match entrywise
-		for (long j = 0; j < t->dim_logical[i]; j++) {
-			assert(s->qnums_logical[s->ndim - ndim_mult + i][j] == t->qnums_logical[i][j]);
-		}
-		for (long j = 0; j < t->dim_blocks[i]; j++) {
-			assert(s->qnums_blocks[s->ndim - ndim_mult + i][j] == t->qnums_blocks[i][j]);
-		}
+		assert(qnumber_all_equal(t->dim_logical[shift_t + i], s->qnums_logical[shift_s + i], t->qnums_logical[shift_t + i]));
+		assert(qnumber_all_equal(t->dim_blocks [shift_t + i], s->qnums_blocks [shift_s + i], t->qnums_blocks [shift_t + i]));
 	}
+
+	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 
 	// allocate new block-sparse tensor 'r'
 	{
+		const int ndimr = s->ndim + t->ndim - 2*ndim_mult;
+
 		// logical dimensions of new tensor 'r'
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2*ndim_mult) * sizeof(long));
+		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(long));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
-			r_dim_logical[i] = s->dim_logical[i];
+			r_dim_logical[i] = s->dim_logical[offset_s + i];
 		}
-		for (int i = ndim_mult; i < t->ndim; i++)
+		for (int i = 0; i < t->ndim - ndim_mult; i++)
 		{
-			r_dim_logical[s->ndim + i - 2*ndim_mult] = t->dim_logical[i];
+			r_dim_logical[(s->ndim - ndim_mult) + i] = t->dim_logical[offset_t + i];
 		}
 		// axis directions of new tensor 'r'
-		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2*ndim_mult) * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(enum tensor_axis_direction));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
-			r_axis_dir[i] = s->axis_dir[i];
+			r_axis_dir[i] = s->axis_dir[offset_s + i];
 		}
-		for (int i = ndim_mult; i < t->ndim; i++)
+		for (int i = 0; i < t->ndim - ndim_mult; i++)
 		{
-			r_axis_dir[s->ndim + i - 2*ndim_mult] = t->axis_dir[i];
+			r_axis_dir[(s->ndim - ndim_mult) + i] = t->axis_dir[offset_t + i];
 		}
 		// logical quantum numbers along each dimension
-		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2*ndim_mult) * sizeof(qnumber*));
+		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(qnumber*));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
 			// simply copy the pointer
-			r_qnums_logical[i] = s->qnums_logical[i];
+			r_qnums_logical[i] = s->qnums_logical[offset_s + i];
 		}
-		for (int i = ndim_mult; i < t->ndim; i++)
+		for (int i = 0; i < t->ndim - ndim_mult; i++)
 		{
 			// simply copy the pointer
-			r_qnums_logical[s->ndim + i - 2*ndim_mult] = t->qnums_logical[i];
+			r_qnums_logical[(s->ndim - ndim_mult) + i] = t->qnums_logical[offset_t + i];
 		}
 		// create new tensor 'r'
-		allocate_block_sparse_tensor(s->dtype, s->ndim + t->ndim - 2*ndim_mult, r_dim_logical, r_axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, r_axis_dir, r_qnums_logical, r);
 		aligned_free(r_qnums_logical);
 		aligned_free(r_axis_dir);
 		aligned_free(r_dim_logical);
@@ -1483,12 +1488,15 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		assert(br->ndim == r->ndim);
 
 		// for each quantum number combination of the to-be contracted axes...
-		const long ncontract = integer_product(t->dim_blocks, ndim_mult);
+		const long ncontract = integer_product(t->dim_blocks + shift_t, ndim_mult);
 		long* index_contract = aligned_calloc(MEM_DATA_ALIGN, ndim_mult, sizeof(long));
-		for (long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_blocks, index_contract))
+		for (long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_blocks + shift_t, index_contract))
 		{
-			for (int i = 0; i < s->ndim; i++) {
-				index_block_s[i] = (i < s->ndim - ndim_mult) ? index_block_r[i] : index_contract[i - (s->ndim - ndim_mult)];
+			for (int i = 0; i < s->ndim - ndim_mult; i++) {
+				index_block_s[offset_s + i] = index_block_r[i];
+			}
+			for (int i = 0; i < ndim_mult; i++) {
+				index_block_s[shift_s + i] = index_contract[i];
 			}
 			// probe whether quantum numbers in 's' sum to zero
 			qnumber qsum = 0;
@@ -1500,8 +1508,11 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 				continue;
 			}
 
-			for (int i = 0; i < t->ndim; i++) {
-				index_block_t[i] = (i < ndim_mult) ? index_contract[i] : index_block_r[(s->ndim - ndim_mult) + (i - ndim_mult)];
+			for (int i = 0; i < t->ndim - ndim_mult; i++) {
+				index_block_t[offset_t + i] = index_block_r[(s->ndim - ndim_mult) + i];
+			}
+			for (int i = 0; i < ndim_mult; i++) {
+				index_block_t[shift_t + i] = index_contract[i];
 			}
 			// quantum numbers in 't' must now also sum to zero
 			qsum = 0;
@@ -1517,7 +1528,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			assert(bt != NULL);
 
 			// actually multiply dense tensor blocks and add result to 'br'
-			dense_tensor_dot_update(one, bs, bt, ndim_mult, br, one);
+			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, br, one);
 		}
 
 		aligned_free(index_contract);

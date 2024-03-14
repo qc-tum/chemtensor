@@ -165,41 +165,41 @@ char* test_split_block_sparse_matrix_svd()
 			if (d == 0)
 			{
 				// a1 must be an isometry
-				struct block_sparse_tensor a1h;
-				const int perm[2] = { 1, 0 };
-				conjugate_transpose_block_sparse_tensor(perm, &a1, &a1h);
+				struct block_sparse_tensor a1c;
+				copy_block_sparse_tensor(&a1, &a1c);
+				conjugate_block_sparse_tensor(&a1c);
 				// revert tensor axes directions for multiplication
-				a1h.axis_dir[0] = -a1h.axis_dir[0];
-				a1h.axis_dir[1] = -a1h.axis_dir[1];
+				a1c.axis_dir[0] = -a1c.axis_dir[0];
+				a1c.axis_dir[1] = -a1c.axis_dir[1];
 				struct block_sparse_tensor p;
-				block_sparse_tensor_dot(&a1, &a1h, 1, &p);
+				block_sparse_tensor_dot(&a1, TENSOR_AXIS_RANGE_TRAILING, &a1c, TENSOR_AXIS_RANGE_TRAILING, 1, &p);
 				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
 					return "'a1' matrix is not an isometry";
 				}
 				delete_block_sparse_tensor(&p);
-				delete_block_sparse_tensor(&a1h);
+				delete_block_sparse_tensor(&a1c);
 			}
 			else
 			{
 				// a0 must be an isometry
-				struct block_sparse_tensor a0h;
-				const int perm[2] = { 1, 0 };
-				conjugate_transpose_block_sparse_tensor(perm, &a0, &a0h);
+				struct block_sparse_tensor a0c;
+				copy_block_sparse_tensor(&a0, &a0c);
+				conjugate_block_sparse_tensor(&a0c);
 				// revert tensor axes directions for multiplication
-				a0h.axis_dir[0] = -a0h.axis_dir[0];
-				a0h.axis_dir[1] = -a0h.axis_dir[1];
+				a0c.axis_dir[0] = -a0c.axis_dir[0];
+				a0c.axis_dir[1] = -a0c.axis_dir[1];
 				struct block_sparse_tensor p;
-				block_sparse_tensor_dot(&a0h, &a0, 1, &p);
+				block_sparse_tensor_dot(&a0c, TENSOR_AXIS_RANGE_LEADING, &a0, TENSOR_AXIS_RANGE_LEADING, 1, &p);
 				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
 					return "'a1' matrix is not an isometry";
 				}
 				delete_block_sparse_tensor(&p);
-				delete_block_sparse_tensor(&a0h);
+				delete_block_sparse_tensor(&a0c);
 			}
 
 			// reassemble matrix after splitting, for comparison with reference
 			struct block_sparse_tensor a_trunc;
-			block_sparse_tensor_dot(&a0, &a1, 1, &a_trunc);
+			block_sparse_tensor_dot(&a0, TENSOR_AXIS_RANGE_TRAILING, &a1, TENSOR_AXIS_RANGE_LEADING, 1, &a_trunc);
 			struct dense_tensor a_trunc_dns;
 			block_sparse_to_dense_tensor(&a_trunc, &a_trunc_dns);
 			// compare
@@ -277,24 +277,24 @@ char* test_split_block_sparse_matrix_svd_zero()
 		if (d == 1)
 		{
 			// a0 must be an isometry
-			struct block_sparse_tensor a0h;
-			const int perm[2] = { 1, 0 };
-			conjugate_transpose_block_sparse_tensor(perm, &a0, &a0h);
+			struct block_sparse_tensor a0c;
+			copy_block_sparse_tensor(&a0, &a0c);
+			conjugate_block_sparse_tensor(&a0c);
 			// revert tensor axes directions for multiplication
-			a0h.axis_dir[0] = -a0h.axis_dir[0];
-			a0h.axis_dir[1] = -a0h.axis_dir[1];
+			a0c.axis_dir[0] = -a0c.axis_dir[0];
+			a0c.axis_dir[1] = -a0c.axis_dir[1];
 			struct block_sparse_tensor p;
-			block_sparse_tensor_dot(&a0h, &a0, 1, &p);
+			block_sparse_tensor_dot(&a0c, TENSOR_AXIS_RANGE_LEADING, &a0, TENSOR_AXIS_RANGE_LEADING, 1, &p);
 			if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
 				return "'a1' matrix is not an isometry";
 			}
 			delete_block_sparse_tensor(&p);
-			delete_block_sparse_tensor(&a0h);
+			delete_block_sparse_tensor(&a0c);
 		}
 
 		// reassemble matrix after splitting, to ensure dimension compatibilty
 		struct block_sparse_tensor a_trunc;
-		block_sparse_tensor_dot(&a0, &a1, 1, &a_trunc);
+		block_sparse_tensor_dot(&a0, TENSOR_AXIS_RANGE_TRAILING, &a1, TENSOR_AXIS_RANGE_LEADING, 1, &a_trunc);
 		if (block_sparse_tensor_norm2(&a_trunc) != 0) {
 			return "truncated matrix should be logically zero";
 		}

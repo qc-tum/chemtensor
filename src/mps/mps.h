@@ -55,8 +55,8 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 /// \brief MPS orthonormalization mode.
 enum mps_orthonormalization_mode
 {
-	MPS_ORTHONORMAL_LEFT,    //!< left-orthonormal
-	MPS_ORTHONORMAL_RIGHT,   //!< right-orthonormal
+	MPS_ORTHONORMAL_LEFT  = 0,  //!< left-orthonormal
+	MPS_ORTHONORMAL_RIGHT = 1,  //!< right-orthonormal
 };
 
 double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_mode mode);

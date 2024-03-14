@@ -13,10 +13,10 @@
 ///
 enum numeric_type
 {
-	SINGLE_REAL,     //!< float
-	DOUBLE_REAL,     //!< double
-	SINGLE_COMPLEX,  //!< float complex
-	DOUBLE_COMPLEX,  //!< double complex
+	SINGLE_REAL    = 0,  //!< float
+	DOUBLE_REAL    = 1,  //!< double
+	SINGLE_COMPLEX = 2,  //!< float complex
+	DOUBLE_COMPLEX = 3,  //!< double complex
 };
 
 

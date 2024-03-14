@@ -258,14 +258,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 		if (svd_distr == SVD_DISTR_LEFT)
 		{
 			struct block_sparse_tensor tmp;
-			block_sparse_tensor_multiply_pointwise_vector(a0, &s_zero, TENSOR_AXIS_ALIGN_TRAILING, &tmp);
+			block_sparse_tensor_multiply_pointwise_vector(a0, &s_zero, TENSOR_AXIS_RANGE_TRAILING, &tmp);
 			delete_block_sparse_tensor(a0);
 			move_block_sparse_tensor_data(&tmp, a0);
 		}
 		else
 		{
 			struct block_sparse_tensor tmp;
-			block_sparse_tensor_multiply_pointwise_vector(a1, &s_zero, TENSOR_AXIS_ALIGN_LEADING, &tmp);
+			block_sparse_tensor_multiply_pointwise_vector(a1, &s_zero, TENSOR_AXIS_RANGE_LEADING, &tmp);
 			delete_block_sparse_tensor(a1);
 			move_block_sparse_tensor_data(&tmp, a1);
 		}
@@ -312,14 +312,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 	if (svd_distr == SVD_DISTR_LEFT)
 	{
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_pointwise_vector(a0, &s_ret, TENSOR_AXIS_ALIGN_TRAILING, &tmp);
+		block_sparse_tensor_multiply_pointwise_vector(a0, &s_ret, TENSOR_AXIS_RANGE_TRAILING, &tmp);
 		delete_block_sparse_tensor(a0);
 		move_block_sparse_tensor_data(&tmp, a0);
 	}
 	else
 	{
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_pointwise_vector(a1, &s_ret, TENSOR_AXIS_ALIGN_LEADING, &tmp);
+		block_sparse_tensor_multiply_pointwise_vector(a1, &s_ret, TENSOR_AXIS_RANGE_LEADING, &tmp);
 		delete_block_sparse_tensor(a1);
 		move_block_sparse_tensor_data(&tmp, a1);
 	}

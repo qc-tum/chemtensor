@@ -213,7 +213,7 @@ void mpo_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 	// combine a0 and a1 by contracting the shared bond
 	struct block_sparse_tensor a0_a1_dot;
-	block_sparse_tensor_dot(a0, a1, 1, &a0_a1_dot);
+	block_sparse_tensor_dot(a0, TENSOR_AXIS_RANGE_TRAILING, a1, TENSOR_AXIS_RANGE_LEADING, 1, &a0_a1_dot);
 	assert(a0_a1_dot.ndim == 6);
 
 	// group physical input and output dimensions

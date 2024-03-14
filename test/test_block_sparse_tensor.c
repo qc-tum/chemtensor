@@ -529,7 +529,7 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 
 		// multiply tensors pointwise
 		struct block_sparse_tensor s_mult_t;
-		block_sparse_tensor_multiply_pointwise_vector(&s, &t, i == 0 ? TENSOR_AXIS_ALIGN_LEADING : TENSOR_AXIS_ALIGN_TRAILING, &s_mult_t);
+		block_sparse_tensor_multiply_pointwise_vector(&s, &t, i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &s_mult_t);
 
 		// convert back to a dense tensor
 		struct dense_tensor s_mult_t_dns;
@@ -583,14 +583,12 @@ char* test_block_sparse_tensor_dot()
 
 	// read dense tensors from disk
 	struct dense_tensor s_dns;
-	const long sdim[5] = { 4, 11, 5, 7, 6 };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 5, sdim, &s_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 5, dims, &s_dns);
 	if (read_hdf5_dataset(file, "s", H5T_NATIVE_DOUBLE, s_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor t_dns;
-	const long tdim[6] = { 5, 7, 6, 13, 3, 5 };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 6, tdim, &t_dns);
+	allocate_dense_tensor(DOUBLE_COMPLEX, 6, dims + 2, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -630,30 +628,50 @@ char* test_block_sparse_tensor_dot()
 	dense_to_block_sparse_tensor(&t_dns, axis_dir_t, (const qnumber**)(qnums + (s_dns.ndim - ndim_mult)), &t);
 	aligned_free(axis_dir_t);
 
-	// block-sparse tensor multiplication
-	struct block_sparse_tensor r;
-	block_sparse_tensor_dot(&s, &t, ndim_mult, &r);
-	// convert back to a dense tensor
-	struct dense_tensor r_dns;
-	block_sparse_to_dense_tensor(&r, &r_dns);
+	for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
+	{
+		struct block_sparse_tensor sp;
+		if (axrange_s == TENSOR_AXIS_RANGE_TRAILING) {
+			copy_block_sparse_tensor(&s, &sp);
+		}
+		else {
+			const int perm[5] = { 2, 3, 4, 0, 1 };
+			transpose_block_sparse_tensor(perm, &s, &sp);
+		}
 
-	// compare
-	if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
-		return "dot product of block-sparse tensors does not match reference";
-	}
+		for (enum tensor_axis_range axrange_t = 0; axrange_t < TENSOR_AXIS_RANGE_NUM; axrange_t++)
+		{
+			struct block_sparse_tensor tp;
+			if (axrange_t == TENSOR_AXIS_RANGE_LEADING) {
+				copy_block_sparse_tensor(&t, &tp);
+			}
+			else {
+				const int perm[6] = { 3, 4, 5, 0, 1, 2 };
+				transpose_block_sparse_tensor(perm, &t, &tp);
+			}
 
-	// equivalent dense tensor multiplication
-	struct dense_tensor r_dns_alt;
-	dense_tensor_dot(&s_dns, &t_dns, ndim_mult, &r_dns_alt);
-	// compare
-	if (!dense_tensor_allclose(&r_dns_alt, &r_dns_ref, 1e-13)) {
-		return "dot product of dense tensors does not match reference";
+			// block-sparse tensor multiplication
+			struct block_sparse_tensor r;
+			block_sparse_tensor_dot(&sp, axrange_s, &tp, axrange_t, ndim_mult, &r);
+			// convert back to a dense tensor
+			struct dense_tensor r_dns;
+			block_sparse_to_dense_tensor(&r, &r_dns);
+
+			// compare
+			if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+				return "dot product of block-sparse tensors does not match reference";
+			}
+
+			delete_dense_tensor(&r_dns);
+			delete_block_sparse_tensor(&r);
+
+			delete_block_sparse_tensor(&tp);
+		}
+
+		delete_block_sparse_tensor(&sp);
 	}
 
 	// clean up
-	delete_dense_tensor(&r_dns_alt);
-	delete_dense_tensor(&r_dns);
-	delete_block_sparse_tensor(&r);
 	delete_block_sparse_tensor(&s);
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++)
@@ -719,26 +737,26 @@ char* test_block_sparse_tensor_qr()
 
 		// matrix product 'q r' must be equal to 'a'
 		struct block_sparse_tensor qr;
-		block_sparse_tensor_dot(&q, &r, 1, &qr);
+		block_sparse_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
 		if (!block_sparse_tensor_allclose(&qr, &a, 1e-13)) {
 			return "matrix product Q R is not equal to original A matrix";
 		}
 		delete_block_sparse_tensor(&qr);
 
 		// 'q' must be an isometry
-		struct block_sparse_tensor qh;
-		const int perm[2] = { 1, 0 };
-		conjugate_transpose_block_sparse_tensor(perm, &q, &qh);
+		struct block_sparse_tensor qc;
+		copy_block_sparse_tensor(&q, &qc);
+		conjugate_block_sparse_tensor(&qc);
 		// revert tensor axes directions for multiplication
-		qh.axis_dir[0] = -qh.axis_dir[0];
-		qh.axis_dir[1] = -qh.axis_dir[1];
+		qc.axis_dir[0] = -qc.axis_dir[0];
+		qc.axis_dir[1] = -qc.axis_dir[1];
 		struct block_sparse_tensor qhq;
-		block_sparse_tensor_dot(&qh, &q, 1, &qhq);
+		block_sparse_tensor_dot(&qc, TENSOR_AXIS_RANGE_LEADING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &qhq);
 		if (!block_sparse_tensor_is_identity(&qhq, 1e-13)) {
 			return "Q matrix is not an isometry";
 		}
 		delete_block_sparse_tensor(&qhq);
-		delete_block_sparse_tensor(&qh);
+		delete_block_sparse_tensor(&qc);
 
 		// 'r' only upper triangular after sorting second axis by quantum numbers
 
@@ -805,26 +823,26 @@ char* test_block_sparse_tensor_rq()
 
 		// matrix product 'r q' must be equal to 'a'
 		struct block_sparse_tensor rq;
-		block_sparse_tensor_dot(&r, &q, 1, &rq);
+		block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
 		if (!block_sparse_tensor_allclose(&rq, &a, 1e-13)) {
 			return "matrix product R Q is not equal to original A matrix";
 		}
 		delete_block_sparse_tensor(&rq);
 
 		// 'q' must be an isometry
-		struct block_sparse_tensor qh;
-		const int perm[2] = { 1, 0 };
-		conjugate_transpose_block_sparse_tensor(perm, &q, &qh);
+		struct block_sparse_tensor qc;
+		copy_block_sparse_tensor(&q, &qc);
+		conjugate_block_sparse_tensor(&qc);
 		// revert tensor axes directions for multiplication
-		qh.axis_dir[0] = -qh.axis_dir[0];
-		qh.axis_dir[1] = -qh.axis_dir[1];
+		qc.axis_dir[0] = -qc.axis_dir[0];
+		qc.axis_dir[1] = -qc.axis_dir[1];
 		struct block_sparse_tensor qqh;
-		block_sparse_tensor_dot(&q, &qh, 1, &qqh);
+		block_sparse_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &qc, TENSOR_AXIS_RANGE_TRAILING, 1, &qqh);
 		if (!block_sparse_tensor_is_identity(&qqh, 1e-13)) {
 			return "Q matrix is not an isometry";
 		}
 		delete_block_sparse_tensor(&qqh);
-		delete_block_sparse_tensor(&qh);
+		delete_block_sparse_tensor(&qc);
 
 		// 'r' only upper triangular after sorting first axis by quantum numbers
 
@@ -896,9 +914,9 @@ char* test_block_sparse_tensor_svd()
 
 		// matrix product 'u s vh' must be equal to 'a'
 		struct block_sparse_tensor us;
-		block_sparse_tensor_multiply_pointwise_vector(&u, &s, TENSOR_AXIS_ALIGN_TRAILING, &us);
+		block_sparse_tensor_multiply_pointwise_vector(&u, &s, TENSOR_AXIS_RANGE_TRAILING, &us);
 		struct block_sparse_tensor usvh;
-		block_sparse_tensor_dot(&us, &vh, 1, &usvh);
+		block_sparse_tensor_dot(&us, TENSOR_AXIS_RANGE_TRAILING, &vh, TENSOR_AXIS_RANGE_LEADING, 1, &usvh);
 		delete_block_sparse_tensor(&us);
 		if (!block_sparse_tensor_allclose(&usvh, &a, 1e-13)) {
 			return "matrix product U S V^dag is not equal to original A matrix";
@@ -906,36 +924,36 @@ char* test_block_sparse_tensor_svd()
 		delete_block_sparse_tensor(&usvh);
 
 		// 'u' must be an isometry
-		struct block_sparse_tensor uh;
-		const int perm_u[2] = { 1, 0 };
-		conjugate_transpose_block_sparse_tensor(perm_u, &u, &uh);
+		struct block_sparse_tensor uc;
+		copy_block_sparse_tensor(&u, &uc);
+		conjugate_block_sparse_tensor(&uc);
 		// revert tensor axes directions for multiplication
-		uh.axis_dir[0] = -uh.axis_dir[0];
-		uh.axis_dir[1] = -uh.axis_dir[1];
+		uc.axis_dir[0] = -uc.axis_dir[0];
+		uc.axis_dir[1] = -uc.axis_dir[1];
 		struct block_sparse_tensor uhu;
-		block_sparse_tensor_dot(&uh, &u, 1, &uhu);
+		block_sparse_tensor_dot(&uc, TENSOR_AXIS_RANGE_LEADING, &u, TENSOR_AXIS_RANGE_LEADING, 1, &uhu);
 		if (!block_sparse_tensor_is_identity(&uhu, 1e-13)) {
 			return "U matrix is not an isometry";
 		}
 		delete_block_sparse_tensor(&uhu);
-		delete_block_sparse_tensor(&uh);
+		delete_block_sparse_tensor(&uc);
 
 		if (c == 0)
 		{
 			// 'vh' must be an isometry
-			struct block_sparse_tensor v;
-			const int perm_v[2] = { 1, 0 };
-			conjugate_transpose_block_sparse_tensor(perm_v, &vh, &v);
+			struct block_sparse_tensor vt;
+			copy_block_sparse_tensor(&vh, &vt);
+			conjugate_block_sparse_tensor(&vt);
 			// revert tensor axes directions for multiplication
-			v.axis_dir[0] = -v.axis_dir[0];
-			v.axis_dir[1] = -v.axis_dir[1];
+			vt.axis_dir[0] = -vt.axis_dir[0];
+			vt.axis_dir[1] = -vt.axis_dir[1];
 			struct block_sparse_tensor vhv;
-			block_sparse_tensor_dot(&vh, &v, 1, &vhv);
+			block_sparse_tensor_dot(&vh, TENSOR_AXIS_RANGE_TRAILING, &vt, TENSOR_AXIS_RANGE_TRAILING, 1, &vhv);
 			if (!block_sparse_tensor_is_identity(&vhv, 1e-13)) {
 				return "V matrix is not an isometry";
 			}
 			delete_block_sparse_tensor(&vhv);
-			delete_block_sparse_tensor(&v);
+			delete_block_sparse_tensor(&vt);
 		}
 		else
 		{
