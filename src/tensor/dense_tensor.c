@@ -415,6 +415,125 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Temporary data structure storing tensor dimensions and a permutation of them.
+///
+struct dimension_permutation
+{
+	long* dim;  //!< dimensions
+	int* perm;  //!< permutation
+	int ndim;   //!< number of dimensions (degree)
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief "Squeeze" dimensions by removing dimensions equal to one.
+///
+static void squeeze_dimensions(const struct dimension_permutation* restrict dp, struct dimension_permutation* restrict dp_eff)
+{
+	assert(dp->ndim >= 1);
+
+	// map from original to effective axis
+	int* axis_map = aligned_alloc(MEM_DATA_ALIGN, dp->ndim * sizeof(int));
+	dp_eff->ndim = 0;
+	for (int i = 0; i < dp->ndim; i++)
+	{
+		assert(dp->dim[i] >= 1);
+		if (dp->dim[i] == 1) {
+			axis_map[i] = -1;
+		}
+		else {
+			axis_map[i] = dp_eff->ndim;
+			dp_eff->ndim++;
+		}
+	}
+	if (dp_eff->ndim == 0) {
+		// special case: all dimensions are 1
+		aligned_free(axis_map);
+		return;
+	}
+
+	// effective dimensions
+	dp_eff->dim = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(long));
+	for (int i = 0; i < dp->ndim; i++) {
+		if (dp->dim[i] != 1) {
+			dp_eff->dim[axis_map[i]] = dp->dim[i];
+		}
+	}
+
+	// effective permutation
+	dp_eff->perm = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(int));
+	int c = 0;
+	for (int i = 0; i < dp->ndim; i++) {
+		if (dp->dim[dp->perm[i]] != 1) {
+			dp_eff->perm[c] = axis_map[dp->perm[i]];
+			c++;
+		}
+	}
+	assert(c == dp_eff->ndim);
+
+	aligned_free(axis_map);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fuse axes which remain neighbors after a permutation.
+///
+static void fuse_permutation_axes(const struct dimension_permutation* restrict dp, struct dimension_permutation* restrict dp_eff)
+{
+	assert(dp->ndim >= 1);
+
+	// whether to fuse with previous axis
+	int* fuse_map = aligned_calloc(MEM_DATA_ALIGN, dp->ndim, sizeof(int));
+	for (int i = 1; i < dp->ndim; i++) {
+		if (dp->perm[i] == dp->perm[i - 1] + 1) {
+			fuse_map[dp->perm[i]] = true;
+		}
+	}
+
+	// map from original to effective axis
+	int* axis_map = aligned_alloc(MEM_DATA_ALIGN, dp->ndim * sizeof(int));
+	dp_eff->ndim = 0;
+	for (int i = 0; i < dp->ndim; i++) {
+		if (fuse_map[i]) {
+			axis_map[i] = axis_map[i - 1];
+		}
+		else {
+			axis_map[i] = dp_eff->ndim;
+			dp_eff->ndim++;
+		}
+	}
+	assert(dp_eff->ndim >= 1);
+
+	// effective dimensions
+	dp_eff->dim = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(long));
+	for (int i = 0; i < dp_eff->ndim; i++) {
+		dp_eff->dim[i] = 1;
+	}
+	for (int i = 0; i < dp->ndim; i++) {
+		assert(dp->dim[i] >= 1);
+		dp_eff->dim[axis_map[i]] *= dp->dim[i];
+	}
+
+	// effective permutation
+	dp_eff->perm = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(int));
+	int c = 0;
+	for (int i = 0; i < dp->ndim; i++) {
+		if (!fuse_map[dp->perm[i]]) {
+			dp_eff->perm[c] = axis_map[dp->perm[i]];
+			c++;
+		}
+	}
+	assert(c == dp_eff->ndim);
+
+	aligned_free(fuse_map);
+	aligned_free(axis_map);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Generalized transpose of a tensor 't' such that
 /// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
 ///
@@ -422,8 +541,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 ///
 void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
-	// TODO: consider using an optimized library like https://github.com/springer13/hptt,
-	// and fuse neighboring to-be transposed axes
+	// TODO: consider using an optimized library like https://github.com/springer13/hptt
 
 	if (t->ndim == 0)
 	{
@@ -455,33 +573,56 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
 	aligned_free(rdim);
 
+	// effective dimensions and permutation
+	const struct dimension_permutation dp = { .dim = t->dim, .perm = (int*)perm, .ndim = t->ndim };
+	struct dimension_permutation dp_squeeze;
+	squeeze_dimensions(&dp, &dp_squeeze);
+	if (dp_squeeze.ndim == 0)
+	{
+		// special case: all dimensions are 1
+		// copy single scalar entry
+		memcpy(r->data, t->data, sizeof_numeric_type(t->dtype));
+		return;
+	}
+	struct dimension_permutation dp_eff;
+	fuse_permutation_axes(&dp_squeeze, &dp_eff);
+	aligned_free(dp_squeeze.perm);
+	aligned_free(dp_squeeze.dim);
+
+	// effective dimensions of 'r'
+	long* rdim_eff = aligned_alloc(MEM_DATA_ALIGN, dp_eff.ndim * sizeof(long));
+	for (int i = 0; i < dp_eff.ndim; i++) {
+		rdim_eff[i] = dp_eff.dim[dp_eff.perm[i]];
+	}
+
 	// stride (offset between successive elements) in new tensor 'r' corresponding to original last axis
 	int ax_r_last = -1;
-	for (int i = 0; i < t->ndim; i++) {
-		if (perm[i] == t->ndim - 1) {
+	for (int i = 0; i < dp_eff.ndim; i++) {
+		if (dp_eff.perm[i] == dp_eff.ndim - 1) {
 			ax_r_last = i;
 			break;
 		}
 	}
 	assert(ax_r_last != -1);
-	const long stride = integer_product(r->dim + ax_r_last + 1, r->ndim - ax_r_last - 1);
+	const long stride = integer_product(rdim_eff + ax_r_last + 1, dp_eff.ndim - ax_r_last - 1);
 
-	const long nelem = dense_tensor_num_elements(t);
+	const long nelem = integer_product(dp_eff.dim, dp_eff.ndim);
+	assert(nelem == dense_tensor_num_elements(t));
 
-	long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim,  sizeof(long));
-	long* index_r =  aligned_alloc(MEM_DATA_ALIGN, r->ndim * sizeof(long));
+	long* index_t = aligned_calloc(MEM_DATA_ALIGN, dp_eff.ndim,  sizeof(long));
+	long* index_r =  aligned_alloc(MEM_DATA_ALIGN, dp_eff.ndim * sizeof(long));
 
-	for (long ot = 0; ot < nelem; ot += t->dim[t->ndim - 1])
+	for (long ot = 0; ot < nelem; ot += dp_eff.dim[dp_eff.ndim - 1])
 	{
 		// map index of tensor 't' to index of tensor 'r'
-		for (int i = 0; i < t->ndim; i++) {
-			index_r[i] = index_t[perm[i]];
+		for (int i = 0; i < dp_eff.ndim; i++) {
+			index_r[i] = index_t[dp_eff.perm[i]];
 		}
 		// convert back to offset of tensor 'r'
-		const long or = tensor_index_to_offset(r->ndim, r->dim, index_r);
+		const long or = tensor_index_to_offset(dp_eff.ndim, rdim_eff, index_r);
 
 		// main copy loop
-		const long n = t->dim[t->ndim - 1];
+		const long n = dp_eff.dim[dp_eff.ndim - 1];
 		switch (t->dtype)
 		{
 			case SINGLE_REAL:
@@ -543,11 +684,14 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			}
 		}
 
-		// advance index of tensor 't' by t->dim[t->ndim - 1] elements
-		next_tensor_index(t->ndim - 1, t->dim, index_t);
+		// advance index of tensor 't' by dp_eff.dim[dp_eff.ndim - 1] elements
+		next_tensor_index(dp_eff.ndim - 1, dp_eff.dim, index_t);
 	}
 
 	// clean up
+	aligned_free(rdim_eff);
+	aligned_free(dp_eff.perm);
+	aligned_free(dp_eff.dim);
 	aligned_free(index_r);
 	aligned_free(index_t);
 }

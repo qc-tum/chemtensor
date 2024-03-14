@@ -25,8 +25,11 @@ def dense_tensor_transpose_data():
     # random number generator
     rng = np.random.default_rng(782)
 
-    t = rng.standard_normal((4, 5, 6, 7)).astype(np.float32)
-    t_tp = np.transpose(t, (1, 3, 2, 0))
+    dim  = (1, 4, 5, 1, 1, 2, 1, 3, 1, 7)
+    #       0  1  2  3  4  5  6  7  8  9
+    perm = (4, 8, 2, 6, 0, 9, 5, 7, 3, 1)
+    t = rng.standard_normal(dim).astype(np.float32)
+    t_tp = np.transpose(t, perm)
 
     with h5py.File("data/test_dense_tensor_transpose.hdf5", "w") as file:
         file["t"]    = t

@@ -49,24 +49,26 @@ char* test_dense_tensor_transpose()
 		return "'H5Fopen' in test_dense_tensor_transpose failed";
 	}
 
+	const int ndim = 10;
+
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[4] = { 4, 5, 6, 7 };
-	allocate_dense_tensor(SINGLE_REAL, 4, dim,  &t);
+	const long dim[10] = { 1, 4, 5, 1, 1, 2, 1, 3, 1, 7 };
+	allocate_dense_tensor(SINGLE_REAL, ndim, dim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
 	// generalized transposition
-	const int perm[4] = { 1, 3, 2, 0 };
+	const int perm[10] = { 4, 8, 2, 6, 0, 9, 5, 7, 3, 1 };
 	struct dense_tensor t_tp;
 	transpose_dense_tensor(perm, &t, &t_tp);
 
 	// reference tensor
-	const long refdim[4] = { 5, 7, 6, 4 };
+	const long refdim[10] = { 1, 1, 5, 1, 1, 7, 2, 3, 1, 4 };
 	struct dense_tensor t_tp_ref;
-	allocate_dense_tensor(SINGLE_REAL, 4, refdim, &t_tp_ref);
+	allocate_dense_tensor(SINGLE_REAL, ndim, refdim, &t_tp_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_FLOAT, t_tp_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
