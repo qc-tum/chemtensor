@@ -25,6 +25,8 @@ struct mpo
 
 // allocation and construction
 
+void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mpo* mpo);
+
 void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, struct mpo* mpo);
 
 void delete_mpo(struct mpo* mpo);

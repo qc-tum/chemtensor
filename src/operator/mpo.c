@@ -8,6 +8,32 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Allocate memory for a matrix product operator. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
+///
+void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
+{
+	assert(nsites >= 1);
+	assert(d >= 1);
+	mpo->nsites = nsites;
+	mpo->d = d;
+
+	mpo->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	memcpy(mpo->qsite, qsite, d * sizeof(qnumber));
+
+	mpo->a = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct block_sparse_tensor));
+
+	for (int i = 0; i < nsites; i++)
+	{
+		const long dim[4] = { dim_bonds[i], d, d, dim_bonds[i + 1] };
+		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
+		const qnumber* qnums[4] = { qbonds[i], qsite, qsite, qbonds[i + 1] };
+		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &mpo->a[i]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Construct an MPO from an MPO graph.
 ///
 void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, struct mpo* mpo)

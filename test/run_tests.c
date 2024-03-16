@@ -48,6 +48,7 @@ char* test_mpo_from_graph();
 char* test_retained_bond_indices();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
+char* test_operator_inner_product();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -93,6 +94,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
+		TEST_FUNCTION_ENTRY(test_operator_inner_product),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 
