@@ -170,6 +170,110 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the "cyclic" partial trace, by tracing out the 'ndim_trace' leading with the 'ndim_trace' trailing axes.
+///
+void dense_tensor_cyclic_partial_trace(const struct dense_tensor* t, const int ndim_trace, struct dense_tensor* r)
+{
+	assert(ndim_trace >= 0);
+	assert(t->ndim >= 2 * ndim_trace);
+	for (int i = 0; i < ndim_trace; i++) {
+		assert(t->dim[i] == t->dim[t->ndim - ndim_trace + i]);
+	}
+
+	// construct new tensor 'r'
+	allocate_dense_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim + ndim_trace, r);
+
+	dense_tensor_cyclic_partial_trace_update(t, ndim_trace, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the "cyclic" partial trace, by tracing out the 'ndim_trace' leading with the 'ndim_trace' trailing axes,
+/// and add result to 'r'.
+///
+/// 'r' must have been allocated beforehand.
+///
+void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, const int ndim_trace, struct dense_tensor* r)
+{
+	assert(ndim_trace >= 0);
+	assert(t->dtype == r->dtype);
+	assert(r->ndim == t->ndim - 2 * ndim_trace);
+	for (int i = 0; i < ndim_trace; i++) {
+		assert(t->dim[i] == t->dim[t->ndim - ndim_trace + i]);
+	}
+	for (int i = 0; i < r->ndim; i++) {
+		assert(t->dim[ndim_trace + i] == r->dim[i]);
+	}
+
+	const long stride = integer_product(t->dim, ndim_trace);
+	const long nr = dense_tensor_num_elements(r);
+
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* tdata = t->data;
+			float* rdata = r->data;
+			for (long k = 0; k < stride; k++)
+			{
+				for (long j = 0; j < nr; j++)
+				{
+					rdata[j] += tdata[(k*nr + j)*stride + k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* tdata = t->data;
+			double* rdata = r->data;
+			for (long k = 0; k < stride; k++)
+			{
+				for (long j = 0; j < nr; j++)
+				{
+					rdata[j] += tdata[(k*nr + j)*stride + k];
+				}
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* tdata = t->data;
+			scomplex* rdata = r->data;
+			for (long k = 0; k < stride; k++)
+			{
+				for (long j = 0; j < nr; j++)
+				{
+					rdata[j] += tdata[(k*nr + j)*stride + k];
+				}
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* tdata = t->data;
+			dcomplex* rdata = r->data;
+			for (long k = 0; k < stride; k++)
+			{
+				for (long j = 0; j < nr; j++)
+				{
+					rdata[j] += tdata[(k*nr + j)*stride + k];
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the 2-norm (Frobenius norm) of the tensor.
 ///
 /// Result is returned as double also for single-precision tensor entries.
@@ -735,7 +839,7 @@ void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, c
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Slice an axis of the tensor by selecting logical indices 'ind' along this axis.
+/// \brief Slice an axis of the tensor by selecting indices 'ind' along this axis.
 ///
 /// Indices 'ind' can be duplicate and need not be sorted.
 /// 'r' must have been allocated beforehand.

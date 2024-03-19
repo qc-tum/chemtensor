@@ -69,6 +69,47 @@ def block_sparse_tensor_get_block_data():
             file.attrs[f"qnums{i}"] = qn
 
 
+def block_sparse_tensor_cyclic_partial_trace_data():
+
+    # random number generator
+    rng = np.random.default_rng(621)
+
+    # dimensions
+    dims = (7, 4, 3, 2, 5, 7, 4)
+
+    # tensor degree
+    ndim = len(dims)
+    ndim_trace = 2
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+    for j in range(ndim_trace):
+        axis_dir[ndim - ndim_trace + j] = -axis_dir[j]
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims[:(ndim-ndim_trace)]]
+    for j in range(ndim_trace):
+        qnums.append(qnums[j])
+
+    # dense tensor
+    t = crandn(dims, rng).astype(np.complex64)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    t_tr = np.trace(np.trace(t, axis1=0, axis2=ndim-ndim_trace), axis1=0, axis2=ndim-ndim_trace-1)
+
+    with h5py.File("data/test_block_sparse_tensor_cyclic_partial_trace.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file["t_tr"] = interleave_complex(t_tr)
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+
+
 def block_sparse_tensor_norm2_data():
 
     # random number generator
@@ -406,6 +447,7 @@ def block_sparse_tensor_svd_data():
 def main():
     block_sparse_tensor_copy_data()
     block_sparse_tensor_get_block_data()
+    block_sparse_tensor_cyclic_partial_trace_data()
     block_sparse_tensor_norm2_data()
     block_sparse_tensor_transpose_data()
     block_sparse_tensor_reshape_data()

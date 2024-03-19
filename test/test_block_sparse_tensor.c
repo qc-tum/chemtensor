@@ -153,6 +153,83 @@ char* test_block_sparse_tensor_get_block()
 }
 
 
+char* test_block_sparse_tensor_cyclic_partial_trace()
+{
+	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_cyclic_partial_trace failed";
+	}
+
+	const int ndim = 7;
+	const int ndim_trace = 2;
+	const long dims[7] = { 7, 4, 3, 2, 5, 7, 4 };
+
+	// read dense tensor from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(SINGLE_COMPLEX, ndim, dims, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	// compute cyclic partial trace
+	struct block_sparse_tensor t_tr;
+	block_sparse_tensor_cyclic_partial_trace(&t, ndim_trace, &t_tr);
+
+	// read reference dense tensor from disk
+	struct dense_tensor t_tr_ref_dns;
+	allocate_dense_tensor(SINGLE_COMPLEX, ndim - 2*ndim_trace, dims + ndim_trace, &t_tr_ref_dns);
+	if (read_hdf5_dataset(file, "t_tr", H5T_NATIVE_FLOAT, t_tr_ref_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t_tr_ref;
+	dense_to_block_sparse_tensor(&t_tr_ref_dns, axis_dir + ndim_trace, (const qnumber**)(qnums + ndim_trace), &t_tr_ref);
+
+	// compare
+	if (!block_sparse_tensor_allclose(&t_tr, &t_tr_ref, 5e-6)) {
+		return "cyclic partial trace tensor does not match reference";
+	}
+
+	// clean up
+	for (int i = 0; i < ndim; i++)
+	{
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
+	delete_block_sparse_tensor(&t_tr_ref);
+	delete_block_sparse_tensor(&t_tr);
+	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_tr_ref_dns);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_block_sparse_tensor_norm2()
 {
 	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_norm2.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -163,7 +240,7 @@ char* test_block_sparse_tensor_norm2()
 	const int ndim = 4;
 	const long dims[4] = { 4, 6, 13, 5 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(DOUBLE_COMPLEX, ndim, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {

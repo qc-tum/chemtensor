@@ -95,6 +95,10 @@ static inline void next_tensor_index(const int ndim, const long* restrict dim, l
 
 void dense_tensor_trace(const struct dense_tensor* t, void* ret);
 
+void dense_tensor_cyclic_partial_trace(const struct dense_tensor* t, const int ndim_trace, struct dense_tensor* r);
+
+void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, const int ndim_trace, struct dense_tensor* r);
+
 double dense_tensor_norm2(const struct dense_tensor* t);
 
 

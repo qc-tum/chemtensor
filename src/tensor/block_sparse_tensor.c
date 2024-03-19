@@ -1327,6 +1327,68 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the "cyclic" partial trace, by tracing out the 'ndim_trace' leading with the 'ndim_trace' trailing axes.
+///
+void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* restrict t, const int ndim_trace, struct block_sparse_tensor* restrict r)
+{
+	assert(ndim_trace >= 0);
+	assert(t->ndim >= 2 * ndim_trace);
+	for (int i = 0; i < ndim_trace; i++)
+	{
+		assert(t->dim_logical[i] == t->dim_logical[t->ndim - ndim_trace + i]);
+		assert(t->axis_dir[i] == -t->axis_dir[t->ndim - ndim_trace + i]);
+		assert(qnumber_all_equal(t->dim_logical[i], t->qnums_logical[i], t->qnums_logical[t->ndim - ndim_trace + i]));
+	}
+
+	if (ndim_trace == 0) {
+		copy_block_sparse_tensor(t, r);
+		return;
+	}
+
+	// construct new block-sparse tensor 'r'
+	allocate_block_sparse_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim_logical + ndim_trace, t->axis_dir + ndim_trace, (const qnumber**)(t->qnums_logical + ndim_trace), r);
+
+	// for each block with matching quantum numbers...
+	const long nblocks_r = integer_product(r->dim_blocks, r->ndim);
+	const long nblocks_p = integer_product(t->dim_blocks, ndim_trace);
+	long* index_block_t  = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_block_r  = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	for (long k = 0; k < nblocks_r; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		struct dense_tensor* br = r->blocks[k];
+		assert(br != NULL);
+
+		memcpy(index_block_t + ndim_trace, index_block_r, r->ndim * sizeof(long));
+
+		for (long j = 0; j < nblocks_p; j++, next_tensor_index(ndim_trace, t->dim_blocks, index_block_t))
+		{
+			// duplicate leading 'ndim_trace' indices at the end
+			memcpy(index_block_t + ndim_trace + r->ndim, index_block_t, ndim_trace * sizeof(long));
+
+			const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+			assert(bt != NULL);
+
+			dense_tensor_cyclic_partial_trace_update(bt, ndim_trace, br);
+		}
+	}
+
+	aligned_free(index_block_r);
+	aligned_free(index_block_t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Pointwise multiply the entries of 's' along its leading or trailing axis with the vector 't'.
 /// The output tensor 'r' has the same data type and dimension as 's'.
 ///

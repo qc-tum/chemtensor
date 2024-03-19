@@ -20,6 +20,23 @@ def dense_tensor_trace_data():
         file["tr"] = interleave_complex(tr)
 
 
+def dense_tensor_cyclic_partial_trace_data():
+
+    # random number generator
+    rng = np.random.default_rng(316)
+
+    ndim_trace = 2
+
+    t = crandn((5, 2, 3, 4, 1, 5, 2), rng).astype(np.complex64)
+
+    # compute cyclic trace
+    t_tr = np.trace(np.trace(t, axis1=0, axis2=t.ndim-ndim_trace), axis1=0, axis2=t.ndim-ndim_trace-1)
+
+    with h5py.File("data/test_dense_tensor_cyclic_partial_trace.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file["t_tr"] = interleave_complex(t_tr)
+
+
 def dense_tensor_transpose_data():
 
     # random number generator
@@ -234,6 +251,7 @@ def dense_tensor_block_data():
 
 def main():
     dense_tensor_trace_data()
+    dense_tensor_cyclic_partial_trace_data()
     dense_tensor_transpose_data()
     dense_tensor_slice_data()
     dense_tensor_multiply_pointwise_data()

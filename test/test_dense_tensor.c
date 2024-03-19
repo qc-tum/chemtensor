@@ -42,6 +42,51 @@ char* test_dense_tensor_trace()
 }
 
 
+char* test_dense_tensor_cyclic_partial_trace()
+{
+	hid_t file = H5Fopen("../test/data/test_dense_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_cyclic_partial_trace failed";
+	}
+
+	const int ndim = 7;
+	const int ndim_trace = 2;
+
+	struct dense_tensor t;
+	const long tdim[7] = { 5, 2, 3, 4, 1, 5, 2 };
+	allocate_dense_tensor(SINGLE_COMPLEX, ndim, tdim, &t);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	struct dense_tensor t_tr;
+	dense_tensor_cyclic_partial_trace(&t, ndim_trace, &t_tr);
+
+	// reference tensor
+	struct dense_tensor t_tr_ref;
+	allocate_dense_tensor(SINGLE_COMPLEX, ndim - 2*ndim_trace, tdim + ndim_trace, &t_tr_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t_tr", H5T_NATIVE_FLOAT, t_tr_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// compare
+	if (!dense_tensor_allclose(&t_tr, &t_tr_ref, 5e-6)) {
+		return "cyclic partial trace tensor does not match reference";
+	}
+
+	// clean up
+	delete_dense_tensor(&t_tr_ref);
+	delete_dense_tensor(&t_tr);
+	delete_dense_tensor(&t);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_transpose()
 {
 	hid_t file = H5Fopen("../test/data/test_dense_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

@@ -52,7 +52,9 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 //________________________________________________________________________________________________________________________
 //
 
-// norm
+// trace and norm
+
+void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* restrict t, const int ndim_trace, struct block_sparse_tensor* restrict r);
 
 double block_sparse_tensor_norm2(const struct block_sparse_tensor* t);
 
