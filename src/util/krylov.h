@@ -1,0 +1,18 @@
+/// \file krylov.h
+/// \brief Krylov subspace algorithms.
+
+#pragma once
+
+#include "numeric.h"
+
+
+typedef void lanczos_linear_func_d(const long n, const void* restrict data, const double* restrict v, double* restrict ret);
+
+typedef void lanczos_linear_func_z(const long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret);
+
+
+void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* restrict adata, const double* restrict vstart, const int maxiter,
+	double* restrict alpha, double* restrict beta, double* restrict v, int* restrict numiter);
+
+void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* restrict adata, const dcomplex* restrict vstart, const int maxiter,
+	double* restrict alpha, double* restrict beta, dcomplex* restrict v, int* restrict numiter);
