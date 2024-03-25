@@ -2183,3 +2183,77 @@ bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const 
 
 	return true;
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Overall number of entries in the blocks of the tensor.
+///
+long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t)
+{
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+
+	long nelem = 0;
+	for (long k = 0; k < nblocks; k++)
+	{
+		if (t->blocks[k] != NULL) {
+			nelem += dense_tensor_num_elements(t->blocks[k]);
+		}
+	}
+
+	return nelem;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Store the block entries in a linear array.
+///
+void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries)
+{
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	int8_t* pentries = (int8_t*)entries;
+
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	long offset = 0;
+	for (long k = 0; k < nblocks; k++)
+	{
+		const struct dense_tensor* b = t->blocks[k];
+		if (b != NULL)
+		{
+			assert(t->dtype == b->dtype);
+			const long nelem = dense_tensor_num_elements(b);
+			memcpy(pentries + offset * dtype_size, b->data, nelem * dtype_size);
+			offset += nelem;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fill the block entries from a linear array.
+///
+void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, const void* entries)
+{
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	const int8_t* pentries = (const int8_t*)entries;
+
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	long offset = 0;
+	for (long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL)
+		{
+			assert(t->dtype == b->dtype);
+			const long nelem = dense_tensor_num_elements(b);
+			memcpy(b->data, pentries + offset * dtype_size, nelem * dtype_size);
+			offset += nelem;
+		}
+	}
+}

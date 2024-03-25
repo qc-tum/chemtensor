@@ -444,6 +444,39 @@ def block_sparse_tensor_svd_data():
                 file.attrs[f"qnums{c}{i}"] = qn
 
 
+def block_sparse_tensor_serialize_data():
+
+    # random number generator
+    rng = np.random.default_rng(273)
+
+    # dimensions
+    dims = (11, 3, 5, 8)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
+
+    # dense tensor representation
+    t = crandn(dims, rng)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    with h5py.File("data/test_block_sparse_tensor_serialize.hdf5", "w") as file:
+        file["t"] = interleave_complex(t)
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+
+
 def main():
     block_sparse_tensor_copy_data()
     block_sparse_tensor_get_block_data()
@@ -457,6 +490,7 @@ def main():
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
     block_sparse_tensor_svd_data()
+    block_sparse_tensor_serialize_data()
 
 
 if __name__ == "__main__":

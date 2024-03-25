@@ -149,3 +149,15 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const double tol);
 
 bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// (de)serialization
+
+long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t);
+
+void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries);
+
+void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, const void* entries);
