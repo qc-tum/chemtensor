@@ -16,3 +16,14 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 
 void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* restrict adata, const dcomplex* restrict vstart, const int maxiter,
 	double* restrict alpha, double* restrict beta, dcomplex* restrict v, int* restrict numiter);
+
+//________________________________________________________________________________________________________________________
+//
+
+int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, const void* restrict adata,
+	const double* restrict vstart, const int maxiter, const int numeig,
+	double* restrict lambda, double* restrict u_ritz);
+
+int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, const void* restrict adata,
+	const dcomplex* restrict vstart, const int maxiter, const int numeig,
+	double* restrict lambda, dcomplex* restrict u_ritz);

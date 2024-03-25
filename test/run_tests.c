@@ -46,6 +46,8 @@ char* test_bipartite_graph_maximum_cardinality_matching();
 char* test_bipartite_graph_minimum_vertex_cover();
 char* test_lanczos_iteration_d();
 char* test_lanczos_iteration_z();
+char* test_eigensystem_krylov_symmetric();
+char* test_eigensystem_krylov_hermitian();
 char* test_mpo_graph_from_opchains_basic();
 char* test_mpo_graph_from_opchains_advanced();
 char* test_mpo_from_graph();
@@ -96,6 +98,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_d),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_z),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_hermitian),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_basic),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
 		TEST_FUNCTION_ENTRY(test_mpo_from_graph),

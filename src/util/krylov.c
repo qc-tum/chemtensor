@@ -3,6 +3,7 @@
 
 #include <complex.h>
 #include <cblas.h>
+#include <lapacke.h>
 #include <assert.h>
 #include "krylov.h"
 #include "aligned_memory.h"
@@ -155,4 +156,102 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 	aligned_free(w);
 
 	(*numiter) = maxiter;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute Krylov subspace approximation of eigenvalues and vectors, real symmetric case.
+///
+int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, const void* restrict adata,
+	const double* restrict vstart, const int maxiter, const int numeig,
+	double* restrict lambda, double* restrict u_ritz)
+{
+	assert(numeig <= maxiter);
+
+	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
+	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
+	double* v     = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(double));
+	int numiter;
+	lanczos_iteration_d(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
+
+	if (numiter < numeig) {
+		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		return -1;
+	}
+
+	// diagonalize Hessenberg matrix
+	double* u = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(double));
+	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
+	if (info != 0) {
+		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
+		return -2;
+	}
+
+	// 'alpha' now contains the eigenvalues
+	memcpy(lambda, alpha, numeig * sizeof(double));
+
+	// compute Ritz eigenvectors
+	cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, 1., v, n, u, numiter, 0., u_ritz, numeig);
+
+	// clean up
+	aligned_free(u);
+	aligned_free(v);
+	aligned_free(beta);
+	aligned_free(alpha);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute Krylov subspace approximation of eigenvalues and vectors, complex Hermitian case.
+///
+int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, const void* restrict adata,
+	const dcomplex* restrict vstart, const int maxiter, const int numeig,
+	double* restrict lambda, dcomplex* restrict u_ritz)
+{
+	assert(numeig <= maxiter);
+
+	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
+	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
+	dcomplex* v   = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(dcomplex));
+	int numiter;
+	lanczos_iteration_z(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
+
+	if (numiter < numeig) {
+		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		return -1;
+	}
+
+	// diagonalize Hessenberg matrix
+	double* u = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(double));
+	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
+	if (info != 0) {
+		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
+		return -2;
+	}
+
+	// 'alpha' now contains the eigenvalues
+	memcpy(lambda, alpha, numeig * sizeof(double));
+
+	// compute Ritz eigenvectors
+	// require complex 'u' entries for matrix multiplication
+	dcomplex* uz = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(dcomplex));
+	for (int i = 0; i < numiter*numiter; i++) {
+		uz[i] = (dcomplex)u[i];
+	}
+	const dcomplex one  = 1;
+	const dcomplex zero = 0;
+	cblas_zgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, &one, v, n, uz, numiter, &zero, u_ritz, numeig);
+
+	// clean up
+	aligned_free(uz);
+	aligned_free(u);
+	aligned_free(v);
+	aligned_free(beta);
+	aligned_free(alpha);
+
+	return 0;
 }
