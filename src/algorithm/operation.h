@@ -9,6 +9,10 @@
 
 void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
 
+double mps_norm(const struct mps* psi);
+
+//________________________________________________________________________________________________________________________
+//
 
 void create_dummy_operator_block_right(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict r);
@@ -27,3 +31,9 @@ void compute_right_operator_blocks(const struct mps* restrict psi, const struct 
 
 
 void operator_inner_product(const struct mps* chi, const struct mpo* op, const struct mps* psi, void* ret);
+
+//________________________________________________________________________________________________________________________
+//
+
+void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict w,
+	const struct block_sparse_tensor* restrict l, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict b);

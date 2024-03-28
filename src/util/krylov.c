@@ -55,6 +55,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 		{
 			// premature end of iterations
 			(*numiter) = j + 1;
+			aligned_free(w);
 			return;
 		}
 
@@ -128,6 +129,7 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 		{
 			// premature end of iterations
 			(*numiter) = j + 1;
+			aligned_free(w);
 			return;
 		}
 

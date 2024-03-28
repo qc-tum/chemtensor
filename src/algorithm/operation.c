@@ -2,6 +2,8 @@
 /// \brief Higher-level tensor network operations.
 
 #include <memory.h>
+#include <math.h>
+#include <complex.h>
 #include <assert.h>
 #include "operation.h"
 
@@ -111,6 +113,60 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 	assert(r.blocks[0] != NULL);
 	memcpy(ret, r.blocks[0]->data, sizeof_numeric_type(dtype));
 	delete_block_sparse_tensor(&r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the Euclidean norm of the MPS.
+///
+/// Result is returned as double also for single-precision tensor entries.
+///
+double mps_norm(const struct mps* psi)
+{
+	if (psi->nsites == 0) {
+		return 0;
+	}
+
+	switch (psi->a[0].dtype)
+	{
+		case SINGLE_REAL:
+		{
+			float nrm2;
+			mps_vdot(psi, psi, &nrm2);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case DOUBLE_REAL:
+		{
+			double nrm2;
+			mps_vdot(psi, psi, &nrm2);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex vdot;
+			mps_vdot(psi, psi, &vdot);
+			float nrm2 = crealf(vdot);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex vdot;
+			mps_vdot(psi, psi, &vdot);
+			double nrm2 = creal(vdot);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
+	}
 }
 
 
@@ -399,4 +455,72 @@ void operator_inner_product(const struct mps* chi, const struct mpo* op, const s
 	assert(r.blocks[0] != NULL);
 	memcpy(ret, r.blocks[0]->data, sizeof_numeric_type(dtype));
 	delete_block_sparse_tensor(&r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Apply a local Hamiltonian operator.
+///
+/// To-be contracted tensor network:
+///
+///           .................................
+///          '                                 '
+///       ___:___                           ___:___
+///      /   :   \                         /   :   \
+///      |   :  3|->-   0           2   ->-|2  :   |
+///      |   :   |                         |   :   |
+///      |   :   |            1            |   :   |
+///      |   :   |            ^            |   :   |
+///      |   '...|..........__|__..........|...'   |
+///      |       |         /  1  \         |       |
+///   -<-|0  l  2|-<-   -<-|0 w 3|-<-   -<-|1  r  3|-<-
+///      |       |         \__2__/         |       |
+///      |       |            |            |       |
+///      |       |            ^            |       |
+///      |       |          __|__          |       |
+///      |       |         /  1  \         |       |
+///      |      1|-<-   -<-|0 a 2|-<-   -<-|0      |
+///      \_______/         \_____/         \_______/
+///
+/// The dotted outline marks the output tensor.
+/// The outer virtual bonds are contracted as well.
+///
+void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict w,
+	const struct block_sparse_tensor* restrict l, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict b)
+{
+	assert(a->ndim == 3);
+	assert(w->ndim == 4);
+	assert(l->ndim == 4);
+	assert(r->ndim == 4);
+
+	// multiply with 'a' tensor
+	struct block_sparse_tensor s;
+	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+
+	// multiply with 'w' tensor
+	// re-order first three dimensions
+	const int perm0[5] = { 1, 2, 0, 3, 4 };
+	struct block_sparse_tensor t;
+	transpose_block_sparse_tensor(perm0, &s, &t);
+	delete_block_sparse_tensor(&s);
+	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+	delete_block_sparse_tensor(&t);
+	// undo re-ordering
+	const int perm1[5] = { 2, 0, 1, 3, 4 };
+	transpose_block_sparse_tensor(perm1, &s, &t);
+	delete_block_sparse_tensor(&s);
+
+	// multiply with 'l' tensor
+	// re-order last three dimensions
+	const int perm2[4] = { 0, 3, 1, 2 };
+	struct block_sparse_tensor k;
+	transpose_block_sparse_tensor(perm2, l, &k);
+	block_sparse_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+	delete_block_sparse_tensor(&k);
+	delete_block_sparse_tensor(&t);
+
+	// trace out outer virtual bonds (assumed to be low-dimensional)
+	block_sparse_tensor_cyclic_partial_trace(&s, 1, b);
+	delete_block_sparse_tensor(&s);
 }

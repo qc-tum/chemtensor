@@ -154,6 +154,16 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Allocate memory for a block-sparse tensor of the same type, dimensions, and quantum numbers as the provided tensor.
+///
+void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t)
+{
+	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->axis_dir, (const qnumber**)s->qnums_logical, t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Delete a block-sparse tensor (free memory).
 ///
 void delete_block_sparse_tensor(struct block_sparse_tensor* t)
