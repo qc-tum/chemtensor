@@ -37,10 +37,10 @@ char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
 char* test_block_sparse_tensor_serialize();
+char* test_mps_vdot();
 char* test_mps_orthonormalize_qr();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
-char* test_mps_vdot();
 char* test_queue();
 char* test_hash_table();
 char* test_bipartite_graph_maximum_cardinality_matching();
@@ -92,10 +92,10 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_serialize),
+		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
-		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_hash_table),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),

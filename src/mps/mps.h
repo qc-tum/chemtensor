@@ -45,6 +45,16 @@ static inline long mps_bond_dim(const struct mps* mps, const int i)
 //________________________________________________________________________________________________________________________
 //
 
+// inner product and norm
+
+void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
+
+double mps_norm(const struct mps* psi);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // orthonormalization and canonical forms
 
 void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next);

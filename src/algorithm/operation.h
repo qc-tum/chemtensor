@@ -7,13 +7,6 @@
 #include "mpo.h"
 
 
-void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
-
-double mps_norm(const struct mps* psi);
-
-//________________________________________________________________________________________________________________________
-//
-
 void create_dummy_operator_block_right(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict r);
 
