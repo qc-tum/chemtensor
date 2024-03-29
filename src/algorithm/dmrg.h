@@ -8,3 +8,6 @@
 
 
 int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, struct mps* psi, double* en_sweeps);
+
+int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const long max_vdim,
+	struct mps* psi, double* en_sweeps, double* restrict entropy);

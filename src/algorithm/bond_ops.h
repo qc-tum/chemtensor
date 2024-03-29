@@ -45,8 +45,8 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 ///
 enum singular_value_distr
 {
-	SVD_DISTR_LEFT,
-	SVD_DISTR_RIGHT,
+	SVD_DISTR_LEFT  = 0,
+	SVD_DISTR_RIGHT = 1,
 };
 
 

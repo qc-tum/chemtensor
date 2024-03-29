@@ -109,8 +109,60 @@ def dmrg_singlesite_data():
             file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
 
 
+def dmrg_twosite_data():
+
+    # random number generator
+    rng = np.random.default_rng(287)
+
+    # number of lattice sites
+    nsites = 11
+
+    # local physical quantum numbers
+    qd = np.array([0, 0])
+
+    # Hamiltonian
+    H = _construct_random_hermitian_mpo(qd, nsites, rng)
+    # must be Hermitian
+    Hmat = H.as_matrix()
+    assert np.allclose(Hmat, Hmat.conj().T)
+
+    psi_start = _construct_random_mps(qd, nsites, rng)
+    assert np.linalg.norm(psi_start.as_vector()) > 0.1
+
+    numsweeps = 4
+    tol_split = 1e-5
+
+    psi = copy.deepcopy(psi_start)
+    en_sweeps = ptn.calculate_ground_state_local_twosite(H, psi, numsweeps, numiter_lanczos=25, tol_split=tol_split)
+
+    # reference (numerically exact) ground state energy
+    en_min = np.linalg.eigvalsh(Hmat)[0]
+    assert en_sweeps[-1] >= en_min
+
+    with h5py.File("data/test_dmrg_twosite.hdf5", "w") as file:
+        file.attrs["qsite"] = qd
+        file.attrs["tol_split"] = tol_split
+        for i, qbond in enumerate(H.qD):
+            file.attrs[f"h_qbond{i}"] = qbond
+        for i, a in enumerate(H.A):
+            # transposition due to different convention for axis ordering
+            file[f"h_a{i}"] = interleave_complex(a.transpose((2, 0, 1, 3)))
+        for i, qbond in enumerate(psi_start.qD):
+            file.attrs[f"psi_start_qbond{i}"] = qbond
+        for i, a in enumerate(psi_start.A):
+            # transposition due to different convention for axis ordering
+            file[f"psi_start_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+        file["en_sweeps"] = en_sweeps
+        for i, qbond in enumerate(psi.qD):
+            file.attrs[f"psi_qbond{i}"] = qbond
+        for i, a in enumerate(psi.A):
+            # transposition due to different convention for axis ordering
+            file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+
+
 def main():
     dmrg_singlesite_data()
+    dmrg_twosite_data()
 
 
 if __name__ == "__main__":

@@ -238,3 +238,145 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 
 	return 0;
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Run the two-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
+/// The input 'psi' is used as starting state and is updated in-place during the optimization.
+///
+int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const long max_vdim,
+	struct mps* psi, double* en_sweeps, double* restrict entropy)
+{
+	// number of lattice sites
+	const int nsites = hamiltonian->nsites;
+	assert(nsites == psi->nsites);
+	assert(nsites >= 2);
+
+	// currently only double precision supported
+	assert(numeric_real_type(hamiltonian->a[0].dtype) == DOUBLE_REAL);
+
+	// right-normalize input matrix product state
+	mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
+
+	// left and right operator blocks
+	struct block_sparse_tensor* lblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* rblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
+	compute_right_operator_blocks(psi, psi, hamiltonian, rblocks);
+	create_dummy_operator_block_left(&psi->a[0], &psi->a[0], &hamiltonian->a[0], &lblocks[0]);
+	for (int i = 1; i < nsites; i++) {
+		copy_block_sparse_tensor(&lblocks[0], &lblocks[i]);
+	}
+
+	// precompute merged neighboring Hamiltonian MPO tensors
+	struct block_sparse_tensor* h2 = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(struct block_sparse_tensor));
+	for (int i = 0; i < nsites - 1; i++) {
+		mpo_merge_tensor_pair(&hamiltonian->a[i], &hamiltonian->a[i + 1], &h2[i]);
+	}
+
+	// TODO: number of sweeps should be determined by tolerance and some convergence measure
+	for (int n = 0; n < num_sweeps; n++)
+	{
+		double en;
+
+		// sweep from left to right
+		for (int i = 0; i < nsites - 2; i++)
+		{
+			// merge neighboring MPS tensors
+			struct block_sparse_tensor a_cur;
+			mps_merge_tensor_pair(&psi->a[i], &psi->a[i + 1], &a_cur);
+			delete_block_sparse_tensor(&psi->a[i]);
+			delete_block_sparse_tensor(&psi->a[i + 1]);
+
+			// minimize local two-site energy using merged tensor as starting point
+			struct block_sparse_tensor a_opt;
+			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			delete_block_sparse_tensor(&a_cur);
+			if (ret < 0) {
+				return ret;
+			}
+
+			// split optimized two-site MPS tensor into two tensors
+			const long d_pair[2] = { psi->d, psi->d };
+			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
+			struct trunc_info info;
+			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &info);
+			if (ret < 0) {
+				return ret;
+			}
+			delete_block_sparse_tensor(&a_opt);
+
+			// update the left blocks
+			delete_block_sparse_tensor(&lblocks[i + 1]);
+			contraction_operator_step_left(&psi->a[i], &psi->a[i], &hamiltonian->a[i], &lblocks[i], &lblocks[i + 1]);
+		}
+
+		// sweep from right to left
+		for (int i = nsites - 2; i >= 0; i--)
+		{
+			// merge neighboring MPS tensors
+			struct block_sparse_tensor a_cur;
+			mps_merge_tensor_pair(&psi->a[i], &psi->a[i + 1], &a_cur);
+			delete_block_sparse_tensor(&psi->a[i]);
+			delete_block_sparse_tensor(&psi->a[i + 1]);
+
+			// minimize local two-site energy using merged tensor as starting point
+			struct block_sparse_tensor a_opt;
+			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			delete_block_sparse_tensor(&a_cur);
+			if (ret < 0) {
+				return ret;
+			}
+
+			// split optimized two-site MPS tensor into two tensors
+			const long d_pair[2] = { psi->d, psi->d };
+			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
+			struct trunc_info info;
+			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &info);
+			if (ret < 0) {
+				return ret;
+			}
+			delete_block_sparse_tensor(&a_opt);
+			// record entropy
+			entropy[i] = info.entropy;
+
+			// update the right blocks
+			delete_block_sparse_tensor(&rblocks[i]);
+			contraction_operator_step_right(&psi->a[i + 1], &psi->a[i + 1], &hamiltonian->a[i + 1], &rblocks[i + 1], &rblocks[i]);
+		}
+
+		// right-normalize leftmost tensor to ensure that 'psi' is normalized
+		{
+			// dummy tensor at site "-1"
+			struct block_sparse_tensor t;
+			const long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
+			const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
+			qnumber qzero[1] = { 0 };
+			const qnumber* qnums[3] = { psi->a[0].qnums_logical[0], qzero, psi->a[0].qnums_logical[0] };
+			allocate_block_sparse_tensor(psi->a[0].dtype, 3, dim, axis_dir, qnums, &t);
+
+			mps_local_orthonormalize_rq(&psi->a[0], &t);
+
+			delete_block_sparse_tensor(&t);
+		}
+
+		// record energy after each sweep
+		en_sweeps[n] = en;
+	}
+
+	// clean up
+	for (int i = 0; i < nsites - 1; i++)
+	{
+		delete_block_sparse_tensor(&h2[i]);
+	}
+	aligned_free(h2);
+	for (int i = 0; i < nsites; i++)
+	{
+		delete_block_sparse_tensor(&rblocks[i]);
+		delete_block_sparse_tensor(&lblocks[i]);
+	}
+	aligned_free(rblocks);
+	aligned_free(lblocks);
+
+	return 0;
+}
