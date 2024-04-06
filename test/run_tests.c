@@ -38,6 +38,7 @@ char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
 char* test_block_sparse_tensor_serialize();
 char* test_su2_tree_enumerate_charge_sectors();
+char* test_su2_fuse_split_tree_enumerate_charge_sectors();
 char* test_mps_vdot();
 char* test_mps_orthonormalize_qr();
 char* test_mps_split_tensor_svd();
@@ -95,6 +96,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_serialize),
 		TEST_FUNCTION_ENTRY(test_su2_tree_enumerate_charge_sectors),
+		TEST_FUNCTION_ENTRY(test_su2_fuse_split_tree_enumerate_charge_sectors),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),

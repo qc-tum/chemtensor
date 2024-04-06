@@ -1,12 +1,23 @@
 /// \file su2_tree.c
-/// \brief Internal tree data structure for SU(2) symmetric tensors.
+/// \brief Internal tree data structures for SU(2) symmetric tensors.
 
 #include <math.h>
-#include <assert.h>
 #include "su2_tree.h"
 #include "aligned_memory.h"
 #include "queue.h"
 #include "linked_list.h"
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Allocate a charge sector array.
+///
+void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors)
+{
+	sectors->jlists = aligned_alloc(MEM_DATA_ALIGN, nsec * ndim * sizeof(qnumber));
+	sectors->nsec = nsec;
+	sectors->ndim = ndim;
+}
 
 
 //________________________________________________________________________________________________________________________
@@ -31,6 +42,25 @@ int su2_tree_num_nodes(const struct su2_tree_node* tree)
 	}
 
 	return 1 + su2_tree_num_nodes(tree->c[0]) + su2_tree_num_nodes(tree->c[1]);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fill the indicator for the axes indexed by the tree.
+///
+void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator)
+{
+	if (tree == NULL) {
+		return;
+	}
+
+	// must not be assigned yet
+	assert(!indicator[tree->i_ax]);
+	indicator[tree->i_ax] = true;
+
+	su2_tree_axes(tree->c[0], indicator);
+	su2_tree_axes(tree->c[1], indicator);
 }
 
 
@@ -126,7 +156,7 @@ static void* allocate_copy(const void* data, const size_t size)
 ///
 /// \brief Enumerate all "charge sectors" ('j' quantum number configurations) for a given tree layout.
 /// 'ndim' is the number of 'j' quantum numbers.
-/// The output array 'charge_sectors' will be allocated, with dimension 'number of sectors x ndim'.
+/// The output array 'sectors' will be allocated, with dimension 'number of sectors x ndim'.
 ///
 void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const int ndim, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors)
 {
@@ -170,9 +200,7 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 	while (su2_tree_next_charge_sector(ordered_nodes, num_nodes, leaf_ranges, jlist));
 
 	// copy charge sectors to output array
-	sectors->ndim = ndim;
-	sectors->nsec = charges.size;
-	sectors->jlists = aligned_alloc(MEM_DATA_ALIGN, charges.size * ndim * sizeof(qnumber));
+	allocate_charge_sectors(charges.size, ndim, sectors);
 	long i = 0;
 	struct linked_list_node* node = charges.head;
 	while (node != NULL)
@@ -186,4 +214,150 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 	delete_linked_list(&charges, aligned_free);
 	aligned_free(jlist);
 	aligned_free(ordered_nodes);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function used by 'qsort'.
+///
+static int compare_charge_sectors(const void* a, const void* b)
+{
+	const struct su2_irreducible_list* x = a;
+	const struct su2_irreducible_list* y = b;
+
+	assert(x->num == y->num);
+	for (int i = 0; i < x->num; i++)
+	{
+		if (x->jlist[i] < y->jlist[i]) {
+			return -1;
+		}
+		else if (x->jlist[i] > y->jlist[i]) {
+			return 1;
+		}
+	}
+
+	// lists are equal
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Internal consistency check of the fuse and split tree data structure.
+///
+bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
+{
+	if (tree->ndim <= 0) {
+		return false;
+	}
+
+	if (tree->tree_fuse->i_ax != tree->tree_split->i_ax) {
+		return false;
+	}
+	const int i_ax_shared = tree->tree_fuse->i_ax;
+
+	bool* indicator_fuse  = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	bool* indicator_split = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
+	su2_tree_axes(tree->tree_split, indicator_split);
+	for (int i = 0; i < tree->ndim; i++)
+	{
+		if (i == i_ax_shared) {
+			if (!(indicator_fuse[i] && indicator_split[i])) {
+				aligned_free(indicator_split);
+				aligned_free(indicator_fuse);
+				return false;
+			}
+		}
+		else {
+			// axis must be assigned either to the fusion or to the splitting tree
+			if (indicator_fuse[i] == indicator_split[i]) {
+				aligned_free(indicator_split);
+				aligned_free(indicator_fuse);
+				return false;
+			}
+		}
+	}
+
+	aligned_free(indicator_split);
+	aligned_free(indicator_fuse);
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Enumerate all "charge sectors" ('j' quantum number configurations) for a given fuse and split tree layout.
+///
+void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors)
+{
+	assert(tree->ndim > 0);
+	assert(tree->tree_fuse->i_ax == tree->tree_split->i_ax);
+	const int i_ax_shared = tree->tree_fuse->i_ax;
+
+	bool* indicator_fuse  = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	bool* indicator_split = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
+	su2_tree_axes(tree->tree_split, indicator_split);
+	// consistency check
+	for (int i = 0; i < tree->ndim; i++) {
+		if (i == i_ax_shared) {
+			assert(indicator_fuse[i] && indicator_split[i]);
+		}
+		else {
+			assert(indicator_fuse[i] != indicator_split[i]);
+		}
+	}
+
+	struct charge_sectors sectors_fuse;
+	struct charge_sectors sectors_split;
+	su2_tree_enumerate_charge_sectors(tree->tree_fuse,  tree->ndim, leaf_ranges, &sectors_fuse);
+	su2_tree_enumerate_charge_sectors(tree->tree_split, tree->ndim, leaf_ranges, &sectors_split);
+	assert(sectors_fuse.ndim  == tree->ndim);
+	assert(sectors_split.ndim == tree->ndim);
+
+	// merge the charge sectors of the fuse and split trees
+	struct su2_irreducible_list* merged_sectors = aligned_alloc(MEM_DATA_ALIGN, sectors_fuse.nsec * sectors_split.nsec * sizeof(struct su2_irreducible_list));
+	long c = 0;
+	for (long j = 0; j < sectors_fuse.nsec; j++)
+	{
+		for (long k = 0; k < sectors_split.nsec; k++)
+		{
+			// quantum number at common root edge must match
+			if (sectors_fuse.jlists[j * tree->ndim + i_ax_shared] == sectors_split.jlists[k * tree->ndim + i_ax_shared])
+			{
+				merged_sectors[c].num = tree->ndim;
+				merged_sectors[c].jlist = aligned_alloc(MEM_DATA_ALIGN, tree->ndim * sizeof(qnumber));
+				// merge quantum numbers
+				for (int i = 0; i < tree->ndim; i++)
+				{
+					merged_sectors[c].jlist[i] =
+						(indicator_fuse[i] ?
+							 sectors_fuse.jlists[j * tree->ndim + i] :
+							sectors_split.jlists[k * tree->ndim + i]);
+				}
+
+				c++;
+			}
+		}
+	}
+
+	// sort lexicographically
+	qsort(merged_sectors, c, sizeof(struct su2_irreducible_list), compare_charge_sectors);
+
+	// copy data into output array
+	allocate_charge_sectors(c, tree->ndim, sectors);
+	for (long i = 0; i < c; i++)
+	{
+		memcpy(&sectors->jlists[i * tree->ndim], merged_sectors[i].jlist, tree->ndim * sizeof(qnumber));
+		aligned_free(merged_sectors[i].jlist);
+	}
+
+	aligned_free(merged_sectors);
+	aligned_free(indicator_split);
+	aligned_free(indicator_fuse);
+	delete_charge_sectors(&sectors_split);
+	delete_charge_sectors(&sectors_fuse);
 }

@@ -1,5 +1,5 @@
 /// \file su2_tree.h
-/// \brief Internal tree data structure for SU(2) symmetric tensors.
+/// \brief Internal tree data structures for SU(2) symmetric tensors.
 
 #pragma once
 
@@ -30,6 +30,8 @@ struct charge_sectors
 	long nsec;        //!< number of sectors (configurations)
 	int ndim;         //!< number of dimensions ('j' quantum numbers in each configuration)
 };
+
+void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors);
 
 void delete_charge_sectors(struct charge_sectors* sectors);
 
@@ -66,4 +68,22 @@ static inline bool su2_tree_node_is_leaf(const struct su2_tree_node* node)
 
 int su2_tree_num_nodes(const struct su2_tree_node* tree);
 
+void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator);
+
 void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const int ndim, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Internal fuse and split tree of an SU(2) symmetric tensor.
+///
+struct su2_fuse_split_tree
+{
+	struct su2_tree_node* tree_fuse;    //!< root of fusion tree
+	struct su2_tree_node* tree_split;   //!< root of splitting tree
+	int ndim;                           //!< overall number of dimensions
+};
+
+bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree);
+
+void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
