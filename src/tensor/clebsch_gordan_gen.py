@@ -65,8 +65,8 @@ def generate_clebsch_gordan_tables():
     cfile.write("\n")
     cfile.write("\n")
 
-    num_j1 = 5
-    num_j2 = 5
+    num_j1 = 6
+    num_j2 = 6
 
     hfile.write("// format: cg_j1_j2_j3[j1+1][j2+1][j3+1]\n")
     for j1 in range(0, num_j1):
@@ -102,27 +102,32 @@ def generate_clebsch_gordan_tables():
     hfile.write("double clebsch_gordan(const qnumber j1, const qnumber j2, const qnumber j3, const int im1, const int im2, const int im3);\n")
 
     cfile.write(
-"""
+f"""
 
 //________________________________________________________________________________________________________________________
 ///
 /// \\brief Evaluate the Clebsch-Gordan coefficient at the provided 'j' quantum numbers (represented times 2) and 'm' quantum number indices.
 ///
 double clebsch_gordan(const qnumber j1, const qnumber j2, const qnumber j3, const int im1, const int im2, const int im3)
-{
+{{
 	assert(0 <= im1 && im1 < j1 + 1);
 	assert(0 <= im2 && im2 < j2 + 1);
 	assert(0 <= im3 && im3 < j3 + 1);
 
-	if (j3 < abs(j1 - j2) || j3 > j1 + j2) {
+	if (j3 < abs(j1 - j2) || j3 > j1 + j2) {{
 		return 0;
-	}
-	if ((j1 + j2 + j3) % 2 != 0) {
+	}}
+	if ((j1 + j2 + j3) % 2 != 0) {{
 		return 0;
-	}
+	}}
+
+	// quantum number ranges in precomputed tables
+	assert(j1 <= {num_j1 - 1});
+	assert(j2 <= {num_j2 - 1});
+	assert(j3 <= {num_j3 - 1});
 
 	return cg_table[j1][j2][j3][(im1*(j2 + 1) + im2)*(j3 + 1) + im3];
-}
+}}
 """)
 
     cfile.close()

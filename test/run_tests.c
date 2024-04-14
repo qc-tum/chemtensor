@@ -16,6 +16,7 @@ char* test_dense_tensor_cyclic_partial_trace();
 char* test_dense_tensor_transpose();
 char* test_dense_tensor_slice();
 char* test_dense_tensor_multiply_pointwise();
+char* test_dense_tensor_multiply_axis();
 char* test_dense_tensor_dot();
 char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
@@ -37,9 +38,10 @@ char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
 char* test_block_sparse_tensor_serialize();
+char* test_clebsch_gordan_coefficients();
 char* test_su2_tree_enumerate_charge_sectors();
 char* test_su2_fuse_split_tree_enumerate_charge_sectors();
-char* test_clebsch_gordan_coefficients();
+char* test_su2_to_dense_tensor();
 char* test_mps_vdot();
 char* test_mps_orthonormalize_qr();
 char* test_mps_split_tensor_svd();
@@ -75,6 +77,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_slice),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_pointwise),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_axis),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot_update),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
@@ -96,9 +99,10 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_serialize),
+		TEST_FUNCTION_ENTRY(test_clebsch_gordan_coefficients),
 		TEST_FUNCTION_ENTRY(test_su2_tree_enumerate_charge_sectors),
 		TEST_FUNCTION_ENTRY(test_su2_fuse_split_tree_enumerate_charge_sectors),
-		TEST_FUNCTION_ENTRY(test_clebsch_gordan_coefficients),
+		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),

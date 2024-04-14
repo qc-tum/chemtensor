@@ -1,0 +1,77 @@
+/// \file su2_tensor.h
+/// \brief Data structures and functions for SU(2) symmetric tensors.
+
+#pragma once
+
+#include "su2_tree.h"
+#include "dense_tensor.h"
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief SU(2) symmetric tensor (assumed to be described internally by a fusion-splitting tree).
+///
+/// Axes are enumerated in the order "logical", "auxiliary", "internal"; number of internal dimensions is `ndim_logical + ndim_auxiliary - 3`
+///
+struct su2_tensor
+{
+	struct su2_fuse_split_tree tree;            //!< internal fusion-splitting tree
+	struct su2_irreducible_list* outer_jlists;  //!< lists of irreducible 'j' quantum numbers times 2, for each outer (logical and auxiliary) axis
+	struct charge_sectors charge_sectors;       //!< charge sectors (irreducible logical, auxiliary and internal 'j' quantum number configurations), computed from 'tree' and 'outer_jlists'
+	struct dense_tensor** degensors;            //!< dense "degeneracy" tensors, pointer array of length "number of charge sectors"
+	long** dim_degen;                           //!< degeneracy dimension for each logical axis; indexed by corresponding 'j' quantum number
+	enum numeric_type dtype;                    //!< numeric data type
+	int ndim_logical;                           //!< number of logical dimensions
+	int ndim_auxiliary;                         //!< number of auxiliary dimensions (dummy outer axes in fusion-splitting tree)
+};
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// allocation and construction
+
+void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t);
+
+void delete_su2_tensor(struct su2_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Number of internal dimensions of an SU(2) symmetric tensor.
+///
+static inline int su2_tensor_ndim_internal(const struct su2_tensor* t)
+{
+	return t->ndim_logical + t->ndim_auxiliary - 3;
+}
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Number of overall dimensions of an SU(2) symmetric tensor.
+///
+static inline int su2_tensor_ndim(const struct su2_tensor* t)
+{
+	return t->ndim_logical + t->ndim_auxiliary + su2_tensor_ndim_internal(t);
+}
+
+
+long su2_tensor_dim_logical_axis(const struct su2_tensor* t, const int i_ax);
+
+
+enum tensor_axis_direction su2_tensor_logical_axis_direction(const struct su2_tensor* t, const int i_ax);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// internal consistency checking
+
+bool su2_tensor_is_consistent(const struct su2_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// conversion to a dense tensor
+
+void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tensor* restrict t);

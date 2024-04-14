@@ -15,9 +15,13 @@
 ///
 struct su2_irreducible_list
 {
-	qnumber* jlist;  //!< 'j' quantum numbers times 2
+	qnumber* jlist;  //!< 'j' quantum numbers times 2 (must be unique)
 	int num;         //!< number of irreducible SU(2) subspaces (length of jlist)
 };
+
+void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su2_irreducible_list* dst);
+
+void delete_su2_irreducible_list(struct su2_irreducible_list* list);
 
 
 //________________________________________________________________________________________________________________________
@@ -46,6 +50,10 @@ struct su2_tree_node
 	struct su2_tree_node* c[2];  //!< pointer to left and right child nodes; NULL for a leaf node
 };
 
+void copy_su2_tree(const struct su2_tree_node* src, struct su2_tree_node* dst);
+
+void delete_su2_tree(struct su2_tree_node* tree);
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Whether an SU(2) symmetry tree node is a leaf.
@@ -66,9 +74,13 @@ static inline bool su2_tree_node_is_leaf(const struct su2_tree_node* node)
 	}
 }
 
+bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax);
+
 int su2_tree_num_nodes(const struct su2_tree_node* tree);
 
 void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator);
+
+double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnumber* restrict jlist, const int* restrict im_leaves, const int im_root);
 
 void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const int ndim, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
 
@@ -84,6 +96,12 @@ struct su2_fuse_split_tree
 	int ndim;                           //!< overall number of dimensions
 };
 
+void copy_su2_fuse_split_tree(const struct su2_fuse_split_tree* src, struct su2_fuse_split_tree* dst);
+
+void delete_su2_fuse_split_tree(struct su2_fuse_split_tree* tree);
+
 bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree);
+
+double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* restrict jlist, const int* restrict im_leaves);
 
 void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);

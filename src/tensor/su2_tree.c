@@ -6,6 +6,30 @@
 #include "aligned_memory.h"
 #include "queue.h"
 #include "linked_list.h"
+#include "clebsch_gordan.h"
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Copy a list of irreducible 'j' quantum numbers.
+///
+void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su2_irreducible_list* dst)
+{
+	dst->num = src->num;
+	dst->jlist = aligned_alloc(MEM_DATA_ALIGN, src->num * sizeof(qnumber));
+	memcpy(dst->jlist, src->jlist, src->num * sizeof(qnumber));
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete a list of irreducible 'j' quantum numbers (free memory).
+///
+void delete_su2_irreducible_list(struct su2_irreducible_list* list)
+{
+	aligned_free(list->jlist);
+	list->num = 0;
+}
 
 
 //________________________________________________________________________________________________________________________
@@ -28,6 +52,75 @@ void delete_charge_sectors(struct charge_sectors* sectors)
 {
 	aligned_free(sectors->jlists);
 	sectors->nsec = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Make a deep copy of an SU(2) symmetry tree.
+///
+void copy_su2_tree(const struct su2_tree_node* src, struct su2_tree_node* dst)
+{
+	assert(src != NULL);
+
+	dst->i_ax = src->i_ax;
+
+	if (src->c[0] != NULL)
+	{
+		assert(src->c[1] != NULL);
+		dst->c[0] = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+		dst->c[1] = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+		copy_su2_tree(src->c[0], dst->c[0]);
+		copy_su2_tree(src->c[1], dst->c[1]);
+	}
+	else
+	{
+		assert(src->c[1] == NULL);
+		dst->c[0] = NULL;
+		dst->c[1] = NULL;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete an SU(2) symmetry tree (free memory).
+///
+/// The root node must be deallocated by the calling function.
+///
+void delete_su2_tree(struct su2_tree_node* tree)
+{
+	if (tree->c[0] != NULL)
+	{
+		assert(tree->c[1] != NULL);
+
+		delete_su2_tree(tree->c[0]);
+		delete_su2_tree(tree->c[1]);
+
+		aligned_free(tree->c[0]);
+		aligned_free(tree->c[1]);
+		tree->c[0] = NULL;
+		tree->c[1] = NULL;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether the SU(2) symmetry tree contains a leaf with axis index 'i_ax'.
+///
+bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax)
+{
+	if (tree == NULL) {
+		return false;
+	}
+
+	if (su2_tree_node_is_leaf(tree))
+	{
+		return tree->i_ax == i_ax;
+	}
+
+	return su2_tree_contains_leaf(tree->c[0], i_ax) || su2_tree_contains_leaf(tree->c[1], i_ax);
 }
 
 
@@ -61,6 +154,53 @@ void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator)
 
 	su2_tree_axes(tree->c[0], indicator);
 	su2_tree_axes(tree->c[1], indicator);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Evaluate the SU(2) symmetry tree by contracting it, interpreting the nodes as Clebsch-Gordan coefficients.
+/// The 'j' quantum number configuration and the 'm' quantum numbers at the leaves and root are prescribed.
+///
+double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnumber* restrict jlist, const int* restrict im_leaves, const int im_root)
+{
+	assert(0 <= im_root && im_root < jlist[tree->i_ax] + 1);
+
+	if (su2_tree_node_is_leaf(tree))
+	{
+		return (im_leaves[tree->i_ax] == im_root) ? 1 : 0;
+	}
+
+	const qnumber j1 = jlist[tree->c[0]->i_ax];
+	const qnumber j2 = jlist[tree->c[1]->i_ax];
+	const qnumber j3 = jlist[tree->i_ax];
+
+	double* e2_list = aligned_alloc(MEM_DATA_ALIGN, (j2 + 1) * sizeof(double));
+	for (int im2 = 0; im2 <= j2; im2++) {
+		e2_list[im2] = su2_tree_eval_clebsch_gordan(tree->c[1], jlist, im_leaves, im2);
+	}
+
+	double v = 0;
+	for (int im1 = 0; im1 <= j1; im1++)
+	{
+		double e1 = su2_tree_eval_clebsch_gordan(tree->c[0], jlist, im_leaves, im1);
+		if (e1 == 0) {
+			continue;
+		}
+
+		for (int im2 = 0; im2 <= j2; im2++)
+		{
+			if (e2_list[im2] == 0) {
+				continue;
+			}
+
+			v += e1 * e2_list[im2] * clebsch_gordan(j1, j2, j3, im1, im2, im_root);
+		}
+	}
+
+	aligned_free(e2_list);
+
+	return v;
 }
 
 
@@ -219,26 +359,29 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Comparison function used by 'qsort'.
+/// \brief Make a deep copy of a fuse and split tree.
 ///
-static int compare_charge_sectors(const void* a, const void* b)
+void copy_su2_fuse_split_tree(const struct su2_fuse_split_tree* src, struct su2_fuse_split_tree* dst)
 {
-	const struct su2_irreducible_list* x = a;
-	const struct su2_irreducible_list* y = b;
+	dst->ndim = src->ndim;
 
-	assert(x->num == y->num);
-	for (int i = 0; i < x->num; i++)
-	{
-		if (x->jlist[i] < y->jlist[i]) {
-			return -1;
-		}
-		else if (x->jlist[i] > y->jlist[i]) {
-			return 1;
-		}
-	}
+	dst->tree_fuse  = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+	dst->tree_split = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+	copy_su2_tree(src->tree_fuse,  dst->tree_fuse);
+	copy_su2_tree(src->tree_split, dst->tree_split);
+}
 
-	// lists are equal
-	return 0;
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete a fuse and split tree (free memory).
+///
+void delete_su2_fuse_split_tree(struct su2_fuse_split_tree* tree)
+{
+	delete_su2_tree(tree->tree_split);
+	delete_su2_tree(tree->tree_fuse);
+	aligned_free(tree->tree_split);
+	aligned_free(tree->tree_fuse);
 }
 
 
@@ -284,6 +427,52 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
 	aligned_free(indicator_fuse);
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Evaluate the fuse and split tree by contracting both subtrees, interpreting the nodes as Clebsch-Gordan coefficients.
+/// The 'j' quantum number configuration and the 'm' quantum numbers at the leaves are prescribed.
+///
+double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* restrict jlist, const int* restrict im_leaves)
+{
+	assert(tree->tree_fuse->i_ax == tree->tree_split->i_ax);
+
+	const qnumber j_root = jlist[tree->tree_fuse->i_ax];
+
+	double v = 0;
+	for (int im_root = 0; im_root <= j_root; im_root++) {
+		v += (su2_tree_eval_clebsch_gordan(tree->tree_fuse,  jlist, im_leaves, im_root)
+		    * su2_tree_eval_clebsch_gordan(tree->tree_split, jlist, im_leaves, im_root));
+	}
+
+	return v;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function used by 'qsort'.
+///
+static int compare_charge_sectors(const void* a, const void* b)
+{
+	const struct su2_irreducible_list* x = a;
+	const struct su2_irreducible_list* y = b;
+
+	assert(x->num == y->num);
+	for (int i = 0; i < x->num; i++)
+	{
+		if (x->jlist[i] < y->jlist[i]) {
+			return -1;
+		}
+		else if (x->jlist[i] > y->jlist[i]) {
+			return 1;
+		}
+	}
+
+	// lists are equal
+	return 0;
 }
 
 

@@ -161,6 +161,8 @@ void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, cons
 
 void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r);
 
+void dense_tensor_multiply_axis(const struct dense_tensor* restrict s, const int i_ax, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, struct dense_tensor* restrict r);
+
 void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r);
 
 void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r, const void* beta);

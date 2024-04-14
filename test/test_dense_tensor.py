@@ -87,6 +87,27 @@ def dense_tensor_multiply_pointwise_data():
             file[f"t_mult_s{i}"] = interleave_complex(t_mult_s[i])
 
 
+def dense_tensor_multiply_axis_data():
+
+    # random number generator
+    rng = np.random.default_rng(193)
+
+    s = crandn((3, 8, 5, 7), rng).astype(np.complex64)
+
+    t1 = crandn((6, 5), rng).astype(np.complex64)
+    r1 = np.einsum(s, (0, 1, 4, 3), t1, (2, 4), (0, 1, 2, 3))
+
+    t2 = crandn((5, 2), rng).astype(np.complex64)
+    r2 = np.einsum(s, (0, 1, 4, 3), t2, (4, 2), (0, 1, 2, 3))
+
+    with h5py.File("data/test_dense_tensor_multiply_axis.hdf5", "w") as file:
+        file["s"] = interleave_complex(s)
+        file["t1"] = interleave_complex(t1)
+        file["r1"] = interleave_complex(r1)
+        file["t2"] = interleave_complex(t2)
+        file["r2"] = interleave_complex(r2)
+
+
 def dense_tensor_dot_data():
 
     # random number generator
@@ -255,6 +276,7 @@ def main():
     dense_tensor_transpose_data()
     dense_tensor_slice_data()
     dense_tensor_multiply_pointwise_data()
+    dense_tensor_multiply_axis_data()
     dense_tensor_dot_data()
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()
