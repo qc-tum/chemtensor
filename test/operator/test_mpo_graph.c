@@ -4,7 +4,7 @@
 
 char* test_mpo_graph_from_opchains_basic()
 {
-	hid_t file = H5Fopen("../test/data/test_mpo_graph_from_opchains_basic.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/operator/data/test_mpo_graph_from_opchains_basic.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mpo_graph_from_opchains_basic failed";
 	}
@@ -133,7 +133,7 @@ char* test_mpo_graph_from_opchains_basic()
 
 char* test_mpo_graph_from_opchains_advanced()
 {
-	hid_t file = H5Fopen("../test/data/test_mpo_graph_from_opchains_advanced.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/operator/data/test_mpo_graph_from_opchains_advanced.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mpo_graph_from_opchains_advanced failed";
 	}

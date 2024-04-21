@@ -6,7 +6,7 @@
 
 char* test_mps_vdot()
 {
-	hid_t file = H5Fopen("../test/data/test_mps_vdot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/mps/data/test_mps_vdot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_vdot failed";
 	}
@@ -129,7 +129,7 @@ char* test_mps_vdot()
 
 char* test_mps_orthonormalize_qr()
 {
-	hid_t file = H5Fopen("../test/data/test_mps_orthonormalize_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/mps/data/test_mps_orthonormalize_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_orthonormalize_qr failed";
 	}
@@ -236,7 +236,7 @@ char* test_mps_orthonormalize_qr()
 
 char* test_mps_split_tensor_svd()
 {
-	hid_t file = H5Fopen("../test/data/test_mps_split_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/mps/data/test_mps_split_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_split_tensor_svd failed";
 	}
@@ -369,7 +369,7 @@ char* test_mps_split_tensor_svd()
 
 char* test_mps_to_statevector()
 {
-	hid_t file = H5Fopen("../test/data/test_mps_to_statevector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/mps/data/test_mps_to_statevector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_to_statevector failed";
 	}

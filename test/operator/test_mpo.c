@@ -5,7 +5,7 @@
 
 char* test_mpo_from_graph()
 {
-	hid_t file = H5Fopen("../test/data/test_mpo_from_graph.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/operator/data/test_mpo_from_graph.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mpo_from_graph failed";
 	}

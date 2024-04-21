@@ -7,7 +7,7 @@
 
 char* test_dmrg_singlesite()
 {
-	hid_t file = H5Fopen("../test/data/test_dmrg_singlesite.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_dmrg_singlesite.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dmrg_singlesite failed";
 	}
@@ -228,7 +228,7 @@ char* test_dmrg_singlesite()
 
 char* test_dmrg_twosite()
 {
-	hid_t file = H5Fopen("../test/data/test_dmrg_twosite.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_dmrg_twosite.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dmrg_twosite failed";
 	}

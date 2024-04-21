@@ -53,7 +53,7 @@ static dcomplex random_complex_normal()
 
 char* test_su2_to_dense_tensor()
 {
-	hid_t file = H5Fopen("../test/data/test_su2_to_dense_tensor.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_su2_to_dense_tensor.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_su2_to_dense_tensor failed";
 	}

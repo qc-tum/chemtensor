@@ -6,7 +6,7 @@
 
 char* test_dense_tensor_trace()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_trace failed";
 	}
@@ -44,7 +44,7 @@ char* test_dense_tensor_trace()
 
 char* test_dense_tensor_cyclic_partial_trace()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_cyclic_partial_trace failed";
 	}
@@ -89,7 +89,7 @@ char* test_dense_tensor_cyclic_partial_trace()
 
 char* test_dense_tensor_transpose()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_transpose failed";
 	}
@@ -137,7 +137,7 @@ char* test_dense_tensor_transpose()
 
 char* test_dense_tensor_slice()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_slice failed";
 	}
@@ -188,7 +188,7 @@ char* test_dense_tensor_slice()
 
 char* test_dense_tensor_multiply_pointwise()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_multiply_pointwise.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_pointwise.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_multiply_pointwise failed";
 	}
@@ -248,7 +248,7 @@ char* test_dense_tensor_multiply_pointwise()
 
 char* test_dense_tensor_multiply_axis()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_multiply_axis.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_axis.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_multiply_axis failed";
 	}
@@ -335,7 +335,7 @@ char* test_dense_tensor_multiply_axis()
 
 char* test_dense_tensor_dot()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_dot failed";
 	}
@@ -419,7 +419,7 @@ char* test_dense_tensor_dot()
 
 char* test_dense_tensor_dot_update()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_dot_update.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_dot_update.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_dot_update failed";
 	}
@@ -512,7 +512,7 @@ char* test_dense_tensor_dot_update()
 
 char* test_dense_tensor_kronecker_product()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_kronecker_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_kronecker_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_kronecker_product failed";
 	}
@@ -566,7 +566,7 @@ char* test_dense_tensor_kronecker_product()
 
 char* test_dense_tensor_kronecker_product_degree_zero()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_kronecker_product_degree_zero.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_kronecker_product_degree_zero.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_kronecker_product_degree_zero failed";
 	}
@@ -617,7 +617,7 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 
 char* test_dense_tensor_qr()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_qr failed";
 	}
@@ -691,7 +691,7 @@ char* test_dense_tensor_qr()
 
 char* test_dense_tensor_rq()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_rq failed";
 	}
@@ -765,7 +765,7 @@ char* test_dense_tensor_rq()
 
 char* test_dense_tensor_svd()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_svd failed";
 	}
@@ -845,7 +845,7 @@ char* test_dense_tensor_svd()
 
 char* test_dense_tensor_block()
 {
-	hid_t file = H5Fopen("../test/data/test_dense_tensor_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_transpose failed";
 	}

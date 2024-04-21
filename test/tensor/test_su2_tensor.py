@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.linalg import expm, block_diag
 import h5py
+import sys
+sys.path.append("../")
 from util import interleave_complex
 
 

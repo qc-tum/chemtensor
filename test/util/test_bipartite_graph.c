@@ -4,7 +4,7 @@
 
 char* test_bipartite_graph_maximum_cardinality_matching()
 {
-	hid_t file = H5Fopen("../test/data/test_bipartite_graph_maximum_cardinality_matching.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_bipartite_graph_maximum_cardinality_matching.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_bipartite_graph_maximum_cardinality_matching failed";
 	}
@@ -71,7 +71,7 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 
 char* test_bipartite_graph_minimum_vertex_cover()
 {
-	hid_t file = H5Fopen("../test/data/test_bipartite_graph_minimum_vertex_cover.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_bipartite_graph_minimum_vertex_cover.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_bipartite_graph_minimum_vertex_cover failed";
 	}

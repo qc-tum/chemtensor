@@ -5,7 +5,7 @@
 
 char* test_block_sparse_tensor_copy()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_copy.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_copy.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_copy failed";
 	}
@@ -68,7 +68,7 @@ char* test_block_sparse_tensor_copy()
 
 char* test_block_sparse_tensor_get_block()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_get_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_get_block.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_get_block failed";
 	}
@@ -155,7 +155,7 @@ char* test_block_sparse_tensor_get_block()
 
 char* test_block_sparse_tensor_cyclic_partial_trace()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_cyclic_partial_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_cyclic_partial_trace failed";
 	}
@@ -232,7 +232,7 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 
 char* test_block_sparse_tensor_norm2()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_norm2.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_norm2.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_norm2 failed";
 	}
@@ -297,7 +297,7 @@ char* test_block_sparse_tensor_norm2()
 
 char* test_block_sparse_tensor_transpose()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_transpose failed";
 	}
@@ -373,7 +373,7 @@ char* test_block_sparse_tensor_transpose()
 
 char* test_block_sparse_tensor_reshape()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_reshape.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_reshape.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_reshape failed";
 	}
@@ -470,7 +470,7 @@ char* test_block_sparse_tensor_reshape()
 
 char* test_block_sparse_tensor_slice()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_slice failed";
 	}
@@ -556,7 +556,7 @@ char* test_block_sparse_tensor_slice()
 
 char* test_block_sparse_tensor_multiply_pointwise_vector()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_multiply_pointwise_vector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_multiply_pointwise_vector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_multiply_pointwise_vector failed";
 	}
@@ -649,7 +649,7 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 
 char* test_block_sparse_tensor_dot()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_dot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_dot failed";
 	}
@@ -769,7 +769,7 @@ char* test_block_sparse_tensor_dot()
 
 char* test_block_sparse_tensor_qr()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_qr failed";
 	}
@@ -855,7 +855,7 @@ char* test_block_sparse_tensor_qr()
 
 char* test_block_sparse_tensor_rq()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_rq.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_rq failed";
 	}
@@ -941,7 +941,7 @@ char* test_block_sparse_tensor_rq()
 
 char* test_block_sparse_tensor_svd()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_svd failed";
 	}
@@ -1059,7 +1059,7 @@ char* test_block_sparse_tensor_svd()
 
 char* test_block_sparse_tensor_serialize()
 {
-	hid_t file = H5Fopen("../test/data/test_block_sparse_tensor_serialize.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_serialize.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_block_sparse_tensor_serialize failed";
 	}

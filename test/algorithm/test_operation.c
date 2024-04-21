@@ -5,7 +5,7 @@
 
 char* test_operator_inner_product()
 {
-	hid_t file = H5Fopen("../test/data/test_operator_inner_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_operator_inner_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_operator_inner_product failed";
 	}

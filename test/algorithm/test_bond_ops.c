@@ -6,7 +6,7 @@
 
 char* test_retained_bond_indices()
 {
-	hid_t file = H5Fopen("../test/data/test_retained_bond_indices.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_retained_bond_indices.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_retained_bond_indices failed";
 	}
@@ -85,7 +85,7 @@ char* test_retained_bond_indices()
 
 char* test_split_block_sparse_matrix_svd()
 {
-	hid_t file = H5Fopen("../test/data/test_split_block_sparse_matrix_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_split_block_sparse_matrix_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_split_block_sparse_matrix_svd failed";
 	}

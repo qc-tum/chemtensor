@@ -28,7 +28,7 @@ static void multiply_matrix_vector_z(const long n, const void* restrict data, co
 
 char* test_lanczos_iteration_d()
 {
-	hid_t file = H5Fopen("../test/data/test_lanczos_iteration_d.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_lanczos_iteration_d.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_lanczos_iteration_d failed";
 	}
@@ -106,7 +106,7 @@ char* test_lanczos_iteration_d()
 
 char* test_lanczos_iteration_z()
 {
-	hid_t file = H5Fopen("../test/data/test_lanczos_iteration_z.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_lanczos_iteration_z.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_lanczos_iteration_z failed";
 	}
@@ -184,7 +184,7 @@ char* test_lanczos_iteration_z()
 
 char* test_eigensystem_krylov_symmetric()
 {
-	hid_t file = H5Fopen("../test/data/test_eigensystem_krylov_symmetric.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_eigensystem_krylov_symmetric.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_eigensystem_krylov_symmetric failed";
 	}
@@ -267,7 +267,7 @@ char* test_eigensystem_krylov_symmetric()
 
 char* test_eigensystem_krylov_hermitian()
 {
-	hid_t file = H5Fopen("../test/data/test_eigensystem_krylov_hermitian.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/util/data/test_eigensystem_krylov_hermitian.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_eigensystem_krylov_hermitian failed";
 	}

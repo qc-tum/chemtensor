@@ -1,5 +1,7 @@
 import numpy as np
 import h5py
+import sys
+sys.path.append("../")
 from util import crandn, interleave_complex
 
 
