@@ -58,6 +58,10 @@ char* test_eigensystem_krylov_hermitian();
 char* test_mpo_graph_from_opchains_basic();
 char* test_mpo_graph_from_opchains_advanced();
 char* test_mpo_from_graph();
+char* test_ising_1d_mpo();
+char* test_heisenberg_xxz_1d_mpo();
+char* test_bose_hubbard_1d_mpo();
+char* test_fermi_hubbard_1d_mpo();
 char* test_retained_bond_indices();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
@@ -119,6 +123,10 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_basic),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
 		TEST_FUNCTION_ENTRY(test_mpo_from_graph),
+		TEST_FUNCTION_ENTRY(test_ising_1d_mpo),
+		TEST_FUNCTION_ENTRY(test_heisenberg_xxz_1d_mpo),
+		TEST_FUNCTION_ENTRY(test_bose_hubbard_1d_mpo),
+		TEST_FUNCTION_ENTRY(test_fermi_hubbard_1d_mpo),
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),

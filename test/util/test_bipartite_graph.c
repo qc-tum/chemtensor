@@ -20,7 +20,7 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 
 	// edge dataset is a matrix of dimension 'nedges' x 2
 	hsize_t edge_dims[2];
-	if (get_hdf5_dataset_dims(file, "edges", edge_dims)) {
+	if (get_hdf5_dataset_dims(file, "edges", edge_dims) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
 	struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, edge_dims[0] * sizeof(struct bipartite_graph_edge));
@@ -38,7 +38,7 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 	// reference solution
 	// matching dataset is a matrix of dimension 'cardinality' x 2
 	hsize_t matching_ref_dims[2];
-	if (get_hdf5_dataset_dims(file, "matching", matching_ref_dims)) {
+	if (get_hdf5_dataset_dims(file, "matching", matching_ref_dims) < 0) {
 		return "reading bipartite graph matching from disk failed";
 	}
 	struct bipartite_graph_matching matching_ref = { .edges = NULL, .nedges = matching_ref_dims[0] };
@@ -87,7 +87,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 
 	// edge dataset is a matrix of dimension 'nedges' x 2
 	hsize_t edge_dims[2];
-	if (get_hdf5_dataset_dims(file, "edges", edge_dims)) {
+	if (get_hdf5_dataset_dims(file, "edges", edge_dims) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
 	struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, edge_dims[0] * sizeof(struct bipartite_graph_edge));
@@ -124,7 +124,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 
 	// reference solution
 	hsize_t num_u_cover_ref;
-	if (get_hdf5_dataset_dims(file, "u_cover", &num_u_cover_ref)) {
+	if (get_hdf5_dataset_dims(file, "u_cover", &num_u_cover_ref) < 0) {
 		return "reading bipartite graph 'U' cover vertices from disk failed";
 	}
 	int* u_cover_ref = aligned_alloc(MEM_DATA_ALIGN, num_u_cover_ref * sizeof(int));
@@ -132,7 +132,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 		return "reading bipartite graph 'U' cover vertices from disk failed";
 	}
 	hsize_t num_v_cover_ref;
-	if (get_hdf5_dataset_dims(file, "v_cover", &num_v_cover_ref)) {
+	if (get_hdf5_dataset_dims(file, "v_cover", &num_v_cover_ref) < 0) {
 		return "reading bipartite graph 'V' cover vertices from disk failed";
 	}
 	int* v_cover_ref = aligned_alloc(MEM_DATA_ALIGN, num_v_cover_ref * sizeof(int));
