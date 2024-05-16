@@ -1,6 +1,9 @@
 import numpy as np
 from scipy import sparse
 import h5py
+import sys
+sys.path.append("../")
+from util import interleave_complex, crandn
 
 
 def ising_1d_mpo_data():
@@ -72,6 +75,26 @@ def fermi_hubbard_1d_mpo_data():
 
     with h5py.File("data/test_fermi_hubbard_1d_mpo.hdf5", "w") as file:
         file["fermi_hubbard_1d_mat"] = fermi_hubbard_1d_mat
+
+
+def molecular_hamiltonian_mpo_data():
+
+    rng = np.random.default_rng(532)
+
+    # number of fermionic modes
+    nmodes = 7
+
+    # Hamiltonian coefficients
+    tkin = rng.standard_normal(2 * (nmodes,))
+    vint = rng.standard_normal(4 * (nmodes,))
+
+    # reference Hamiltonian
+    molecular_hamiltonian_mat = construct_molecular_hamiltonian(tkin, vint).todense()
+
+    with h5py.File("data/test_molecular_hamiltonian_mpo.hdf5", "w") as file:
+        file["tkin"] = tkin
+        file["vint"] = vint
+        file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
 
 
 def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
@@ -197,11 +220,37 @@ def construct_fermi_hubbard_1d_hamiltonian(nsites: int, t: float, u: float, mu: 
     return H
 
 
+def construct_molecular_hamiltonian(tkin, vint):
+    """
+    Construct the molecular Hamiltonian as sparse matrix.
+    """
+    nmodes = tkin.shape[0]
+
+    complex_hamiltonian = np.iscomplexobj(tkin) or np.iscomplexobj(vint)
+    H = sparse.csr_matrix((2**nmodes, 2**nmodes), dtype=(complex if complex_hamiltonian else float))
+
+    clist, alist, _ = construct_fermi_operators(nmodes)
+
+    # kinetic hopping terms
+    for i in range(nmodes):
+        for j in range(nmodes):
+            H += tkin[i, j] * (clist[i] @ alist[j])
+    # interaction terms
+    for i in range(nmodes):
+        for j in range(nmodes):
+            for k in range(nmodes):
+                for l in range(nmodes):
+                    H += 0.5 * vint[i, j, k, l] * (clist[i] @ clist[j] @ alist[l] @ alist[k])
+    H.eliminate_zeros()
+    return H
+
+
 def main():
     ising_1d_mpo_data()
     heisenberg_xxz_1d_mpo_data()
     bose_hubbard_1d_mpo_data()
     fermi_hubbard_1d_mpo_data()
+    molecular_hamiltonian_mpo_data()
 
 
 if __name__ == "__main__":

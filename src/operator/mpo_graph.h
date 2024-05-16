@@ -20,6 +20,9 @@ struct mpo_graph_node
 };
 
 
+void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_graph_node* node);
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Local operator ID and corresponding coefficient.

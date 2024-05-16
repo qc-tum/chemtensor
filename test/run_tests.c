@@ -62,6 +62,7 @@ char* test_ising_1d_mpo();
 char* test_heisenberg_xxz_1d_mpo();
 char* test_bose_hubbard_1d_mpo();
 char* test_fermi_hubbard_1d_mpo();
+char* test_molecular_hamiltonian_mpo();
 char* test_retained_bond_indices();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
@@ -127,6 +128,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_heisenberg_xxz_1d_mpo),
 		TEST_FUNCTION_ENTRY(test_bose_hubbard_1d_mpo),
 		TEST_FUNCTION_ENTRY(test_fermi_hubbard_1d_mpo),
+		TEST_FUNCTION_ENTRY(test_molecular_hamiltonian_mpo),
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),

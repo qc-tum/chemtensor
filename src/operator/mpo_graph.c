@@ -12,7 +12,7 @@
 ///
 /// \brief Add an edge reference to an MPO graph node.
 ///
-static void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_graph_node* node)
+void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_graph_node* node)
 {
 	assert(0 <= direction && direction < 2);
 
