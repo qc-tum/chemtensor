@@ -73,36 +73,6 @@ static void delete_mpo_graph_edge(struct mpo_graph_edge* edge)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct the local operator (as dense matrix) of an MPO graph edge.
-///
-void mpo_graph_edge_local_op(const struct mpo_graph_edge* edge, const struct dense_tensor* opmap, struct dense_tensor* op)
-{
-	assert(edge->nopics > 0);
-
-	// first summand
-	copy_dense_tensor(&opmap[edge->opics[0].oid], op);
-	if (op->dtype == SINGLE_REAL || op->dtype == SINGLE_COMPLEX) {
-		float alpha = (float)edge->opics[0].coeff;
-		rscale_dense_tensor(&alpha, op);
-	}
-	else {
-		assert(op->dtype == DOUBLE_REAL || op->dtype == DOUBLE_COMPLEX);
-		rscale_dense_tensor(&edge->opics[0].coeff, op);
-	}
-
-	// add the other summands
-	for (int i = 1; i < edge->nopics; i++)
-	{
-		// ensure that 'alpha' is large enough to store any numeric type
-		dcomplex alpha;
-		numeric_from_double(edge->opics[i].coeff, op->dtype, &alpha);
-		dense_tensor_scalar_multiply_add(&alpha, &opmap[edge->opics[i].oid], op);
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Operator half-chain, temporary data structure for building an operator graph from a list of operator chains.
 ///
 struct op_halfchain
@@ -757,7 +727,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 				assert(edge->nids[1] == i);
 
 				struct dense_tensor op;
-				mpo_graph_edge_local_op(edge, opmap, &op);
+				construct_local_operator(edge->opics, edge->nopics, opmap, &op);
 
 				// ensure that left-connected node index is valid
 				assert(0 <= edge->nids[0] && edge->nids[0] < mpo_graph->num_nodes[l]);

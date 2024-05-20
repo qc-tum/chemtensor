@@ -59,7 +59,7 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 		{
 			const struct mpo_graph_edge* edge = &graph->edges[l][i];
 			struct dense_tensor op;
-			mpo_graph_edge_local_op(edge, opmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, opmap, &op);
 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);

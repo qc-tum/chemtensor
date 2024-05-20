@@ -4,6 +4,7 @@
 #pragma once
 
 #include "qnumber.h"
+#include "local_op.h"
 #include "op_chain.h"
 #include "dense_tensor.h"
 
@@ -25,17 +26,6 @@ void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_grap
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Local operator ID and corresponding coefficient.
-///
-struct local_op_ref
-{
-	int oid;        //!< operator ID
-	double coeff;   //!< coefficient
-};
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief MPO operator graph edge, representing a weighted sum of local operators which are indexed by their IDs.
 ///
 struct mpo_graph_edge
@@ -44,9 +34,6 @@ struct mpo_graph_edge
 	struct local_op_ref* opics;  //!< weighted sum of local operators
 	int nopics;                  //!< number of local operators in the sum
 };
-
-
-void mpo_graph_edge_local_op(const struct mpo_graph_edge* edge, const struct dense_tensor* opmap, struct dense_tensor* op);
 
 
 //________________________________________________________________________________________________________________________
