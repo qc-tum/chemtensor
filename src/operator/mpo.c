@@ -51,7 +51,7 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 	for (int l = 0; l < graph->nsites; l++)
 	{
 		// accumulate entries in a dense tensor first
-		const long dim_a_loc[4] = { graph->num_nodes[l], d, d, graph->num_nodes[l + 1] };
+		const long dim_a_loc[4] = { graph->num_verts[l], d, d, graph->num_verts[l + 1] };
 		struct dense_tensor a_loc;
 		allocate_dense_tensor(dtype, 4, dim_a_loc, &a_loc);
 
@@ -64,11 +64,11 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);
 			assert(op.dtype == a_loc.dtype);
-			assert(0 <= edge->nids[0] && edge->nids[0] < graph->num_nodes[l]);
-			assert(0 <= edge->nids[1] && edge->nids[1] < graph->num_nodes[l + 1]);
+			assert(0 <= edge->vids[0] && edge->vids[0] < graph->num_verts[l]);
+			assert(0 <= edge->vids[1] && edge->vids[1] < graph->num_verts[l + 1]);
 
 			// add entries of local operator 'op' to 'a_loc' (supporting multiple edges between same pair of nodes)
-			const long index_start[4] = { edge->nids[0], 0, 0, edge->nids[1] };
+			const long index_start[4] = { edge->vids[0], 0, 0, edge->vids[1] };
 			long offset = tensor_index_to_offset(a_loc.ndim, a_loc.dim, index_start);
 			switch (a_loc.dtype)
 			{
@@ -126,10 +126,10 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 		qnumber* qbonds[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, graph->num_nodes[l + i] * sizeof(qnumber));
-			for (int j = 0; j < graph->num_nodes[l + i]; j++)
+			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, graph->num_verts[l + i] * sizeof(qnumber));
+			for (int j = 0; j < graph->num_verts[l + i]; j++)
 			{
-				qbonds[i][j] = graph->nodes[l + i][j].qnum;
+				qbonds[i][j] = graph->verts[l + i][j].qnum;
 			}
 		}
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };

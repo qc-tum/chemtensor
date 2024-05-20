@@ -10,40 +10,40 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Add an edge reference to an MPO graph node.
+/// \brief Add an edge reference to an MPO graph vertex.
 ///
-void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_graph_node* node)
+void mpo_graph_vertex_add_edge(const int direction, const int eid, struct mpo_graph_vertex* vertex)
 {
 	assert(0 <= direction && direction < 2);
 
-	if (node->num_edges[direction] == 0)
+	if (vertex->num_edges[direction] == 0)
 	{
-		node->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
-		node->eids[direction][0] = eid;
+		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+		vertex->eids[direction][0] = eid;
 	}
 	else
 	{
 		// re-allocate memory for indices
-		int* eids_prev = node->eids[direction];
-		const int num = node->num_edges[direction];
-		node->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, (num + 1) * sizeof(int));
-		memcpy(node->eids[direction], eids_prev, num * sizeof(int));
+		int* eids_prev = vertex->eids[direction];
+		const int num = vertex->num_edges[direction];
+		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, (num + 1) * sizeof(int));
+		memcpy(vertex->eids[direction], eids_prev, num * sizeof(int));
 		aligned_free(eids_prev);
-		node->eids[direction][num] = eid;
+		vertex->eids[direction][num] = eid;
 	}
 
-	node->num_edges[direction]++;
+	vertex->num_edges[direction]++;
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Delete an MPO graph node (free memory).
+/// \brief Delete an MPO graph vertex (free memory).
 ///
-static void delete_mpo_graph_node(struct mpo_graph_node* node)
+static void delete_mpo_graph_vertex(struct mpo_graph_vertex* vertex)
 {
-	aligned_free(node->eids[0]);
-	aligned_free(node->eids[1]);
+	aligned_free(vertex->eids[0]);
+	aligned_free(vertex->eids[1]);
 }
 
 
@@ -53,8 +53,8 @@ static void delete_mpo_graph_node(struct mpo_graph_node* node)
 ///
 static void allocate_mpo_graph_edge(const int nopics, struct mpo_graph_edge* edge)
 {
-	edge->nids[0] = -1;
-	edge->nids[1] = -1;
+	edge->vids[0] = -1;
+	edge->vids[1] = -1;
 	edge->opics = aligned_calloc(MEM_DATA_ALIGN, nopics, sizeof(struct local_op_ref));
 	edge->nopics = nopics;
 }
@@ -80,7 +80,7 @@ struct op_halfchain
 	int* oids;       //!< list of local op_i operator IDs
 	qnumber* qnums;  //!< interleaved bond quantum numbers, including a leading and trailing quantum number
 	int length;      //!< length (number of local operators)
-	int nidl;        //!< index of left-connected node
+	int vidl;        //!< index of left-connected vertex
 };
 
 
@@ -93,7 +93,7 @@ static void allocate_op_halfchain(const int length, struct op_halfchain* chain)
 	chain->oids   = aligned_calloc(MEM_DATA_ALIGN, length, sizeof(int));
 	chain->qnums  = aligned_calloc(MEM_DATA_ALIGN, length + 1, sizeof(qnumber));
 	chain->length = length;
-	chain->nidl   = -1;
+	chain->vidl   = -1;
 }
 
 
@@ -106,7 +106,7 @@ static void copy_op_halfchain(const struct op_halfchain* restrict src, struct op
 	allocate_op_halfchain(src->length, dst);
 	memcpy(dst->oids,  src->oids,   src->length      * sizeof(int));
 	memcpy(dst->qnums, src->qnums, (src->length + 1) * sizeof(qnumber));
-	dst->nidl = src->nidl;
+	dst->vidl = src->vidl;
 }
 
 
@@ -134,7 +134,7 @@ static bool op_halfchain_equal(const void* c1, const void* c2)
 	if (chain1->length != chain2->length) {
 		return false;
 	}
-	if (chain1->nidl != chain2->nidl) {
+	if (chain1->vidl != chain2->vidl) {
 		return false;
 	}
 	for (int i = 0; i < chain1->length; i++) {
@@ -171,7 +171,7 @@ static hash_type op_halfchain_hash_func(const void* c)
 	for (int i = 0; i < chain->length + 1; i++) {
 		hash = (hash ^ chain->qnums[i]) * prime;
 	}
-	hash = (hash ^ chain->nidl) * prime;
+	hash = (hash ^ chain->vidl) * prime;
 	return hash;
 }
 
@@ -187,7 +187,7 @@ struct u_node
 	int oid;        //!< local operator ID
 	qnumber qnum0;  //!< left quantum number
 	qnumber qnum1;  //!< right quantum number
-	int nidl;       //!< index of left-connected node
+	int vidl;       //!< index of left-connected vertex
 };
 
 
@@ -203,7 +203,7 @@ static bool u_node_equal(const void* n1, const void* n2)
 	return (node1->oid   == node2->oid  ) &&
 	       (node1->qnum0 == node2->qnum0) &&
 	       (node1->qnum1 == node2->qnum1) &&
-	       (node1->nidl  == node2->nidl);
+	       (node1->vidl  == node2->vidl);
 }
 
 
@@ -223,7 +223,7 @@ static hash_type u_node_hash_func(const void* n)
 	hash = (hash ^ node->oid)   * prime;
 	hash = (hash ^ node->qnum0) * prime;
 	hash = (hash ^ node->qnum1) * prime;
-	hash = (hash ^ node->nidl)  * prime;
+	hash = (hash ^ node->vidl)  * prime;
 	return hash;
 }
 
@@ -281,7 +281,7 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const d
 		assert(chain->length >= 1);
 
 		// U_i node
-		struct u_node u = { .oid = chain->oids[0], .qnum0 = chain->qnums[0], .qnum1 = chain->qnums[1], .nidl = chain->nidl };
+		struct u_node u = { .oid = chain->oids[0], .qnum0 = chain->qnums[0], .qnum1 = chain->qnums[1], .vidl = chain->vidl };
 		int* i = hash_table_get(&u_ht, &u);
 		if (i == NULL)
 		{
@@ -352,13 +352,13 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	assert(nchains > 0);
 
 	mpo_graph->nsites = nsites;
-	mpo_graph->nodes     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_node*));
+	mpo_graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
 	mpo_graph->edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(struct mpo_graph_edge*));
-	mpo_graph->num_nodes = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
+	mpo_graph->num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
 	mpo_graph->num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(int));
-	// left start node
-	mpo_graph->num_nodes[0] = 1;
-	mpo_graph->nodes[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct mpo_graph_node));
+	// left start vertex
+	mpo_graph->num_verts[0] = 1;
+	mpo_graph->verts[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct mpo_graph_vertex));
 
 	// pad identities and filter out chains with zero coefficients
 	int nhalfchains = 0;
@@ -385,7 +385,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		memcpy(vlist_next[k].oids,  chains_full[k].oids,   chains_full[k].length      * sizeof(int));
 		memcpy(vlist_next[k].qnums, chains_full[k].qnums, (chains_full[k].length + 1) * sizeof(qnumber));
 		vlist_next[k].oids[chains_full[k].length] = oid_identity;
-		vlist_next[k].nidl = 0;
+		vlist_next[k].vidl = 0;
 
 		coeffs_next[k] = chains_full[k].coeff;
 	}
@@ -462,11 +462,11 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 
 		// using bipartite graph 'nedges' as upper bound for number of required MPO graph edges
 		mpo_graph->edges[l] = aligned_calloc(MEM_DATA_ALIGN, nedges, sizeof(struct mpo_graph_edge));
-		mpo_graph->nodes[l + 1] = aligned_calloc(MEM_DATA_ALIGN, num_u_cover + num_v_cover, sizeof(struct mpo_graph_node));
+		mpo_graph->verts[l + 1] = aligned_calloc(MEM_DATA_ALIGN, num_u_cover + num_v_cover, sizeof(struct mpo_graph_vertex));
 
-		// current edge and node counter
+		// current edge and vertex counter
 		int ce = 0;
-		int cn = 0;
+		int cv = 0;
 
 		for (int i = 0; i < bigraph.num_u; i++)
 		{
@@ -475,22 +475,22 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 
 			const struct u_node* u = &partition.ulist[i];
-			assert(mpo_graph->nodes[l][u->nidl].qnum == u->qnum0);
+			assert(mpo_graph->verts[l][u->vidl].qnum == u->qnum0);
 
 			// add a new edge
 			struct mpo_graph_edge* edge = &mpo_graph->edges[l][ce];
 			allocate_mpo_graph_edge(1, edge);
-			edge->nids[0] = u->nidl;
+			edge->vids[0] = u->vidl;
 			edge->opics[0].oid = u->oid;
 			edge->opics[0].coeff = 1;
-			// connect edge to previous node
-			mpo_graph_node_add_edge(1, ce, &mpo_graph->nodes[l][u->nidl]);
+			// connect edge to previous vertex
+			mpo_graph_vertex_add_edge(1, ce, &mpo_graph->verts[l][u->vidl]);
 
-			// add a new node
-			struct mpo_graph_node* node = &mpo_graph->nodes[l + 1][cn];
-			node->qnum = u->qnum1;
-			mpo_graph_node_add_edge(0, ce, node);
-			edge->nids[1] = cn;
+			// add a new vertex
+			struct mpo_graph_vertex* vertex = &mpo_graph->verts[l + 1][cv];
+			vertex->qnum = u->qnum1;
+			mpo_graph_vertex_add_edge(0, ce, vertex);
+			edge->vids[1] = cv;
 
 			// assemble operator half-chains for next iteration
 			for (int k = 0; k < bigraph.num_adj_u[i]; k++)
@@ -499,7 +499,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				// copy half-chain
 				assert(partition.vlist[j].length == nsites - l);
 				copy_op_halfchain(&partition.vlist[j], &vlist_next[nhalfchains]);
-				vlist_next[nhalfchains].nidl = cn;
+				vlist_next[nhalfchains].vidl = cv;
 				// pass gamma coefficient
 				coeffs_next[nhalfchains] = partition.gamma[i*partition.num_v + j];
 				nhalfchains++;
@@ -508,7 +508,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 
 			ce++;
-			cn++;
+			cv++;
 		}
 
 		for (int j = 0; j < bigraph.num_v; j++)
@@ -517,14 +517,14 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				continue;
 			}
 
-			// add a new node
-			struct mpo_graph_node* node = &mpo_graph->nodes[l + 1][cn];
-			node->qnum = partition.vlist[j].qnums[0];
+			// add a new vertex
+			struct mpo_graph_vertex* vertex = &mpo_graph->verts[l + 1][cv];
+			vertex->qnum = partition.vlist[j].qnums[0];
 
-			// add operator half-chain for next iteration with reference to node
+			// add operator half-chain for next iteration with reference to vertex
 			assert(partition.vlist[j].length == nsites - l);
 			copy_op_halfchain(&partition.vlist[j], &vlist_next[nhalfchains]);
-			vlist_next[nhalfchains].nidl = cn;
+			vlist_next[nhalfchains].vidl = cv;
 			coeffs_next[nhalfchains] = 1;
 			nhalfchains++;
 
@@ -538,25 +538,25 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				}
 
 				const struct u_node* u = &partition.ulist[i];
-				assert(u->qnum1 == node->qnum);
+				assert(u->qnum1 == vertex->qnum);
 				// add a new edge
 				struct mpo_graph_edge* edge = &mpo_graph->edges[l][ce];
 				allocate_mpo_graph_edge(1, edge);
-				edge->nids[0] = u->nidl;
-				edge->nids[1] = cn;
+				edge->vids[0] = u->vidl;
+				edge->vids[1] = cv;
 				edge->opics[0].oid = u->oid;
 				edge->opics[0].coeff = partition.gamma[i*partition.num_v + j];
 				// keep track of handled edges
 				partition.gamma[i*partition.num_v + j] = 0;
-				// connect edge to previous node
-				mpo_graph_node_add_edge(1, ce, &mpo_graph->nodes[l][u->nidl]);
-				assert(mpo_graph->nodes[l][u->nidl].qnum == u->qnum0);
-				// connect edge to new node
-				mpo_graph_node_add_edge(0, ce, node);
+				// connect edge to previous vertex
+				mpo_graph_vertex_add_edge(1, ce, &mpo_graph->verts[l][u->vidl]);
+				assert(mpo_graph->verts[l][u->vidl].qnum == u->qnum0);
+				// connect edge to new vertex
+				mpo_graph_vertex_add_edge(0, ce, vertex);
 				ce++;
 			}
 
-			cn++;
+			cv++;
 		}
 
 		// ensure that we have handled all edges
@@ -569,8 +569,8 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		// ensure that we had allocated sufficient memory
 		assert(nhalfchains <= nedges);
 
-		assert(cn == num_u_cover + num_v_cover);
-		mpo_graph->num_nodes[l + 1] = cn;
+		assert(cv == num_u_cover + num_v_cover);
+		mpo_graph->num_verts[l + 1] = cv;
 		mpo_graph->num_edges[l]     = ce;
 
 		aligned_free(v_cover);
@@ -610,14 +610,14 @@ void delete_mpo_graph(struct mpo_graph* mpo_graph)
 
 	for (int l = 0; l < mpo_graph->nsites + 1; l++)
 	{
-		for (int i = 0; i < mpo_graph->num_nodes[l]; i++)
+		for (int i = 0; i < mpo_graph->num_verts[l]; i++)
 		{
-			delete_mpo_graph_node(&mpo_graph->nodes[l][i]);
+			delete_mpo_graph_vertex(&mpo_graph->verts[l][i]);
 		}
-		aligned_free(mpo_graph->nodes[l]);
+		aligned_free(mpo_graph->verts[l]);
 	}
-	aligned_free(mpo_graph->nodes);
-	aligned_free(mpo_graph->num_nodes);
+	aligned_free(mpo_graph->verts);
+	aligned_free(mpo_graph->num_verts);
 }
 
 
@@ -631,42 +631,42 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 		return false;
 	}
 
-	// edges indexed by a node must point back to same node
+	// edges indexed by a vertex must point back to same vertex
 	for (int l = 0; l < mpo_graph->nsites + 1; l++)
 	{
-		for (int i = 0; i < mpo_graph->num_nodes[l]; i++)
+		for (int i = 0; i < mpo_graph->num_verts[l]; i++)
 		{
-			const struct mpo_graph_node* node = &mpo_graph->nodes[l][i];
-			if (l == 0 && node->num_edges[0] != 0) {
+			const struct mpo_graph_vertex* vertex = &mpo_graph->verts[l][i];
+			if (l == 0 && vertex->num_edges[0] != 0) {
 				return false;
 			}
-			if (l == mpo_graph->nsites && node->num_edges[1] != 0) {
+			if (l == mpo_graph->nsites && vertex->num_edges[1] != 0) {
 				return false;
 			}
-			for (int j = 0; j < node->num_edges[0]; j++)
+			for (int j = 0; j < vertex->num_edges[0]; j++)
 			{
-				if (node->eids[0][j] < 0 || node->eids[0][j] >= mpo_graph->num_edges[l - 1]) {
+				if (vertex->eids[0][j] < 0 || vertex->eids[0][j] >= mpo_graph->num_edges[l - 1]) {
 					return false;
 				}
-				const struct mpo_graph_edge* edge = &mpo_graph->edges[l - 1][node->eids[0][j]];
-				if (edge->nids[1] != i) {
+				const struct mpo_graph_edge* edge = &mpo_graph->edges[l - 1][vertex->eids[0][j]];
+				if (edge->vids[1] != i) {
 					return false;
 				}
 			}
-			for (int j = 0; j < node->num_edges[1]; j++)
+			for (int j = 0; j < vertex->num_edges[1]; j++)
 			{
-				if (node->eids[1][j] < 0 || node->eids[1][j] >= mpo_graph->num_edges[l]) {
+				if (vertex->eids[1][j] < 0 || vertex->eids[1][j] >= mpo_graph->num_edges[l]) {
 					return false;
 				}
-				const struct mpo_graph_edge* edge = &mpo_graph->edges[l][node->eids[1][j]];
-				if (edge->nids[0] != i) {
+				const struct mpo_graph_edge* edge = &mpo_graph->edges[l][vertex->eids[1][j]];
+				if (edge->vids[0] != i) {
 					return false;
 				}
 			}
 		}
 	}
 
-	// nodes indexed by an edge must point back to same edge
+	// vertices indexed by an edge must point back to same edge
 	for (int l = 0; l < mpo_graph->nsites; l++)
 	{
 		for (int j = 0; j < mpo_graph->num_edges[l]; j++)
@@ -674,10 +674,10 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 			const struct mpo_graph_edge* edge = &mpo_graph->edges[l][j];
 			for (int dir = 0; dir < 2; dir++)
 			{
-				const struct mpo_graph_node* node = &mpo_graph->nodes[l + dir][edge->nids[dir]];
+				const struct mpo_graph_vertex* vertex = &mpo_graph->verts[l + dir][edge->vids[dir]];
 				bool edge_ref = false;
-				for (int i = 0; i < node->num_edges[1 - dir]; i++) {
-					if (node->eids[1 - dir][i] == j) {
+				for (int i = 0; i < vertex->num_edges[1 - dir]; i++) {
+					if (vertex->eids[1 - dir][i] == j) {
 						edge_ref = true;
 						break;
 					}
@@ -701,8 +701,8 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 {
 	const int nsites = mpo_graph->nsites;
 	assert(nsites >= 1);
-	assert(mpo_graph->num_nodes[0]      == 1);
-	assert(mpo_graph->num_nodes[nsites] == 1);
+	assert(mpo_graph->num_verts[0]      == 1);
+	assert(mpo_graph->num_verts[nsites] == 1);
 
 	struct dense_tensor* blocks[2];
 
@@ -715,30 +715,30 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 	// sweep from left to right
 	for (int l = 0; l < nsites; l++)
 	{
-		blocks[(l + 1) % 2] = aligned_alloc(MEM_DATA_ALIGN, mpo_graph->num_nodes[l + 1] * sizeof(struct dense_tensor));
+		blocks[(l + 1) % 2] = aligned_alloc(MEM_DATA_ALIGN, mpo_graph->num_verts[l + 1] * sizeof(struct dense_tensor));
 
-		for (int i = 0; i < mpo_graph->num_nodes[l + 1]; i++)
+		for (int i = 0; i < mpo_graph->num_verts[l + 1]; i++)
 		{
-			const struct mpo_graph_node* node = &mpo_graph->nodes[l + 1][i];
-			assert(node->num_edges[0] > 0);
-			for (int j = 0; j < node->num_edges[0]; j++)
+			const struct mpo_graph_vertex* vertex = &mpo_graph->verts[l + 1][i];
+			assert(vertex->num_edges[0] > 0);
+			for (int j = 0; j < vertex->num_edges[0]; j++)
 			{
-				const struct mpo_graph_edge* edge = &mpo_graph->edges[l][node->eids[0][j]];
-				assert(edge->nids[1] == i);
+				const struct mpo_graph_edge* edge = &mpo_graph->edges[l][vertex->eids[0][j]];
+				assert(edge->vids[1] == i);
 
 				struct dense_tensor op;
 				construct_local_operator(edge->opics, edge->nopics, opmap, &op);
 
-				// ensure that left-connected node index is valid
-				assert(0 <= edge->nids[0] && edge->nids[0] < mpo_graph->num_nodes[l]);
+				// ensure that left-connected vertex index is valid
+				assert(0 <= edge->vids[0] && edge->vids[0] < mpo_graph->num_verts[l]);
 				if (j == 0)
 				{
-					dense_tensor_kronecker_product(&blocks[l % 2][edge->nids[0]], &op, &blocks[(l + 1) % 2][i]);
+					dense_tensor_kronecker_product(&blocks[l % 2][edge->vids[0]], &op, &blocks[(l + 1) % 2][i]);
 				}
 				else
 				{
 					struct dense_tensor tmp;
-					dense_tensor_kronecker_product(&blocks[l % 2][edge->nids[0]], &op, &tmp);
+					dense_tensor_kronecker_product(&blocks[l % 2][edge->vids[0]], &op, &tmp);
 					dense_tensor_scalar_multiply_add(numeric_one(tmp.dtype), &tmp, &blocks[(l + 1) % 2][i]);
 					delete_dense_tensor(&tmp);
 				}
@@ -747,7 +747,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 			}
 		}
 
-		for (int i = 0; i < mpo_graph->num_nodes[l]; i++)
+		for (int i = 0; i < mpo_graph->num_verts[l]; i++)
 		{
 			delete_dense_tensor(&blocks[l % 2][i]);
 		}
@@ -755,7 +755,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 	}
 
 	// final single block contains result
-	assert(mpo_graph->num_nodes[nsites] == 1);
+	assert(mpo_graph->num_verts[nsites] == 1);
 	move_dense_tensor_data(&blocks[nsites % 2][0], a);
 	aligned_free(blocks[nsites % 2]);
 }

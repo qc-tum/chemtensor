@@ -17,42 +17,42 @@ char* test_mpo_from_graph()
 
 	const qnumber qsite[4] = { -1, 0, 2, 0 };
 
-	int n0_eids_1[2] = { 0, 1 };
-	int n1_eids_0[1] = { 0 };
-	int n1_eids_1[1] = { 0 };
-	int n2_eids_0[1] = { 1 };
-	int n2_eids_1[1] = { 1 };
-	int n3_eids_0[2] = { 0, 1 };
-	int n3_eids_1[2] = { 0, 1 };
-	int n4_eids_0[1] = { 0 };
-	int n4_eids_1[1] = { 0 };
-	int n5_eids_0[1] = { 1 };
-	int n5_eids_1[2] = { 1, 2 };
-	int n6_eids_0[2] = { 0, 1 };
-	int n6_eids_1[2] = { 0, 2 };
-	int n7_eids_0[1] = { 2 };
-	int n7_eids_1[1] = { 1 };
-	int n8_eids_0[3] = { 0, 1, 2 };
-	struct mpo_graph_node node_list[] = {
-		{ .qnum =  0, .eids = { NULL,      n0_eids_1 }, .num_edges = { 0, 2 } },
-		{ .qnum =  1, .eids = { n1_eids_0, n1_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  0, .eids = { n2_eids_0, n2_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum = -1, .eids = { n3_eids_0, n3_eids_1 }, .num_edges = { 2, 2 } },
-		{ .qnum =  0, .eids = { n4_eids_0, n4_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  1, .eids = { n5_eids_0, n5_eids_1 }, .num_edges = { 1, 2 } },
-		{ .qnum = -1, .eids = { n6_eids_0, n6_eids_1 }, .num_edges = { 2, 2 } },
-		{ .qnum =  0, .eids = { n7_eids_0, n7_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  1, .eids = { n8_eids_0, NULL      }, .num_edges = { 3, 0 } },
+	int v0_eids_1[2] = { 0, 1 };
+	int v1_eids_0[1] = { 0 };
+	int v1_eids_1[1] = { 0 };
+	int v2_eids_0[1] = { 1 };
+	int v2_eids_1[1] = { 1 };
+	int v3_eids_0[2] = { 0, 1 };
+	int v3_eids_1[2] = { 0, 1 };
+	int v4_eids_0[1] = { 0 };
+	int v4_eids_1[1] = { 0 };
+	int v5_eids_0[1] = { 1 };
+	int v5_eids_1[2] = { 1, 2 };
+	int v6_eids_0[2] = { 0, 1 };
+	int v6_eids_1[2] = { 0, 2 };
+	int v7_eids_0[1] = { 2 };
+	int v7_eids_1[1] = { 1 };
+	int v8_eids_0[3] = { 0, 1, 2 };
+	struct mpo_graph_vertex vertex_list[] = {
+		{ .qnum =  0, .eids = { NULL,      v0_eids_1 }, .num_edges = { 0, 2 } },
+		{ .qnum =  1, .eids = { v1_eids_0, v1_eids_1 }, .num_edges = { 1, 1 } },
+		{ .qnum =  0, .eids = { v2_eids_0, v2_eids_1 }, .num_edges = { 1, 1 } },
+		{ .qnum = -1, .eids = { v3_eids_0, v3_eids_1 }, .num_edges = { 2, 2 } },
+		{ .qnum =  0, .eids = { v4_eids_0, v4_eids_1 }, .num_edges = { 1, 1 } },
+		{ .qnum =  1, .eids = { v5_eids_0, v5_eids_1 }, .num_edges = { 1, 2 } },
+		{ .qnum = -1, .eids = { v6_eids_0, v6_eids_1 }, .num_edges = { 2, 2 } },
+		{ .qnum =  0, .eids = { v7_eids_0, v7_eids_1 }, .num_edges = { 1, 1 } },
+		{ .qnum =  1, .eids = { v8_eids_0, NULL      }, .num_edges = { 3, 0 } },
 	};
-	struct mpo_graph_node* graph_nodes[] = {
-		&node_list[0],
-		&node_list[1],
-		&node_list[3],
-		&node_list[4],
-		&node_list[6],
-		&node_list[8],
+	struct mpo_graph_vertex* graph_vertices[] = {
+		&vertex_list[0],
+		&vertex_list[1],
+		&vertex_list[3],
+		&vertex_list[4],
+		&vertex_list[6],
+		&vertex_list[8],
 	};
-	int graph_num_nodes[6] = { 1, 2, 1, 2, 2, 1 };
+	int graph_num_vertices[6] = { 1, 2, 1, 2, 2, 1 };
 
 	struct local_op_ref  e0_opics[1] = { { .oid =  2, .coeff = -0.6 }, };
 	struct local_op_ref  e1_opics[2] = { { .oid =  5, .coeff =  1.3 }, { .oid = 11, .coeff = -0.4 }, };
@@ -67,18 +67,18 @@ char* test_mpo_from_graph()
 	struct local_op_ref e10_opics[1] = { { .oid =  9, .coeff = -0.2 }, };
 	struct local_op_ref e11_opics[2] = { { .oid = 13, .coeff =  1.2 }, { .oid = 14, .coeff = -0.6 }};
 	struct mpo_graph_edge edge_list[] = {
-		{ .nids = { 0, 0 }, .opics =  e0_opics, .nopics = 1 },
-		{ .nids = { 0, 1 }, .opics =  e1_opics, .nopics = 2 },
-		{ .nids = { 0, 0 }, .opics =  e2_opics, .nopics = 1 },
-		{ .nids = { 1, 0 }, .opics =  e3_opics, .nopics = 1 },
-		{ .nids = { 0, 0 }, .opics =  e4_opics, .nopics = 1 },
-		{ .nids = { 0, 1 }, .opics =  e5_opics, .nopics = 2 },
-		{ .nids = { 0, 0 }, .opics =  e6_opics, .nopics = 3 },
-		{ .nids = { 1, 0 }, .opics =  e7_opics, .nopics = 1 },
-		{ .nids = { 1, 1 }, .opics =  e8_opics, .nopics = 1 },
-		{ .nids = { 0, 0 }, .opics =  e9_opics, .nopics = 1 },
-		{ .nids = { 1, 0 }, .opics = e10_opics, .nopics = 1 },
-		{ .nids = { 0, 0 }, .opics = e11_opics, .nopics = 2 },
+		{ .vids = { 0, 0 }, .opics =  e0_opics, .nopics = 1 },
+		{ .vids = { 0, 1 }, .opics =  e1_opics, .nopics = 2 },
+		{ .vids = { 0, 0 }, .opics =  e2_opics, .nopics = 1 },
+		{ .vids = { 1, 0 }, .opics =  e3_opics, .nopics = 1 },
+		{ .vids = { 0, 0 }, .opics =  e4_opics, .nopics = 1 },
+		{ .vids = { 0, 1 }, .opics =  e5_opics, .nopics = 2 },
+		{ .vids = { 0, 0 }, .opics =  e6_opics, .nopics = 3 },
+		{ .vids = { 1, 0 }, .opics =  e7_opics, .nopics = 1 },
+		{ .vids = { 1, 1 }, .opics =  e8_opics, .nopics = 1 },
+		{ .vids = { 0, 0 }, .opics =  e9_opics, .nopics = 1 },
+		{ .vids = { 1, 0 }, .opics = e10_opics, .nopics = 1 },
+		{ .vids = { 0, 0 }, .opics = e11_opics, .nopics = 2 },
 	};
 	struct mpo_graph_edge* graph_edges[] = {
 		&edge_list[0],
@@ -91,9 +91,9 @@ char* test_mpo_from_graph()
 
 	// construct MPO graph
 	struct mpo_graph graph = {
-		.nodes     = graph_nodes,
+		.verts     = graph_vertices,
 		.edges     = graph_edges,
-		.num_nodes = graph_num_nodes,
+		.num_verts = graph_num_vertices,
 		.num_edges = graph_num_edges,
 		.nsites    = nsites
 	};

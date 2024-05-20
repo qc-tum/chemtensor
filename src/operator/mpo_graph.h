@@ -11,17 +11,17 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Operator graph node, corresponding to a virtual bond in an MPO.
+/// \brief Operator graph vertex, corresponding to a virtual bond in an MPO.
 ///
-struct mpo_graph_node
+struct mpo_graph_vertex
 {
-	qnumber qnum;      //!< quantum number
 	int* eids[2];      //!< indices of left- and right-connected edges
 	int num_edges[2];  //!< number of connected edges
+	qnumber qnum;      //!< quantum number
 };
 
 
-void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_graph_node* node);
+void mpo_graph_vertex_add_edge(const int direction, const int eid, struct mpo_graph_vertex* vertex);
 
 
 //________________________________________________________________________________________________________________________
@@ -30,7 +30,7 @@ void mpo_graph_node_add_edge(const int direction, const int eid, struct mpo_grap
 ///
 struct mpo_graph_edge
 {
-	int nids[2];                 //!< indices of left- and right-connected nodes
+	int vids[2];                 //!< indices of left- and right-connected vertices
 	struct local_op_ref* opics;  //!< weighted sum of local operators
 	int nopics;                  //!< number of local operators in the sum
 };
@@ -42,11 +42,11 @@ struct mpo_graph_edge
 ///
 struct mpo_graph
 {
-	struct mpo_graph_node** nodes;  //!< list of nodes for each virtual bond
-	struct mpo_graph_edge** edges;  //!< list of edges for each site
-	int* num_nodes;                 //!< number of nodes for each virtual bond, i.e., virtual bond dimensions
-	int* num_edges;                 //!< number of edges for each site
-	int nsites;                     //!< number of sites
+	struct mpo_graph_vertex** verts;  //!< list of vertices for each virtual bond
+	struct mpo_graph_edge** edges;    //!< list of edges for each site
+	int* num_verts;                   //!< number of vertices for each virtual bond, i.e., virtual bond dimensions
+	int* num_edges;                   //!< number of edges for each site
+	int nsites;                       //!< number of sites
 };
 
 void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites, const int oid_identity, struct mpo_graph* mpo_graph);

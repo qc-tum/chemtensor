@@ -56,7 +56,7 @@ char* test_mpo_graph_from_opchains_basic()
 		return "reading virtual bond dimensions from disk failed";
 	}
 	for (int l = 0; l < nsites + 1; l++){
-		if (mpo_graph.num_nodes[l] != bond_dims_ref[l]) {
+		if (mpo_graph.num_verts[l] != bond_dims_ref[l]) {
 			return "MPO graph virtual bond dimensions do not match reference";
 		}
 	}
@@ -189,7 +189,7 @@ char* test_mpo_graph_from_opchains_advanced()
 		return "reading virtual bond dimensions from disk failed";
 	}
 	for (int l = 0; l < nsites + 1; l++){
-		if (mpo_graph.num_nodes[l] != bond_dims_ref[l]) {
+		if (mpo_graph.num_verts[l] != bond_dims_ref[l]) {
 			return "MPO graph virtual bond dimensions do not match reference";
 		}
 	}
