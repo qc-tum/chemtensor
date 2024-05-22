@@ -1600,7 +1600,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			assert(bt != NULL);
 
 			// actually multiply dense tensor blocks and add result to 'br'
-			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, br, one);
+			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, one, br);
 		}
 
 		aligned_free(index_contract);
@@ -1618,12 +1618,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 ///
 static inline long minl(const long a, const long b)
 {
-	if (a <= b) {
-		return a;
-	}
-	else {
-		return b;
-	}
+	return (a <= b) ? a : b;
 }
 
 

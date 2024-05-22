@@ -264,8 +264,8 @@ char* test_dense_tensor_multiply_axis()
 
 	// create matrix 't1'
 	struct dense_tensor t1;
-	const long t1dim[2] = { 6, 5 };
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, t1dim,  &t1);
+	const long t1dim[3] = { 6, 4, 5 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 3, t1dim,  &t1);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t1", H5T_NATIVE_FLOAT, t1.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -278,9 +278,9 @@ char* test_dense_tensor_multiply_axis()
 	dense_tensor_multiply_axis(&s, i_ax, &t1, TENSOR_AXIS_RANGE_TRAILING, &r1);
 
 	// reference tensor
-	const long r1_ref_dim[4] = { 3, 8, 6, 7 };
+	const long r1_ref_dim[5] = { 3, 8, 6, 4, 7 };
 	struct dense_tensor r1_ref;
-	allocate_dense_tensor(SINGLE_COMPLEX, 4, r1_ref_dim, &r1_ref);
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, r1_ref_dim, &r1_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r1", H5T_NATIVE_FLOAT, r1_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -293,8 +293,8 @@ char* test_dense_tensor_multiply_axis()
 
 	// create matrix 't2'
 	struct dense_tensor t2;
-	const long t2dim[2] = { 5, 2 };
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, t2dim,  &t2);
+	const long t2dim[3] = { 5, 2, 6 };
+	allocate_dense_tensor(SINGLE_COMPLEX, 3, t2dim,  &t2);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t2", H5T_NATIVE_FLOAT, t2.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -305,9 +305,9 @@ char* test_dense_tensor_multiply_axis()
 	dense_tensor_multiply_axis(&s, i_ax, &t2, TENSOR_AXIS_RANGE_LEADING, &r2);
 
 	// reference tensor
-	const long r2_ref_dim[4] = { 3, 8, 2, 7 };
+	const long r2_ref_dim[5] = { 3, 8, 2, 6, 7 };
 	struct dense_tensor r2_ref;
-	allocate_dense_tensor(SINGLE_COMPLEX, 4, r2_ref_dim, &r2_ref);
+	allocate_dense_tensor(SINGLE_COMPLEX, 5, r2_ref_dim, &r2_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r2", H5T_NATIVE_FLOAT, r2_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -484,7 +484,7 @@ char* test_dense_tensor_dot_update()
 			if (read_hdf5_dataset(file, "t_dot_s_0", H5T_NATIVE_FLOAT, t_dot_s.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
-			dense_tensor_dot_update(&alpha, &tp, axrange_t, &sp, axrange_s, 2, &t_dot_s, &beta);
+			dense_tensor_dot_update(&alpha, &tp, axrange_t, &sp, axrange_s, 2, &beta, &t_dot_s);
 
 			// compare
 			if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-5)) {

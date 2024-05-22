@@ -96,11 +96,11 @@ def dense_tensor_multiply_axis_data():
 
     s = crandn((3, 8, 5, 7), rng).astype(np.complex64)
 
-    t1 = crandn((6, 5), rng).astype(np.complex64)
-    r1 = np.einsum(s, (0, 1, 4, 3), t1, (2, 4), (0, 1, 2, 3))
+    t1 = crandn((6, 4, 5), rng).astype(np.complex64)
+    r1 = np.einsum(s, (0, 1, 5, 4), t1, (2, 3, 5), (0, 1, 2, 3, 4))
 
-    t2 = crandn((5, 2), rng).astype(np.complex64)
-    r2 = np.einsum(s, (0, 1, 4, 3), t2, (4, 2), (0, 1, 2, 3))
+    t2 = crandn((5, 2, 6), rng).astype(np.complex64)
+    r2 = np.einsum(s, (0, 1, 5, 4), t2, (5, 2, 3), (0, 1, 2, 3, 4))
 
     with h5py.File("data/test_dense_tensor_multiply_axis.hdf5", "w") as file:
         file["s"] = interleave_complex(s)
