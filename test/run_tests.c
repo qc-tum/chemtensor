@@ -33,6 +33,7 @@ char* test_block_sparse_tensor_transpose();
 char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_slice();
 char* test_block_sparse_tensor_multiply_pointwise_vector();
+char* test_block_sparse_tensor_multiply_axis();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
@@ -99,6 +100,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_reshape),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_slice),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_pointwise_vector),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_axis),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),

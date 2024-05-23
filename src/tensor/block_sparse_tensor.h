@@ -122,6 +122,8 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 
 void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct block_sparse_tensor* restrict r);
 
+void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* restrict s, const int i_ax, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, struct block_sparse_tensor* restrict r);
+
 void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* restrict r);
 
 

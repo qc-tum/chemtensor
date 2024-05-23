@@ -298,6 +298,70 @@ def block_sparse_tensor_multiply_pointwise_vector_data():
             file[f"s_mult_t{i}"] = interleave_complex(s_mult_t[i])
 
 
+def block_sparse_tensor_multiply_axis_data():
+
+    # random number generator
+    rng = np.random.default_rng(730)
+
+    i_ax = 2
+
+    # dimensions
+    s_dim  = (7, 4, 11, 5)
+    t0_dim = (s_dim[i_ax],) + (6, 9)
+    t1_dim = (8, 3) + (s_dim[i_ax],)
+
+    # axis directions
+    s_axis_dir  = rng.choice((1, -1), size=len(s_dim))
+    t0_axis_dir = np.concatenate(((-s_axis_dir[i_ax],), rng.choice((1, -1), size=len(t0_dim)-1)))
+    t1_axis_dir = np.concatenate((rng.choice((1, -1), size=len(t1_dim)-1), (-s_axis_dir[i_ax],)))
+
+    # quantum numbers
+    s_qnums  = [rng.integers(-2, 3, size=d).astype(np.int32) for d in s_dim]
+    t0_qnums = [s_qnums[i_ax]] + [rng.integers(-2, 3, size=d).astype(np.int32) for d in t0_dim[1:]]
+    t1_qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in t1_dim[:-1]] + [s_qnums[i_ax]]
+
+    # dense tensors
+    s  = crandn(s_dim,  rng)
+    t0 = crandn(t0_dim, rng)
+    t1 = crandn(t1_dim, rng)
+    # enforce sparsity pattern based on quantum numbers
+    it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(s_axis_dir[i] * s_qnums[i][it.multi_index[i]] for i in range(s.ndim))
+        if qsum != 0:
+            x[...] = 0
+    it = np.nditer(t0, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(t0_axis_dir[i] * t0_qnums[i][it.multi_index[i]] for i in range(t0.ndim))
+        if qsum != 0:
+            x[...] = 0
+    it = np.nditer(t1, flags=["multi_index"], op_flags=["readwrite"])
+    for x in it:
+        qsum = sum(t1_axis_dir[i] * t1_qnums[i][it.multi_index[i]] for i in range(t1.ndim))
+        if qsum != 0:
+            x[...] = 0
+
+    # contract with axis 'i_ax' of 's'
+    r0 = np.einsum(s, (0, 1, 5, 4), t0, (5, 2, 3), (0, 1, 2, 3, 4))
+    r1 = np.einsum(s, (0, 1, 5, 4), t1, (2, 3, 5), (0, 1, 2, 3, 4))
+
+    with h5py.File("data/test_block_sparse_tensor_multiply_axis.hdf5", "w") as file:
+        file["s"]  = interleave_complex(s)
+        file["t0"] = interleave_complex(t0)
+        file["r0"] = interleave_complex(r0)
+        file["t1"] = interleave_complex(t1)
+        file["r1"] = interleave_complex(r1)
+        file.attrs["s_axis_dir"]  = s_axis_dir
+        file.attrs["t0_axis_dir"] = t0_axis_dir
+        file.attrs["t1_axis_dir"] = t1_axis_dir
+        for i, qn in enumerate(s_qnums):
+            file.attrs[f"s_qnums{i}"] = qn
+        for i, qn in enumerate(t0_qnums):
+            file.attrs[f"t0_qnums{i}"] = qn
+        for i, qn in enumerate(t1_qnums):
+            file.attrs[f"t1_qnums{i}"] = qn
+
+
 def block_sparse_tensor_dot_data():
 
     # random number generator
@@ -488,6 +552,7 @@ def main():
     block_sparse_tensor_reshape_data()
     block_sparse_tensor_slice_data()
     block_sparse_tensor_multiply_pointwise_vector_data()
+    block_sparse_tensor_multiply_axis_data()
     block_sparse_tensor_dot_data()
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
