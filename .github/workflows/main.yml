@@ -1,4 +1,4 @@
-name: Build using CMake and run unit tests on a single platform
+name: Unit tests
 
 on:
   push:
