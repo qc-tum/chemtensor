@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.8)
 
 project(chemtensor)
 
+include(CTest)
+
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS C)
@@ -15,3 +17,5 @@ add_executable(chemtensor_test ${CHEMTENSOR_SOURCES} ${TEST_SOURCES})
 
 target_include_directories(chemtensor_test PRIVATE ${CHEMTENSOR_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACKE_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
 target_link_libraries(     chemtensor_test PRIVATE ${BLAS_LIBRARIES} ${LAPACKE_LIBRARIES} lapacke ${HDF5_LIBRARIES})
+
+add_test(NAME chemtensor_test COMMAND chemtensor_test)
