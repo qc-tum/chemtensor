@@ -697,7 +697,7 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 ///
 /// \brief Construct the full matrix representation of the MPO graph.
 ///
-void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* a)
+void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* mat)
 {
 	const int nsites = mpo_graph->nsites;
 	assert(nsites >= 1);
@@ -756,6 +756,6 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 
 	// final single block contains result
 	assert(mpo_graph->num_verts[nsites] == 1);
-	move_dense_tensor_data(&blocks[nsites % 2][0], a);
+	move_dense_tensor_data(&blocks[nsites % 2][0], mat);
 	aligned_free(blocks[nsites % 2]);
 }

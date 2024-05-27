@@ -61,4 +61,4 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph);
 
 // conversion to full matrix (intended for testing)
 
-void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* a);
+void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* mat);

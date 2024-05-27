@@ -34,15 +34,15 @@ char* test_mpo_from_graph()
 	int v7_eids_1[1] = { 1 };
 	int v8_eids_0[3] = { 0, 1, 2 };
 	struct mpo_graph_vertex vertex_list[] = {
-		{ .qnum =  0, .eids = { NULL,      v0_eids_1 }, .num_edges = { 0, 2 } },
-		{ .qnum =  1, .eids = { v1_eids_0, v1_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  0, .eids = { v2_eids_0, v2_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum = -1, .eids = { v3_eids_0, v3_eids_1 }, .num_edges = { 2, 2 } },
-		{ .qnum =  0, .eids = { v4_eids_0, v4_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  1, .eids = { v5_eids_0, v5_eids_1 }, .num_edges = { 1, 2 } },
-		{ .qnum = -1, .eids = { v6_eids_0, v6_eids_1 }, .num_edges = { 2, 2 } },
-		{ .qnum =  0, .eids = { v7_eids_0, v7_eids_1 }, .num_edges = { 1, 1 } },
-		{ .qnum =  1, .eids = { v8_eids_0, NULL      }, .num_edges = { 3, 0 } },
+		{ .eids = { NULL,      v0_eids_1 }, .num_edges = { 0, 2 }, .qnum =  0 },
+		{ .eids = { v1_eids_0, v1_eids_1 }, .num_edges = { 1, 1 }, .qnum =  1 },
+		{ .eids = { v2_eids_0, v2_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
+		{ .eids = { v3_eids_0, v3_eids_1 }, .num_edges = { 2, 2 }, .qnum = -1 },
+		{ .eids = { v4_eids_0, v4_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
+		{ .eids = { v5_eids_0, v5_eids_1 }, .num_edges = { 1, 2 }, .qnum =  1 },
+		{ .eids = { v6_eids_0, v6_eids_1 }, .num_edges = { 2, 2 }, .qnum = -1 },
+		{ .eids = { v7_eids_0, v7_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
+		{ .eids = { v8_eids_0, NULL      }, .num_edges = { 3, 0 }, .qnum =  1 },
 	};
 	struct mpo_graph_vertex* graph_vertices[] = {
 		&vertex_list[0],
