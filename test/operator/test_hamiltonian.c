@@ -294,12 +294,22 @@ char* test_molecular_hamiltonian_mpo()
 		return "internal consistency check for molecular Hamiltonian MPO failed";
 	}
 
+	struct mpo molecular_hamiltonian_mpo_opt;
+	construct_molecular_hamiltonian_mpo_opt(&tkin, &vint, &molecular_hamiltonian_mpo_opt);
+	if (!mpo_is_consistent(&molecular_hamiltonian_mpo_opt)) {
+		return "internal consistency check for molecular Hamiltonian MPO failed";
+	}
+
 	struct block_sparse_tensor molecular_hamiltonian_mat;
 	mpo_to_matrix(&molecular_hamiltonian_mpo, &molecular_hamiltonian_mat);
+	struct block_sparse_tensor molecular_hamiltonian_mat_opt;
+	mpo_to_matrix(&molecular_hamiltonian_mpo_opt, &molecular_hamiltonian_mat_opt);
 
 	// convert to dense tensor for comparison with reference
 	struct dense_tensor molecular_hamiltonian_mat_dns;
 	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat, &molecular_hamiltonian_mat_dns);
+	struct dense_tensor molecular_hamiltonian_mat_opt_dns;
+	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat_opt, &molecular_hamiltonian_mat_opt_dns);
 
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
@@ -318,11 +328,17 @@ char* test_molecular_hamiltonian_mpo()
 	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
 		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
 	}
+	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_opt_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
+		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
+	}
 
 	// clean up
+	delete_block_sparse_tensor(&molecular_hamiltonian_mat_opt);
 	delete_block_sparse_tensor(&molecular_hamiltonian_mat);
+	delete_dense_tensor(&molecular_hamiltonian_mat_opt_dns);
 	delete_dense_tensor(&molecular_hamiltonian_mat_dns);
 	delete_dense_tensor(&molecular_hamiltonian_mat_ref);
+	delete_mpo(&molecular_hamiltonian_mpo_opt);
 	delete_mpo(&molecular_hamiltonian_mpo);
 	delete_dense_tensor(&vint);
 	delete_dense_tensor(&tkin);

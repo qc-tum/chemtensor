@@ -15,3 +15,4 @@ void construct_bose_hubbard_1d_mpo(const int nsites, const long d, const double 
 void construct_fermi_hubbard_1d_mpo(const int nsites, const double t, const double u, const double mu, struct mpo* mpo);
 
 void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo* mpo);
+void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo* mpo);

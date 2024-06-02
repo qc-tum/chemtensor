@@ -978,7 +978,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		}
 	}
 
-	// transfer edges into mpo_graph structure and connect nodes
+	// transfer edges into mpo_graph structure and connect vertices
 	for (int i = 0; i < nsites; i++)
 	{
 		mpo_graph.num_edges[i] = edges[i].size;
@@ -1055,6 +1055,339 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	aligned_free(vids_a_dag_a_ann_r);
 	aligned_free(node_counter);
 	delete_mpo_graph(&mpo_graph);
+	delete_dense_tensor(&gint);
+	for (int i = 0; i < 5; i++) {
+		delete_dense_tensor(&opmap[i]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Temporary data structure for sorting index - quantum number tuples.
+///
+struct index_qnumber_tuple
+{
+	int index;      //!< index
+	qnumber qnum;   //!< quantum number
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function for sorting.
+///
+static int compare_index_qnumber_tuple(const void* a, const void* b)
+{
+	const struct index_qnumber_tuple* x = (const struct index_qnumber_tuple*)a;
+	const struct index_qnumber_tuple* y = (const struct index_qnumber_tuple*)b;
+
+	if (x->index < y->index) {
+		return -1;
+	}
+	if (x->index > y->index) {
+		return 1;
+	}
+	// x->index == y->index
+	// sort quantum numbers in descending order
+	if (x->qnum > y->qnum) {
+		return -1;
+	}
+	if (x->qnum < y->qnum) {
+		return 1;
+	}
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct a molecular Hamiltonian as MPO,
+/// using physicists' convention for the interaction term (note ordering of k and l):
+/// \f[
+/// H = \sum_{i,j} t_{i,j} a^{\dagger}_i a_j + \frac{1}{2} \sum_{i,j,k,\ell} v_{i,j,k,\ell} a^{\dagger}_i a^{\dagger}_j a_{\ell} a_k
+/// \f]
+///
+/// This version optimizes the virtual bond dimensions via the automatic construction starting from operator chains.
+/// Can handle zero entries in 'tkin' and 'vint', but construction takes considerably longer for larger number of orbitals.
+///
+void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo* mpo)
+{
+	assert(tkin->dtype == DOUBLE_REAL);
+	assert(vint->dtype == DOUBLE_REAL);
+
+	// dimension consistency checks
+	assert(tkin->ndim == 2);
+	assert(vint->ndim == 4);
+	assert(tkin->dim[0] == tkin->dim[1]);
+	assert(vint->dim[0] == vint->dim[1] &&
+	       vint->dim[0] == vint->dim[2] &&
+	       vint->dim[0] == vint->dim[3]);
+	assert(tkin->dim[0] == vint->dim[0]);
+
+	// number of "sites" (orbitals)
+	const int nsites = tkin->dim[0];
+	assert(nsites >= 1);
+
+	// local operators
+	// creation and annihilation operators for a single spin and lattice site
+	const double a_ann[4] = { 0.,  1.,  0.,  0. };
+	const double a_dag[4] = { 0.,  0.,  1.,  0. };
+	// number operator
+	const double numop[4] = { 0.,  0.,  0.,  1. };
+	// Pauli-Z matrix required for Jordan-Wigner transformation
+	const double z[4]     = { 1.,  0.,  0., -1. };
+
+	// operator map
+	// 0: I
+	// 1: a^{\dagger}
+	// 2: a
+	// 3: numop
+	// 4: Z
+	struct dense_tensor opmap[5];
+	for (int i = 0; i < 5; i++) {
+		const long dim[2] = { 2, 2 };
+		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+	}
+	dense_tensor_set_identity(&opmap[0]);
+	memcpy(opmap[1].data, a_dag, sizeof(a_dag));
+	memcpy(opmap[2].data, a_ann, sizeof(a_ann));
+	memcpy(opmap[3].data, numop, sizeof(numop));
+	memcpy(opmap[4].data, z,     sizeof(z));
+
+	const int OID_IDENT = 0;
+	const int OID_A_DAG = 1;
+	const int OID_A_ANN = 2;
+	const int OID_NUMOP = 3;
+	const int OID_Z     = 4;
+
+	// interaction terms 1/2 \sum_{i,j,k,l} v_{i,j,k,l} a^{\dagger}_i a^{\dagger}_j a_l a_k:
+	// can anti-commute fermionic operators such that i < j and l < k
+	struct dense_tensor gint;
+	symmetrize_interaction_coefficients(vint, &gint);
+	// global minus sign from Jordan-Wigner transformation, since a Z = -a
+	const double neg05 = -0.5;
+	scale_dense_tensor(&neg05, &gint);
+	assert(gint.dtype == DOUBLE_REAL);
+
+	const int nchains = nsites * nsites + nsites * (nsites - 1) * nsites * (nsites - 1) / 4;
+	struct op_chain* opchains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
+	int oc = 0;
+	// kinetic hopping terms t_{i,j} a^{\dagger}_i a_j
+	const double* tkin_data = tkin->data;
+	for (int i = 0; i < nsites; i++)
+	{
+		// case i < j
+		for (int j = i + 1; j < nsites; j++)
+		{
+			allocate_op_chain(j - i + 1, &opchains[oc]);
+			opchains[oc].oids[0] = OID_A_DAG;
+			for (int n = 1; n < j - i; n++) {
+				opchains[oc].oids[n] = OID_Z;
+			}
+			opchains[oc].oids[j - i] = OID_A_ANN;
+			opchains[oc].qnums[0] = 0;
+			for (int n = 1; n < j - i + 1; n++) {
+				opchains[oc].qnums[n] = 1;
+			}
+			opchains[oc].qnums[j - i + 1] = 0;
+			opchains[oc].coeff  = tkin_data[i*nsites + j];
+			opchains[oc].istart = i;
+			oc++;
+		}
+		// diagonal hopping term
+		{
+			allocate_op_chain(1, &opchains[oc]);
+			opchains[oc].oids[0]  = OID_NUMOP;
+			opchains[oc].qnums[0] = 0;
+			opchains[oc].qnums[1] = 0;
+			opchains[oc].coeff    = tkin_data[i*nsites + i];
+			opchains[oc].istart   = i;
+			oc++;
+		}
+		// case i > j
+		for (int j = 0; j < i; j++)
+		{
+			allocate_op_chain(i - j + 1, &opchains[oc]);
+			opchains[oc].oids[0] = OID_A_ANN;
+			for (int n = 1; n < i - j; n++) {
+				opchains[oc].oids[n] = OID_Z;
+			}
+			opchains[oc].oids[i - j] = OID_A_DAG;
+			opchains[oc].qnums[0] = 0;
+			for (int n = 1; n < i - j + 1; n++) {
+				opchains[oc].qnums[n] = -1;
+			}
+			opchains[oc].qnums[i - j + 1] = 0;
+			opchains[oc].coeff  = tkin_data[i*nsites + j];
+			opchains[oc].istart = j;
+			oc++;
+		}
+	}
+	// interaction terms
+	const double* gint_data = gint.data;
+	for (int i = 0; i < nsites; i++)
+	{
+		for (int j = i + 1; j < nsites; j++)  // i < j
+		{
+			for (int k = 0; k < nsites; k++)
+			{
+				for (int l = 0; l < k; l++)  // l < k
+				{
+					struct index_qnumber_tuple tuples[4] = {
+						{ .index = i, .qnum =  1 },
+						{ .index = j, .qnum =  1 },
+						{ .index = l, .qnum = -1 },
+						{ .index = k, .qnum = -1 },
+					};
+					// sort by site index
+					qsort(tuples, 4, sizeof(struct index_qnumber_tuple), compare_index_qnumber_tuple);
+
+					const int a  = tuples[0].index;
+					const int ba = tuples[1].index - a;
+					const int ca = tuples[2].index - a;
+					const int da = tuples[3].index - a;
+					const qnumber p = tuples[0].qnum;
+					const qnumber q = tuples[1].qnum;
+					const qnumber r = tuples[2].qnum;
+					const qnumber s = tuples[3].qnum;
+
+					allocate_op_chain(da + 1, &opchains[oc]);
+
+					if (ba == 0)  // a == b
+					{
+						assert(ca > 0);
+						if (ca == da)
+						{
+							// two number operators
+							// operator IDs
+							opchains[oc].oids[0] = OID_NUMOP;
+							for (int n = 1; n < da; n++) {
+								opchains[oc].oids[n] = OID_IDENT;
+							}
+							opchains[oc].oids[da] = OID_NUMOP;
+							// all quantum numbers are zero
+							for (int n = 0; n < da + 2; n++) {
+								opchains[oc].qnums[n] = 0;
+							}
+						}
+						else
+						{
+							// number operator at the beginning
+							// operator IDs
+							opchains[oc].oids[0] = OID_NUMOP;
+							for (int n = 1; n < ca; n++) {
+								opchains[oc].oids[n] = OID_IDENT;
+							}
+							opchains[oc].oids[ca] = (r == 1 ? OID_A_DAG : OID_A_ANN);
+							for (int n = ca + 1; n < da; n++) {
+								opchains[oc].oids[n] = OID_Z;
+							}
+							opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+							// quantum numbers
+							for (int n = 0; n < ca + 1; n++) {
+								opchains[oc].qnums[n] = 0;
+							}
+							for (int n = ca + 1; n < da + 1; n++) {
+								opchains[oc].qnums[n] = r;
+							}
+							opchains[oc].qnums[da + 1] = 0;
+						}
+					}
+					else if (ba == ca)
+					{
+						// number operator in the middle
+						// operator IDs
+						opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = 1; n < ba; n++) {
+							opchains[oc].oids[n] = OID_Z;
+						}
+						opchains[oc].oids[ba] = OID_NUMOP;
+						for (int n = ba + 1; n < da; n++) {
+							opchains[oc].oids[n] = OID_Z;
+						}
+						opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+						// quantum numbers
+						opchains[oc].qnums[0] = 0;
+						for (int n = 1; n < da + 1; n++) {
+							opchains[oc].qnums[n] = p;
+						}
+						opchains[oc].qnums[da + 1] = 0;
+					}
+					else if (ca == da)
+					{
+						// number operator at the end
+						// operator IDs
+						opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = 1; n < ba; n++) {
+						 	opchains[oc].oids[n] = OID_Z;
+						}
+						opchains[oc].oids[ba] = (q == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = ba + 1; n < ca; n++) {
+						 	opchains[oc].oids[n] = OID_IDENT;
+						}
+						opchains[oc].oids[ca] = OID_NUMOP;
+						// quantum numbers
+						opchains[oc].qnums[0] = 0;
+						for (int n = 1; n < ba + 1; n++) {
+							opchains[oc].qnums[n] = p;
+						}
+						for (int n = ba + 1; n < ca + 2; n++) {
+							opchains[oc].qnums[n] = 0;
+						}
+					}
+					else
+					{
+						// generic case: i, j, k, l pairwise different
+						// operator IDs
+						opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = 1; n < ba; n++) {
+							opchains[oc].oids[n] = OID_Z;
+						}
+						opchains[oc].oids[ba] = (q == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = ba + 1; n < ca; n++) {
+							opchains[oc].oids[n] = OID_IDENT;
+						}
+						opchains[oc].oids[ca] = (r == 1 ? OID_A_DAG : OID_A_ANN);
+						for (int n = ca + 1; n < da; n++) {
+							opchains[oc].oids[n] = OID_Z;
+						}
+						opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+						// quantum numbers
+						opchains[oc].qnums[0] = 0;
+						for (int n = 1; n < ba + 1; n++) {
+							opchains[oc].qnums[n] = p;
+						}
+						for (int n = ba + 1; n < ca + 1; n++) {
+							opchains[oc].qnums[n] = p + q;
+						}
+						for (int n = ca + 1; n < da + 1; n++) {
+							opchains[oc].qnums[n] = -s;
+						}
+						opchains[oc].qnums[da + 1] = 0;
+					}
+
+					opchains[oc].coeff  = gint_data[((i*nsites + j)*nsites + k)*nsites + l];
+					opchains[oc].istart = a;
+					oc++;
+				}
+			}
+		}
+	}
+	assert(oc == nchains);
+
+	struct mpo_graph graph;
+	mpo_graph_from_opchains(opchains, nchains, nsites, OID_IDENT, &graph);
+
+	const qnumber qsite[2] = { 0, 1 };
+	mpo_from_graph(DOUBLE_REAL, 2, qsite, &graph, opmap, mpo);
+
+	// clean up
+	delete_mpo_graph(&graph);
+	for (int i = 0; i < nchains; i++) {
+		delete_op_chain(&opchains[i]);
+	}
+	aligned_free(opchains);
 	delete_dense_tensor(&gint);
 	for (int i = 0; i < 5; i++) {
 		delete_dense_tensor(&opmap[i]);

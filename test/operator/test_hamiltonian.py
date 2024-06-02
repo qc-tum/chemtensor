@@ -1,9 +1,6 @@
 import numpy as np
 from scipy import sparse
 import h5py
-import sys
-sys.path.append("../")
-from util import interleave_complex, crandn
 
 
 def ising_1d_mpo_data():
