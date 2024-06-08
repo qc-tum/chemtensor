@@ -107,6 +107,32 @@ void delete_su2_tree(struct su2_tree_node* tree)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether two SU(2) symmetry trees are logically equal.
+///
+bool su2_tree_equal(const struct su2_tree_node* s, const struct su2_tree_node* t)
+{
+	if (s->i_ax != t->i_ax) {
+		return false;
+	}
+
+	// test whether both nodes are leaves
+	const bool leaf_s = su2_tree_node_is_leaf(s);
+	const bool leaf_t = su2_tree_node_is_leaf(t);
+	if (leaf_s != leaf_t) {
+		return false;
+	}
+	if (leaf_s) {
+		// both nodes are leaves
+		return true;
+	}
+
+	// test whether subtrees are equal
+	return su2_tree_equal(s->c[0], t->c[0]) && su2_tree_equal(s->c[1], t->c[1]);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Whether the SU(2) symmetry tree contains a leaf with axis index 'i_ax'.
 ///
 bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax)
@@ -121,6 +147,33 @@ bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax)
 	}
 
 	return su2_tree_contains_leaf(tree->c[0], i_ax) || su2_tree_contains_leaf(tree->c[1], i_ax);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Locate the parent of the node with axis index 'i_ax', returning NULL if parent cannot be found.
+///
+const struct su2_tree_node* su2_tree_find_parent_node(const struct su2_tree_node* tree, const int i_ax)
+{
+	if (tree == NULL) {
+		return NULL;
+	}
+	if (su2_tree_node_is_leaf(tree)) {
+		return NULL;
+	}
+
+	if (tree->c[0]->i_ax == i_ax || tree->c[1]->i_ax == i_ax) {
+		return tree;
+	}
+
+	// search in left subtree
+	const struct su2_tree_node* node = su2_tree_find_parent_node(tree->c[0], i_ax);
+	if (node != NULL) {
+		return node;
+	}
+	// search in right subtree
+	return su2_tree_find_parent_node(tree->c[1], i_ax);
 }
 
 
@@ -154,6 +207,40 @@ void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator)
 
 	su2_tree_axes(tree->c[0], indicator);
 	su2_tree_axes(tree->c[1], indicator);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Perform an in-place left-rotating F-move rooted at the node pointed to by 'tree', retaining the axis indices.
+///
+void su2_tree_fmove_left(struct su2_tree_node* tree)
+{
+	assert(!su2_tree_node_is_leaf(tree));
+	struct su2_tree_node* d = tree->c[1];
+	assert(!su2_tree_node_is_leaf(d));
+	struct su2_tree_node* b = d->c[0];
+	d->c[0] = tree->c[0];
+	tree->c[0] = d;
+	tree->c[1] = d->c[1];
+	d->c[1] = b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Perform an in-place right-rotating F-move rooted at the node pointed to by 'tree', retaining the axis indices.
+///
+void su2_tree_fmove_right(struct su2_tree_node* tree)
+{
+	assert(!su2_tree_node_is_leaf(tree));
+	struct su2_tree_node* d = tree->c[0];
+	assert(!su2_tree_node_is_leaf(d));
+	struct su2_tree_node* b = d->c[1];
+	d->c[1] = tree->c[1];
+	tree->c[1] = d;
+	tree->c[0] = d->c[0];
+	d->c[0] = b;
 }
 
 
@@ -427,6 +514,20 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
 	aligned_free(indicator_fuse);
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether two fuse and split trees are logically equal.
+///
+bool su2_fuse_split_tree_equal(const struct su2_fuse_split_tree* s, const struct su2_fuse_split_tree* t)
+{
+	if (s->ndim != t->ndim) {
+		return false;
+	}
+
+	return su2_tree_equal(s->tree_fuse, t->tree_fuse) && su2_tree_equal(s->tree_split, t->tree_split);
 }
 
 

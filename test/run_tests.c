@@ -42,6 +42,7 @@ char* test_block_sparse_tensor_serialize();
 char* test_clebsch_gordan_coefficients();
 char* test_su2_tree_enumerate_charge_sectors();
 char* test_su2_fuse_split_tree_enumerate_charge_sectors();
+char* test_su2_tensor_fmove();
 char* test_su2_to_dense_tensor();
 char* test_mps_vdot();
 char* test_mps_orthonormalize_qr();
@@ -110,6 +111,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_clebsch_gordan_coefficients),
 		TEST_FUNCTION_ENTRY(test_su2_tree_enumerate_charge_sectors),
 		TEST_FUNCTION_ENTRY(test_su2_fuse_split_tree_enumerate_charge_sectors),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_fmove),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),

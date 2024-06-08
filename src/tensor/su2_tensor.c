@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include "su2_tensor.h"
+#include "su2_recoupling.h"
 #include "aligned_memory.h"
 
 
@@ -222,6 +223,103 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 	}
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Perform an F-move on the internal axis 'i_ax'. 
+///
+void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struct su2_tensor* restrict r)
+{
+	// 'i_ax' must be an internal axis
+	assert(t->ndim_logical + t->ndim_auxiliary <= i_ax && i_ax < su2_tensor_ndim(t));
+	// 'i_ax' must not be the connecting axis of the fuse-split tree
+	assert(i_ax != t->tree.tree_fuse->i_ax);
+
+	struct su2_fuse_split_tree tree;
+	copy_su2_fuse_split_tree(&t->tree, &tree);
+
+	// find parent node of 'i_ax'
+	struct su2_tree_node* parent = (struct su2_tree_node*)su2_tree_find_parent_node(tree.tree_fuse, i_ax);
+	if (parent == NULL) {
+		parent = (struct su2_tree_node*)su2_tree_find_parent_node(tree.tree_split, i_ax);
+	}
+	assert(parent != NULL);
+	int i_ax_a, i_ax_b, i_ax_c;
+	const int i_ax_s = parent->i_ax;
+	bool orig_left_child;
+	// determine axis indices of child nodes and perform F-move on tree
+	if (parent->c[0]->i_ax == i_ax)  // left child
+	{
+		assert(!su2_tree_node_is_leaf(parent->c[0]));
+		i_ax_a = parent->c[0]->c[0]->i_ax;
+		i_ax_b = parent->c[0]->c[1]->i_ax;
+		i_ax_c = parent->c[1]->i_ax;
+		orig_left_child = true;
+		su2_tree_fmove_right(parent);
+		// right child after move
+		assert(parent->c[1]->i_ax == i_ax);
+	}
+	else  // right child
+	{
+		assert(parent->c[1]->i_ax == i_ax);
+		assert(!su2_tree_node_is_leaf(parent->c[1]));
+		i_ax_a = parent->c[0]->i_ax;
+		i_ax_b = parent->c[1]->c[0]->i_ax;
+		i_ax_c = parent->c[1]->c[1]->i_ax;
+		orig_left_child = false;
+		su2_tree_fmove_left(parent);
+		// left child after move
+		assert(parent->c[0]->i_ax == i_ax);
+	}
+
+	// create new tensor
+	allocate_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &tree, t->outer_jlists, (const long**)t->dim_degen, r);
+	delete_su2_fuse_split_tree(&tree);
+
+	for (long cr = 0; cr < r->charge_sectors.nsec; cr++)
+	{
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist_r = &r->charge_sectors.jlists[cr * r->charge_sectors.ndim];
+
+		const qnumber ja = jlist_r[i_ax_a];
+		const qnumber jb = jlist_r[i_ax_b];
+		const qnumber jc = jlist_r[i_ax_c];
+		const qnumber js = jlist_r[i_ax_s];
+
+		// TODO: binary search of matching sectors
+		for (long ct = 0; ct < t->charge_sectors.nsec; ct++)
+		{
+			// 'j' quantum numbers of current sector
+			const qnumber* jlist_t = &t->charge_sectors.jlists[ct * t->charge_sectors.ndim];
+
+			bool matching_sector = true;
+			for (int i = 0; i < r->charge_sectors.ndim; i++) {
+				if (i != i_ax && jlist_r[i] != jlist_t[i]) {
+					matching_sector = false;
+					break;
+				}
+			}
+			if (!matching_sector) {
+				continue;
+			}
+
+			const qnumber je = (orig_left_child ? jlist_t[i_ax] : jlist_r[i_ax]);
+			const qnumber jf = (orig_left_child ? jlist_r[i_ax] : jlist_t[i_ax]);
+			const double coeff = su_recoupling_coefficient(ja, jb, jc, js, je, jf);
+			if (coeff == 0) {
+				continue;
+			}
+
+			// ensure that 'alpha' is large enough to store any numeric type
+			dcomplex alpha;
+			numeric_from_double(coeff, r->dtype, &alpha);
+
+			// accumulate degeneracy tensor from 't' weighted by 'coeff'
+			dense_tensor_scalar_multiply_add(&alpha, t->degensors[ct], r->degensors[cr]);
+		}
+	}
 }
 
 

@@ -17,7 +17,7 @@ struct su2_tensor
 {
 	struct su2_fuse_split_tree tree;            //!< internal fusion-splitting tree
 	struct su2_irreducible_list* outer_jlists;  //!< lists of irreducible 'j' quantum numbers times 2, for each outer (logical and auxiliary) axis
-	struct charge_sectors charge_sectors;       //!< charge sectors (irreducible logical, auxiliary and internal 'j' quantum number configurations), computed from 'tree' and 'outer_jlists'
+	struct charge_sectors charge_sectors;       //!< charge sectors (irreducible logical, auxiliary and internal 'j' quantum number configurations), computed from 'tree' and 'outer_jlists', and sorted lexicographically
 	struct dense_tensor** degensors;            //!< dense "degeneracy" tensors, pointer array of length "number of charge sectors"
 	long** dim_degen;                           //!< degeneracy dimension for each logical axis; indexed by corresponding 'j' quantum number
 	enum numeric_type dtype;                    //!< numeric data type
@@ -67,6 +67,14 @@ enum tensor_axis_direction su2_tensor_logical_axis_direction(const struct su2_te
 // internal consistency checking
 
 bool su2_tensor_is_consistent(const struct su2_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// F-move
+
+void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struct su2_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

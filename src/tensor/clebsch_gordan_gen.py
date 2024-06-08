@@ -52,7 +52,6 @@ def generate_clebsch_gordan_tables():
     hfile.write("\n")
     hfile.write("#include \"qnumber.h\"\n")
     hfile.write("\n")
-    hfile.write("\n")
 
     cfile.write("/// \\file clebsch_gordan.c\n")
     cfile.write("/// \\brief Clebsch-Gordan coefficient tables.\n")
@@ -68,22 +67,18 @@ def generate_clebsch_gordan_tables():
     num_j1 = 6
     num_j2 = 6
 
-    hfile.write("// format: cg_j1_j2_j3[j1+1][j2+1][j3+1]\n")
+    cfile.write("// format: cg_j1_j2_j3[j1+1][j2+1][j3+1]\n")
     for j1 in range(0, num_j1):
         for j2 in range(0, num_j2):
             for j3 in su2_j3_range(j1, j2):
-                hfile.write(f"extern const double cg_{j1}_{j2}_{j3}[{j1+1}][{j2+1}][{j3+1}];\n")
-                expr = (f"const double cg_{j1}_{j2}_{j3}[{j1+1}][{j2+1}][{j3+1}] = "
+                expr = (f"static const double cg_{j1}_{j2}_{j3}[{j1+1}][{j2+1}][{j3+1}] = "
                         + convert_to_c_brackets(str(clebsch_gordan_tensor(j1, j2, j3)))
                         + ";\n")
                 cfile.write(expr)
-
-    hfile.write("\n")
     cfile.write("\n")
 
     num_j3 = num_j1 + num_j2 - 1
-    hfile.write(f"extern const double* cg_table[{num_j1}][{num_j2}][{num_j3}];\n")
-    cfile.write(f"const double* cg_table[{num_j1}][{num_j2}][{num_j3}] = {{ ")
+    cfile.write(f"static const double* cg_table[{num_j1}][{num_j2}][{num_j3}] = {{ ")
     for j1 in range(0, num_j1):
         cfile.write("{ ")
         for j2 in range(0, num_j2):
@@ -98,15 +93,14 @@ def generate_clebsch_gordan_tables():
     cfile.write("};\n")
 
     hfile.write("\n")
-    hfile.write("\n")
     hfile.write("double clebsch_gordan(const qnumber j1, const qnumber j2, const qnumber j3, const int im1, const int im2, const int im3);\n")
 
     cfile.write(
-f"""
+rf"""
 
 //________________________________________________________________________________________________________________________
 ///
-/// \\brief Evaluate the Clebsch-Gordan coefficient at the provided 'j' quantum numbers (represented times 2) and 'm' quantum number indices.
+/// \brief Evaluate the Clebsch-Gordan coefficient at the provided 'j' quantum numbers (represented times 2) and 'm' quantum number indices.
 ///
 double clebsch_gordan(const qnumber j1, const qnumber j2, const qnumber j3, const int im1, const int im2, const int im3)
 {{
