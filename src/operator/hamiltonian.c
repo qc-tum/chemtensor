@@ -336,26 +336,6 @@ void construct_fermi_hubbard_1d_mpo(const int nsites, const double t, const doub
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Minimum of two integers.
-///
-static inline int imin(const int a, const int b)
-{
-	return (a <= b) ? a : b;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Maximum of two integers.
-///
-static inline int imax(const int a, const int b)
-{
-	return (a >= b) ? a : b;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Allocate and initialize MPO graph vertex indices for each virtual bond (utility function).
 ///
 static int* allocate_vertex_ids(const int nsites)

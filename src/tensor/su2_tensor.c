@@ -9,21 +9,6 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Maximum of two integers.
-///
-static inline int maxi(const int a, const int b)
-{
-	if (a >= b) {
-		return a;
-	}
-	else {
-		return b;
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Allocate memory for an SU(2) symmetric tensor, including the dense "degeneracy" tensors.
 ///
 void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
@@ -53,7 +38,7 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 		assert(t->outer_jlists[i].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < t->outer_jlists[i].num; k++) {
-			j_max = maxi(j_max, t->outer_jlists[i].jlist[k]);
+			j_max = imax(j_max, t->outer_jlists[i].jlist[k]);
 		}
 		t->dim_degen[i] = aligned_alloc(MEM_DATA_ALIGN, (j_max + 1) * sizeof(long));
 		memcpy(t->dim_degen[i], dim_degen[i], (j_max + 1) * sizeof(long));
@@ -361,7 +346,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		assert(s->outer_jlists[i].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < s->outer_jlists[i].num; k++) {
-			j_max = maxi(j_max, s->outer_jlists[i].jlist[k]);
+			j_max = imax(j_max, s->outer_jlists[i].jlist[k]);
 		}
 		sector_offsets[i] = aligned_calloc(MEM_DATA_ALIGN, j_max + 1, sizeof(long));
 		for (int k = 0; k < s->outer_jlists[i].num; k++)

@@ -53,6 +53,8 @@ char* test_linked_list();
 char* test_hash_table();
 char* test_bipartite_graph_maximum_cardinality_matching();
 char* test_bipartite_graph_minimum_vertex_cover();
+char* test_integer_hermite_normal_form();
+char* test_integer_backsubstitute();
 char* test_lanczos_iteration_d();
 char* test_lanczos_iteration_z();
 char* test_eigensystem_krylov_symmetric();
@@ -122,6 +124,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_hash_table),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_maximum_cardinality_matching),
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
+		TEST_FUNCTION_ENTRY(test_integer_hermite_normal_form),
+		TEST_FUNCTION_ENTRY(test_integer_backsubstitute),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_d),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_z),
 		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric),

@@ -11,6 +11,26 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Minimum of two integers.
+///
+static inline int imin(const int a, const int b)
+{
+	return (a <= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Maximum of two integers.
+///
+static inline int imax(const int a, const int b)
+{
+	return (a >= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Square function x -> x^2.
 ///
 static inline double square(const double x)
