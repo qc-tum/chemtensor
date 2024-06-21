@@ -57,3 +57,25 @@ void* hash_table_insert(struct hash_table* ht, void* key, void* val);
 void* hash_table_get(const struct hash_table* ht, void* key);
 
 void* hash_table_remove(struct hash_table* ht, void* key);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Iterator over the entries of a hash table.
+///
+struct hash_table_iterator
+{
+	const struct hash_table* table;  //!< reference to hash table
+	long i_bucket;                   //!< bucket index
+	struct hash_table_entry* entry;  //!< pointer to current entry
+};
+
+
+void init_hash_table_iterator(const struct hash_table* table, struct hash_table_iterator* iter);
+
+bool hash_table_iterator_next(struct hash_table_iterator* iter);
+
+bool hash_table_iterator_is_valid(const struct hash_table_iterator* iter);
+
+const void* hash_table_iterator_get_key(struct hash_table_iterator* iter);
+void* hash_table_iterator_get_value(struct hash_table_iterator* iter);

@@ -8,6 +8,7 @@
 #include "qnumber.h"
 #include "abstract_graph.h"
 #include "local_op.h"
+#include "op_chain.h"
 #include "dense_tensor.h"
 
 
@@ -52,6 +53,8 @@ struct ttno_graph
 	int* num_verts;                       //!< number of vertices for each virtual bond, i.e., virtual bond dimensions, indexed by corresponding hyperedge site indices (i, j) with i < j
 	int nsites;                           //!< number of sites
 };
+
+int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, const int oid_identity, struct ttno_graph* ttno_graph);
 
 void delete_ttno_graph(struct ttno_graph* graph);
 

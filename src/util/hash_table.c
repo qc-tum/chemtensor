@@ -1,6 +1,7 @@
 /// \file hash_table.c
 /// \brief Separate chaining hash table.
 
+#include <assert.h>
 #include "hash_table.h"
 #include "aligned_memory.h"
 
@@ -141,5 +142,104 @@ void* hash_table_remove(struct hash_table* ht, void* key)
 	}
 
 	// not found
+	return NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Initialize a hash table iterator.
+///
+void init_hash_table_iterator(const struct hash_table* table, struct hash_table_iterator* iter)
+{
+	iter->table = table;
+
+	// find first non-empty bucket
+	long i;
+	for (i = 0; i < table->num_buckets; i++) {
+		if (table->buckets[i] != NULL) {
+			break;
+		}
+	}
+	iter->i_bucket = i;
+	if (i == table->num_buckets) {
+		// table is actually empty
+		assert(table->num_entries == 0);
+		iter->entry = NULL;
+	}
+	else {
+		iter->entry = table->buckets[i];
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Advance the iterator, returning true if a next element exists.
+///
+bool hash_table_iterator_next(struct hash_table_iterator* iter)
+{
+	if (!hash_table_iterator_is_valid(iter)) {
+		return false;
+	}
+
+	if (iter->entry->next != NULL) {
+		// next entry in current bucket
+		iter->entry = iter->entry->next;
+		return true;
+	}
+
+	// search for next non-empty bucket
+	iter->i_bucket++;
+	for (; iter->i_bucket < iter->table->num_buckets; iter->i_bucket++) {
+		if (iter->table->buckets[iter->i_bucket] != NULL) {
+			break;
+		}
+	}
+	assert(iter->i_bucket <= iter->table->num_buckets);
+	if (iter->i_bucket == iter->table->num_buckets) {
+		// no more non-empty buckets
+		iter->entry = NULL;
+		return false;
+	}
+
+	iter->entry = iter->table->buckets[iter->i_bucket];
+	assert(iter->entry != NULL);
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether the iterator is still valid, i.e., iteration did not proceed beyond last element.
+///
+bool hash_table_iterator_is_valid(const struct hash_table_iterator* iter)
+{
+	return iter->entry != NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Get a pointer to the key of the current iterator element, or NULL if the iterator is invalid.
+///
+const void* hash_table_iterator_get_key(struct hash_table_iterator* iter)
+{
+	if (hash_table_iterator_is_valid(iter)) {
+		return iter->entry->key;
+	}
+	return NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Get a pointer to the value of the current iterator element, or NULL if the iterator is invalid.
+///
+void* hash_table_iterator_get_value(struct hash_table_iterator* iter)
+{
+	if (hash_table_iterator_is_valid(iter)) {
+		return iter->entry->val;
+	}
 	return NULL;
 }

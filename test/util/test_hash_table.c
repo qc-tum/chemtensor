@@ -83,6 +83,32 @@ char* test_hash_table()
 		return "hash table returns value despite non-existing key";
 	}
 
+	bool enumerated[6] = { 0 };
+	int c = 0;
+	struct hash_table_iterator iter;
+	for (init_hash_table_iterator(&ht, &iter); hash_table_iterator_is_valid(&iter); hash_table_iterator_next(&iter))
+	{
+		// search for current element
+		for (int i = 0; i < 6; i++) {
+			if (key_equal(&keys[i], hash_table_iterator_get_key(&iter)) &&
+			    static_vals[i] == *((short*)hash_table_iterator_get_value(&iter))) {
+				if (enumerated[i]) {
+					return "hash table iterator enumerates same item twice";
+				}
+				enumerated[i] = true;
+			}
+		}
+		c++;
+	}
+	if (c != ht.num_entries) {
+		return "hash table iterator loops over wrong number of elements";
+	}
+	for (int i = 0; i < 6; i++) {
+		if (!enumerated[i]) {
+			return "element missing from hash table iteration";
+		}
+	}
+
 	// remove second key
 	pval = hash_table_remove(&ht, &keys[1]);
 	if (*pval != static_vals[1]) {

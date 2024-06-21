@@ -68,10 +68,9 @@ static inline void integer_matrix_subtract_row(const int n, const int i, const i
 ///
 static void integer_matrix_identity(const int n, int* a)
 {
+	memset(a, 0, n*n * sizeof(int));
 	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < n; j++) {
-			a[i*n + j] = (i == j ? 1 : 0);
-		}
+		a[i*n + i] = 1;
 	}
 }
 
