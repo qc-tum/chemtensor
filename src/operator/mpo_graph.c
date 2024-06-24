@@ -230,6 +230,49 @@ static hash_type u_node_hash_func(const void* n)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Temporary integer tuple data structure.
+///
+struct integer_tuple
+{
+	int i;  //!< first integer
+	int j;  //!< second integer
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test equality of two integer tuples.
+///
+static bool integer_tuple_equal(const void* t1, const void* t2)
+{
+	const struct integer_tuple* tuple1 = t1;
+	const struct integer_tuple* tuple2 = t2;
+
+	return (tuple1->i == tuple2->i) && (tuple1->j == tuple2->j);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the hash value of an integer tuple.
+///
+static hash_type integer_tuple_hash_func(const void* t)
+{
+	const struct integer_tuple* tuple = t;
+
+	// Fowler-Noll-Vo FNV-1a (64-bit) hash function, see
+	// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+	const uint64_t offset = 14695981039346656037U;
+	const uint64_t prime  = 1099511628211U;
+	hash_type hash = offset;
+	hash = (hash ^ tuple->i) * prime;
+	hash = (hash ^ tuple->j) * prime;
+	return hash;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Local site and half-chain partition auxiliary data structure.
 ///
 struct site_halfchain_partition
@@ -268,7 +311,9 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const d
 	partition->ulist = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct u_node));
 	partition->vlist = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_halfchain));
 
-	double* gamma = aligned_calloc(MEM_DATA_ALIGN, nchains*nchains, sizeof(double));
+	// use a hash table for intermediate storage of gamma coefficients
+	struct hash_table gamma_ht;
+	create_hash_table(integer_tuple_equal, integer_tuple_hash_func, sizeof(struct integer_tuple), 4*nchains, &gamma_ht);
 
 	// use hash tables for fast look-up
 	struct hash_table u_ht, v_ht;
@@ -322,15 +367,32 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const d
 		}
 
 		// record gamma coefficient
-		gamma[(*i)*nchains + (*j)] += coeffs[k];
+		struct integer_tuple ij = { .i = (*i), .j = (*j) };
+		double* gamma = hash_table_get(&gamma_ht, &ij);
+		if (gamma == NULL)
+		{
+			// insert coefficient into table
+			gamma = aligned_alloc(MEM_DATA_ALIGN, sizeof(double));
+			(*gamma) = coeffs[k];
+			hash_table_insert(&gamma_ht, &ij, gamma);
+		}
+		else
+		{
+			// (i, j) tuple already exists
+			(*gamma) += coeffs[k];
+		}
 	}
 
 	// copy entries into final gamma matrix
 	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->num_v, sizeof(double));
-	for (int i = 0; i < partition->num_u; i++) {
-		memcpy(&partition->gamma[i*partition->num_v], &gamma[i*nchains], partition->num_v * sizeof(double));
+	struct hash_table_iterator iter;
+	for (init_hash_table_iterator(&gamma_ht, &iter); hash_table_iterator_is_valid(&iter); hash_table_iterator_next(&iter))
+	{
+		const struct integer_tuple* tuple = hash_table_iterator_get_key(&iter);
+		const double* gamma = hash_table_iterator_get_value(&iter);
+		partition->gamma[tuple->i*partition->num_v + tuple->j] = (*gamma);
 	}
-	aligned_free(gamma);
+	delete_hash_table(&gamma_ht, aligned_free);
 
 	delete_hash_table(&v_ht, aligned_free);
 	delete_hash_table(&u_ht, aligned_free);
