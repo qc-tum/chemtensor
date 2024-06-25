@@ -3,6 +3,7 @@
 
 #include "ttno_graph.h"
 #include "hash_table.h"
+#include "linked_list.h"
 #include "integer_linear_algebra.h"
 #include "bipartite_graph.h"
 #include "aligned_memory.h"
@@ -524,45 +525,13 @@ static hash_type u_node_hash_func(const void* n)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Temporary integer tuple data structure.
+/// \brief Weighted edge temporary data structure.
 ///
-struct integer_tuple
+struct weighted_edge
 {
-	int i;  //!< first integer
-	int j;  //!< second integer
+	int i, j;      //!< indices
+	double coeff;  //!< coefficient
 };
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Test equality of two integer tuples.
-///
-static bool integer_tuple_equal(const void* t1, const void* t2)
-{
-	const struct integer_tuple* tuple1 = t1;
-	const struct integer_tuple* tuple2 = t2;
-
-	return (tuple1->i == tuple2->i) && (tuple1->j == tuple2->j);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Compute the hash value of an integer tuple.
-///
-static hash_type integer_tuple_hash_func(const void* t)
-{
-	const struct integer_tuple* tuple = t;
-
-	// Fowler-Noll-Vo FNV-1a (64-bit) hash function, see
-	// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
-	const uint64_t offset = 14695981039346656037U;
-	const uint64_t prime  = 1099511628211U;
-	hash_type hash = offset;
-	hash = (hash ^ tuple->i) * prime;
-	hash = (hash ^ tuple->j) * prime;
-	return hash;
-}
 
 
 //________________________________________________________________________________________________________________________
@@ -642,9 +611,8 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 	const int part_nbonds = construct_qnumber_index_map(topology, partition->part_assembly.active_sites, partition->part_assembly.qnum_index_map);
 	const int part_nverts = construct_vid_index_map(topology, partition->part_assembly.active_sites, partition->part_assembly.vid_index_map);
 
-	// use a hash table for intermediate storage of gamma coefficients
-	struct hash_table gamma_ht;
-	create_hash_table(integer_tuple_equal, integer_tuple_hash_func, sizeof(struct integer_tuple), 4*assembly->nclusters, &gamma_ht);
+	// use a linked list for intermediate storage of gamma coefficients
+	struct linked_list gamma_list = { 0 };
 
 	// use hash tables for fast look-up
 	struct hash_table u_ht, v_ht;
@@ -741,32 +709,23 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 		}
 
 		// record gamma coefficient
-		struct integer_tuple ij = { .i = (*i), .j = (*j) };
-		double* gamma = hash_table_get(&gamma_ht, &ij);
-		if (gamma == NULL)
-		{
-			// insert coefficient into table
-			gamma = aligned_alloc(MEM_DATA_ALIGN, sizeof(double));
-			(*gamma) = coeffs[m];
-			hash_table_insert(&gamma_ht, &ij, gamma);
-		}
-		else
-		{
-			// (i, j) tuple already exists
-			(*gamma) += coeffs[m];
-		}
+		struct weighted_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct weighted_edge));
+		edge->i = (*i);
+		edge->j = (*j);
+		edge->coeff = coeffs[m];
+		linked_list_append(&gamma_list, edge);
 	}
 
 	// copy entries into final gamma matrix
 	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->part_assembly.nclusters, sizeof(double));
-	struct hash_table_iterator iter;
-	for (init_hash_table_iterator(&gamma_ht, &iter); hash_table_iterator_is_valid(&iter); hash_table_iterator_next(&iter))
+	struct linked_list_node* node = gamma_list.head;
+	while (node != NULL)
 	{
-		const struct integer_tuple* tuple = hash_table_iterator_get_key(&iter);
-		const double* gamma = hash_table_iterator_get_value(&iter);
-		partition->gamma[tuple->i*partition->part_assembly.nclusters + tuple->j] = (*gamma);
+		const struct weighted_edge* edge = node->data;
+		partition->gamma[edge->i*partition->part_assembly.nclusters + edge->j] += edge->coeff;
+		node = node->next;
 	}
-	delete_hash_table(&gamma_ht, aligned_free);
+	delete_linked_list(&gamma_list, aligned_free);
 
 	delete_hash_table(&v_ht, aligned_free);
 	delete_hash_table(&u_ht, aligned_free);
