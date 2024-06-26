@@ -49,7 +49,7 @@ struct mpo_graph
 	int nsites;                       //!< number of sites
 };
 
-void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites, const int oid_identity, struct mpo_graph* mpo_graph);
+int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites, struct mpo_graph* mpo_graph);
 
 void delete_mpo_graph(struct mpo_graph* mpo_graph);
 
@@ -61,4 +61,4 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph);
 
 // conversion to full matrix (intended for testing)
 
-void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* mat);
+void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* mat);

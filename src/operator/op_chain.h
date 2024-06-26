@@ -20,7 +20,7 @@ struct op_chain
 {
 	int* oids;          //!< list of local op_i operator IDs
 	qnumber* qnums;     //!< interleaved bond quantum numbers, including a leading and trailing quantum number
-	double coeff;       //!< coefficient (scalar factor)
+	int cid;            //!< index of coefficient (scalar factor)
 	int length;         //!< length of the operator chain (number of local operators)
 	int istart;         //!< first lattice site the operator chain acts on
 };
@@ -31,7 +31,7 @@ void allocate_op_chain(const int length, struct op_chain* chain);
 void delete_op_chain(struct op_chain* chain);
 
 
-void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, const int oid_identity, struct op_chain* restrict pad_chain);
+void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, struct op_chain* restrict pad_chain);
 
 
 //________________________________________________________________________________________________________________________
@@ -39,4 +39,4 @@ void op_chain_pad_identities(const struct op_chain* restrict chain, const int ne
 
 // conversion to full matrix (intended for testing)
 
-void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* a);
+void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a);

@@ -10,12 +10,14 @@
 ///
 /// \brief Construct a TTNO from a TTNO graph.
 ///
-void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, struct ttno* ttno)
+void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct ttno* ttno)
 {
 	assert(graph->nsites >= 1);
 	assert(d >= 1);
 	ttno->nsites = graph->nsites;
 	ttno->d = d;
+
+	assert(coefficient_map_is_valid(dtype, coeffmap));
 
 	// tree topology
 	copy_abstract_graph(&graph->topology, &ttno->topology);
@@ -58,7 +60,7 @@ void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber*
 			const struct ttno_graph_hyperedge* edge = &graph->edges[l][n];
 			assert(edge->order == graph->topology.num_neighbors[l]);
 			struct dense_tensor op;
-			construct_local_operator(edge->opics, edge->nopics, opmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);

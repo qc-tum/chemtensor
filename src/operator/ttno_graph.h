@@ -54,7 +54,7 @@ struct ttno_graph
 	int nsites;                           //!< number of sites
 };
 
-int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, const int oid_identity, struct ttno_graph* ttno_graph);
+int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct ttno_graph* ttno_graph);
 
 void delete_ttno_graph(struct ttno_graph* graph);
 
@@ -66,4 +66,4 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph);
 
 // conversion to full matrix (intended for testing)
 
-void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_tensor* opmap, struct dense_tensor* mat);
+void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct dense_tensor* mat);

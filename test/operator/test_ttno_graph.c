@@ -54,8 +54,6 @@ char* test_ttno_graph_from_opchains()
 	};
 	assert(abstract_graph_is_connected_tree(&topology));
 
-	const int oid_identity = 5;
-
 	const int nchains = 9;
 	struct op_chain* chains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
 	for (int i = 0; i < nchains; i++)
@@ -76,9 +74,9 @@ char* test_ttno_graph_from_opchains()
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, chains[i].qnums) < 0) {
 			return "reading operator chain quantum numbers from disk failed";
 		}
-		sprintf(varname, "/chain%i/coeff", i);
-		if (read_hdf5_attribute(file, varname, H5T_NATIVE_DOUBLE, &chains[i].coeff) < 0) {
-			return "reading operator chain coefficient from disk failed";
+		sprintf(varname, "/chain%i/cid", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, &chains[i].cid) < 0) {
+			return "reading operator chain coefficient index from disk failed";
 		}
 		sprintf(varname, "/chain%i/istart", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, &chains[i].istart) < 0) {
@@ -87,7 +85,7 @@ char* test_ttno_graph_from_opchains()
 	}
 
 	struct ttno_graph graph;
-	if (ttno_graph_from_opchains(chains, nchains, &topology, oid_identity, &graph) < 0) {
+	if (ttno_graph_from_opchains(chains, nchains, &topology, &graph) < 0) {
 		return "'ttno_graph_from_opchains' failed internally";
 	}
 	if (!ttno_graph_is_consistent(&graph)) {
@@ -145,9 +143,15 @@ char* test_ttno_graph_from_opchains()
 	}
 	delete_dense_tensor(&opmap_tensor);
 
+	// coefficient map
+	dcomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, 9 * sizeof(dcomplex));
+	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_DOUBLE, coeffmap) < 0) {
+		return "reading coefficient map from disk failed";
+	}
+
 	// convert TTNO graph to a (dense) matrix
 	struct dense_tensor mat;
-	ttno_graph_to_matrix(&graph, opmap, &mat);
+	ttno_graph_to_matrix(&graph, opmap, coeffmap, &mat);
 
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor mat_ref;
@@ -156,7 +160,7 @@ char* test_ttno_graph_from_opchains()
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, DOUBLE_COMPLEX, &c);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, DOUBLE_COMPLEX, &c);
 		dense_tensor_scalar_multiply_add(numeric_one(DOUBLE_COMPLEX), &c, &mat_ref);
 		delete_dense_tensor(&c);
 	}
@@ -169,6 +173,7 @@ char* test_ttno_graph_from_opchains()
 	// clean up
 	delete_dense_tensor(&mat_ref);
 	delete_dense_tensor(&mat);
+	aligned_free(coeffmap);
 	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}

@@ -26,7 +26,7 @@ struct ttno
 
 // allocation and construction
 
-void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, struct ttno* ttno);
+void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct ttno* ttno);
 
 void delete_ttno(struct ttno* ttno);
 

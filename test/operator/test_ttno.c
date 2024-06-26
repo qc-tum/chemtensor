@@ -111,10 +111,10 @@ char* test_ttno_from_graph()
 	};
 
 	// edges
-	struct local_op_ref e0_0_opics[] = { { .oid =  0, .coeff =  0.7 }, };
-	struct local_op_ref e0_1_opics[] = { { .oid =  4, .coeff = -1.2 }, { .oid =  1, .coeff =  0.4 }, };
-	struct local_op_ref e0_2_opics[] = { { .oid =  5, .coeff =  0.6 }, { .oid =  6, .coeff = -1.1 }, };
-	struct local_op_ref e0_3_opics[] = { { .oid =  7, .coeff = -0.1 }, };
+	struct local_op_ref e0_0_opics[] = { { .oid =  0, .cid = 11 }, };
+	struct local_op_ref e0_1_opics[] = { { .oid =  4, .cid =  7 }, { .oid =  1, .cid = 10 }, };
+	struct local_op_ref e0_2_opics[] = { { .oid =  5, .cid =  9 }, { .oid =  6, .cid = 12 }, };
+	struct local_op_ref e0_3_opics[] = { { .oid =  7, .cid =  3 }, };
 	int e0_0_vids[] = { 0, 1, 0 };
 	int e0_1_vids[] = { 1, 0, 2 };
 	int e0_2_vids[] = { 0, 0, 0 };
@@ -125,9 +125,9 @@ char* test_ttno_from_graph()
 		{ .vids = e0_2_vids, .order = ARRLEN(e0_2_vids), .opics = e0_2_opics, .nopics = ARRLEN(e0_2_opics) },
 		{ .vids = e0_3_vids, .order = ARRLEN(e0_3_vids), .opics = e0_3_opics, .nopics = ARRLEN(e0_3_opics) },
 	};
-	struct local_op_ref e1_0_opics[] = { { .oid =  8, .coeff =  0.6 }, };
-	struct local_op_ref e1_1_opics[] = { { .oid =  9, .coeff = -0.7 }, };
-	struct local_op_ref e1_2_opics[] = { { .oid = 10, .coeff =  0.2 }, { .oid = 11, .coeff =  0.8 }, };
+	struct local_op_ref e1_0_opics[] = { { .oid =  8, .cid =  9 }, };
+	struct local_op_ref e1_1_opics[] = { { .oid =  9, .cid =  2 }, };
+	struct local_op_ref e1_2_opics[] = { { .oid = 10, .cid = 14 }, { .oid = 11, .cid =  4 }, };
 	int e1_0_vids[] = { 0 };
 	int e1_1_vids[] = { 1 };
 	int e1_2_vids[] = { 0 };
@@ -136,17 +136,17 @@ char* test_ttno_from_graph()
 		{ .vids = e1_1_vids, .order = ARRLEN(e1_1_vids), .opics = e1_1_opics, .nopics = ARRLEN(e1_1_opics) },
 		{ .vids = e1_2_vids, .order = ARRLEN(e1_2_vids), .opics = e1_2_opics, .nopics = ARRLEN(e1_2_opics) },
 	};
-	struct local_op_ref e2_0_opics[] = { { .oid = 12, .coeff =  0.4 }, };
-	struct local_op_ref e2_1_opics[] = { { .oid = 13, .coeff = -1.3 }, };
+	struct local_op_ref e2_0_opics[] = { { .oid = 12, .cid = 10 }, };
+	struct local_op_ref e2_1_opics[] = { { .oid = 13, .cid =  6 }, };
 	int e2_0_vids[] = { 1 };
 	int e2_1_vids[] = { 0 };
 	struct ttno_graph_hyperedge el2[] = {
 		{ .vids = e2_0_vids, .order = ARRLEN(e2_0_vids), .opics = e2_0_opics, .nopics = ARRLEN(e2_0_opics) },
 		{ .vids = e2_1_vids, .order = ARRLEN(e2_1_vids), .opics = e2_1_opics, .nopics = ARRLEN(e2_1_opics) },
 	};
-	struct local_op_ref e3_0_opics[] = { { .oid = 14, .coeff =  0.5 }, };
-	struct local_op_ref e3_1_opics[] = { { .oid = 10, .coeff =  1.8 }, };
-	struct local_op_ref e3_2_opics[] = { { .oid = 15, .coeff = -0.1 }, { .oid = 16, .coeff = -0.9 }, };
+	struct local_op_ref e3_0_opics[] = { { .oid = 14, .cid = 15 }, };
+	struct local_op_ref e3_1_opics[] = { { .oid = 10, .cid = 13 }, };
+	struct local_op_ref e3_2_opics[] = { { .oid = 15, .cid =  3 }, { .oid = 16, .cid = 20 }, };
 	int e3_0_vids[] = { 1, 0, 0, 0 };
 	int e3_1_vids[] = { 0, 1, 1, 0 };
 	int e3_2_vids[] = { 0, 1, 1, 0 };
@@ -155,23 +155,23 @@ char* test_ttno_from_graph()
 		{ .vids = e3_1_vids, .order = ARRLEN(e3_1_vids), .opics = e3_1_opics, .nopics = ARRLEN(e3_1_opics) },
 		{ .vids = e3_2_vids, .order = ARRLEN(e3_2_vids), .opics = e3_2_opics, .nopics = ARRLEN(e3_2_opics) },
 	};
-	struct local_op_ref e4_0_opics[] = { { .oid = 17, .coeff = -0.3 }, };
-	struct local_op_ref e4_1_opics[] = { { .oid = 14, .coeff =  0.7 }, };
+	struct local_op_ref e4_0_opics[] = { { .oid = 17, .cid =  8 }, };
+	struct local_op_ref e4_1_opics[] = { { .oid = 14, .cid = 11 }, };
 	int e4_0_vids[] = { 0 };
 	int e4_1_vids[] = { 1 };
 	struct ttno_graph_hyperedge el4[] = {
 		{ .vids = e4_0_vids, .order = ARRLEN(e4_0_vids), .opics = e4_0_opics, .nopics = ARRLEN(e4_0_opics) },
 		{ .vids = e4_1_vids, .order = ARRLEN(e4_1_vids), .opics = e4_1_opics, .nopics = ARRLEN(e4_1_opics) },
 	};
-	struct local_op_ref e5_0_opics[] = { { .oid = 18, .coeff =  1.0 }, { .oid = 19, .coeff = -0.4 }, { .oid = 20, .coeff =  0.7 }, };
+	struct local_op_ref e5_0_opics[] = { { .oid = 18, .cid =  1 }, { .oid = 19, .cid = 18 }, { .oid = 20, .cid = 11 }, };
 	int e5_0_vids[] = { 0 };
 	struct ttno_graph_hyperedge el5[] = {
 		{ .vids = e5_0_vids, .order = ARRLEN(e5_0_vids), .opics = e5_0_opics, .nopics = ARRLEN(e5_0_opics) },
 	};
-	struct local_op_ref e6_0_opics[] = { { .oid = 21, .coeff =  0.5 }, };
-	struct local_op_ref e6_1_opics[] = { { .oid = 22, .coeff =  0.3 }, };
-	struct local_op_ref e6_2_opics[] = { { .oid = 23, .coeff = -0.2 }, { .oid = 17, .coeff =  0.9 }, };
-	struct local_op_ref e6_3_opics[] = { { .oid = 24, .coeff = -1.4 }, };
+	struct local_op_ref e6_0_opics[] = { { .oid = 21, .cid = 15 }, };
+	struct local_op_ref e6_1_opics[] = { { .oid = 22, .cid = 17 }, };
+	struct local_op_ref e6_2_opics[] = { { .oid = 23, .cid =  5 }, { .oid = 17, .cid = 16 }, };
+	struct local_op_ref e6_3_opics[] = { { .oid = 24, .cid = 19 }, };
 	int e6_0_vids[] = { 1 };
 	int e6_1_vids[] = { 0 };
 	int e6_2_vids[] = { 2 };
@@ -222,9 +222,12 @@ char* test_ttno_from_graph()
 	}
 	delete_dense_tensor(&opmap_tensor);
 
+	// coefficient map; first two entries must always be 0 and 1
+	const double coeffmap[] = { 0, 1, -0.7, -0.1, 0.8, -0.2, -1.3, -1.2, -0.3, 0.6, 0.4, 0.7, -1.1, 1.8, 0.2, 0.5, 0.9, 0.3, -0.4, -1.4, -0.9, };
+
 	// construct a TTNO from a TTNO graph
 	struct ttno ttno;
-	ttno_from_graph(DOUBLE_REAL, d, qsite, &graph, opmap, &ttno);
+	ttno_from_graph(DOUBLE_REAL, d, qsite, &graph, opmap, coeffmap, &ttno);
 
 	if (!ttno_is_consistent(&ttno)) {
 		return "internal TTNO consistency check failed";
@@ -239,7 +242,7 @@ char* test_ttno_from_graph()
 
 	// convert TTNO graph to a (dense) matrix, as reference
 	struct dense_tensor mat_ref;
-	ttno_graph_to_matrix(&graph, opmap, &mat_ref);
+	ttno_graph_to_matrix(&graph, opmap, coeffmap, &mat_ref);
 
 	// compare
 	if (!dense_tensor_allclose(&mat_dns, &mat_ref, 1e-13)) {

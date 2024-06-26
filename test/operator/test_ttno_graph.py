@@ -19,20 +19,23 @@ def ttno_graph_from_opchains_data():
     nsites = 8
 
     # identity operator ID
-    oid_identity = 5
+    oid_identity = 0
     # number of local operators
     num_local_ops = 18
 
+    coeffmap = np.concatenate((np.array([0., 1.]), ptn.crandn(7, rng)))
+
+    cids = [5, 8, 7, 4, 3, 2, 3, 6, 4]
     chains = [  #     0   1   2   3   4   5   6   7       0   1   2   3   4   5   6   7
-        ptn.OpChain([         6,  9,  0, 15        ], [         0, -1, -1,  1,  0        ], rng.standard_normal(), 2),
-        ptn.OpChain([ 8, 16,  2, 11,  3            ], [ 0, -1,  1,  2,  1,  0            ], rng.standard_normal(), 0),
-        ptn.OpChain([        10,  1,  9            ], [         0,  1,  0,  0            ], rng.standard_normal(), 2),
-        ptn.OpChain([             9,  7, 13, 12,  1], [             0,  0, -1, -1,  1,  0], rng.standard_normal(), 3),
-        ptn.OpChain([     5, 17,  4,  7            ], [     0,  0,  1,  1,  0            ], rng.standard_normal(), 1),
-        ptn.OpChain([15, 14                        ], [ 0, -1,  0                        ], rng.standard_normal(), 0),
-        ptn.OpChain([     9,  2,  1                ], [     0,  0,  1,  0                ], rng.standard_normal(), 1),
-        ptn.OpChain([ 7,  5,  5,  5, 14,  5,  9    ], [ 0, -1, -1, -1, -1,  0,  0,  0    ], rng.standard_normal(), 0),
-        ptn.OpChain([                10,  5,  7    ], [                 0,  1,  1,  0    ], rng.standard_normal(), 4),
+        ptn.OpChain([         6,  9,  5, 15        ], [         0, -1, -1,  1,  0        ], coeffmap[cids[0]], 2),
+        ptn.OpChain([ 8, 16,  2, 11,  3            ], [ 0, -1,  1,  2,  1,  0            ], coeffmap[cids[1]], 0),
+        ptn.OpChain([        10,  1,  9            ], [         0,  1,  0,  0            ], coeffmap[cids[2]], 2),
+        ptn.OpChain([             9,  7, 13, 12,  1], [             0,  0, -1, -1,  1,  0], coeffmap[cids[3]], 3),
+        ptn.OpChain([     0, 17,  4,  7            ], [     0,  0,  1,  1,  0            ], coeffmap[cids[4]], 1),
+        ptn.OpChain([15, 14                        ], [ 0, -1,  0                        ], coeffmap[cids[5]], 0),
+        ptn.OpChain([     9,  2,  1                ], [     0,  0,  1,  0                ], coeffmap[cids[6]], 1),
+        ptn.OpChain([ 7,  0,  0,  0, 14,  0,  9    ], [ 0, -1, -1, -1, -1,  0,  0,  0    ], coeffmap[cids[7]], 0),
+        ptn.OpChain([                10,  0,  7    ], [                 0,  1,  1,  0    ], coeffmap[cids[8]], 4),
     ]
 
     graph = ptn.OpGraph.from_opchains(chains, nsites, oid_identity)
@@ -75,9 +78,10 @@ def ttno_graph_from_opchains_data():
             file.attrs[f"/chain{i}/length"] = chain.length
             file.attrs[f"/chain{i}/oids"]   = chain.oids
             file.attrs[f"/chain{i}/qnums"]  = chain.qnums
-            file.attrs[f"/chain{i}/coeff"]  = chain.coeff
+            file.attrs[f"/chain{i}/cid"]    = cids[i]
             file.attrs[f"/chain{i}/istart"] = chain.istart
-        file["opmap"] = interleave_complex(np.array(opmap))
+        file["opmap"]    = interleave_complex(np.array(opmap))
+        file["coeffmap"] = interleave_complex(coeffmap)
         file.attrs["rank_046_12357"] = rank_046_12357
         file.attrs["rank_17_023456"] = rank_17_023456
         # note: local operators opmap[2], opmap[10], opmap[17] acting on site 2

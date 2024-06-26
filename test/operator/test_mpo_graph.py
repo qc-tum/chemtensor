@@ -12,20 +12,23 @@ def mpo_graph_from_opchains_basic_data():
     rng = np.random.default_rng(162)
 
     # identity operator ID
-    oid_identity = 11
+    oid_identity = 0
 
 	# local physical dimension
     d = 3
 	# number of sites
     nsites = 5
 
-    chains = [
-        ptn.OpChain([10,  8,  6,  3,  1], [ 0,  1, -1,  0, -1,  1],  3.2, 0),
-        ptn.OpChain([     9,  6,  3,  1], [     0, -1,  0, -1,  1], -0.7, 1),
-        ptn.OpChain([10,  8,  7,  4,  1], [ 0,  1, -1,  1, -1,  1],  1.3, 0),
-        ptn.OpChain([     9,  7,  4,  1], [     0, -1,  1, -1,  1],  2.7, 1),
-        ptn.OpChain([10,  8,  7,  5,  2], [ 0,  1, -1,  1,  0,  1], -1.8, 0),
-        ptn.OpChain([     9,  7,  5,  2], [     0, -1,  1,  0,  1],  0.2, 1),
+    coeffmap = np.array([0, 1, -0.7 + 0.1j, -1.8 + 0.5j, 3.2 - 1.1j, 1.3 + 0.4j, 0.2 - 0.3j])
+
+    cids = [4, 2, 5, 4, 3, 6]
+    chains = [  #     0   1   2   3   4       0   1   2   3   4
+        ptn.OpChain([10,  8,  6,  3,  1], [ 0,  1, -1,  0, -1,  1], coeffmap[cids[0]], 0),
+        ptn.OpChain([     9,  6,  3,  1], [     0, -1,  0, -1,  1], coeffmap[cids[1]], 1),
+        ptn.OpChain([10,  8,  7,  4,  1], [ 0,  1, -1,  1, -1,  1], coeffmap[cids[2]], 0),
+        ptn.OpChain([     9,  7,  4,  1], [     0, -1,  1, -1,  1], coeffmap[cids[3]], 1),
+        ptn.OpChain([10,  8,  7,  5,  2], [ 0,  1, -1,  1,  0,  1], coeffmap[cids[4]], 0),
+        ptn.OpChain([     9,  7,  5,  2], [     0, -1,  1,  0,  1], coeffmap[cids[5]], 1),
     ]
 
     # random local operators (ignoring quantum numbers)
@@ -82,16 +85,18 @@ def mpo_graph_from_opchains_advanced_data():
     # identity operator ID
     oid_identity = 0
 
-    chains = []
-    for _ in range(7):
-        # construct randomized operator chain
-        istart = rng.integers(0, 3)
-        length = rng.integers(1, nsites - istart + 1)
-        oids   = rng.integers(1, 17, size=length)  # exclude identity ID to avoid incompatibility with sparsity pattern
-        coeff  = rng.standard_normal()
-        qnums  = [0] + list(rng.integers(-1, 2, size=length-1)) + [0]
-        chain = ptn.OpChain(oids, qnums, coeff, istart)
-        chains.append(chain)
+    coeffmap = np.concatenate((np.array([0., 1.]), ptn.crandn(6, rng))).astype(np.complex64)
+
+    cids = [4, 3, 6, 1, 4, 7, 2]
+    chains = [  #     0   1   2   3   4       0   1   2   3   4
+        ptn.OpChain([ 1,  4, 10,  8    ], [ 0, -1, -1,  0,  0    ], coeffmap[cids[0]], 0),
+        ptn.OpChain([ 2                ], [ 0,  0                ], coeffmap[cids[1]], 0),
+        ptn.OpChain([    12,  9,  6,  6], [     0,  1,  0,  0,  0], coeffmap[cids[2]], 1),
+        ptn.OpChain([ 2,  5,  7,  0, 11], [ 0,  0, -1,  1,  1,  0], coeffmap[cids[3]], 0),
+        ptn.OpChain([    14,  3        ], [     0, -1,  0        ], coeffmap[cids[4]], 1),
+        ptn.OpChain([         2        ], [         0,  0        ], coeffmap[cids[5]], 2),
+        ptn.OpChain([     1, 10        ], [     0, -1,  0        ], coeffmap[cids[6]], 1),
+    ]
 
     graph = ptn.OpGraph.from_opchains(chains, nsites, oid_identity)
     assert graph.is_consistent()
@@ -106,6 +111,9 @@ def mpo_graph_from_opchains_advanced_data():
             qDloc = chain.qnums[i:i+2]
             mask = ptn.qnumber_outer_sum([qd, -qd, [qDloc[0]], [-qDloc[1]]])[:, :, 0, 0]
             opmap[opid] = np.where(mask == 0, opmap[opid], 0)
+    # sparsity pattern should not lead to zero operators
+    for op in opmap:
+        assert np.linalg.norm(op) > 0
 
     # reference matrix representation of operator chains
     mat_ref = 0
@@ -127,10 +135,10 @@ def mpo_graph_from_opchains_advanced_data():
             file.attrs[f"/chain{i}/length"] = chain.length
             file.attrs[f"/chain{i}/oids"]   = chain.oids
             file.attrs[f"/chain{i}/qnums"]  = chain.qnums
-            file.attrs[f"/chain{i}/coeff"]  = chain.coeff
+            file.attrs[f"/chain{i}/cid"]    = cids[i]
             file.attrs[f"/chain{i}/istart"] = chain.istart
-        file["opmap"] = interleave_complex(np.array(opmap))
-        file["mat"]   = interleave_complex(mat_ref)
+        file["opmap"]    = interleave_complex(np.array(opmap))
+        file["coeffmap"] = interleave_complex(coeffmap)
         file.attrs["bond_dims"] = mpo.bond_dims
 
 

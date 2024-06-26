@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include "op_chain.h"
+#include "local_op.h"
 #include "aligned_memory.h"
 
 
@@ -16,7 +17,7 @@ void allocate_op_chain(const int length, struct op_chain* chain)
 	chain->oids   = aligned_calloc(MEM_DATA_ALIGN, length, sizeof(int));
 	chain->qnums  = aligned_calloc(MEM_DATA_ALIGN, length + 1, sizeof(qnumber));  // includes a leading and trailing quantum number
 	chain->length = length;
-	chain->coeff  = 1;  // initialize coefficient by default value 1
+	chain->cid    = CID_ONE;  // initialize coefficient by default value 1
 	chain->istart = 0;
 }
 
@@ -39,26 +40,20 @@ void delete_op_chain(struct op_chain* chain)
 ///
 /// \brief Construct a new operator chain with identities padded on the left and right.
 ///
-void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, const int oid_identity, struct op_chain* restrict pad_chain)
+void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, struct op_chain* restrict pad_chain)
 {
 	assert(new_length >= chain->istart + chain->length);
 
 	// initial operator IDs and quantum numbers are set to 0
 	allocate_op_chain(new_length, pad_chain);
 
-	// operator IDs
-	for (int i = 0; i < chain->istart; i++) {
-		pad_chain->oids[i] = oid_identity;
-	}
+	// using that OID_IDENTITY == 0 for leading and trailing operator IDs
 	memcpy(pad_chain->oids + chain->istart, chain->oids, chain->length * sizeof(int));
-	for (int i = chain->istart + chain->length; i < new_length; i++) {
-		pad_chain->oids[i] = oid_identity;
-	}
 
 	// quantum numbers
 	memcpy(pad_chain->qnums + chain->istart, chain->qnums, (chain->length + 1) * sizeof(qnumber));
 
-	pad_chain->coeff = chain->coeff;
+	pad_chain->cid = chain->cid;
 
 	pad_chain->istart = 0;
 }
@@ -68,7 +63,7 @@ void op_chain_pad_identities(const struct op_chain* restrict chain, const int ne
 ///
 /// \brief Construct the full matrix representation of the operator chain.
 ///
-void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* a)
+void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a)
 {
 	assert(d >= 1);
 
@@ -77,13 +72,37 @@ void op_chain_to_matrix(const struct op_chain* chain, const long d, const int ns
 	const long dim0[2] = { d0, d0 };
 	allocate_dense_tensor(dtype, 2, dim0, a);
 	dense_tensor_set_identity(a);
-	if (dtype == SINGLE_REAL || dtype == SINGLE_COMPLEX) {
-		float alpha = (float)chain->coeff;
-		rscale_dense_tensor(&alpha, a);
-	}
-	else {
-		assert(dtype == DOUBLE_REAL || dtype == DOUBLE_COMPLEX);
-		rscale_dense_tensor(&chain->coeff, a);
+	switch (dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* cmap = coeffmap;
+			scale_dense_tensor(&cmap[chain->cid], a);
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* cmap = coeffmap;
+			scale_dense_tensor(&cmap[chain->cid], a);
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* cmap = coeffmap;
+			scale_dense_tensor(&cmap[chain->cid], a);
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* cmap = coeffmap;
+			scale_dense_tensor(&cmap[chain->cid], a);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
 	}
 
 	for (int l = 0; l < chain->length; l++)

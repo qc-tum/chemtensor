@@ -36,12 +36,14 @@ void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d,
 ///
 /// \brief Construct an MPO from an MPO graph.
 ///
-void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, struct mpo* mpo)
+void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct mpo* mpo)
 {
 	assert(graph->nsites >= 1);
 	assert(d >= 1);
 	mpo->nsites = graph->nsites;
 	mpo->d = d;
+
+	assert(coefficient_map_is_valid(dtype, coeffmap));
 
 	mpo->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
 	memcpy(mpo->qsite, qsite, d * sizeof(qnumber));
@@ -59,7 +61,7 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 		{
 			const struct mpo_graph_edge* edge = &graph->edges[l][i];
 			struct dense_tensor op;
-			construct_local_operator(edge->opics, edge->nopics, opmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);

@@ -235,8 +235,8 @@ static hash_type u_node_hash_func(const void* n)
 ///
 struct weighted_edge
 {
-	int i, j;      //!< indices
-	double coeff;  //!< coefficient
+	int i, j;  //!< indices
+	int cid;   //!< coefficient index
 };
 
 
@@ -248,7 +248,7 @@ struct site_halfchain_partition
 {
 	struct u_node*       ulist;  //!< array of 'U' nodes
 	struct op_halfchain* vlist;  //!< array of 'V' half-chains
-	double* gamma;               //!< matrix of gamma coefficients, of dimension 'num_u x num_v'
+	int* gamma;                  //!< matrix of gamma coefficient indices, of dimension 'num_u x num_v'
 	int num_u;                   //!< number of 'U' nodes
 	int num_v;                   //!< number of 'V' half-chains
 };
@@ -273,7 +273,7 @@ static void delete_site_halfchain_partition(struct site_halfchain_partition* par
 ///
 /// \brief Repartition half-chains after splitting off the local operators acting on the leftmost site.
 ///
-static void site_partition_halfchains(const struct op_halfchain* chains, const double* coeffs, const int nchains, struct site_halfchain_partition* partition)
+static void site_partition_halfchains(const struct op_halfchain* chains, const int* cids, const int nchains, struct site_halfchain_partition* partition)
 {
 	memset(partition, 0, sizeof(struct site_halfchain_partition));
 	// upper bound on required memory
@@ -334,21 +334,23 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const d
 			assert(*j < partition->num_v);
 		}
 
-		// record gamma coefficient
+		// record gamma coefficient index
 		struct weighted_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct weighted_edge));
 		edge->i = (*i);
 		edge->j = (*j);
-		edge->coeff = coeffs[k];
+		edge->cid = cids[k];
 		linked_list_append(&gamma_list, edge);
 	}
 
 	// copy entries into final gamma matrix
-	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->num_v, sizeof(double));
+	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->num_v, sizeof(int));  // using that CID_ZERO == 0
 	struct linked_list_node* node = gamma_list.head;
 	while (node != NULL)
 	{
 		const struct weighted_edge* edge = node->data;
-		partition->gamma[edge->i*partition->num_v + edge->j] += edge->coeff;
+		// half-chains must be unique; if gamma coefficient index has been set, an input half-chain appeared twice
+		assert(partition->gamma[edge->i*partition->num_v + edge->j] == CID_ZERO);
+		partition->gamma[edge->i*partition->num_v + edge->j] = edge->cid;
 		node = node->next;
 	}
 	delete_linked_list(&gamma_list, aligned_free);
@@ -360,17 +362,86 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const d
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Comparison function for sorting.
+///
+static int compare_hashes(const void* a, const void* b)
+{
+	const hash_type x = *((hash_type*)a);
+	const hash_type y = *((hash_type*)b);
+
+	if (x < y) {
+		return -1;
+	}
+	else if (x == y) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Construct an MPO operator graph from a list of operator chains, implementing the algorithm in:
 ///   Jiajun Ren, Weitang Li, Tong Jiang, Zhigang Shuai
 ///   A general automatic method for optimal construction of matrix product operators using bipartite graph theory
 ///   J. Chem. Phys. 153, 084118 (2020)
 ///
-void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites, const int oid_identity, struct mpo_graph* mpo_graph)
+int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites, struct mpo_graph* mpo_graph)
 {
 	// need at least one site
 	assert(nsites > 0);
 	// list of operator chains cannot be empty
 	assert(nchains > 0);
+
+	// pad identities and filter out chains with zero coefficients
+	int nhalfchains = 0;
+	struct op_chain* chains_full = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_chain));
+	for (int k = 0; k < nchains; k++)
+	{
+		if (chains[k].cid != CID_ZERO)
+		{
+			op_chain_pad_identities(&chains[k], nsites, &chains_full[nhalfchains]);
+			assert(chains_full[nhalfchains].length == nsites);
+			nhalfchains++;
+		}
+	}
+	// require at least one non-zero half-chain
+	assert(nhalfchains > 0);
+
+	// convert to half-chains and add a dummy identity operator
+	struct op_halfchain* vlist_next = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(struct op_halfchain));
+	int* cids_next                  = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(int));
+	hash_type* halfchain_hashes     = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(hash_type));
+	for (int k = 0; k < nhalfchains; k++)
+	{
+		// dummy identity operator at the end
+		allocate_op_halfchain(chains_full[k].length + 1, &vlist_next[k]);
+		memcpy(vlist_next[k].oids,  chains_full[k].oids,   chains_full[k].length      * sizeof(int));
+		memcpy(vlist_next[k].qnums, chains_full[k].qnums, (chains_full[k].length + 1) * sizeof(qnumber));
+		vlist_next[k].oids[chains_full[k].length] = OID_IDENTITY;
+		vlist_next[k].vidl = 0;
+
+		cids_next[k] = chains_full[k].cid;
+
+		halfchain_hashes[k] = op_halfchain_hash_func(&vlist_next[k]);
+	}
+
+	for (int k = 0; k < nhalfchains; k++) {
+		delete_op_chain(&chains_full[k]);
+	}
+	aligned_free(chains_full);
+
+	// half-chains must be unique (to avoid repeated bipartite graph edges)
+	qsort(halfchain_hashes, nhalfchains, sizeof(hash_type), compare_hashes);
+	for (int k = 0; k < nhalfchains - 1; k++) {
+		if (halfchain_hashes[k] == halfchain_hashes[k + 1]) {
+			fprintf(stderr, "operator chains input to 'mpo_graph_from_opchains' are most likely not unique\n");
+			return -1;
+		}
+	}
+	aligned_free(halfchain_hashes);
 
 	mpo_graph->nsites = nsites;
 	mpo_graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
@@ -381,52 +452,17 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	mpo_graph->num_verts[0] = 1;
 	mpo_graph->verts[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct mpo_graph_vertex));
 
-	// pad identities and filter out chains with zero coefficients
-	int nhalfchains = 0;
-	struct op_chain* chains_full = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_chain));
-	for (int k = 0; k < nchains; k++)
-	{
-		if (chains[k].coeff != 0)
-		{
-			op_chain_pad_identities(&chains[k], nsites, oid_identity, &chains_full[nhalfchains]);
-			assert(chains_full[nhalfchains].length == nsites);
-			nhalfchains++;
-		}
-	}
-	// require at least one non-zero half-chain
-	assert(nhalfchains > 0);
-
-	// convert to half-chains and add a dummy identity operator
-	struct op_halfchain* vlist_next = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(struct op_halfchain));
-	double* coeffs_next             = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(double));
-	for (int k = 0; k < nhalfchains; k++)
-	{
-		// dummy identity operator at the end
-		allocate_op_halfchain(chains_full[k].length + 1, &vlist_next[k]);
-		memcpy(vlist_next[k].oids,  chains_full[k].oids,   chains_full[k].length      * sizeof(int));
-		memcpy(vlist_next[k].qnums, chains_full[k].qnums, (chains_full[k].length + 1) * sizeof(qnumber));
-		vlist_next[k].oids[chains_full[k].length] = oid_identity;
-		vlist_next[k].vidl = 0;
-
-		coeffs_next[k] = chains_full[k].coeff;
-	}
-
-	for (int k = 0; k < nhalfchains; k++) {
-		delete_op_chain(&chains_full[k]);
-	}
-	aligned_free(chains_full);
-
 	// sweep from left to right
 	for (int l = 0; l < nsites; l++)
 	{
 		struct site_halfchain_partition partition;
-		site_partition_halfchains(vlist_next, coeffs_next, nhalfchains, &partition);
+		site_partition_halfchains(vlist_next, cids_next, nhalfchains, &partition);
 
 		// extract edges
 		int nedges = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.num_v; j++) {
-				if (partition.gamma[i*partition.num_v + j] != 0) {
+				if (partition.gamma[i*partition.num_v + j] != CID_ZERO) {
 					nedges++;
 				}
 			}
@@ -435,7 +471,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		int c = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.num_v; j++) {
-				if (partition.gamma[i*partition.num_v + j] != 0) {
+				if (partition.gamma[i*partition.num_v + j] != CID_ZERO) {
 					edges[c].u = i;
 					edges[c].v = j;
 					c++;
@@ -470,7 +506,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 		}
 
-		aligned_free(coeffs_next);
+		aligned_free(cids_next);
 		for (int k = 0; k < nhalfchains; k++) {
 			delete_op_halfchain(&vlist_next[k]);
 		}
@@ -478,8 +514,8 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		nhalfchains = 0;
 
 		// allocate memory for next iteration, using bipartite graph 'nedges' as upper bound for number of required half-chains
-		vlist_next  = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct op_halfchain));
-		coeffs_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(double));
+		vlist_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct op_halfchain));
+		cids_next  = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(int));
 
 		// using bipartite graph 'nedges' as upper bound for number of required MPO graph edges
 		mpo_graph->edges[l] = aligned_calloc(MEM_DATA_ALIGN, nedges, sizeof(struct mpo_graph_edge));
@@ -503,7 +539,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			allocate_mpo_graph_edge(1, edge);
 			edge->vids[0] = u->vidl;
 			edge->opics[0].oid = u->oid;
-			edge->opics[0].coeff = 1;
+			edge->opics[0].cid = CID_ONE;
 			// connect edge to previous vertex
 			mpo_graph_vertex_add_edge(1, ce, &mpo_graph->verts[l][u->vidl]);
 
@@ -521,11 +557,11 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				assert(partition.vlist[j].length == nsites - l);
 				copy_op_halfchain(&partition.vlist[j], &vlist_next[nhalfchains]);
 				vlist_next[nhalfchains].vidl = cv;
-				// pass gamma coefficient
-				coeffs_next[nhalfchains] = partition.gamma[i*partition.num_v + j];
+				// pass gamma coefficient index
+				cids_next[nhalfchains] = partition.gamma[i*partition.num_v + j];
 				nhalfchains++;
 				// avoid double-counting
-				partition.gamma[i*partition.num_v + j] = 0;
+				partition.gamma[i*partition.num_v + j] = CID_ZERO;
 			}
 
 			ce++;
@@ -546,7 +582,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			assert(partition.vlist[j].length == nsites - l);
 			copy_op_halfchain(&partition.vlist[j], &vlist_next[nhalfchains]);
 			vlist_next[nhalfchains].vidl = cv;
-			coeffs_next[nhalfchains] = 1;
+			cids_next[nhalfchains] = CID_ONE;
 			nhalfchains++;
 
 			// create a "complementary operator"
@@ -554,7 +590,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			{
 				int i = bigraph.adj_v[j][k];
 
-				if (partition.gamma[i*partition.num_v + j] == 0) {
+				if (partition.gamma[i*partition.num_v + j] == CID_ZERO) {
 					continue;
 				}
 
@@ -566,9 +602,9 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				edge->vids[0] = u->vidl;
 				edge->vids[1] = cv;
 				edge->opics[0].oid = u->oid;
-				edge->opics[0].coeff = partition.gamma[i*partition.num_v + j];
+				edge->opics[0].cid = partition.gamma[i*partition.num_v + j];
 				// keep track of handled edges
-				partition.gamma[i*partition.num_v + j] = 0;
+				partition.gamma[i*partition.num_v + j] = CID_ZERO;
 				// connect edge to previous vertex
 				mpo_graph_vertex_add_edge(1, ce, &mpo_graph->verts[l][u->vidl]);
 				assert(mpo_graph->verts[l][u->vidl].qnum == u->qnum0);
@@ -583,7 +619,7 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		// ensure that we have handled all edges
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.num_v; j++) {
-				assert(partition.gamma[i*partition.num_v + j] == 0);
+				assert(partition.gamma[i*partition.num_v + j] == CID_ZERO);
 			}
 		}
 
@@ -602,13 +638,15 @@ void mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 
 	// dummy trailing half-chain
 	assert(nhalfchains == 1);
-	assert(coeffs_next[0] == 1);
-	aligned_free(coeffs_next);
+	assert(cids_next[0] == CID_ONE);
+	aligned_free(cids_next);
 	for (int k = 0; k < nhalfchains; k++) {
 		delete_op_halfchain(&vlist_next[k]);
 	}
 	aligned_free(vlist_next);
 	nhalfchains = 0;
+
+	return 0;
 }
 
 
@@ -718,12 +756,14 @@ bool mpo_graph_is_consistent(const struct mpo_graph* mpo_graph)
 ///
 /// \brief Construct the full matrix representation of the MPO graph.
 ///
-void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const enum numeric_type dtype, struct dense_tensor* mat)
+void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* mat)
 {
 	const int nsites = mpo_graph->nsites;
 	assert(nsites >= 1);
 	assert(mpo_graph->num_verts[0]      == 1);
 	assert(mpo_graph->num_verts[nsites] == 1);
+
+	assert(coefficient_map_is_valid(dtype, coeffmap));
 
 	struct dense_tensor* blocks[2];
 
@@ -748,7 +788,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 				assert(edge->vids[1] == i);
 
 				struct dense_tensor op;
-				construct_local_operator(edge->opics, edge->nopics, opmap, &op);
+				construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 
 				// ensure that left-connected vertex index is valid
 				assert(0 <= edge->vids[0] && edge->vids[0] < mpo_graph->num_verts[l]);

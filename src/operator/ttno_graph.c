@@ -312,7 +312,7 @@ static int construct_vid_index_map(const struct abstract_graph* topology, const 
 ///
 /// \brief Construct an operator cluster assembly from a list of operator chains.
 ///
-static int cluster_assembly_from_opchains(const struct op_chain* chains, const int nchains, const int oid_identity, const struct abstract_graph* topology, struct op_cluster_assembly* assembly, double* restrict coeffs)
+static int cluster_assembly_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct op_cluster_assembly* assembly, int* restrict cids)
 {
 	// need at least one site
 	assert(topology->num_nodes >= 1);
@@ -366,13 +366,13 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 	for (int k = 0; k < nchains; k++)
 	{
 		// filter out chains with zero coefficients
-		if (chains[k].coeff == 0) {
+		if (chains[k].cid == CID_ZERO) {
 			continue;
 		}
 
 		// pad identities
 		struct op_chain pad_chain;
-		op_chain_pad_identities(&chains[k], nsites, oid_identity, &pad_chain);
+		op_chain_pad_identities(&chains[k], nsites, &pad_chain);
 		assert(pad_chain.length == nsites);
 		// require zero leading and trailing quantum numbers
 		assert(pad_chain.qnums[0] == 0 && pad_chain.qnums[nsites] == 0);
@@ -404,8 +404,8 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 		assembly->clusters[c].vids = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));  // allocate a dummy block
 		assembly->clusters[c].nverts = 0;
 
-		// record coefficient
-		coeffs[c] = pad_chain.coeff;
+		// record coefficient index
+		cids[c] = pad_chain.cid;
 
 		c++;
 
@@ -529,8 +529,8 @@ static hash_type u_node_hash_func(const void* n)
 ///
 struct weighted_edge
 {
-	int i, j;      //!< indices
-	double coeff;  //!< coefficient
+	int i, j;  //!< indices
+	int cid;   //!< coefficient index
 };
 
 
@@ -543,7 +543,7 @@ struct site_cluster_partition
 	struct u_node* ulist;                      //!< array of 'U' nodes
 	int num_u;                                 //!< number of 'U' nodes
 	struct op_cluster_assembly part_assembly;  //!< operator cluster assembly on subset of sites
-	double* gamma;                             //!< matrix of gamma coefficients, of dimension 'num U x num V'
+	int* gamma;                                //!< matrix of gamma coefficient indices, of dimension 'num U x num V'
 };
 
 
@@ -566,7 +566,7 @@ static void delete_site_cluster_partition(struct site_cluster_partition* partiti
 ///
 /// \brief Repartition operator clusters after splitting off the local operators acting on a single site.
 ///
-static void site_partition_clusters(const struct op_cluster_assembly* assembly, const double* coeffs, const int i_site, struct site_cluster_partition* partition)
+static void site_partition_clusters(const struct op_cluster_assembly* assembly, const int* cids, const int i_site, struct site_cluster_partition* partition)
 {
 	// must be an active site
 	assert(assembly->active_sites[i_site]);
@@ -708,27 +708,50 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 			assert(*j < partition->part_assembly.nclusters);
 		}
 
-		// record gamma coefficient
+		// record gamma coefficient index
 		struct weighted_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct weighted_edge));
 		edge->i = (*i);
 		edge->j = (*j);
-		edge->coeff = coeffs[m];
+		edge->cid = cids[m];
 		linked_list_append(&gamma_list, edge);
 	}
 
 	// copy entries into final gamma matrix
-	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->part_assembly.nclusters, sizeof(double));
+	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->part_assembly.nclusters, sizeof(int));
 	struct linked_list_node* node = gamma_list.head;
 	while (node != NULL)
 	{
 		const struct weighted_edge* edge = node->data;
-		partition->gamma[edge->i*partition->part_assembly.nclusters + edge->j] += edge->coeff;
+		// clusters must be unique; if gamma coefficient index has been set, an input cluster appeared twice
+		assert(partition->gamma[edge->i*partition->part_assembly.nclusters + edge->j] == CID_ZERO);
+		partition->gamma[edge->i*partition->part_assembly.nclusters + edge->j] = edge->cid;
 		node = node->next;
 	}
 	delete_linked_list(&gamma_list, aligned_free);
 
 	delete_hash_table(&v_ht, aligned_free);
 	delete_hash_table(&u_ht, aligned_free);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function for sorting.
+///
+static int compare_hashes(const void* a, const void* b)
+{
+	const hash_type x = *((hash_type*)a);
+	const hash_type y = *((hash_type*)b);
+
+	if (x < y) {
+		return -1;
+	}
+	else if (x == y) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
 }
 
 
@@ -799,7 +822,7 @@ static void enumerate_site_distance_tuples(const struct abstract_graph* topology
 ///
 /// \brief Construct a TTNO operator graph from a list of operator chains.
 ///
-int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, const int oid_identity, struct ttno_graph* ttno_graph)
+int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct ttno_graph* ttno_graph)
 {
 	// need at least one site
 	assert(topology->num_nodes > 0);
@@ -810,19 +833,33 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 
 	const int nsites = topology->num_nodes;
 
+	// initial operator cluster assembly
+	struct op_cluster_assembly assembly;
+	int* cids_next = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(int));
+	if (cluster_assembly_from_opchains(chains, nchains, topology, &assembly, cids_next) < 0) {
+		return -1;
+	}
+
+	// clusters must be unique (to avoid repeated bipartite graph edges)
+	hash_type* cluster_hashes = aligned_alloc(MEM_DATA_ALIGN, assembly.nclusters * sizeof(hash_type));
+	for (int k = 0; k < assembly.nclusters; k++) {
+		cluster_hashes[k] = op_cluster_hash_func(&assembly.clusters[k]);
+	}
+	qsort(cluster_hashes, assembly.nclusters, sizeof(hash_type), compare_hashes);
+	for (int k = 0; k < assembly.nclusters - 1; k++) {
+		if (cluster_hashes[k] == cluster_hashes[k + 1]) {
+			fprintf(stderr, "operator chains input to 'ttno_graph_from_opchains' are most likely not unique\n");
+			return -2;
+		}
+	}
+	aligned_free(cluster_hashes);
+
 	copy_abstract_graph(topology, &ttno_graph->topology);
 	ttno_graph->edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,        sizeof(struct ttno_graph_edge*));
 	ttno_graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(struct ttno_graph_vertex*));
 	ttno_graph->num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,        sizeof(int));
 	ttno_graph->num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int));
 	ttno_graph->nsites = nsites;
-
-	// initial operator cluster assembly
-	struct op_cluster_assembly assembly;
-	double* coeffs_next = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(double));
-	if (cluster_assembly_from_opchains(chains, nchains, oid_identity, topology, &assembly, coeffs_next) < 0) {
-		return -1;
-	}
 
 	// select site with maximum number of neighbors as root
 	int i_root = 0;
@@ -844,13 +881,13 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		const int i_parent = sd[l].i_parent;
 
 		struct site_cluster_partition partition;
-		site_partition_clusters(&assembly, coeffs_next, i_site, &partition);
+		site_partition_clusters(&assembly, cids_next, i_site, &partition);
 
 		// extract bipartite graph edges
 		int nedges = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.part_assembly.nclusters; j++) {
-				if (partition.gamma[i*partition.part_assembly.nclusters + j] != 0) {
+				if (partition.gamma[i*partition.part_assembly.nclusters + j] != CID_ZERO) {
 					nedges++;
 				}
 			}
@@ -859,7 +896,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		int c = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.part_assembly.nclusters; j++) {
-				if (partition.gamma[i*partition.part_assembly.nclusters + j] != 0) {
+				if (partition.gamma[i*partition.part_assembly.nclusters + j] != CID_ZERO) {
 					edges[c].u = i;
 					edges[c].v = j;
 					c++;
@@ -894,7 +931,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 		}
 
-		aligned_free(coeffs_next);
+		aligned_free(cids_next);
 		delete_op_cluster_assembly(&assembly);
 
 		// allocate memory for next iteration, using bipartite graph 'nedges' as upper bound for number of required operator clusters
@@ -909,7 +946,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		memcpy(assembly.qnum_index_map, partition.part_assembly.qnum_index_map, nsites*nsites * sizeof(int));
 		memcpy(assembly.vid_index_map,  partition.part_assembly.vid_index_map,  nsites*nsites * sizeof(int));
 
-		coeffs_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(double));
+		cids_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(int));
 
 		// using bipartite graph 'nedges' as upper bound for number of required TTNO graph hyperedges
 		ttno_graph->edges[i_site] = aligned_calloc(MEM_DATA_ALIGN, nedges, sizeof(struct ttno_graph_hyperedge));
@@ -950,7 +987,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				}
 			}
 			edge->opics[0].oid = u->oid;
-			edge->opics[0].coeff = 1;
+			edge->opics[0].cid = CID_ONE;
 			ttno_graph_vertex_add_edge(i_site < i_parent ? 0 : 1, ce, vertex);
 
 			// assemble operator clusters for next iteration
@@ -960,11 +997,11 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				// copy cluster
 				copy_op_cluster(&partition.part_assembly.clusters[j], &assembly.clusters[assembly.nclusters]);
 				assembly.clusters[assembly.nclusters].vids[assembly.vid_index_map[iv]] = cv;
-				// pass gamma coefficient
-				coeffs_next[assembly.nclusters] = partition.gamma[i*partition.part_assembly.nclusters + j];
+				// pass gamma coefficient index
+				cids_next[assembly.nclusters] = partition.gamma[i*partition.part_assembly.nclusters + j];
 				assembly.nclusters++;
 				// avoid double-counting
-				partition.gamma[i*partition.part_assembly.nclusters + j] = 0;
+				partition.gamma[i*partition.part_assembly.nclusters + j] = CID_ZERO;
 			}
 
 			ce++;
@@ -995,7 +1032,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			// add operator cluster for next iteration with reference to vertex
 			copy_op_cluster(&partition.part_assembly.clusters[j], &assembly.clusters[assembly.nclusters]);
 			assembly.clusters[assembly.nclusters].vids[assembly.vid_index_map[iv]] = cv;
-			coeffs_next[assembly.nclusters] = 1;
+			cids_next[assembly.nclusters] = CID_ONE;
 			assembly.nclusters++;
 
 			// create a "complementary operator"
@@ -1003,7 +1040,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			{
 				int i = bigraph.adj_v[j][m];
 
-				if (partition.gamma[i*partition.part_assembly.nclusters + j] == 0) {
+				if (partition.gamma[i*partition.part_assembly.nclusters + j] == CID_ZERO) {
 					continue;
 				}
 
@@ -1031,9 +1068,9 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 					}
 				}
 				edge->opics[0].oid = u->oid;
-				edge->opics[0].coeff = partition.gamma[i*partition.part_assembly.nclusters + j];
+				edge->opics[0].cid = partition.gamma[i*partition.part_assembly.nclusters + j];
 				// keep track of handled bipartite graph edges
-				partition.gamma[i*partition.part_assembly.nclusters + j] = 0;
+				partition.gamma[i*partition.part_assembly.nclusters + j] = CID_ZERO;
 				// connect edge to new vertex
 				ttno_graph_vertex_add_edge(i_site < i_parent ? 0 : 1, ce, vertex);
 				ce++;
@@ -1045,7 +1082,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		// ensure that we have handled all edges
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.part_assembly.nclusters; j++) {
-				assert(partition.gamma[i*partition.part_assembly.nclusters + j] == 0);
+				assert(partition.gamma[i*partition.part_assembly.nclusters + j] == CID_ZERO);
 			}
 		}
 
@@ -1073,7 +1110,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		struct ttno_graph_hyperedge* edge = &ttno_graph->edges[i_root][ce];
 		allocate_ttno_graph_hyperedge(topology->num_neighbors[i_root], 1, edge);
 		edge->opics[0].oid = cluster->oids[0];
-		edge->opics[0].coeff = coeffs_next[ce];
+		edge->opics[0].cid = cids_next[ce];
 		// connect to vertices
 		for (int n = 0; n < topology->num_neighbors[i_root]; n++)
 		{
@@ -1085,7 +1122,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	}
 	ttno_graph->num_edges[i_root] = assembly.nclusters;
 
-	aligned_free(coeffs_next);
+	aligned_free(cids_next);
 	delete_op_cluster_assembly(&assembly);
 
 	aligned_free(sd);
@@ -1330,7 +1367,7 @@ static int compare_indexed_site_index(const void* a, const void* b)
 ///
 /// 'i_parent == -1' indicates root node.
 ///
-static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const int i_site, const int i_parent, const struct dense_tensor* opmap, struct ttno_graph_contracted_subtree* contracted)
+static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const int i_site, const int i_parent, const struct dense_tensor* opmap, const void* coeffmap, struct ttno_graph_contracted_subtree* contracted)
 {
 	assert(i_site != i_parent);
 
@@ -1345,7 +1382,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		if (k == i_parent) {
 			continue;
 		}
-		ttno_graph_contract_subtree(graph, k, i_site, opmap, &children[n]);
+		ttno_graph_contract_subtree(graph, k, i_site, opmap, coeffmap, &children[n]);
 	}
 
 	// determine collection of site indices of to-be contracted subtree
@@ -1385,7 +1422,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 
 			// local operator
 			struct dense_tensor op;
-			construct_local_operator(edge->opics, edge->nopics, opmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);
 
@@ -1437,7 +1474,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 
 				// local operator
 				struct dense_tensor op;
-				construct_local_operator(edge->opics, edge->nopics, opmap, &op);
+				construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 				assert(op.ndim == 2);
 				assert(op.dim[0] == d && op.dim[1] == d);
 
@@ -1539,9 +1576,10 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 ///
 /// \brief Construct the full matrix representation of the TTNO graph.
 ///
-void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_tensor* opmap, struct dense_tensor* mat)
+void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct dense_tensor* mat)
 {
 	assert(graph->nsites >= 1);
+	assert(coefficient_map_is_valid(opmap[0].dtype, coeffmap));
 
 	// select site with maximum number of neighbors as root for contraction
 	int i_root = 0;
@@ -1554,7 +1592,7 @@ void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_ten
 	// contract full tree
 	// set parent index to -1 for root node
 	struct ttno_graph_contracted_subtree contracted;
-	ttno_graph_contract_subtree(graph, i_root, -1, opmap, &contracted);
+	ttno_graph_contract_subtree(graph, i_root, -1, opmap, coeffmap, &contracted);
 	assert(contracted.nsites == graph->nsites);
 	assert(contracted.nblocks == 1);
 	for (int l = 0; l < contracted.nsites; l++) {

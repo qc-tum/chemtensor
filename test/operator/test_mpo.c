@@ -54,18 +54,18 @@ char* test_mpo_from_graph()
 	};
 	int graph_num_vertices[6] = { 1, 2, 1, 2, 2, 1 };
 
-	struct local_op_ref  e0_opics[1] = { { .oid =  2, .coeff = -0.6 }, };
-	struct local_op_ref  e1_opics[2] = { { .oid =  5, .coeff =  1.3 }, { .oid = 11, .coeff = -0.4 }, };
-	struct local_op_ref  e2_opics[1] = { { .oid =  1, .coeff =  0.4 }, };
-	struct local_op_ref  e3_opics[1] = { { .oid =  4, .coeff = -1.2 }, };
-	struct local_op_ref  e4_opics[1] = { { .oid =  7, .coeff =  0.7 }, };
-	struct local_op_ref  e5_opics[2] = { { .oid =  0, .coeff =  0.5 }, { .oid = 10, .coeff =  0.6 }, };
-	struct local_op_ref  e6_opics[3] = { { .oid =  3, .coeff = -1.6 }, { .oid = 12, .coeff = -2.1 }, { .oid =  4, .coeff =  0.5 }, };
-	struct local_op_ref  e7_opics[1] = { { .oid =  6, .coeff =  0.8 }, };
-	struct local_op_ref  e8_opics[1] = { { .oid =  8, .coeff = -0.3 }, };
-	struct local_op_ref  e9_opics[1] = { { .oid = 10, .coeff =  0.9 }, };
-	struct local_op_ref e10_opics[1] = { { .oid =  9, .coeff = -0.2 }, };
-	struct local_op_ref e11_opics[2] = { { .oid = 13, .coeff =  1.2 }, { .oid = 14, .coeff = -0.6 }};
+	struct local_op_ref  e0_opics[1] = { { .oid =  2, .cid =  5 }, };
+	struct local_op_ref  e1_opics[2] = { { .oid =  5, .cid = 15 }, { .oid = 11, .cid = 10 }, };
+	struct local_op_ref  e2_opics[1] = { { .oid =  1, .cid = 12 }, };
+	struct local_op_ref  e3_opics[1] = { { .oid =  4, .cid =  4 }, };
+	struct local_op_ref  e4_opics[1] = { { .oid =  7, .cid =  7 }, };
+	struct local_op_ref  e5_opics[2] = { { .oid =  0, .cid =  9 }, { .oid = 10, .cid =  3 }, };
+	struct local_op_ref  e6_opics[3] = { { .oid =  3, .cid =  2 }, { .oid = 12, .cid =  8 }, { .oid =  4, .cid =  9 }, };
+	struct local_op_ref  e7_opics[1] = { { .oid =  6, .cid = 13 }, };
+	struct local_op_ref  e8_opics[1] = { { .oid =  8, .cid =  6 }, };
+	struct local_op_ref  e9_opics[1] = { { .oid = 10, .cid = 16 }, };
+	struct local_op_ref e10_opics[1] = { { .oid =  9, .cid = 14 }, };
+	struct local_op_ref e11_opics[2] = { { .oid = 13, .cid = 11 }, { .oid = 14, .cid =  5 }};
 	struct mpo_graph_edge edge_list[] = {
 		{ .vids = { 0, 0 }, .opics =  e0_opics, .nopics = 1 },
 		{ .vids = { 0, 1 }, .opics =  e1_opics, .nopics = 2 },
@@ -121,9 +121,12 @@ char* test_mpo_from_graph()
 	}
 	delete_dense_tensor(&opmap_tensor);
 
+	// coefficient map; first two entries must always be 0 and 1
+	const dcomplex coeffmap[17] = { 0, 1, -1.6, 0.6, -1.2, -0.6, -0.3 - 0.1i, 0.7, -2.1, 0.5, -0.4 + 0.3i, 1.2, 0.4, 0.8, -0.2, 1.3, 0.9 + 0.5i };
+
 	// construct MPO from an MPO graph
 	struct mpo mpo;
-	mpo_from_graph(DOUBLE_COMPLEX, d, qsite, &graph, opmap, &mpo);
+	mpo_from_graph(DOUBLE_COMPLEX, d, qsite, &graph, opmap, coeffmap, &mpo);
 
 	if (!mpo_is_consistent(&mpo)) {
 		return "internal MPO consistency check failed";
@@ -145,7 +148,7 @@ char* test_mpo_from_graph()
 
 	// convert MPO graph to a (dense) matrix, as reference
 	struct dense_tensor mat_ref;
-	mpo_graph_to_matrix(&graph, opmap, DOUBLE_COMPLEX, &mat_ref);
+	mpo_graph_to_matrix(&graph, opmap, coeffmap, DOUBLE_COMPLEX, &mat_ref);
 	// include dummy virtual bond dimensions
 	const long dim_mat_graph[4] = { 1, mat_ref.dim[0], mat_ref.dim[1], 1};
 	reshape_dense_tensor(4, dim_mat_graph, &mat_ref);
@@ -159,8 +162,7 @@ char* test_mpo_from_graph()
 	delete_dense_tensor(&mat_dns);
 	delete_block_sparse_tensor(&mat);
 	delete_mpo(&mpo);
-	for (int i = 0; i < num_local_ops; i++)
-	{
+	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}
 	aligned_free(opmap);

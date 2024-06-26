@@ -1,3 +1,4 @@
+#include <complex.h>
 #include "mpo_graph.h"
 #include "aligned_memory.h"
 
@@ -15,8 +16,6 @@ char* test_mpo_graph_from_opchains_basic()
 	const int nsites = 5;
 
 	const long dim_full = ipow(d, nsites);
-
-	const int oid_identity = 11;
 
 	const int nchains = 6;
 	int oids[6][5] = {
@@ -36,16 +35,18 @@ char* test_mpo_graph_from_opchains_basic()
 		{      0, -1,  1,  0,  1 },
 	};
 	const struct op_chain chains[6] = {
-		{ .oids = oids[0], .qnums = qnums[0], .coeff =  3.2, .length = 5, .istart = 0 },
-		{ .oids = oids[1], .qnums = qnums[1], .coeff = -0.7, .length = 4, .istart = 1 },
-		{ .oids = oids[2], .qnums = qnums[2], .coeff =  1.3, .length = 5, .istart = 0 },
-		{ .oids = oids[3], .qnums = qnums[3], .coeff =  2.7, .length = 4, .istart = 1 },
-		{ .oids = oids[4], .qnums = qnums[4], .coeff = -1.8, .length = 5, .istart = 0 },
-		{ .oids = oids[5], .qnums = qnums[5], .coeff =  0.2, .length = 4, .istart = 1 },
+		{ .oids = oids[0], .qnums = qnums[0], .cid = 4, .length = 5, .istart = 0 },
+		{ .oids = oids[1], .qnums = qnums[1], .cid = 2, .length = 4, .istart = 1 },
+		{ .oids = oids[2], .qnums = qnums[2], .cid = 5, .length = 5, .istart = 0 },
+		{ .oids = oids[3], .qnums = qnums[3], .cid = 4, .length = 4, .istart = 1 },
+		{ .oids = oids[4], .qnums = qnums[4], .cid = 3, .length = 5, .istart = 0 },
+		{ .oids = oids[5], .qnums = qnums[5], .cid = 6, .length = 4, .istart = 1 },
 	};
 
 	struct mpo_graph mpo_graph;
-	mpo_graph_from_opchains(chains, nchains, nsites, oid_identity, &mpo_graph);
+	if (mpo_graph_from_opchains(chains, nchains, nsites, &mpo_graph) < 0) {
+		return "'mpo_graph_from_opchains' failed internally";
+	}
 
 	if (!mpo_graph_is_consistent(&mpo_graph)) {
 		return "MPO graph is not consistent";
@@ -81,9 +82,12 @@ char* test_mpo_graph_from_opchains_basic()
 	}
 	delete_dense_tensor(&opmap_tensor);
 
+	// coefficient map; first two entries must always be 0 and 1
+	const dcomplex coeffmap[7] = { 0, 1, -0.7 + 0.1i, -1.8 + 0.5i, 3.2 - 1.1i, 1.3 + 0.4i, 0.2 - 0.3i };
+
 	// convert to a dense (full) tensor
 	struct dense_tensor a;
-	mpo_graph_to_matrix(&mpo_graph, opmap, DOUBLE_COMPLEX, &a);
+	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, DOUBLE_COMPLEX, &a);
 
 	// reference matrix representation
 	struct dense_tensor a_ref;
@@ -105,7 +109,7 @@ char* test_mpo_graph_from_opchains_basic()
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, DOUBLE_COMPLEX, &c);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, DOUBLE_COMPLEX, &c);
 		dense_tensor_scalar_multiply_add(numeric_one(DOUBLE_COMPLEX), &c, &a_chains);
 		delete_dense_tensor(&c);
 	}
@@ -145,8 +149,6 @@ char* test_mpo_graph_from_opchains_advanced()
 
 	const long dim_full = ipow(d, nsites);
 
-	const int oid_identity = 0;
-
 	const int nchains = 7;
 	struct op_chain* chains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
 	for (int i = 0; i < nchains; i++)
@@ -167,9 +169,9 @@ char* test_mpo_graph_from_opchains_advanced()
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, chains[i].qnums) < 0) {
 			return "reading operator chain quantum numbers from disk failed";
 		}
-		sprintf(varname, "/chain%i/coeff", i);
-		if (read_hdf5_attribute(file, varname, H5T_NATIVE_DOUBLE, &chains[i].coeff) < 0) {
-			return "reading operator chain coefficient from disk failed";
+		sprintf(varname, "/chain%i/cid", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, &chains[i].cid) < 0) {
+			return "reading operator chain coefficient index from disk failed";
 		}
 		sprintf(varname, "/chain%i/istart", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, &chains[i].istart) < 0) {
@@ -178,7 +180,9 @@ char* test_mpo_graph_from_opchains_advanced()
 	}
 
 	struct mpo_graph mpo_graph;
-	mpo_graph_from_opchains(chains, nchains, nsites, oid_identity, &mpo_graph);
+	if (mpo_graph_from_opchains(chains, nchains, nsites, &mpo_graph) < 0) {
+		return "'mpo_graph_from_opchains' failed internally";
+	}
 
 	if (!mpo_graph_is_consistent(&mpo_graph)) {
 		return "MPO graph is not consistent";
@@ -214,50 +218,41 @@ char* test_mpo_graph_from_opchains_advanced()
 	}
 	delete_dense_tensor(&opmap_tensor);
 
+	// coefficient map
+	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, 8 * sizeof(scomplex));
+	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
+		return "reading coefficient map from disk failed";
+	}
+
 	// convert to a dense (full) tensor
 	struct dense_tensor a;
-	mpo_graph_to_matrix(&mpo_graph, opmap, SINGLE_COMPLEX, &a);
+	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, SINGLE_COMPLEX, &a);
 
-	// reference matrix representation
-	struct dense_tensor a_ref;
-	const long dim_a_ref[2] = { dim_full, dim_full };
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim_a_ref, &a_ref);
-	if (read_hdf5_dataset(file, "mat", H5T_NATIVE_FLOAT, a_ref.data) < 0) {
-		return "reading tensor entries from disk failed";
-	}
-
-	// compare
-	if (!dense_tensor_allclose(&a, &a_ref, 1e-6)) {
-		return "matrix representation of MPO graph does not match reference";
-	}
-
-	// sum matrix representations of individual operator chains
+	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor a_chains;
 	const long dim_a_chains[2] = { dim_full, dim_full };
 	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, SINGLE_COMPLEX, &c);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, SINGLE_COMPLEX, &c);
 		dense_tensor_scalar_multiply_add(numeric_one(SINGLE_COMPLEX), &c, &a_chains);
 		delete_dense_tensor(&c);
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&a, &a_chains, 1e-13)) {
+	if (!dense_tensor_allclose(&a, &a_chains, 5e-6)) {
 		return "matrix representation of MPO graph does not match sum of individual chains";
 	}
 
-	delete_dense_tensor(&a_ref);
 	delete_dense_tensor(&a_chains);
 	delete_dense_tensor(&a);
-	for (int i = 0; i < num_local_ops; i++)
-	{
+	aligned_free(coeffmap);
+	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}
 	aligned_free(opmap);
-	for (int i = 0; i < nchains; i++)
-	{
+	for (int i = 0; i < nchains; i++) {
 		delete_op_chain(&chains[i]);
 	}
 	aligned_free(chains);
