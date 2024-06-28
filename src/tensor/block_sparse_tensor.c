@@ -880,7 +880,7 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 			{
 				r_qnums_ax_flat[j*t->dim_logical[i_ax + 1] + k] =
 					new_axis_dir * (t->axis_dir[i_ax    ] * t->qnums_logical[i_ax    ][j] +
-									t->axis_dir[i_ax + 1] * t->qnums_logical[i_ax + 1][k]);
+					                t->axis_dir[i_ax + 1] * t->qnums_logical[i_ax + 1][k]);
 			}
 		}
 		qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim - 1) * sizeof(qnumber*));
@@ -2376,4 +2376,106 @@ void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, cons
 			offset += nelem;
 		}
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct the maps from a logical index to the corresponding dense block and entry index along an axis.
+///
+static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, const long dim, const qnumber* unique_qnums, const long num_qnums, long* index_map_block, long* index_map_block_entry)
+{
+	long* counter = aligned_calloc(MEM_DATA_ALIGN, num_qnums, sizeof(long));
+
+	for (long i = 0; i < dim; i++)
+	{
+		bool found = false;
+		for (long j = 0; j < num_qnums; j++)
+		{
+			if (qnums_logical[i] == unique_qnums[j]) {
+				index_map_block[i] = j;
+				index_map_block_entry[i] = counter[j]++;
+				found = true;
+				break;
+			}
+		}
+		assert(found);
+	}
+
+	aligned_free(counter);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Create a block-sparse tensor element accessor.
+///
+void create_block_sparse_tensor_entry_accessor(const struct block_sparse_tensor* t, struct block_sparse_tensor_entry_accessor* acc)
+{
+	acc->tensor = t;
+
+	acc->index_map_blocks        = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long*));
+	acc->index_map_block_entries = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long*));
+
+	for (int i = 0; i < t->ndim; i++)
+	{
+		acc->index_map_blocks[i]        = aligned_alloc(MEM_DATA_ALIGN, t->dim_logical[i] * sizeof(long));
+		acc->index_map_block_entries[i] = aligned_alloc(MEM_DATA_ALIGN, t->dim_logical[i] * sizeof(long));
+
+		construct_logical_to_block_index_maps(
+			t->qnums_logical[i], t->dim_logical[i], t->qnums_blocks[i], t->dim_blocks[i],
+			acc->index_map_blocks[i], acc->index_map_block_entries[i]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete a block-sparse tensor element accessor (free memory).
+///
+void delete_block_sparse_tensor_entry_accessor(struct block_sparse_tensor_entry_accessor* acc)
+{
+	for (int i = 0; i < acc->tensor->ndim; i++)
+	{
+		aligned_free(acc->index_map_blocks[i]);
+		aligned_free(acc->index_map_block_entries[i]);
+	}
+
+	aligned_free(acc->index_map_blocks);
+	aligned_free(acc->index_map_block_entries);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Retrieve a pointer to an individual entry of a block-sparse tensor, or NULL if the provided index does not correspond to a valid block.
+///
+void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_accessor* acc, const long* index)
+{
+	// retrieve block
+	long* index_block = aligned_alloc(MEM_DATA_ALIGN, acc->tensor->ndim * sizeof(long));
+	for (int i = 0; i < acc->tensor->ndim; i++)
+	{
+		assert(0 <= index[i] && index[i] < acc->tensor->dim_logical[i]);
+		index_block[i] = acc->index_map_blocks[i][index[i]];
+	}
+	const long ob = tensor_index_to_offset(acc->tensor->ndim, acc->tensor->dim_blocks, index_block);
+	aligned_free(index_block);
+
+	const struct dense_tensor* block = acc->tensor->blocks[ob];
+	if (block == NULL) {
+		// logical entry is zero
+		return NULL;
+	}
+
+	long* index_entry = aligned_alloc(MEM_DATA_ALIGN, acc->tensor->ndim * sizeof(long));
+	for (int i = 0; i < acc->tensor->ndim; i++)
+	{
+		index_entry[i] = acc->index_map_block_entries[i][index[i]];
+	}
+	const long oe = tensor_index_to_offset(block->ndim, block->dim, index_entry);
+	aligned_free(index_entry);
+
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	return (int8_t*)block->data + oe * sizeof_numeric_type(acc->tensor->dtype);
 }

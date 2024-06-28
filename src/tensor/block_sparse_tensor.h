@@ -165,3 +165,24 @@ long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t
 void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries);
 
 void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, const void* entries);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Entry access utility data structure for a block-sparse tensor.
+///
+/// Entry-wise access is comparatively slow.
+///
+struct block_sparse_tensor_entry_accessor
+{
+	const struct block_sparse_tensor* tensor;  //!< reference to tensor
+	long** index_map_blocks;                   //!< map from logical index to corresponding block index
+	long** index_map_block_entries;            //!< map from logical index to corresponding block entry index
+};
+
+
+void create_block_sparse_tensor_entry_accessor(const struct block_sparse_tensor* t, struct block_sparse_tensor_entry_accessor* acc);
+
+void delete_block_sparse_tensor_entry_accessor(struct block_sparse_tensor_entry_accessor* acc);
+
+void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_accessor* acc, const long* index);

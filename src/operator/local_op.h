@@ -36,7 +36,7 @@ bool coefficient_map_is_valid(const enum numeric_type dtype, const void* coeffma
 ///
 struct local_op_ref
 {
-	int oid;   //!< operator ID
+	int oid;   //!< operator index
 	int cid;   //!< coefficient index
 };
 

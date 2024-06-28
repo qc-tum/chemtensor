@@ -1253,3 +1253,81 @@ char* test_block_sparse_tensor_serialize()
 
 	return 0;
 }
+
+
+char* test_block_sparse_tensor_get_entry()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_get_entry.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_get_entry failed";
+	}
+
+	const int ndim = 4;
+	const long dims[4] = { 7, 6, 13, 4 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(SINGLE_REAL, 4, dims, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	// entry accessor
+	struct block_sparse_tensor_entry_accessor acc;
+	create_block_sparse_tensor_entry_accessor(&t, &acc);
+
+	// reconstruct dense tensor entry-by-entry
+	struct dense_tensor t_reconstr;
+	allocate_dense_tensor(t.dtype, t.ndim, t.dim_logical, &t_reconstr);
+	long* index = aligned_calloc(MEM_DATA_ALIGN, t.ndim, sizeof(long));
+	const long nelem = dense_tensor_num_elements(&t_reconstr);
+	float* tdata = t_reconstr.data;
+	for (long k = 0; k < nelem; k++, next_tensor_index(t_reconstr.ndim, t_reconstr.dim, index))
+	{
+		float* pentry = block_sparse_tensor_get_entry(&acc, index);
+		if (pentry != NULL) {
+			tdata[tensor_index_to_offset(t_reconstr.ndim, t_reconstr.dim, index)] = (*pentry);
+		}
+	}
+	aligned_free(index);
+
+	// compare
+	if (!dense_tensor_allclose(&t_reconstr, &t_dns, 0.)) {
+		return "reconstructing a tensor entry-by-entry from a block-sparse tensor does not match original tensor";
+	}
+
+	// clean up
+	delete_dense_tensor(&t_reconstr);
+	delete_block_sparse_tensor_entry_accessor(&acc);
+	delete_block_sparse_tensor(&t);
+	for (int i = 0; i < ndim; i++) {
+		aligned_free(qnums[i]);
+	}
+	aligned_free(qnums);
+	aligned_free(axis_dir);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
