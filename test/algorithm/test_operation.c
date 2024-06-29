@@ -111,7 +111,7 @@ char* test_operator_inner_product()
 	struct mpo op;
 	allocate_mpo(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
 
-	// read MPS tensors from disk
+	// read MPO tensors from disk
 	for (int i = 0; i < nsites; i++)
 	{
 		// read dense tensors from disk
@@ -138,7 +138,7 @@ char* test_operator_inner_product()
 
 	scomplex s_ref;
 	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, &s_ref) < 0) {
-		return "reading dot product reference value from disk failed";
+		return "reading operator inner product reference value from disk failed";
 	}
 
 	// compare

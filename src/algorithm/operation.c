@@ -360,3 +360,74 @@ void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const
 	block_sparse_tensor_cyclic_partial_trace(&s, 1, b);
 	delete_block_sparse_tensor(&s);
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Evaluate the network environment of a local Hamiltonian operator.
+///
+/// To-be contracted tensor network:
+///
+///       _______           _____           _______
+///      /       \         /     \         /       \
+///      |      3|->-   ->-|0 b*2|->-   ->-|2      |
+///      |    ...|.........\__1__/.........|...    |
+///      |   '   |            |            |   '   |
+///      |   :   |            ^            |   :   |
+///      |   :   |            1            |   :   |
+///      |   :   |                         |   :   |
+///   -<-|0  l  2|-<-   0           3   -<-|1  r  3|-<-
+///      |   :   |                         |   :   |
+///      |   :   |            2            |   :   |
+///      |   :   |            ^            |   :   |
+///      |   '...|..........__|__..........|...'   |
+///      |       |         /  1  \         |       |
+///      |      1|-<-   -<-|0 a 2|-<-   -<-|0      |
+///      \_______/         \_____/         \_______/
+///
+/// The dotted outline marks the output tensor.
+/// The outer virtual bonds are contracted as well.
+///
+void compute_local_hamiltonian_environment(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
+	const struct block_sparse_tensor* restrict l, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict dw)
+{
+	assert(a->ndim == 3);
+	assert(b->ndim == 3);
+	assert(l->ndim == 4);
+	assert(r->ndim == 4);
+
+	// multiply with 'a' tensor
+	struct block_sparse_tensor s;
+	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+
+	// multiply with conjugated 'b' tensor
+	struct block_sparse_tensor bc;
+	copy_block_sparse_tensor(b, &bc);  // TODO: fuse conjugation with dot product
+	conjugate_block_sparse_tensor(&bc);
+	block_sparse_tensor_reverse_axis_directions(&bc);
+	// re-order last two dimensions
+	const int perm0[5] = { 0, 1, 2, 4, 3 };
+	struct block_sparse_tensor t;
+	transpose_block_sparse_tensor(perm0, &s, &t);
+	delete_block_sparse_tensor(&s);
+	block_sparse_tensor_dot(&bc, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_TRAILING, 1, &s);
+	delete_block_sparse_tensor(&t);
+	delete_block_sparse_tensor(&bc);
+
+	// multiply with 'l' tensor
+	// re-order second and third dimension of 'l'
+	const int perm1[4] = { 0, 2, 1, 3 };
+	struct block_sparse_tensor k;
+	transpose_block_sparse_tensor(perm1, l, &k);
+	// re-order leading three dimensions of 's' (to make MPS virtual bond dimensions the leading dimensions)
+	const int perm2[6] = { 2, 0, 1, 3, 4, 5 };
+	transpose_block_sparse_tensor(perm2, &s, &t);
+	delete_block_sparse_tensor(&s);
+	block_sparse_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+	delete_block_sparse_tensor(&k);
+	delete_block_sparse_tensor(&t);
+
+	// trace out outer virtual bonds (assumed to be low-dimensional)
+	block_sparse_tensor_cyclic_partial_trace(&s, 1, dw);
+	delete_block_sparse_tensor(&s);
+}
