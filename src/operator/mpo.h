@@ -9,6 +9,26 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Matrix product operator (MPO) assembly: structural description which can be used to construct an MPO.
+///
+struct mpo_assembly
+{
+	struct mpo_graph graph;         //!< MPO graph data structure
+	struct dense_tensor* opmap;     //!< local operator map (look-up table)
+	void* coeffmap;                 //!< coefficient map (look-up table)
+	qnumber* qsite;                 //!< physical quantum numbers at each site
+	long d;                         //!< local physical dimension of each site
+	enum numeric_type dtype;        //!< data type of local operators and coefficients
+	int num_local_ops;              //!< number of local operators (length of 'opmap' array)
+	int num_coeffs;                 //!< number of coefficients (length of 'coeffmap' array)
+};
+
+
+void delete_mpo_assembly(struct mpo_assembly* assembly);
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Matrix product operator (MPO) data structure.
 ///
 struct mpo
@@ -27,7 +47,7 @@ struct mpo
 
 void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mpo* mpo);
 
-void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct mpo* mpo);
+void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo);
 
 void delete_mpo(struct mpo* mpo);
 

@@ -9,6 +9,23 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Tree tensor network operator (TTNO) assembly: structural description which can be used to construct a TTNO.
+///
+struct ttno_assembly
+{
+	struct ttno_graph graph;         //!< TTNO graph data structure
+	struct dense_tensor* opmap;      //!< local operator map (look-up table)
+	void* coeffmap;                  //!< coefficient map (look-up table)
+	qnumber* qsite;                  //!< physical quantum numbers at each site
+	long d;                          //!< local physical dimension of each site
+	enum numeric_type dtype;         //!< data type of local operators and coefficients
+	int num_local_ops;               //!< number of local operators (length of 'opmap' array)
+	int num_coeffs;                  //!< number of coefficients (length of 'coeffmap' array)
+};
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Tree tensor network operator (TTNO) data structure.
 ///
 struct ttno
@@ -26,7 +43,7 @@ struct ttno
 
 // allocation and construction
 
-void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct ttno* ttno);
+void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno);
 
 void delete_ttno(struct ttno* ttno);
 

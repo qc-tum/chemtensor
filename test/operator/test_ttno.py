@@ -13,7 +13,7 @@ class OpHyperedgeInfo:
         self.oids = tuple(oids)
 
 
-def ttno_from_graph_data():
+def ttno_from_assembly_data():
 
     rng = np.random.default_rng(812)
 
@@ -98,12 +98,12 @@ def ttno_from_graph_data():
     for op in opmap:
         assert np.linalg.norm(op) > 0
 
-    with h5py.File("data/test_ttno_from_graph.hdf5", "w") as file:
+    with h5py.File("data/test_ttno_from_assembly.hdf5", "w") as file:
         file["opmap"] = np.array(opmap)
 
 
 def main():
-    ttno_from_graph_data()
+    ttno_from_assembly_data()
 
 
 if __name__ == "__main__":

@@ -8,59 +8,60 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct a TTNO from a TTNO graph.
+/// \brief Construct a TTNO from a TTNO assembly.
 ///
-void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct ttno* ttno)
+void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 {
-	assert(graph->nsites >= 1);
-	assert(d >= 1);
-	ttno->nsites = graph->nsites;
+	assert(assembly->graph.nsites >= 1);
+	assert(assembly->d >= 1);
+	const long d = assembly->d;
 	ttno->d = d;
+	ttno->nsites = assembly->graph.nsites;
 
-	assert(coefficient_map_is_valid(dtype, coeffmap));
+	assert(coefficient_map_is_valid(assembly->dtype, assembly->coeffmap));
 
 	// tree topology
-	copy_abstract_graph(&graph->topology, &ttno->topology);
+	copy_abstract_graph(&assembly->graph.topology, &ttno->topology);
 
 	ttno->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
-	memcpy(ttno->qsite, qsite, d * sizeof(qnumber));
+	memcpy(ttno->qsite, assembly->qsite, d * sizeof(qnumber));
 
-	ttno->a = aligned_calloc(MEM_DATA_ALIGN, graph->nsites, sizeof(struct block_sparse_tensor));
+	ttno->a = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.nsites, sizeof(struct block_sparse_tensor));
 
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < assembly->graph.nsites; l++)
 	{
 		// accumulate entries in a dense tensor first
-		const int ndim_a_loc = graph->topology.num_neighbors[l] + 2;
+		const int ndim_a_loc = assembly->graph.topology.num_neighbors[l] + 2;
 		long* dim_a_loc = aligned_alloc(MEM_DATA_ALIGN, ndim_a_loc * sizeof(long));
 		for (int i = 0; i < ndim_a_loc; i++) {
 			dim_a_loc[i] = d;
 		}
 		long stride_trail = 1;
 		// overwrite with actual virtual bond dimensions
-		for (int i = 0; i < graph->topology.num_neighbors[l]; i++) {
-			int k = graph->topology.neighbor_map[l][i];
+		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++) {
+			int k = assembly->graph.topology.neighbor_map[l][i];
 			assert(k != l);
 			if (i > 0) {
-				assert(graph->topology.neighbor_map[l][i - 1] < k);
+				assert(assembly->graph.topology.neighbor_map[l][i - 1] < k);
 			}
 			if (k < l) {
-				dim_a_loc[i] = graph->num_verts[k*graph->nsites + l];
+				dim_a_loc[i] = assembly->graph.num_verts[k*assembly->graph.nsites + l];
 			}
 			else {
-				dim_a_loc[i + 2] = graph->num_verts[l*graph->nsites + k];
+				dim_a_loc[i + 2] = assembly->graph.num_verts[l*assembly->graph.nsites + k];
 				stride_trail *= dim_a_loc[i + 2];
 			}
 		}
 		struct dense_tensor a_loc;
-		allocate_dense_tensor(dtype, ndim_a_loc, dim_a_loc, &a_loc);
+		allocate_dense_tensor(assembly->dtype, ndim_a_loc, dim_a_loc, &a_loc);
 		aligned_free(dim_a_loc);
 
-		for (int n = 0; n < graph->num_edges[l]; n++)
+		for (int n = 0; n < assembly->graph.num_edges[l]; n++)
 		{
-			const struct ttno_graph_hyperedge* edge = &graph->edges[l][n];
-			assert(edge->order == graph->topology.num_neighbors[l]);
+			const struct ttno_graph_hyperedge* edge = &assembly->graph.edges[l][n];
+			assert(edge->order == assembly->graph.topology.num_neighbors[l]);
 			struct dense_tensor op;
-			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, assembly->opmap, assembly->coeffmap, &op);
 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);
@@ -69,7 +70,7 @@ void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber*
 			// add entries of local operator 'op' to 'a_loc' (supporting multiple hyperedges between same nodes)
 			long* index_start = aligned_calloc(MEM_DATA_ALIGN, a_loc.ndim, sizeof(long));
 			for (int i = 0; i < edge->order; i++) {
-				int k = graph->topology.neighbor_map[l][i];
+				int k = assembly->graph.topology.neighbor_map[l][i];
 				assert(k != l);
 				index_start[k < l ? i : i + 2] = edge->vids[i];
 				assert(0 <= edge->vids[i] && edge->vids[i] < a_loc.dim[k < l ? i : i + 2]);
@@ -129,34 +130,34 @@ void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber*
 		}
 
 		// note: entries not adhering to the quantum number sparsity pattern are ignored
-		qnumber** qnums = aligned_calloc(MEM_DATA_ALIGN, graph->topology.num_neighbors[l] + 2, sizeof(qnumber*));
+		qnumber** qnums = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.topology.num_neighbors[l] + 2, sizeof(qnumber*));
 		// virtual bond axis is oriented towards smaller site index
-		enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, (graph->topology.num_neighbors[l] + 2) * sizeof(enum tensor_axis_direction));
-		for (int i = 0; i < graph->topology.num_neighbors[l]; i++)
+		enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, (assembly->graph.topology.num_neighbors[l] + 2) * sizeof(enum tensor_axis_direction));
+		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
 		{
-			int k = graph->topology.neighbor_map[l][i];
+			int k = assembly->graph.topology.neighbor_map[l][i];
 			if (k < l) {
-				const int iv = k*graph->nsites + l;
-				qnums[i] = aligned_alloc(MEM_DATA_ALIGN, graph->num_verts[iv] * sizeof(qnumber));
-				for (int n = 0; n < graph->num_verts[iv]; n++)
+				const int iv = k*assembly->graph.nsites + l;
+				qnums[i] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[iv] * sizeof(qnumber));
+				for (int n = 0; n < assembly->graph.num_verts[iv]; n++)
 				{
-					qnums[i][n] = graph->verts[iv][n].qnum;
+					qnums[i][n] = assembly->graph.verts[iv][n].qnum;
 				}
 				axis_dir[i] = TENSOR_AXIS_OUT;
 			}
 			else {
-				const int iv = l*graph->nsites + k;
-				qnums[i + 2] = aligned_alloc(MEM_DATA_ALIGN, graph->num_verts[iv] * sizeof(qnumber));
-				for (int n = 0; n < graph->num_verts[iv]; n++)
+				const int iv = l*assembly->graph.nsites + k;
+				qnums[i + 2] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[iv] * sizeof(qnumber));
+				for (int n = 0; n < assembly->graph.num_verts[iv]; n++)
 				{
-					qnums[i + 2][n] = graph->verts[iv][n].qnum;
+					qnums[i + 2][n] = assembly->graph.verts[iv][n].qnum;
 				}
 				axis_dir[i + 2] = TENSOR_AXIS_IN;
 			}
 		}
 		// physical axes at current site
 		bool site_info_set = false;
-		for (int i = 0; i < graph->topology.num_neighbors[l] + 2; i++)
+		for (int i = 0; i < assembly->graph.topology.num_neighbors[l] + 2; i++)
 		{
 			if (qnums[i] == NULL) {
 				assert(qnums[i + 1] == NULL);
@@ -170,9 +171,9 @@ void ttno_from_graph(const enum numeric_type dtype, const long d, const qnumber*
 		}
 		assert(site_info_set);
 		dense_to_block_sparse_tensor(&a_loc, axis_dir, (const qnumber**)qnums, &ttno->a[l]);
-		for (int i = 0; i < graph->topology.num_neighbors[l]; i++)
+		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
 		{
-			int k = graph->topology.neighbor_map[l][i];
+			int k = assembly->graph.topology.neighbor_map[l][i];
 			aligned_free(qnums[k < l ? i : i + 2]);
 		}
 		aligned_free(qnums);

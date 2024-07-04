@@ -9,13 +9,14 @@
 #include "aligned_memory.h"
 
 
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Construct a Hamiltonian as MPO based on local operator chains, which are shifted along a 1D lattice.
 ///
-static void local_opchains_to_mpo(const enum numeric_type dtype, const long d, const qnumber* qsite, const int nsites,
-	const struct op_chain* lopchains, const int nlopchains,
-	const struct dense_tensor* opmap, const void* coeffmap, struct mpo* mpo)
+static void local_opchains_to_mpo_graph(const int nsites, const struct op_chain* lopchains, const int nlopchains, struct mpo_graph* graph)
 {
 	int nchains = 0;
 	for (int j = 0; j < nlopchains; j++)
@@ -37,73 +38,78 @@ static void local_opchains_to_mpo(const enum numeric_type dtype, const long d, c
 	}
 	assert(c == nchains);
 
-	struct mpo_graph graph;
-	mpo_graph_from_opchains(opchains, nchains, nsites, &graph);
+	mpo_graph_from_opchains(opchains, nchains, nsites, graph);
 
-	mpo_from_graph(dtype, d, qsite, &graph, opmap, coeffmap, mpo);
-
-	delete_mpo_graph(&graph);
 	aligned_free(opchains);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Contruct an MPO representation of the Ising Hamiltonian 'sum J Z Z + h Z + g X' on a one-dimensional lattice.
+/// \brief Contruct an MPO assembly representation of the Ising Hamiltonian 'sum J Z Z + h Z + g X' on a one-dimensional lattice.
 ///
-void construct_ising_1d_mpo(const int nsites, const double J, const double h, const double g, struct mpo* mpo)
+void construct_ising_1d_mpo_assembly(const int nsites, const double J, const double h, const double g, struct mpo_assembly* assembly)
 {
 	assert(nsites >= 2);
 
 	// set physical quantum numbers to zero
-	const qnumber qsite[2] = { 0, 0 };
+	assembly->d = 2;
+	assembly->qsite = aligned_calloc(MEM_DATA_ALIGN, assembly->d, sizeof(qnumber));
+
+	assembly->dtype = DOUBLE_REAL;
 
 	// operator map
 	// 0: I
 	// 1: Z
-	// 2: h Z + g X
-	struct dense_tensor opmap[3];
-	for (int i = 0; i < 3; i++) {
-		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+	// 2: X
+	assembly->num_local_ops = 3;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		const long dim[2] = { assembly->d, assembly->d };
+		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	const double sz[4] = { 1., 0., 0., -1. };  // Z
-	const double fd[4] = { h,  g,  g,  -h  };  // external field term 'h Z + g X'
-	dense_tensor_set_identity(&opmap[0]);
-	memcpy(opmap[1].data, sz, sizeof(sz));
-	memcpy(opmap[2].data, fd, sizeof(fd));
+	const double sx[4] = { 0., 1., 1.,  0. };  // X
+	dense_tensor_set_identity(&assembly->opmap[0]);
+	memcpy(assembly->opmap[1].data, sz, sizeof(sz));
+	memcpy(assembly->opmap[2].data, sx, sizeof(sx));
 
 	// coefficient map; first two entries must always be 0 and 1
-	const double coeffmap[3] = { 0, 1, J };
+	const double coeffmap[] = { 0, 1, J, h, g };
+	assembly->num_coeffs = ARRLEN(coeffmap);
+	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[2] = { 1, 1 };  qnumber qnums_c0[3] = { 0, 0, 0 };
-	int oids_c1[1] = { 2 };     qnumber qnums_c1[2] = { 0, 0 };
-	struct op_chain lopchains[2] = {
-		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 1, .length = 1, .istart = 0 },
+	int oids_c0[] = { 1, 1 };  qnumber qnums_c0[] = { 0, 0, 0 };
+	int oids_c1[] = { 1 };     qnumber qnums_c1[] = { 0, 0 };
+	int oids_c2[] = { 2 };     qnumber qnums_c2[] = { 0, 0 };
+	struct op_chain lopchains[] = {
+		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
+		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 3, .length = ARRLEN(oids_c1), .istart = 0 },
+		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 4, .length = ARRLEN(oids_c2), .istart = 0 },
 	};
 
-	// convert to MPO
-	local_opchains_to_mpo(DOUBLE_REAL, 2, qsite, nsites, lopchains, sizeof(lopchains) / sizeof(struct op_chain), opmap, coeffmap, mpo);
-
-	// clean up
-	for (int i = 0; i < 3; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
+	// convert to an MPO graph
+	local_opchains_to_mpo_graph(nsites, lopchains, ARRLEN(lopchains), &assembly->graph);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct an MPO representation of the XXZ Heisenberg Hamiltonian 'sum J (X X + Y Y + D Z Z) - h Z' on a one-dimensional lattice.
+/// \brief Construct an MPO assembly representation of the XXZ Heisenberg Hamiltonian 'sum J (X X + Y Y + D Z Z) - h Z' on a one-dimensional lattice.
 ///
-void construct_heisenberg_xxz_1d_mpo(const int nsites, const double J, const double D, const double h, struct mpo* mpo)
+void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, const double D, const double h, struct mpo_assembly* assembly)
 {
 	assert(nsites >= 2);
 
 	// physical quantum numbers (multiplied by 2)
-	const qnumber qsite[2] = { 1, -1 };
+	assembly->d = 2;
+	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite[0] =  1;
+	assembly->qsite[1] = -1;
+
+	assembly->dtype = DOUBLE_REAL;
 
 	// spin operators
 	const double sup[4] = { 0.,  1.,  0.,  0.  };  // S_up
@@ -115,125 +121,135 @@ void construct_heisenberg_xxz_1d_mpo(const int nsites, const double J, const dou
 	// 1: S_up
 	// 2: S_down
 	// 3: S_z
-	struct dense_tensor opmap[4];
-	for (int i = 0; i < 4; i++) {
-		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+	assembly->num_local_ops = 4;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		const long dim[2] = { assembly->d, assembly->d };
+		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
-	dense_tensor_set_identity(&opmap[0]);
-	memcpy(opmap[1].data, sup, sizeof(sup));
-	memcpy(opmap[2].data, sdn, sizeof(sdn));
-	memcpy(opmap[3].data, sz,  sizeof(sz));
+	dense_tensor_set_identity(&assembly->opmap[0]);
+	memcpy(assembly->opmap[1].data, sup, sizeof(sup));
+	memcpy(assembly->opmap[2].data, sdn, sizeof(sdn));
+	memcpy(assembly->opmap[3].data, sz,  sizeof(sz));
 
 	// coefficient map; first two entries must always be 0 and 1
-	const double coeffmap[5] = { 0, 1, 0.5*J, J*D, -h };
+	const double coeffmap[] = { 0, 1, 0.5*J, J*D, -h };
+	assembly->num_coeffs = ARRLEN(coeffmap);
+	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[2] = { 1, 2 };  qnumber qnums_c0[3] = { 0,  2,  0 };
-	int oids_c1[2] = { 2, 1 };  qnumber qnums_c1[3] = { 0, -2,  0 };
-	int oids_c2[2] = { 3, 3 };  qnumber qnums_c2[3] = { 0,  0,  0 };
-	int oids_c3[1] = { 3 };     qnumber qnums_c3[2] = { 0,  0 };
-	struct op_chain lopchains[4] = {
-		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 3, .length = 2, .istart = 0 },
-		{ .oids = oids_c3, .qnums = qnums_c3, .cid = 4, .length = 1, .istart = 0 },
+	int oids_c0[] = { 1, 2 };  qnumber qnums_c0[] = { 0,  2,  0 };
+	int oids_c1[] = { 2, 1 };  qnumber qnums_c1[] = { 0, -2,  0 };
+	int oids_c2[] = { 3, 3 };  qnumber qnums_c2[] = { 0,  0,  0 };
+	int oids_c3[] = { 3 };     qnumber qnums_c3[] = { 0,  0 };
+	struct op_chain lopchains[] = {
+		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
+		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
+		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 3, .length = ARRLEN(oids_c2), .istart = 0 },
+		{ .oids = oids_c3, .qnums = qnums_c3, .cid = 4, .length = ARRLEN(oids_c3), .istart = 0 },
 	};
 
-	// convert to MPO
-	local_opchains_to_mpo(DOUBLE_REAL, 2, qsite, nsites, lopchains, sizeof(lopchains) / sizeof(struct op_chain), opmap, coeffmap, mpo);
-
-	// clean up
-	for (int i = 0; i < 4; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
+	// convert to an MPO graph
+	local_opchains_to_mpo_graph(nsites, lopchains, ARRLEN(lopchains), &assembly->graph);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct an MPO representation of the Bose-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
+/// \brief Construct an MPO assembly representation of the Bose-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
 ///
-void construct_bose_hubbard_1d_mpo(const int nsites, const long d, const double t, const double u, const double mu, struct mpo* mpo)
+void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, const double t, const double u, const double mu, struct mpo_assembly* assembly)
 {
 	assert(nsites >= 2);
 	assert(d >= 1);
 
 	// physical quantum numbers (particle number)
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	assembly->d = d;
+	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
 	for (long i = 0; i < d; i++) {
-		qsite[i] = i;
+		assembly->qsite[i] = i;
 	}
+
+	assembly->dtype = DOUBLE_REAL;
 
 	// operator map
 	// 0: I
 	// 1: b_{\dagger}
 	// 2: b
-	// 3: u n (n - 1)/2 - mu n
-	struct dense_tensor opmap[4];
-	for (int i = 0; i < 4; i++) {
+	// 3: n
+	// 4: n (n - 1) / 2
+	assembly->num_local_ops = 5;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
-	dense_tensor_set_identity(&opmap[0]);
+	dense_tensor_set_identity(&assembly->opmap[0]);
 	// bosonic creation operator
-	double* b_dag = opmap[1].data;
+	double* b_dag = assembly->opmap[1].data;
 	for (long i = 0; i < d - 1; i++) {
 		b_dag[(i + 1)*d + i] = sqrt(i + 1);
 	}
 	// bosonic annihilation operator
-	double* b_ann = opmap[2].data;
+	double* b_ann = assembly->opmap[2].data;
 	for (long i = 0; i < d - 1; i++) {
 		b_ann[i*d + (i + 1)] = sqrt(i + 1);
 	}
-	// interaction term
-	double* v = opmap[3].data;
+	// bosonic number operator
+	double* numop = assembly->opmap[3].data;
 	for (long i = 0; i < d; i++) {
-		v[i*d + i] = 0.5*u*i*(i - 1) - mu*i;
+		numop[i*d + i] = i;
+	}
+	// bosonic local interaction operator n (n - 1) / 2
+	double* v_int = assembly->opmap[4].data;
+	for (long i = 0; i < d; i++) {
+		v_int[i*d + i] = i * (i - 1) / 2;
 	}
 
 	// coefficient map; first two entries must always be 0 and 1
-	const double coeffmap[3] = { 0, 1, -t };
+	const double coeffmap[] = { 0, 1, -t, -mu, u };
+	assembly->num_coeffs = ARRLEN(coeffmap);
+	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[2] = { 1, 2 };  qnumber qnums_c0[3] = { 0,  1,  0 };
-	int oids_c1[2] = { 2, 1 };  qnumber qnums_c1[3] = { 0, -1,  0 };
-	int oids_c2[1] = { 3 };     qnumber qnums_c2[2] = { 0,  0 };
-	struct op_chain lopchains[3] = {
-		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 1, .length = 1, .istart = 0 },
+	int oids_c0[] = { 1, 2 };  qnumber qnums_c0[] = { 0,  1,  0 };
+	int oids_c1[] = { 2, 1 };  qnumber qnums_c1[] = { 0, -1,  0 };
+	int oids_c2[] = { 3 };     qnumber qnums_c2[] = { 0,  0 };
+	int oids_c3[] = { 4 };     qnumber qnums_c3[] = { 0,  0 };
+	struct op_chain lopchains[] = {
+		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
+		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
+		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 3, .length = ARRLEN(oids_c2), .istart = 0 },
+		{ .oids = oids_c3, .qnums = qnums_c3, .cid = 4, .length = ARRLEN(oids_c3), .istart = 0 },
 	};
 
-	// convert to MPO
-	local_opchains_to_mpo(DOUBLE_REAL, d, qsite, nsites, lopchains, sizeof(lopchains) / sizeof(struct op_chain), opmap, coeffmap, mpo);
-
-	// clean up
-	for (int i = 0; i < 4; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
-	aligned_free(qsite);
+	// convert to an MPO graph
+	local_opchains_to_mpo_graph(nsites, lopchains, ARRLEN(lopchains), &assembly->graph);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct an MPO representation of the Fermi-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
+/// \brief Construct an MPO assembly representation of the Fermi-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
 ///
 /// States for each spin and site are '|0>' and '|1>'.
 ///
-void construct_fermi_hubbard_1d_mpo(const int nsites, const double t, const double u, const double mu, struct mpo* mpo)
+void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, const double u, const double mu, struct mpo_assembly* assembly)
 {
 	// physical particle number and spin quantum numbers (encoded as single integer)
 	const qnumber qn[4] = { 0,  1,  1,  2 };
 	const qnumber qs[4] = { 0, -1,  1,  0 };
-	const qnumber qsite[4] = {
-		(qn[0] << 16) + qs[0],
-		(qn[1] << 16) + qs[1],
-		(qn[2] << 16) + qs[2],
-		(qn[3] << 16) + qs[3],
-	};
+	assembly->d = 4;
+	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite[0] = (qn[0] << 16) + qs[0];
+	assembly->qsite[1] = (qn[1] << 16) + qs[1];
+	assembly->qsite[2] = (qn[2] << 16) + qs[2];
+	assembly->qsite[3] = (qn[3] << 16) + qs[3];
+
+	assembly->dtype = DOUBLE_REAL;
 
 	struct dense_tensor id;
 	{
@@ -272,72 +288,89 @@ void construct_fermi_hubbard_1d_mpo(const int nsites, const double t, const doub
 		const double data[4] = { 1.,  0.,  0., -1. };
 		memcpy(z.data, data, sizeof(data));
 	}
-	// local interaction and potential term
-	struct dense_tensor vint;
+	// total number operator n_up + n_dn
+	struct dense_tensor n_tot;
 	{
 		const long dim[2] = { 4, 4 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &vint);
-		const double diag[4] = { u/4, -u/4 - mu, -u/4 - mu, u/4 - 2*mu };
-		double* data = vint.data;
+		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &n_tot);
+		const double diag[4] = { 0, 1, 1, 2 };
+		double* data = n_tot.data;
+		for (int i = 0; i < 4; i++) {
+			data[i*4 + i] = diag[i];
+		}
+	}
+	// local interaction term (n_up - 1/2) (n_dn - 1/2)
+	struct dense_tensor n_int;
+	{
+		const long dim[2] = { 4, 4 };
+		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &n_int);
+		const double diag[4] = {  0.25, -0.25, -0.25,  0.25 };
+		double* data = n_int.data;
 		for (int i = 0; i < 4; i++) {
 			data[i*4 + i] = diag[i];
 		}
 	}
 
 	// operator map
-	// 0:  I x I
-	// 1: ad x I
-	// 2:  a x I
-	// 3: ad x Z
-	// 4:  a x Z
-	// 5:  I x ad
-	// 6:  I x a
-	// 7:  Z x ad
-	// 8:  Z x a
-	// 9:  u (n_up - 1/2) (n_dn - 1/2) - mu (n_up + n_dn)
-	struct dense_tensor opmap[10];
-	dense_tensor_kronecker_product(&id,    &id,    &opmap[0]);
-	dense_tensor_kronecker_product(&a_dag, &id,    &opmap[1]);
-	dense_tensor_kronecker_product(&a_ann, &id,    &opmap[2]);
-	dense_tensor_kronecker_product(&a_dag, &z,     &opmap[3]);
-	dense_tensor_kronecker_product(&a_ann, &z,     &opmap[4]);
-	dense_tensor_kronecker_product(&id,    &a_dag, &opmap[5]);
-	dense_tensor_kronecker_product(&id,    &a_ann, &opmap[6]);
-	dense_tensor_kronecker_product(&z,     &a_dag, &opmap[7]);
-	dense_tensor_kronecker_product(&z,     &a_ann, &opmap[8]);
-	copy_dense_tensor(&vint, &opmap[9]);
+	//  0:  I x I
+	//  1: ad x I
+	//  2:  a x I
+	//  3: ad x Z
+	//  4:  a x Z
+	//  5:  I x ad
+	//  6:  I x a
+	//  7:  Z x ad
+	//  8:  Z x a
+	//  9: n_up + n_dn
+	// 10: (n_up - 1/2) (n_dn - 1/2)
+	assembly->num_local_ops = 11;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	dense_tensor_kronecker_product(&id,    &id,    &assembly->opmap[0]);
+	dense_tensor_kronecker_product(&a_dag, &id,    &assembly->opmap[1]);
+	dense_tensor_kronecker_product(&a_ann, &id,    &assembly->opmap[2]);
+	dense_tensor_kronecker_product(&a_dag, &z,     &assembly->opmap[3]);
+	dense_tensor_kronecker_product(&a_ann, &z,     &assembly->opmap[4]);
+	dense_tensor_kronecker_product(&id,    &a_dag, &assembly->opmap[5]);
+	dense_tensor_kronecker_product(&id,    &a_ann, &assembly->opmap[6]);
+	dense_tensor_kronecker_product(&z,     &a_dag, &assembly->opmap[7]);
+	dense_tensor_kronecker_product(&z,     &a_ann, &assembly->opmap[8]);
+	copy_dense_tensor(&n_tot, &assembly->opmap[9]);
+	copy_dense_tensor(&n_int, &assembly->opmap[10]);
 
 	// coefficient map; first two entries must always be 0 and 1
-	const double coeffmap[3] = { 0, 1, -t };
+	const double coeffmap[] = { 0, 1, -t, -mu, u };
+	assembly->num_coeffs = ARRLEN(coeffmap);
+	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// cast to unsigned integer to avoid compiler warning when bit-shifting
 	const unsigned int n1 = -1;
 
 	// local two-site and single-site terms
 	// spin-up kinetic hopping
-	int oids_c0[2] = { 3, 2 };  qnumber qnums_c0[3] = { 0, ( 1 << 16) + 1, 0 };
-	int oids_c1[2] = { 4, 1 };  qnumber qnums_c1[3] = { 0, (n1 << 16) - 1, 0 };
+	int oids_c0[] = { 3, 2 };  qnumber qnums_c0[] = { 0, ( 1 << 16) + 1, 0 };
+	int oids_c1[] = { 4, 1 };  qnumber qnums_c1[] = { 0, (n1 << 16) - 1, 0 };
 	// spin-down kinetic hopping
-	int oids_c2[2] = { 5, 8 };  qnumber qnums_c2[3] = { 0, ( 1 << 16) - 1, 0 };
-	int oids_c3[2] = { 6, 7 };  qnumber qnums_c3[3] = { 0, (n1 << 16) + 1, 0 };
-	// interaction u (n_up-1/2) (n_dn-1/2) and number operator - mu (n_up + n_dn)
-	int oids_c4[1] = { 9 };     qnumber qnums_c4[2] = { 0, 0 };
-	struct op_chain lopchains[5] = {
-		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c3, .qnums = qnums_c3, .cid = 2, .length = 2, .istart = 0 },
-		{ .oids = oids_c4, .qnums = qnums_c4, .cid = 1, .length = 1, .istart = 0 },
+	int oids_c2[] = { 5, 8 };  qnumber qnums_c2[] = { 0, ( 1 << 16) - 1, 0 };
+	int oids_c3[] = { 6, 7 };  qnumber qnums_c3[] = { 0, (n1 << 16) + 1, 0 };
+	// number operator - mu (n_up + n_dn) and interaction u (n_up-1/2) (n_dn-1/2)
+	int oids_c4[] = {  9 };    qnumber qnums_c4[] = { 0, 0 };
+	int oids_c5[] = { 10 };    qnumber qnums_c5[] = { 0, 0 };
+	struct op_chain lopchains[] = {
+		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
+		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
+		{ .oids = oids_c2, .qnums = qnums_c2, .cid = 2, .length = ARRLEN(oids_c2), .istart = 0 },
+		{ .oids = oids_c3, .qnums = qnums_c3, .cid = 2, .length = ARRLEN(oids_c3), .istart = 0 },
+		{ .oids = oids_c4, .qnums = qnums_c4, .cid = 3, .length = ARRLEN(oids_c4), .istart = 0 },
+		{ .oids = oids_c5, .qnums = qnums_c5, .cid = 4, .length = ARRLEN(oids_c5), .istart = 0 },
 	};
 
-	// convert to MPO
-	local_opchains_to_mpo(DOUBLE_REAL, 4, qsite, nsites, lopchains, sizeof(lopchains) / sizeof(struct op_chain), opmap, coeffmap, mpo);
+	// convert to an MPO graph
+	local_opchains_to_mpo_graph(nsites, lopchains, ARRLEN(lopchains), &assembly->graph);
 
 	// clean up
-	for (int i = 0; i < 10; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
-	delete_dense_tensor(&vint);
+	delete_dense_tensor(&n_int);
+	delete_dense_tensor(&n_tot);
 	delete_dense_tensor(&z);
 	delete_dense_tensor(&numop);
 	delete_dense_tensor(&a_ann);
@@ -420,16 +453,18 @@ static inline void symmetrize_interaction_coefficients(const struct dense_tensor
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct a molecular Hamiltonian as MPO,
+/// \brief Construct a molecular Hamiltonian as MPO assembly,
 /// using physicists' convention for the interaction term (note ordering of k and l):
 /// \f[
 /// H = \sum_{i,j} t_{i,j} a^{\dagger}_i a_j + \frac{1}{2} \sum_{i,j,k,\ell} v_{i,j,k,\ell} a^{\dagger}_i a^{\dagger}_j a_{\ell} a_k
 /// \f]
 ///
-void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo* mpo)
+void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo_assembly* assembly)
 {
 	assert(tkin->dtype == DOUBLE_REAL);
 	assert(vint->dtype == DOUBLE_REAL);
+
+	assembly->dtype = DOUBLE_REAL;
 
 	// dimension consistency checks
 	assert(tkin->ndim == 2);
@@ -443,6 +478,12 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	// number of "sites" (orbitals)
 	const int nsites = tkin->dim[0];
 	assert(nsites >= 1);
+
+	// physical quantum numbers (particle number)
+	assembly->d = 2;
+	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite[0] = 0;
+	assembly->qsite[1] = 1;
 
 	// local operators
 	// creation and annihilation operators for a single spin and lattice site
@@ -459,16 +500,17 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	// 2: a
 	// 3: numop
 	// 4: Z
-	struct dense_tensor opmap[5];
-	for (int i = 0; i < 5; i++) {
-		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+	assembly->num_local_ops = 5;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		const long dim[2] = { assembly->d, assembly->d };
+		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
-	dense_tensor_set_identity(&opmap[0]);
-	memcpy(opmap[1].data, a_dag, sizeof(a_dag));
-	memcpy(opmap[2].data, a_ann, sizeof(a_ann));
-	memcpy(opmap[3].data, numop, sizeof(numop));
-	memcpy(opmap[4].data, z,     sizeof(z));
+	dense_tensor_set_identity(&assembly->opmap[0]);
+	memcpy(assembly->opmap[1].data, a_dag, sizeof(a_dag));
+	memcpy(assembly->opmap[2].data, a_ann, sizeof(a_ann));
+	memcpy(assembly->opmap[3].data, numop, sizeof(numop));
+	memcpy(assembly->opmap[4].data, z,     sizeof(z));
 
 	const int OID_IDENT = 0;
 	const int OID_A_DAG = 1;
@@ -483,7 +525,6 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	// global minus sign from Jordan-Wigner transformation, since a Z = -a
 	const double neg05 = -0.5;
 	scale_dense_tensor(&neg05, &gint);
-	assert(gint.dtype == DOUBLE_REAL);
 
 	// coefficient map
 	const int nsites2 = nsites * nsites;
@@ -515,14 +556,13 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		}
 	}
 	assert(c == 2 + nsites2 + nsites_choose_two*nsites_choose_two);
+	assembly->coeffmap = coeffmap;
 
-	struct mpo_graph mpo_graph = {
-		.verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*)),
-		.edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(struct mpo_graph_edge*)),
-		.num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int)),
-		.num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(int)),
-		.nsites    = nsites,
-	};
+	assembly->graph.verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
+	assembly->graph.edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(struct mpo_graph_edge*));
+	assembly->graph.num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
+	assembly->graph.num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(int));
+	assembly->graph.nsites    = nsites;
 
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -537,8 +577,8 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		// a^{\dagger}_i and a_i chains, reaching (almost) from one boundary to the other
 		int chi3 = 2 * ((i < nsites - 1 ? nl : 0) + (i > 1 ? nr : 0));
 
-		mpo_graph.num_verts[i] = chi1 + chi2 + chi3;
-		mpo_graph.verts[i] = aligned_calloc(MEM_DATA_ALIGN, mpo_graph.num_verts[i], sizeof(struct mpo_graph_vertex));
+		assembly->graph.num_verts[i] = chi1 + chi2 + chi3;
+		assembly->graph.verts[i] = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.num_verts[i], sizeof(struct mpo_graph_vertex));
 	}
 
 	int* node_counter = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
@@ -560,7 +600,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		for (int j = i + 1; j < nsites - 1; j++) {
 			const int vid = node_counter[j]++;
 			vids_a_dag_l[i][j] = vid;
-			mpo_graph.verts[j][vid].qnum = 1;
+			assembly->graph.verts[j][vid].qnum = 1;
 		}
 	}
 	// a_i operators connected to left terminal
@@ -570,7 +610,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		for (int j = i + 1; j < nsites - 1; j++) {
 			const int vid = node_counter[j]++;
 			vids_a_ann_l[i][j] = vid;
-			mpo_graph.verts[j][vid].qnum = -1;
+			assembly->graph.verts[j][vid].qnum = -1;
 		}
 	}
 	// a^{\dagger}_i a^{\dagger}_j operators connected to left terminal
@@ -581,7 +621,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 			for (int k = j + 1; k < nsites/2 + 1; k++) {
 				const int vid = node_counter[k]++;
 				vids_a_dag_a_dag_l[i*nsites + j][k] = vid;
-				mpo_graph.verts[k][vid].qnum = 2;
+				assembly->graph.verts[k][vid].qnum = 2;
 			}
 		}
 	}
@@ -593,7 +633,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 			for (int k = j + 1; k < nsites/2 + 1; k++) {
 				const int vid = node_counter[k]++;
 				vids_a_ann_a_ann_l[i*nsites + j][k] = vid;
-				mpo_graph.verts[k][vid].qnum = -2;
+				assembly->graph.verts[k][vid].qnum = -2;
 			}
 		}
 	}
@@ -615,7 +655,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		for (int j = 2; j < i + 1; j++) {
 			const int vid = node_counter[j]++;
 			vids_a_dag_r[i][j] = vid;
-			mpo_graph.verts[j][vid].qnum = -1;
+			assembly->graph.verts[j][vid].qnum = -1;
 		}
 	}
 	// a_i operators connected to right terminal
@@ -625,7 +665,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 		for (int j = 2; j < i + 1; j++) {
 			const int vid = node_counter[j]++;
 			vids_a_ann_r[i][j] = vid;
-			mpo_graph.verts[j][vid].qnum = 1;
+			assembly->graph.verts[j][vid].qnum = 1;
 		}
 	}
 	// a^{\dagger}_i a^{\dagger}_j operators connected to right terminal
@@ -636,7 +676,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 			for (int k = nsites/2 + 1; k < i + 1; k++) {
 				const int vid = node_counter[k]++;
 				vids_a_dag_a_dag_r[i*nsites + j][k] = vid;
-				mpo_graph.verts[k][vid].qnum = -2;
+				assembly->graph.verts[k][vid].qnum = -2;
 			}
 		}
 	}
@@ -648,7 +688,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 			for (int k = nsites/2 + 1; k < i + 1; k++) {
 				const int vid = node_counter[k]++;
 				vids_a_ann_a_ann_r[i*nsites + j][k] = vid;
-				mpo_graph.verts[k][vid].qnum = 2;
+				assembly->graph.verts[k][vid].qnum = 2;
 			}
 		}
 	}
@@ -665,7 +705,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	}
 	// consistency check
 	for (int i = 0; i < nsites + 1; i++) {
-		assert(node_counter[i] == mpo_graph.num_verts[i]);
+		assert(node_counter[i] == assembly->graph.num_verts[i]);
 	}
 
 	// edges
@@ -1002,20 +1042,20 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	// transfer edges into mpo_graph structure and connect vertices
 	for (int i = 0; i < nsites; i++)
 	{
-		mpo_graph.num_edges[i] = edges[i].size;
-		mpo_graph.edges[i] = aligned_alloc(MEM_DATA_ALIGN, edges[i].size * sizeof(struct mpo_graph_edge));
+		assembly->graph.num_edges[i] = edges[i].size;
+		assembly->graph.edges[i] = aligned_alloc(MEM_DATA_ALIGN, edges[i].size * sizeof(struct mpo_graph_edge));
 		struct linked_list_node* edge_ref = edges[i].head;
 		long eid = 0;
 		while (edge_ref != NULL)
 		{
 			const struct mpo_graph_edge* edge = edge_ref->data;
-			memcpy(&mpo_graph.edges[i][eid], edge, sizeof(struct mpo_graph_edge));
+			memcpy(&assembly->graph.edges[i][eid], edge, sizeof(struct mpo_graph_edge));
 
 			// create references from graph vertices to edge
-			assert(0 <= edge->vids[0] && edge->vids[0] < mpo_graph.num_verts[i]);
-			assert(0 <= edge->vids[1] && edge->vids[1] < mpo_graph.num_verts[i + 1]);
-			mpo_graph_vertex_add_edge(1, eid, &mpo_graph.verts[i    ][edge->vids[0]]);
-			mpo_graph_vertex_add_edge(0, eid, &mpo_graph.verts[i + 1][edge->vids[1]]);
+			assert(0 <= edge->vids[0] && edge->vids[0] < assembly->graph.num_verts[i]);
+			assert(0 <= edge->vids[1] && edge->vids[1] < assembly->graph.num_verts[i + 1]);
+			mpo_graph_vertex_add_edge(1, eid, &assembly->graph.verts[i    ][edge->vids[0]]);
+			mpo_graph_vertex_add_edge(0, eid, &assembly->graph.verts[i + 1][edge->vids[1]]);
 
 			edge_ref = edge_ref->next;
 			eid++;
@@ -1025,11 +1065,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	}
 	aligned_free(edges);
 
-	assert(mpo_graph_is_consistent(&mpo_graph));
-
-	// convert graph to MPO
-	const qnumber qsite[2] = { 0, 1 };
-	mpo_from_graph(DOUBLE_REAL, 2, qsite, &mpo_graph, opmap, coeffmap, mpo);
+	assert(mpo_graph_is_consistent(&assembly->graph));
 
 	// clean up
 	aligned_free(vids_identity_l);
@@ -1077,12 +1113,7 @@ void construct_molecular_hamiltonian_mpo(const struct dense_tensor* restrict tki
 	aligned_free(node_counter);
 	aligned_free(gint_cids);
 	aligned_free(tkin_cids);
-	aligned_free(coeffmap);
-	delete_mpo_graph(&mpo_graph);
 	delete_dense_tensor(&gint);
-	for (int i = 0; i < 5; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
 }
 
 
@@ -1126,7 +1157,7 @@ static int compare_index_qnumber_tuple(const void* a, const void* b)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct a molecular Hamiltonian as MPO,
+/// \brief Construct a molecular Hamiltonian as MPO assembly,
 /// using physicists' convention for the interaction term (note ordering of k and l):
 /// \f[
 /// H = \sum_{i,j} t_{i,j} a^{\dagger}_i a_j + \frac{1}{2} \sum_{i,j,k,\ell} v_{i,j,k,\ell} a^{\dagger}_i a^{\dagger}_j a_{\ell} a_k
@@ -1135,10 +1166,12 @@ static int compare_index_qnumber_tuple(const void* a, const void* b)
 /// This version optimizes the virtual bond dimensions via the automatic construction starting from operator chains.
 /// Can handle zero entries in 'tkin' and 'vint', but construction takes considerably longer for larger number of orbitals.
 ///
-void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo* mpo)
+void construct_molecular_hamiltonian_mpo_assembly_opt(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo_assembly* assembly)
 {
 	assert(tkin->dtype == DOUBLE_REAL);
 	assert(vint->dtype == DOUBLE_REAL);
+
+	assembly->dtype = DOUBLE_REAL;
 
 	// dimension consistency checks
 	assert(tkin->ndim == 2);
@@ -1155,6 +1188,12 @@ void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict
 	const int nsites2 = nsites * nsites;
 	const int nsites_choose_two = nsites * (nsites - 1) / 2;
 
+	// physical quantum numbers (particle number)
+	assembly->d = 2;
+	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite[0] = 0;
+	assembly->qsite[1] = 1;
+
 	// local operators
 	// creation and annihilation operators for a single spin and lattice site
 	const double a_ann[4] = { 0.,  1.,  0.,  0. };
@@ -1170,16 +1209,17 @@ void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict
 	// 2: a
 	// 3: numop
 	// 4: Z
-	struct dense_tensor opmap[5];
-	for (int i = 0; i < 5; i++) {
-		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &opmap[i]);
+	assembly->num_local_ops = 5;
+	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		const long dim[2] = { assembly->d, assembly->d };
+		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
-	dense_tensor_set_identity(&opmap[0]);
-	memcpy(opmap[1].data, a_dag, sizeof(a_dag));
-	memcpy(opmap[2].data, a_ann, sizeof(a_ann));
-	memcpy(opmap[3].data, numop, sizeof(numop));
-	memcpy(opmap[4].data, z,     sizeof(z));
+	dense_tensor_set_identity(&assembly->opmap[0]);
+	memcpy(assembly->opmap[1].data, a_dag, sizeof(a_dag));
+	memcpy(assembly->opmap[2].data, a_ann, sizeof(a_ann));
+	memcpy(assembly->opmap[3].data, numop, sizeof(numop));
+	memcpy(assembly->opmap[4].data, z,     sizeof(z));
 
 	const int OID_IDENT = 0;
 	const int OID_A_DAG = 1;
@@ -1194,7 +1234,6 @@ void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict
 	// global minus sign from Jordan-Wigner transformation, since a Z = -a
 	const double neg05 = -0.5;
 	scale_dense_tensor(&neg05, &gint);
-	assert(gint.dtype == DOUBLE_REAL);
 
 	// coefficient map
 	double* coeffmap = aligned_alloc(MEM_DATA_ALIGN, (2 + nsites2 + nsites_choose_two * nsites_choose_two) * sizeof(double));
@@ -1224,6 +1263,7 @@ void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict
 		}
 	}
 	assert(c == 2 + nsites2 + nsites_choose_two * nsites_choose_two);
+	assembly->coeffmap = coeffmap;
 
 	const int nchains = nsites2 + nsites_choose_two * nsites_choose_two;
 	struct op_chain* opchains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
@@ -1429,23 +1469,14 @@ void construct_molecular_hamiltonian_mpo_opt(const struct dense_tensor* restrict
 	}
 	assert(oc == nchains);
 
-	struct mpo_graph graph;
-	mpo_graph_from_opchains(opchains, nchains, nsites, &graph);
-
-	const qnumber qsite[2] = { 0, 1 };
-	mpo_from_graph(DOUBLE_REAL, 2, qsite, &graph, opmap, coeffmap, mpo);
+	mpo_graph_from_opchains(opchains, nchains, nsites, &assembly->graph);
 
 	// clean up
-	delete_mpo_graph(&graph);
 	for (int i = 0; i < nchains; i++) {
 		delete_op_chain(&opchains[i]);
 	}
 	aligned_free(opchains);
 	aligned_free(gint_cids);
 	aligned_free(tkin_cids);
-	aligned_free(coeffmap);
 	delete_dense_tensor(&gint);
-	for (int i = 0; i < 5; i++) {
-		delete_dense_tensor(&opmap[i]);
-	}
 }

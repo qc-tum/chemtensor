@@ -8,6 +8,26 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Delete a matrix product operator assembly (free memory).
+///
+void delete_mpo_assembly(struct mpo_assembly* assembly)
+{
+	delete_mpo_graph(&assembly->graph);
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		delete_dense_tensor(&assembly->opmap[i]);
+	}
+	aligned_free(assembly->opmap);
+	aligned_free(assembly->coeffmap);
+	aligned_free(assembly->qsite);
+
+	assembly->opmap    = NULL;
+	assembly->coeffmap = NULL;
+	assembly->qsite    = NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Allocate memory for a matrix product operator. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
 void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
@@ -34,40 +54,41 @@ void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d,
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct an MPO from an MPO graph.
+/// \brief Construct an MPO from an MPO assembly.
 ///
-void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* qsite, const struct mpo_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct mpo* mpo)
+void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 {
-	assert(graph->nsites >= 1);
-	assert(d >= 1);
-	mpo->nsites = graph->nsites;
-	mpo->d = d;
+	assert(assembly->graph.nsites >= 1);
+	assert(assembly->d >= 1);
+	const long d = assembly->d;
+	mpo->nsites = assembly->graph.nsites;
+	mpo->d = assembly->d;
 
-	assert(coefficient_map_is_valid(dtype, coeffmap));
+	assert(coefficient_map_is_valid(assembly->dtype, assembly->coeffmap));
 
 	mpo->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
-	memcpy(mpo->qsite, qsite, d * sizeof(qnumber));
+	memcpy(mpo->qsite, assembly->qsite, d * sizeof(qnumber));
 
-	mpo->a = aligned_calloc(MEM_DATA_ALIGN, graph->nsites, sizeof(struct block_sparse_tensor));
+	mpo->a = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.nsites, sizeof(struct block_sparse_tensor));
 
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < assembly->graph.nsites; l++)
 	{
 		// accumulate entries in a dense tensor first
-		const long dim_a_loc[4] = { graph->num_verts[l], d, d, graph->num_verts[l + 1] };
+		const long dim_a_loc[4] = { assembly->graph.num_verts[l], d, d, assembly->graph.num_verts[l + 1] };
 		struct dense_tensor a_loc;
-		allocate_dense_tensor(dtype, 4, dim_a_loc, &a_loc);
+		allocate_dense_tensor(assembly->dtype, 4, dim_a_loc, &a_loc);
 
-		for (int i = 0; i < graph->num_edges[l]; i++)
+		for (int i = 0; i < assembly->graph.num_edges[l]; i++)
 		{
-			const struct mpo_graph_edge* edge = &graph->edges[l][i];
+			const struct mpo_graph_edge* edge = &assembly->graph.edges[l][i];
 			struct dense_tensor op;
-			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
+			construct_local_operator(edge->opics, edge->nopics, assembly->opmap, assembly->coeffmap, &op);
 
 			assert(op.ndim == 2);
 			assert(op.dim[0] == d && op.dim[1] == d);
 			assert(op.dtype == a_loc.dtype);
-			assert(0 <= edge->vids[0] && edge->vids[0] < graph->num_verts[l]);
-			assert(0 <= edge->vids[1] && edge->vids[1] < graph->num_verts[l + 1]);
+			assert(0 <= edge->vids[0] && edge->vids[0] < assembly->graph.num_verts[l]);
+			assert(0 <= edge->vids[1] && edge->vids[1] < assembly->graph.num_verts[l + 1]);
 
 			// add entries of local operator 'op' to 'a_loc' (supporting multiple edges between same pair of nodes)
 			const long index_start[4] = { edge->vids[0], 0, 0, edge->vids[1] };
@@ -128,14 +149,14 @@ void mpo_from_graph(const enum numeric_type dtype, const long d, const qnumber* 
 		qnumber* qbonds[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, graph->num_verts[l + i] * sizeof(qnumber));
-			for (int j = 0; j < graph->num_verts[l + i]; j++)
+			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[l + i] * sizeof(qnumber));
+			for (int j = 0; j < assembly->graph.num_verts[l + i]; j++)
 			{
-				qbonds[i][j] = graph->verts[l + i][j].qnum;
+				qbonds[i][j] = assembly->graph.verts[l + i][j].qnum;
 			}
 		}
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
-		const qnumber* qnums[4] = { qbonds[0], qsite, qsite, qbonds[1] };
+		const qnumber* qnums[4] = { qbonds[0], assembly->qsite, assembly->qsite, qbonds[1] };
 		dense_to_block_sparse_tensor(&a_loc, axis_dir, qnums, &mpo->a[l]);
 		for (int i = 0; i < 2; i++)
 		{

@@ -14,8 +14,9 @@ struct operator_inner_product_params
 	const struct mps* psi;
 	const struct mps* chi;
 	const struct mpo_graph* graph;
-	const struct dense_tensor* opmap;
-	long num_coeffs;
+	struct dense_tensor* opmap;
+	int num_local_ops;
+	int num_coeffs;
 };
 
 // wrapper of 'operator_inner_product' as a function of the operator coefficients
@@ -23,24 +24,33 @@ static void operator_inner_product_wrapper(const scomplex* restrict x, void* p, 
 {
 	const struct operator_inner_product_params* params = p;
 
-	const enum numeric_type dtype = params->opmap[0].dtype;
-
 	assert(params->num_coeffs >= 2);
 	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, params->num_coeffs * sizeof(scomplex));
 	// first two coefficients must always be 0 and 1
 	coeffmap[0] = 0;
 	coeffmap[1] = 1;
-	// use 'x' as remaining coefficients
+	// use 'x' for the remaining coefficients
 	memcpy(coeffmap + 2, x, (params->num_coeffs - 2) * sizeof(scomplex));
 
-	// construct MPO corresponding to MPO graph
+	struct mpo_assembly assembly = {
+		.graph         = *params->graph,
+		.opmap         = params->opmap,
+		.coeffmap      = coeffmap,
+		.qsite         = params->psi->qsite,  // copy pointer
+		.d             = params->psi->d,
+		.dtype         = params->opmap[0].dtype,
+		.num_local_ops = params->num_local_ops,
+		.num_coeffs    = params->num_coeffs,
+	};
+
+	// construct corresponding MPO
 	struct mpo mpo;
-	mpo_from_graph(dtype, params->psi->d, params->psi->qsite, params->graph, params->opmap, coeffmap, &mpo);
+	mpo_from_assembly(&assembly, &mpo);
 
 	operator_inner_product(params->chi, &mpo, params->psi, y);
 
-	aligned_free(coeffmap);
 	delete_mpo(&mpo);
+	aligned_free(coeffmap);
 }
 
 
@@ -235,16 +245,27 @@ char* test_operator_average_coefficient_gradient()
 	delete_dense_tensor(&opmap_tensor);
 
 	// coefficient map; first two entries must always be 0 and 1
-	const long num_coeffs = 9;
+	const int num_coeffs = 9;
 	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, num_coeffs * sizeof(scomplex));
 	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
 
+	struct mpo_assembly assembly = {
+		.graph         = graph,
+		.opmap         = opmap,
+		.coeffmap      = coeffmap,
+		.qsite         = (qnumber*)qsite,
+		.d             = d,
+		.dtype         = SINGLE_COMPLEX,
+		.num_local_ops = num_local_ops,
+		.num_coeffs    = num_coeffs,
+	};
+
 	// compute gradient with respect to coefficients
 	scomplex avr;
 	scomplex* dcoeff = aligned_alloc(MEM_DATA_ALIGN, num_coeffs * sizeof(scomplex));
-	operator_average_coefficient_gradient(&graph, opmap, coeffmap, num_coeffs, &psi, &chi, &avr, dcoeff);
+	operator_average_coefficient_gradient(&assembly, &psi, &chi, &avr, dcoeff);
 
 	// reference average value
 	scomplex avr_ref;
@@ -255,11 +276,12 @@ char* test_operator_average_coefficient_gradient()
 	// numerical gradient based on finite-difference approximation
 	const float h = 1e-2;  // relatively large value to avoid numerical cancellation errors
 	struct operator_inner_product_params params = {
-		.psi = &psi,
-		.chi = &chi,
-		.graph = &graph,
-		.opmap = opmap,
-		.num_coeffs = num_coeffs,
+		.psi           = &psi,
+		.chi           = &chi,
+		.graph         = &graph,
+		.opmap         = opmap,
+		.num_local_ops = num_local_ops,
+		.num_coeffs    = num_coeffs,
 	};
 	scomplex* dcoeff_ref = aligned_alloc(MEM_DATA_ALIGN, (num_coeffs - 2) * sizeof(scomplex));
 	scomplex dy = 1;

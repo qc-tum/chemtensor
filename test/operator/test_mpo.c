@@ -3,11 +3,14 @@
 #include "aligned_memory.h"
 
 
-char* test_mpo_from_graph()
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
+char* test_mpo_from_assembly()
 {
-	hid_t file = H5Fopen("../test/operator/data/test_mpo_from_graph.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/operator/data/test_mpo_from_assembly.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_mpo_from_graph failed";
+		return "'H5Fopen' in test_mpo_from_assembly failed";
 	}
 
 	// number of lattice sites
@@ -17,32 +20,32 @@ char* test_mpo_from_graph()
 
 	const qnumber qsite[4] = { -1, 0, 2, 0 };
 
-	int v0_eids_1[2] = { 0, 1 };
-	int v1_eids_0[1] = { 0 };
-	int v1_eids_1[1] = { 0 };
-	int v2_eids_0[1] = { 1 };
-	int v2_eids_1[1] = { 1 };
-	int v3_eids_0[2] = { 0, 1 };
-	int v3_eids_1[2] = { 0, 1 };
-	int v4_eids_0[1] = { 0 };
-	int v4_eids_1[1] = { 0 };
-	int v5_eids_0[1] = { 1 };
-	int v5_eids_1[2] = { 1, 2 };
-	int v6_eids_0[2] = { 0, 1 };
-	int v6_eids_1[2] = { 0, 2 };
-	int v7_eids_0[1] = { 2 };
-	int v7_eids_1[1] = { 1 };
-	int v8_eids_0[3] = { 0, 1, 2 };
+	int v0_eids_1[] = { 0, 1 };
+	int v1_eids_0[] = { 0 };
+	int v1_eids_1[] = { 0 };
+	int v2_eids_0[] = { 1 };
+	int v2_eids_1[] = { 1 };
+	int v3_eids_0[] = { 0, 1 };
+	int v3_eids_1[] = { 0, 1 };
+	int v4_eids_0[] = { 0 };
+	int v4_eids_1[] = { 0 };
+	int v5_eids_0[] = { 1 };
+	int v5_eids_1[] = { 1, 2 };
+	int v6_eids_0[] = { 0, 1 };
+	int v6_eids_1[] = { 0, 2 };
+	int v7_eids_0[] = { 2 };
+	int v7_eids_1[] = { 1 };
+	int v8_eids_0[] = { 0, 1, 2 };
 	struct mpo_graph_vertex vertex_list[] = {
-		{ .eids = { NULL,      v0_eids_1 }, .num_edges = { 0, 2 }, .qnum =  0 },
-		{ .eids = { v1_eids_0, v1_eids_1 }, .num_edges = { 1, 1 }, .qnum =  1 },
-		{ .eids = { v2_eids_0, v2_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
-		{ .eids = { v3_eids_0, v3_eids_1 }, .num_edges = { 2, 2 }, .qnum = -1 },
-		{ .eids = { v4_eids_0, v4_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
-		{ .eids = { v5_eids_0, v5_eids_1 }, .num_edges = { 1, 2 }, .qnum =  1 },
-		{ .eids = { v6_eids_0, v6_eids_1 }, .num_edges = { 2, 2 }, .qnum = -1 },
-		{ .eids = { v7_eids_0, v7_eids_1 }, .num_edges = { 1, 1 }, .qnum =  0 },
-		{ .eids = { v8_eids_0, NULL      }, .num_edges = { 3, 0 }, .qnum =  1 },
+		{ .eids = { NULL,      v0_eids_1 }, .num_edges = { 0,                 ARRLEN(v0_eids_1) }, .qnum =  0 },
+		{ .eids = { v1_eids_0, v1_eids_1 }, .num_edges = { ARRLEN(v1_eids_0), ARRLEN(v1_eids_1) }, .qnum =  1 },
+		{ .eids = { v2_eids_0, v2_eids_1 }, .num_edges = { ARRLEN(v2_eids_0), ARRLEN(v2_eids_1) }, .qnum =  0 },
+		{ .eids = { v3_eids_0, v3_eids_1 }, .num_edges = { ARRLEN(v3_eids_0), ARRLEN(v3_eids_1) }, .qnum = -1 },
+		{ .eids = { v4_eids_0, v4_eids_1 }, .num_edges = { ARRLEN(v4_eids_0), ARRLEN(v4_eids_1) }, .qnum =  0 },
+		{ .eids = { v5_eids_0, v5_eids_1 }, .num_edges = { ARRLEN(v5_eids_0), ARRLEN(v5_eids_1) }, .qnum =  1 },
+		{ .eids = { v6_eids_0, v6_eids_1 }, .num_edges = { ARRLEN(v6_eids_0), ARRLEN(v6_eids_1) }, .qnum = -1 },
+		{ .eids = { v7_eids_0, v7_eids_1 }, .num_edges = { ARRLEN(v7_eids_0), ARRLEN(v7_eids_1) }, .qnum =  0 },
+		{ .eids = { v8_eids_0, NULL      }, .num_edges = { ARRLEN(v8_eids_0), 0                 }, .qnum =  1 },
 	};
 	struct mpo_graph_vertex* graph_vertices[] = {
 		&vertex_list[0],
@@ -54,31 +57,31 @@ char* test_mpo_from_graph()
 	};
 	int graph_num_vertices[6] = { 1, 2, 1, 2, 2, 1 };
 
-	struct local_op_ref  e0_opics[1] = { { .oid =  2, .cid =  5 }, };
-	struct local_op_ref  e1_opics[2] = { { .oid =  5, .cid = 15 }, { .oid = 11, .cid = 10 }, };
-	struct local_op_ref  e2_opics[1] = { { .oid =  1, .cid = 12 }, };
-	struct local_op_ref  e3_opics[1] = { { .oid =  4, .cid =  4 }, };
-	struct local_op_ref  e4_opics[1] = { { .oid =  7, .cid =  7 }, };
-	struct local_op_ref  e5_opics[2] = { { .oid =  0, .cid =  9 }, { .oid = 10, .cid =  3 }, };
-	struct local_op_ref  e6_opics[3] = { { .oid =  3, .cid =  2 }, { .oid = 12, .cid =  8 }, { .oid =  4, .cid =  9 }, };
-	struct local_op_ref  e7_opics[1] = { { .oid =  6, .cid = 13 }, };
-	struct local_op_ref  e8_opics[1] = { { .oid =  8, .cid =  6 }, };
-	struct local_op_ref  e9_opics[1] = { { .oid = 10, .cid = 16 }, };
-	struct local_op_ref e10_opics[1] = { { .oid =  9, .cid = 14 }, };
-	struct local_op_ref e11_opics[2] = { { .oid = 13, .cid = 11 }, { .oid = 14, .cid =  5 }};
+	struct local_op_ref  e0_opics[] = { { .oid =  2, .cid =  5 }, };
+	struct local_op_ref  e1_opics[] = { { .oid =  5, .cid = 15 }, { .oid = 11, .cid = 10 }, };
+	struct local_op_ref  e2_opics[] = { { .oid =  1, .cid = 12 }, };
+	struct local_op_ref  e3_opics[] = { { .oid =  4, .cid =  4 }, };
+	struct local_op_ref  e4_opics[] = { { .oid =  7, .cid =  7 }, };
+	struct local_op_ref  e5_opics[] = { { .oid =  0, .cid =  9 }, { .oid = 10, .cid =  3 }, };
+	struct local_op_ref  e6_opics[] = { { .oid =  3, .cid =  2 }, { .oid = 12, .cid =  8 }, { .oid =  4, .cid =  9 }, };
+	struct local_op_ref  e7_opics[] = { { .oid =  6, .cid = 13 }, };
+	struct local_op_ref  e8_opics[] = { { .oid =  8, .cid =  6 }, };
+	struct local_op_ref  e9_opics[] = { { .oid = 10, .cid = 16 }, };
+	struct local_op_ref e10_opics[] = { { .oid =  9, .cid = 14 }, };
+	struct local_op_ref e11_opics[] = { { .oid = 13, .cid = 11 }, { .oid = 14, .cid =  5 }};
 	struct mpo_graph_edge edge_list[] = {
-		{ .vids = { 0, 0 }, .opics =  e0_opics, .nopics = 1 },
-		{ .vids = { 0, 1 }, .opics =  e1_opics, .nopics = 2 },
-		{ .vids = { 0, 0 }, .opics =  e2_opics, .nopics = 1 },
-		{ .vids = { 1, 0 }, .opics =  e3_opics, .nopics = 1 },
-		{ .vids = { 0, 0 }, .opics =  e4_opics, .nopics = 1 },
-		{ .vids = { 0, 1 }, .opics =  e5_opics, .nopics = 2 },
-		{ .vids = { 0, 0 }, .opics =  e6_opics, .nopics = 3 },
-		{ .vids = { 1, 0 }, .opics =  e7_opics, .nopics = 1 },
-		{ .vids = { 1, 1 }, .opics =  e8_opics, .nopics = 1 },
-		{ .vids = { 0, 0 }, .opics =  e9_opics, .nopics = 1 },
-		{ .vids = { 1, 0 }, .opics = e10_opics, .nopics = 1 },
-		{ .vids = { 0, 0 }, .opics = e11_opics, .nopics = 2 },
+		{ .vids = { 0, 0 }, .opics =  e0_opics, .nopics = ARRLEN( e0_opics) },
+		{ .vids = { 0, 1 }, .opics =  e1_opics, .nopics = ARRLEN( e1_opics) },
+		{ .vids = { 0, 0 }, .opics =  e2_opics, .nopics = ARRLEN( e2_opics) },
+		{ .vids = { 1, 0 }, .opics =  e3_opics, .nopics = ARRLEN( e3_opics) },
+		{ .vids = { 0, 0 }, .opics =  e4_opics, .nopics = ARRLEN( e4_opics) },
+		{ .vids = { 0, 1 }, .opics =  e5_opics, .nopics = ARRLEN( e5_opics) },
+		{ .vids = { 0, 0 }, .opics =  e6_opics, .nopics = ARRLEN( e6_opics) },
+		{ .vids = { 1, 0 }, .opics =  e7_opics, .nopics = ARRLEN( e7_opics) },
+		{ .vids = { 1, 1 }, .opics =  e8_opics, .nopics = ARRLEN( e8_opics) },
+		{ .vids = { 0, 0 }, .opics =  e9_opics, .nopics = ARRLEN( e9_opics) },
+		{ .vids = { 1, 0 }, .opics = e10_opics, .nopics = ARRLEN(e10_opics) },
+		{ .vids = { 0, 0 }, .opics = e11_opics, .nopics = ARRLEN(e11_opics) },
 	};
 	struct mpo_graph_edge* graph_edges[] = {
 		&edge_list[0],
@@ -124,9 +127,20 @@ char* test_mpo_from_graph()
 	// coefficient map; first two entries must always be 0 and 1
 	const dcomplex coeffmap[17] = { 0, 1, -1.6, 0.6, -1.2, -0.6, -0.3 - 0.1i, 0.7, -2.1, 0.5, -0.4 + 0.3i, 1.2, 0.4, 0.8, -0.2, 1.3, 0.9 + 0.5i };
 
-	// construct MPO from an MPO graph
+	struct mpo_assembly assembly = {
+		.graph         = graph,
+		.opmap         = opmap,
+		.coeffmap      = (dcomplex*)coeffmap,
+		.qsite         = (qnumber*)qsite,
+		.d             = d,
+		.dtype         = DOUBLE_COMPLEX,
+		.num_local_ops = num_local_ops,
+		.num_coeffs    = ARRLEN(coeffmap),
+	};
+
+	// construct MPO from an MPO assembly
 	struct mpo mpo;
-	mpo_from_graph(DOUBLE_COMPLEX, d, qsite, &graph, opmap, coeffmap, &mpo);
+	mpo_from_assembly(&assembly, &mpo);
 
 	if (!mpo_is_consistent(&mpo)) {
 		return "internal MPO consistency check failed";

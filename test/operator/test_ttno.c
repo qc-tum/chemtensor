@@ -6,11 +6,11 @@
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
 
 
-char* test_ttno_from_graph()
+char* test_ttno_from_assembly()
 {
-	hid_t file = H5Fopen("../test/operator/data/test_ttno_from_graph.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/operator/data/test_ttno_from_assembly.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_ttno_from_graph failed";
+		return "'H5Fopen' in test_ttno_from_assembly failed";
 	}
 
 	// number of lattice sites
@@ -225,9 +225,20 @@ char* test_ttno_from_graph()
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, -0.7, -0.1, 0.8, -0.2, -1.3, -1.2, -0.3, 0.6, 0.4, 0.7, -1.1, 1.8, 0.2, 0.5, 0.9, 0.3, -0.4, -1.4, -0.9, };
 
-	// construct a TTNO from a TTNO graph
+	struct ttno_assembly assembly = {
+		.graph         = graph,
+		.opmap         = opmap,
+		.coeffmap      = (double*)coeffmap,
+		.qsite         = (qnumber*)qsite,
+		.d             = d,
+		.dtype         = DOUBLE_REAL,
+		.num_local_ops = num_local_ops,
+		.num_coeffs    = ARRLEN(coeffmap),
+	};
+
+	// construct a TTNO from a TTNO assembly
 	struct ttno ttno;
-	ttno_from_graph(DOUBLE_REAL, d, qsite, &graph, opmap, coeffmap, &ttno);
+	ttno_from_assembly(&assembly, &ttno);
 
 	if (!ttno_is_consistent(&ttno)) {
 		return "internal TTNO consistency check failed";

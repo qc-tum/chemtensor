@@ -17,7 +17,12 @@ char* test_ising_1d_mpo()
 	const double g = 13./8;
 
 	struct mpo ising_1d_mpo;
-	construct_ising_1d_mpo(nsites, J, h, g, &ising_1d_mpo);
+	{
+		struct mpo_assembly assembly;
+		construct_ising_1d_mpo_assembly(nsites, J, h, g, &assembly);
+		mpo_from_assembly(&assembly, &ising_1d_mpo);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&ising_1d_mpo)) {
 		return "internal consistency check for Ising Hamiltonian MPO failed";
 	}
@@ -82,7 +87,12 @@ char* test_heisenberg_xxz_1d_mpo()
 	const double h =  2./7;
 
 	struct mpo heisenberg_xxz_1d_mpo;
-	construct_heisenberg_xxz_1d_mpo(nsites, J, D, h, &heisenberg_xxz_1d_mpo);
+	{
+		struct mpo_assembly assembly;
+		construct_heisenberg_xxz_1d_mpo_assembly(nsites, J, D, h, &assembly);
+		mpo_from_assembly(&assembly, &heisenberg_xxz_1d_mpo);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&heisenberg_xxz_1d_mpo)) {
 		return "internal consistency check for Heisenberg XXZ Hamiltonian MPO failed";
 	}
@@ -150,7 +160,12 @@ char* test_bose_hubbard_1d_mpo()
 	const double mu = 13./11;
 
 	struct mpo bose_hubbard_1d_mpo;
-	construct_bose_hubbard_1d_mpo(nsites, d, t, u, mu, &bose_hubbard_1d_mpo);
+	{
+		struct mpo_assembly assembly;
+		construct_bose_hubbard_1d_mpo_assembly(nsites, d, t, u, mu, &assembly);
+		mpo_from_assembly(&assembly, &bose_hubbard_1d_mpo);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&bose_hubbard_1d_mpo)) {
 		return "internal consistency check for Bose-Hubbard Hamiltonian MPO failed";
 	}
@@ -215,7 +230,12 @@ char* test_fermi_hubbard_1d_mpo()
 	const double mu =  3./7;
 
 	struct mpo fermi_hubbard_1d_mpo;
-	construct_fermi_hubbard_1d_mpo(nsites, t, u, mu, &fermi_hubbard_1d_mpo);
+	{
+		struct mpo_assembly assembly;
+		construct_fermi_hubbard_1d_mpo_assembly(nsites, t, u, mu, &assembly);
+		mpo_from_assembly(&assembly, &fermi_hubbard_1d_mpo);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&fermi_hubbard_1d_mpo)) {
 		return "internal consistency check for Fermi-Hubbard Hamiltonian MPO failed";
 	}
@@ -289,13 +309,23 @@ char* test_molecular_hamiltonian_mpo()
 	}
 
 	struct mpo molecular_hamiltonian_mpo;
-	construct_molecular_hamiltonian_mpo(&tkin, &vint, &molecular_hamiltonian_mpo);
+	{
+		struct mpo_assembly assembly;
+		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, &assembly);
+		mpo_from_assembly(&assembly, &molecular_hamiltonian_mpo);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&molecular_hamiltonian_mpo)) {
 		return "internal consistency check for molecular Hamiltonian MPO failed";
 	}
 
 	struct mpo molecular_hamiltonian_mpo_opt;
-	construct_molecular_hamiltonian_mpo_opt(&tkin, &vint, &molecular_hamiltonian_mpo_opt);
+	{
+		struct mpo_assembly assembly;
+		construct_molecular_hamiltonian_mpo_assembly_opt(&tkin, &vint, &assembly);
+		mpo_from_assembly(&assembly, &molecular_hamiltonian_mpo_opt);
+		delete_mpo_assembly(&assembly);
+	}
 	if (!mpo_is_consistent(&molecular_hamiltonian_mpo_opt)) {
 		return "internal consistency check for molecular Hamiltonian MPO failed";
 	}

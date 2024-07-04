@@ -6,7 +6,7 @@ sys.path.append("../")
 from util import interleave_complex
 
 
-def mpo_from_graph_data():
+def mpo_from_assembly_data():
 
     rng = np.random.default_rng(463)
 
@@ -58,12 +58,12 @@ def mpo_from_graph_data():
     assert np.allclose(mpo.as_matrix(), graph.as_matrix(opmap))
 
     # not storing MPO matrix representation on disk to avoid very large files
-    with h5py.File("data/test_mpo_from_graph.hdf5", "w") as file:
+    with h5py.File("data/test_mpo_from_assembly.hdf5", "w") as file:
         file["opmap"] = interleave_complex(np.array(opmap))
 
 
 def main():
-    mpo_from_graph_data()
+    mpo_from_assembly_data()
 
 
 if __name__ == "__main__":

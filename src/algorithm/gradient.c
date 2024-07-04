@@ -12,23 +12,24 @@
 ///
 /// \brief Compute the value and gradient of `<chi | op | psi>` with respect to the internal MPO coefficients.
 ///
-void operator_average_coefficient_gradient(const struct mpo_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, const long num_coeffs, const struct mps* psi, const struct mps* chi, void* avr, void* dcoeff)
+void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, const struct mps* psi, const struct mps* chi, void* avr, void* dcoeff)
 {
-	assert(chi->d == psi->d);
-	assert(qnumber_all_equal(psi->d, chi->qsite, psi->qsite));
+	assert(assembly->d == psi->d);
+	assert(assembly->d == chi->d);
+	assert(qnumber_all_equal(assembly->d, assembly->qsite, psi->qsite));
+	assert(qnumber_all_equal(assembly->d, assembly->qsite, chi->qsite));
 
-	const enum numeric_type dtype = opmap[0].dtype;
-	assert(dtype == psi->a[0].dtype);
-	assert(dtype == chi->a[0].dtype);
+	assert(assembly->dtype == psi->a[0].dtype);
+	assert(assembly->dtype == chi->a[0].dtype);
 
-	const int nsites = graph->nsites;
+	const int nsites = assembly->graph.nsites;
 	assert(chi->nsites == nsites);
 	assert(psi->nsites == nsites);
 	assert(nsites >= 1);
 
 	// construct MPO corresponding to MPO graph
 	struct mpo mpo;
-	mpo_from_graph(dtype, psi->d, psi->qsite, graph, opmap, coeffmap, &mpo);
+	mpo_from_assembly(assembly, &mpo);
 
 	// right operator blocks
 	struct block_sparse_tensor* rblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
@@ -52,14 +53,14 @@ void operator_average_coefficient_gradient(const struct mpo_graph* graph, const 
 		assert(r.ndim == 2);
 		assert(r.dim_logical[0] == 1 && r.dim_logical[1] == 1);
 		assert(r.blocks[0] != NULL);
-		assert(r.blocks[0]->dtype == dtype);
-		memcpy(avr, r.blocks[0]->data, sizeof_numeric_type(dtype));
+		assert(r.blocks[0]->dtype == assembly->dtype);
+		memcpy(avr, r.blocks[0]->data, sizeof_numeric_type(r.blocks[0]->dtype));
 
 		delete_block_sparse_tensor(&r);
 	}
 
 	// set gradients initially to zero
-	memset(dcoeff, 0, num_coeffs * sizeof_numeric_type(dtype));
+	memset(dcoeff, 0, assembly->num_coeffs * sizeof_numeric_type(assembly->dtype));
 
 	for (int l = 0; l < nsites; l++)
 	{
@@ -82,25 +83,25 @@ void operator_average_coefficient_gradient(const struct mpo_graph* graph, const 
 		struct block_sparse_tensor_entry_accessor acc;
 		create_block_sparse_tensor_entry_accessor(&dw, &acc);
 
-		for (int i = 0; i < graph->num_edges[l]; i++)
+		for (int i = 0; i < assembly->graph.num_edges[l]; i++)
 		{
-			const struct mpo_graph_edge* edge = &graph->edges[l][i];
-			assert(graph->verts[l    ][edge->vids[0]].qnum == dw.qnums_logical[0][edge->vids[0]]);
-			assert(graph->verts[l + 1][edge->vids[1]].qnum == dw.qnums_logical[3][edge->vids[1]]);
+			const struct mpo_graph_edge* edge = &assembly->graph.edges[l][i];
+			assert(assembly->graph.verts[l    ][edge->vids[0]].qnum == dw.qnums_logical[0][edge->vids[0]]);
+			assert(assembly->graph.verts[l + 1][edge->vids[1]].qnum == dw.qnums_logical[3][edge->vids[1]]);
 
 			for (int j = 0; j < edge->nopics; j++)
 			{
 				const int cid = edge->opics[j].cid;
-				assert(cid < num_coeffs);
+				assert(cid < assembly->num_coeffs);
 
-				const struct dense_tensor* op = &opmap[edge->opics[j].oid];
-				assert(op->dtype == dtype);
+				const struct dense_tensor* op = &assembly->opmap[edge->opics[j].oid];
+				assert(op->dtype == assembly->dtype);
 				assert(op->ndim == 2);
 				assert(op->dim[0] == psi->d);
 				assert(op->dim[1] == psi->d);
 
 				// explicitly contract physical axes
-				switch (dtype)
+				switch (assembly->dtype)
 				{
 					case SINGLE_REAL:
 					{

@@ -62,9 +62,9 @@ char* test_eigensystem_krylov_symmetric();
 char* test_eigensystem_krylov_hermitian();
 char* test_mpo_graph_from_opchains_basic();
 char* test_mpo_graph_from_opchains_advanced();
-char* test_mpo_from_graph();
+char* test_mpo_from_assembly();
 char* test_ttno_graph_from_opchains();
-char* test_ttno_from_graph();
+char* test_ttno_from_assembly();
 char* test_ising_1d_mpo();
 char* test_heisenberg_xxz_1d_mpo();
 char* test_bose_hubbard_1d_mpo();
@@ -136,9 +136,9 @@ int main()
 		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_hermitian),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_basic),
 		TEST_FUNCTION_ENTRY(test_mpo_graph_from_opchains_advanced),
-		TEST_FUNCTION_ENTRY(test_mpo_from_graph),
+		TEST_FUNCTION_ENTRY(test_mpo_from_assembly),
 		TEST_FUNCTION_ENTRY(test_ttno_graph_from_opchains),
-		TEST_FUNCTION_ENTRY(test_ttno_from_graph),
+		TEST_FUNCTION_ENTRY(test_ttno_from_assembly),
 		TEST_FUNCTION_ENTRY(test_ising_1d_mpo),
 		TEST_FUNCTION_ENTRY(test_heisenberg_xxz_1d_mpo),
 		TEST_FUNCTION_ENTRY(test_bose_hubbard_1d_mpo),
