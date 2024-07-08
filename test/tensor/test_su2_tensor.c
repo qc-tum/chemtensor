@@ -4,51 +4,10 @@
 #include <complex.h>
 #include "su2_tensor.h"
 #include "aligned_memory.h"
+#include "rng.h"
 
 
-//________________________________________________________________________________________________________________________
-///
-/// \brief Generate a pseudo-random number from the interval [0, 1)
-/// that has been rounded down to the nearest multiple of 1/2^{64}.
-///
-static double random_uniform()
-{
-	const int nbits_iter = 15;
-	uint64_t r = 0;
-	for (int i = 0; i < 64; i += nbits_iter)
-	{
-		r <<= nbits_iter;
-		r ^= (uint64_t)rand();
-	}
-
-	return ldexp((double)r, -64);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Draw a standard normal (Gaussian) random number, using the Box-Muller transform.
-///
-static double random_normal()
-{
-	const double M_2PI = 6.2831853071795864769;
-
-	double u1 = random_uniform();
-	double u2 = random_uniform();
-	// use log(u1) instead of log(1 - u1) to avoid loss of significant digits
-	if (u1 == 0) { u1 = 1; }
-	return sqrt(-2 * log(u1)) * sin(M_2PI * u2);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Draw a standard complex normal (Gaussian) random number.
-///
-static dcomplex random_complex_normal()
-{
-	return (random_normal() + _Complex_I * random_normal()) / sqrt(2.0);
-}
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
 
 
 char* test_su2_tensor_fmove()
@@ -91,11 +50,11 @@ char* test_su2_tensor_fmove()
 	qnumber j3list[] = { 2, 4 };
 	qnumber j4list[] = { 0, 2 };
 	const struct su2_irreducible_list outer_jlists[5] = {
-		{ .jlist = j0list, .num = sizeof(j0list) / sizeof(qnumber) },
-		{ .jlist = j1list, .num = sizeof(j1list) / sizeof(qnumber) },
-		{ .jlist = j2list, .num = sizeof(j2list) / sizeof(qnumber) },
-		{ .jlist = j3list, .num = sizeof(j3list) / sizeof(qnumber) },
-		{ .jlist = j4list, .num = sizeof(j4list) / sizeof(qnumber) },
+		{ .jlist = j0list, .num = ARRLEN(j0list) },
+		{ .jlist = j1list, .num = ARRLEN(j1list) },
+		{ .jlist = j2list, .num = ARRLEN(j2list) },
+		{ .jlist = j3list, .num = ARRLEN(j3list) },
+		{ .jlist = j4list, .num = ARRLEN(j4list) },
 	};
 
 	// degeneracy dimensions, indexed by 'j' quantum numbers
@@ -127,7 +86,8 @@ char* test_su2_tensor_fmove()
 	}
 
 	// fill degeneracy tensors with random entries
-	srand(41);
+	struct rng_state rng_state;
+	seed_rng_state(41, &rng_state);
 	for (long c = 0; c < t.charge_sectors.nsec; c++)
 	{
 		// corresponding "degeneracy" tensor
@@ -136,11 +96,7 @@ char* test_su2_tensor_fmove()
 		assert(d->dtype == t.dtype);
 		assert(d->ndim  == t.ndim_logical);
 
-		const long nelem = dense_tensor_num_elements(d);
-		dcomplex* data = d->data;
-		for (long k = 0; k < nelem; k++) {
-			data[k] = random_complex_normal();
-		}
+		dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
 	}
 
 	// convert to full dense tensor, as reference
@@ -285,7 +241,8 @@ char* test_su2_to_dense_tensor()
 	}
 
 	// fill degeneracy tensors with random entries
-	srand(42);
+	struct rng_state rng_state;
+	seed_rng_state(42, &rng_state);
 	for (long c = 0; c < t.charge_sectors.nsec; c++)
 	{
 		// corresponding "degeneracy" tensor
@@ -294,11 +251,7 @@ char* test_su2_to_dense_tensor()
 		assert(d->dtype == t.dtype);
 		assert(d->ndim  == t.ndim_logical);
 
-		const long nelem = dense_tensor_num_elements(d);
-		dcomplex* data = d->data;
-		for (long k = 0; k < nelem; k++) {
-			data[k] = random_complex_normal();
-		}
+		dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
 	}
 
 	// convert to full dense tensor

@@ -447,6 +447,23 @@ void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Fill the non-zero blocks of a block-sparse tensor with random normal entries.
+///
+void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t)
+{
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	for (long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL) {
+			dense_tensor_fill_random_normal(alpha, shift, rng_state, b);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Convert a block-sparse to an equivalent dense tensor.
 ///
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t)

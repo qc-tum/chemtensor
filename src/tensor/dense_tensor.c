@@ -519,6 +519,65 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Fill the entries of a dense tensor with random normal entries.
+///
+void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct dense_tensor* t)
+{
+	const long nelem = dense_tensor_num_elements(t);
+
+	switch (t->dtype)
+	{
+		case SINGLE_REAL:
+		{
+			float* data = t->data;
+			const float a = *((float*)alpha);
+			const float s = *((float*)shift);
+			for (long j = 0; j < nelem; j++) {
+				data[j] = a * randnf(rng_state) + s;
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			double* data = t->data;
+			const double a = *((double*)alpha);
+			const double s = *((double*)shift);
+			for (long j = 0; j < nelem; j++) {
+				data[j] = a * randn(rng_state) + s;
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			scomplex* data = t->data;
+			const scomplex a = *((scomplex*)alpha);
+			const scomplex s = *((scomplex*)shift);
+			for (long j = 0; j < nelem; j++) {
+				data[j] = a * crandnf(rng_state) + s;
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			dcomplex* data = t->data;
+			const dcomplex a = *((dcomplex*)alpha);
+			const dcomplex s = *((dcomplex*)shift);
+			for (long j = 0; j < nelem; j++) {
+				data[j] = a * crandn(rng_state) + s;
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Temporary data structure storing tensor dimensions and a permutation of them.
 ///
 struct dimension_permutation

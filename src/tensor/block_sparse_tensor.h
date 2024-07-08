@@ -74,6 +74,8 @@ void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t
 
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 
+void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t);
+
 
 //________________________________________________________________________________________________________________________
 //
