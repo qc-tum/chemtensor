@@ -14,7 +14,7 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct a Hamiltonian as MPO based on local operator chains, which are shifted along a 1D lattice.
+/// \brief Construct a Hamiltonian as MPO operator graph based on local operator chains, which are shifted along a 1D lattice.
 ///
 static void local_opchains_to_mpo_graph(const int nsites, const struct op_chain* lopchains, const int nlopchains, struct mpo_graph* graph)
 {
@@ -244,10 +244,10 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
 	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
-	assembly->qsite[0] = (qn[0] << 16) + qs[0];
-	assembly->qsite[1] = (qn[1] << 16) + qs[1];
-	assembly->qsite[2] = (qn[2] << 16) + qs[2];
-	assembly->qsite[3] = (qn[3] << 16) + qs[3];
+	assembly->qsite[0] = fermi_hubbard_encode_quantum_numbers(qn[0], qs[0]);
+	assembly->qsite[1] = fermi_hubbard_encode_quantum_numbers(qn[1], qs[1]);
+	assembly->qsite[2] = fermi_hubbard_encode_quantum_numbers(qn[2], qs[2]);
+	assembly->qsite[3] = fermi_hubbard_encode_quantum_numbers(qn[3], qs[3]);
 
 	assembly->dtype = DOUBLE_REAL;
 
@@ -343,16 +343,13 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
-	// cast to unsigned integer to avoid compiler warning when bit-shifting
-	const unsigned int n1 = -1;
-
 	// local two-site and single-site terms
 	// spin-up kinetic hopping
-	int oids_c0[] = { 3, 2 };  qnumber qnums_c0[] = { 0, ( 1 << 16) + 1, 0 };
-	int oids_c1[] = { 4, 1 };  qnumber qnums_c1[] = { 0, (n1 << 16) - 1, 0 };
+	int oids_c0[] = { 3, 2 };  qnumber qnums_c0[] = { 0, fermi_hubbard_encode_quantum_numbers( 1,  1), 0 };
+	int oids_c1[] = { 4, 1 };  qnumber qnums_c1[] = { 0, fermi_hubbard_encode_quantum_numbers(-1, -1), 0 };
 	// spin-down kinetic hopping
-	int oids_c2[] = { 5, 8 };  qnumber qnums_c2[] = { 0, ( 1 << 16) - 1, 0 };
-	int oids_c3[] = { 6, 7 };  qnumber qnums_c3[] = { 0, (n1 << 16) + 1, 0 };
+	int oids_c2[] = { 5, 8 };  qnumber qnums_c2[] = { 0, fermi_hubbard_encode_quantum_numbers( 1, -1), 0 };
+	int oids_c3[] = { 6, 7 };  qnumber qnums_c3[] = { 0, fermi_hubbard_encode_quantum_numbers(-1,  1), 0 };
 	// number operator - mu (n_up + n_dn) and interaction u (n_up-1/2) (n_dn-1/2)
 	int oids_c4[] = {  9 };    qnumber qnums_c4[] = { 0, 0 };
 	int oids_c5[] = { 10 };    qnumber qnums_c5[] = { 0, 0 };

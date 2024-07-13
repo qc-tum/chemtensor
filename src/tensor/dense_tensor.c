@@ -1672,21 +1672,6 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Minimum of two integers.
-///
-static inline long minl(const long a, const long b)
-{
-	if (a <= b) {
-		return a;
-	}
-	else {
-		return b;
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Compute the QR decomposition of the matrix 'a', and store the result in 'q' and 'r' (will be allocated).
 /// The matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'.
 ///
@@ -1697,7 +1682,7 @@ int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* 
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	const long dim_q[2] = { m, k };
 	const long dim_r[2] = { k, n };
@@ -1725,7 +1710,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	assert(q->dim[0] == m);
 	assert(q->dim[1] == k);
@@ -2029,7 +2014,7 @@ int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* 
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	const long dim_r[2] = { m, k };
 	const long dim_q[2] = { k, n };
@@ -2057,7 +2042,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	assert(r->dim[0] == m);
 	assert(r->dim[1] == k);
@@ -2361,7 +2346,7 @@ int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor*
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	const long dim_u[2]  = { m, k };
 	const long dim_s[1]  = { k };
@@ -2392,7 +2377,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = minl(m, n);
+	const long k = lmin(m, n);
 
 	assert( u->dim[0] == m);
 	assert( u->dim[1] == k);

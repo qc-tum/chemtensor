@@ -47,6 +47,16 @@ uint64_t rand_uint64(struct rng_state* state)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Generate a uniformly distributed integer random number from the interval [0, bound).
+///
+uint64_t rand_interval(const uint64_t bound, struct rng_state* state)
+{
+	return pcg32x2_boundedrand_r(bound, &state->pcgstate);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Generate a uniformly distributed pseudo-random number from the interval [0, 1)
 /// that has been rounded down to the nearest multiple of 1/2^{64}.
 ///

@@ -246,7 +246,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 /// The input 'psi' is used as starting state and is updated in-place during the optimization.
 ///
 int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const long max_vdim,
-	struct mps* psi, double* en_sweeps, double* restrict entropy)
+	struct mps* psi, double* restrict en_sweeps, double* restrict entropy)
 {
 	// number of lattice sites
 	const int nsites = hamiltonian->nsites;

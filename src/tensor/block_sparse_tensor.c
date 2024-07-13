@@ -1746,16 +1746,6 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Minimum of two integers.
-///
-static inline long minl(const long a, const long b)
-{
-	return (a <= b) ? a : b;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Compute the logical QR decomposition of a block-sparse matrix.
 ///
 /// The logical quantum numbers of the axis connecting Q and R will be sorted.
@@ -1790,7 +1780,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
 
-			const long k = minl(b->dim[0], b->dim[1]);
+			const long k = lmin(b->dim[0], b->dim[1]);
 
 			// append a sequence of logical quantum numbers of length k
 			for (long l = 0; l < k; l++) {
@@ -1929,7 +1919,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
 
-			const long k = minl(b->dim[0], b->dim[1]);
+			const long k = lmin(b->dim[0], b->dim[1]);
 
 			// append a sequence of logical quantum numbers of length k
 			for (long l = 0; l < k; l++) {
@@ -2068,7 +2058,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
 
-			const long k = minl(b->dim[0], b->dim[1]);
+			const long k = lmin(b->dim[0], b->dim[1]);
 
 			// append a sequence of logical quantum numbers of length k
 			for (long l = 0; l < k; l++) {

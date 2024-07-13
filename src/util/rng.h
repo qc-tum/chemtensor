@@ -29,6 +29,8 @@ uint32_t rand_uint32(struct rng_state* state);
 
 uint64_t rand_uint64(struct rng_state* state);
 
+uint64_t rand_interval(const uint64_t bound, struct rng_state* state);
+
 
 //________________________________________________________________________________________________________________________
 //

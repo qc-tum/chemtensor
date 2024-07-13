@@ -57,6 +57,97 @@ void delete_mps(struct mps* mps)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.
+///
+void construct_random_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct mps* mps)
+{
+	assert(nsites >= 1);
+	assert(d >= 1);
+
+	// virtual bond quantum numbers
+	long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
+	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	// dummy left virtual bond; set quantum number to zero
+	dim_bonds[0] = 1;
+	qbonds[0] = aligned_alloc(MEM_DATA_ALIGN, sizeof(qnumber));
+	qbonds[0][0] = 0;
+	// dummy right virtual bond; set quantum number to overall quantum number sector
+	dim_bonds[nsites] = 1;
+	qbonds[nsites] = aligned_alloc(MEM_DATA_ALIGN, sizeof(qnumber));
+	qbonds[nsites][0] = qnum_sector;
+	// virtual bond quantum numbers on left half
+	for (int l = 1; l < (nsites + 1) / 2; l++)
+	{
+		// enumerate all combinations of left bond quantum numbers and local physical quantum numbers
+		const long dim_full = dim_bonds[l - 1] * d;
+		qnumber* qnums_full = aligned_alloc(MEM_DATA_ALIGN, dim_full * sizeof(qnumber));
+		for (long i = 0; i < dim_bonds[l - 1]; i++) {
+			for (long j = 0; j < d; j++) {
+				qnums_full[i*d + j] = qbonds[l - 1][i] + qsite[j];
+			}
+		}
+		dim_bonds[l] = lmin(dim_full, max_vdim);
+		qbonds[l] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[l] * sizeof(qnumber));
+		if (dim_full <= max_vdim) {
+			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
+		}
+		else {
+			// randomly select quantum numbers
+			for (long i = 0; i < dim_bonds[l]; i++) {
+				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
+			}
+		}
+		aligned_free(qnums_full);
+	}
+	// virtual bond quantum numbers on right half
+	for (int l = nsites - 1; l >= (nsites + 1) / 2; l--)
+	{
+		// enumerate all combinations of right bond quantum numbers and local physical quantum numbers
+		const long dim_full = dim_bonds[l + 1] * d;
+		qnumber* qnums_full = aligned_alloc(MEM_DATA_ALIGN, dim_full * sizeof(qnumber));
+		for (long i = 0; i < dim_bonds[l + 1]; i++) {
+			for (long j = 0; j < d; j++) {
+				qnums_full[i*d + j] = qbonds[l + 1][i] - qsite[j];
+			}
+		}
+		dim_bonds[l] = lmin(dim_full, max_vdim);
+		qbonds[l] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[l] * sizeof(qnumber));
+		if (dim_full <= max_vdim) {
+			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
+		}
+		else {
+			// randomly select quantum numbers
+			for (long i = 0; i < dim_bonds[l]; i++) {
+				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
+			}
+		}
+		aligned_free(qnums_full);
+	}
+
+	allocate_mps(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mps);
+
+	for (int l = 0; l < nsites + 1; l++) {
+		aligned_free(qbonds[l]);
+	}
+	aligned_free(qbonds);
+	aligned_free(dim_bonds);
+
+	// fill MPS tensor entries with pseudo-random numbers, scaled by 1 / sqrt("number of entries")
+	for (int l = 0; l < nsites; l++)
+	{
+		// logical number of entries in MPS tensor
+		const long nelem = integer_product(mps->a[l].dim_logical, mps->a[l].ndim);
+		// ensure that 'alpha' is large enough to store any numeric type
+		dcomplex alpha;
+		assert(mps->a[l].dtype == dtype);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
+		block_sparse_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &mps->a[l]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Internal consistency check of the MPS data structure.
 ///
 bool mps_is_consistent(const struct mps* mps)
@@ -318,7 +409,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Right-orthonormalize a local MPS site tensor by RQ decomposition, and update tensor at next site.
+/// \brief Right-orthonormalize a local MPS site tensor by RQ decomposition, and update tensor at previous site.
 ///
 void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev)
 {

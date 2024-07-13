@@ -31,6 +31,26 @@ static inline int imax(const int a, const int b)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Minimum of two long integers.
+///
+static inline long lmin(const long a, const long b)
+{
+	return (a <= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Maximum of two long integers.
+///
+static inline long lmax(const long a, const long b)
+{
+	return (a >= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Square function x -> x^2.
 ///
 static inline double square(const double x)
