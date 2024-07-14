@@ -1,4 +1,3 @@
-#include <cblas.h>
 #include <lapacke.h>
 #include <stdio.h>
 #include "hamiltonian.h"
@@ -29,6 +28,7 @@ int main()
 	// maximum allowed MPS bond dimension
 	const long max_vdim = 32;
 
+	// construct MPO representation of Hamiltonian
 	struct mpo hamiltonian;
 	{
 		struct mpo_assembly assembly;

@@ -21,6 +21,25 @@ static inline qnumber fermi_hubbard_encode_quantum_numbers(const qnumber q_pnum,
 	return (q_pnum << 16) + q_spin;
 }
 
+//________________________________________________________________________________________________________________________
+///
+/// \brief Decode a quantum number of the Fermi-Hubbard Hamiltonian into separate particle number and spin quantum numbers.
+///
+static inline void fermi_hubbard_decode_quantum_numbers(const qnumber qnum, qnumber* q_pnum, qnumber* q_spin)
+{
+	qnumber qs = qnum % (1 << 16);
+	if (qs >= (1 << 15)) {
+		qs -= (1 << 16);
+	}
+	else if (qs < -(1 << 15)) {
+		qs += (1 << 16);
+	}
+	qnumber qp = (qnum - qs) >> 16;
+
+	(*q_pnum) = qp;
+	(*q_spin) = qs;
+}
+
 void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, const double u, const double mu, struct mpo_assembly* assembly);
 
 void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo_assembly* assembly);
