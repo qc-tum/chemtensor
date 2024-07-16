@@ -530,13 +530,22 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 	// first two entries must always be 0 and 1
 	coeffmap[0] = 0.;
 	coeffmap[1] = 1.;
-	memcpy(&coeffmap[2], tkin->data, nsites2 * sizeof(double));
 	int* tkin_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2, sizeof(int));
 	int* gint_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2*nsites2, sizeof(int));
 	int c = 2;
+	const double* tkin_data = tkin->data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = 0; j < nsites; j++) {
-			tkin_cids[i*nsites + j] = c++;
+			const int idx = i*nsites + j;
+			if (tkin_data[idx] == 0) {
+				// filter out zero coefficients
+				tkin_cids[idx] = CID_ZERO;
+			}
+			else {
+				coeffmap[c] = tkin_data[idx];
+				tkin_cids[idx] = c;
+				c++;
+			}
 		}
 	}
 	const double* gint_data = gint.data;
@@ -545,14 +554,21 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int l = 0; l < nsites; l++) {
 				for (int k = l + 1; k < nsites; k++) {  // l < k
 					const int idx = ((i*nsites + j)*nsites + k)*nsites + l;
-					coeffmap[c] = gint_data[idx];
-					gint_cids[idx] = c;
-					c++;
+					if (gint_data[idx] == 0) {
+						// filter out zero coefficients
+						gint_cids[idx] = CID_ZERO;
+					}
+					else {
+						coeffmap[c] = gint_data[idx];
+						gint_cids[idx] = c;
+						c++;
+					}
 				}
 			}
 		}
 	}
-	assert(c == 2 + nsites2 + nsites_choose_two*nsites_choose_two);
+	assert(c <= 2 + nsites2 + nsites_choose_two * nsites_choose_two);
+	assembly->num_coeffs = c;
 	assembly->coeffmap = coeffmap;
 
 	assembly->graph.verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
@@ -1237,13 +1253,22 @@ void construct_molecular_hamiltonian_mpo_assembly_opt(const struct dense_tensor*
 	// first two entries must always be 0 and 1
 	coeffmap[0] = 0.;
 	coeffmap[1] = 1.;
-	memcpy(&coeffmap[2], tkin->data, nsites2 * sizeof(double));
 	int* tkin_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2, sizeof(int));
 	int* gint_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2*nsites2, sizeof(int));
 	int c = 2;
+	const double* tkin_data = tkin->data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = 0; j < nsites; j++) {
-			tkin_cids[i*nsites + j] = c++;
+			const int idx = i*nsites + j;
+			if (tkin_data[idx] == 0) {
+				// filter out zero coefficients
+				tkin_cids[idx] = CID_ZERO;
+			}
+			else {
+				coeffmap[c] = tkin_data[idx];
+				tkin_cids[idx] = c;
+				c++;
+			}
 		}
 	}
 	const double* gint_data = gint.data;
@@ -1252,14 +1277,21 @@ void construct_molecular_hamiltonian_mpo_assembly_opt(const struct dense_tensor*
 			for (int l = 0; l < nsites; l++) {
 				for (int k = l + 1; k < nsites; k++) {  // l < k
 					const int idx = ((i*nsites + j)*nsites + k)*nsites + l;
-					coeffmap[c] = gint_data[idx];
-					gint_cids[idx] = c;
-					c++;
+					if (gint_data[idx] == 0) {
+						// filter out zero coefficients
+						gint_cids[idx] = CID_ZERO;
+					}
+					else {
+						coeffmap[c] = gint_data[idx];
+						gint_cids[idx] = c;
+						c++;
+					}
 				}
 			}
 		}
 	}
-	assert(c == 2 + nsites2 + nsites_choose_two * nsites_choose_two);
+	assert(c <= 2 + nsites2 + nsites_choose_two * nsites_choose_two);
+	assembly->num_coeffs = c;
 	assembly->coeffmap = coeffmap;
 
 	const int nchains = nsites2 + nsites_choose_two * nsites_choose_two;

@@ -69,6 +69,48 @@ static void PyMPS_dealloc(PyMPSObject* self)
 }
 
 
+static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
+{
+	if (self->mps.a == NULL)
+	{
+		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+		return NULL;
+	}
+
+	// bond index
+	int i;
+	if (!PyArg_ParseTuple(args, "i", &i)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_quantum_numbers(i: int)");
+		return NULL;
+	}
+
+	if (i < 0 || i >= self->mps.nsites + 1) {
+		char msg[1024];
+		sprintf(msg, "invalid bond index i = %i, must be in the range 0 <= i < nsites + 1 with nsites = %i", i, self->mps.nsites);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	const long bond_dim = mps_bond_dim(&self->mps, i);
+	const qnumber* qnums = (i < self->mps.nsites) ? self->mps.a[i].qnums_logical[0] : self->mps.a[self->mps.nsites - 1].qnums_logical[2];
+
+	PyObject* list = PyList_New(bond_dim);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (long j = 0; j < bond_dim; j++) {
+		if (PyList_SetItem(list, j, PyLong_FromLong(qnums[j])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
 static PyObject* PyMPS_to_statevector(PyMPSObject* self, PyObject* Py_UNUSED(args))
 {
 	if (self->mps.a == NULL)
@@ -105,6 +147,12 @@ static PyObject* PyMPS_to_statevector(PyMPSObject* self, PyObject* Py_UNUSED(arg
 
 
 static PyMethodDef PyMPS_methods[] = {
+	{
+		.ml_name  = "bond_quantum_numbers",
+		.ml_meth  = (PyCFunction)PyMPS_bond_quantum_numbers,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the quantum numbers of the i-th virtual bond."
+	},
 	{
 		.ml_name  = "to_statevector",
 		.ml_meth  = (PyCFunction)PyMPS_to_statevector,
@@ -280,6 +328,48 @@ static void PyMPO_dealloc(PyMPOObject* self)
 }
 
 
+static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
+{
+	if (self->mpo.a == NULL)
+	{
+		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+		return NULL;
+	}
+
+	// bond index
+	int i;
+	if (!PyArg_ParseTuple(args, "i", &i)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_quantum_numbers(i: int)");
+		return NULL;
+	}
+
+	if (i < 0 || i >= self->mpo.nsites + 1) {
+		char msg[1024];
+		sprintf(msg, "invalid bond index i = %i, must be in the range 0 <= i < nsites + 1 with nsites = %i", i, self->mpo.nsites);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	const long bond_dim = mpo_bond_dim(&self->mpo, i);
+	const qnumber* qnums = (i < self->mpo.nsites) ? self->mpo.a[i].qnums_logical[0] : self->mpo.a[self->mpo.nsites - 1].qnums_logical[3];
+
+	PyObject* list = PyList_New(bond_dim);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (long j = 0; j < bond_dim; j++) {
+		if (PyList_SetItem(list, j, PyLong_FromLong(qnums[j])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
 static PyObject* PyMPO_to_matrix(PyMPOObject* self, PyObject* Py_UNUSED(args))
 {
 	if (self->mpo.a == NULL)
@@ -316,6 +406,12 @@ static PyObject* PyMPO_to_matrix(PyMPOObject* self, PyObject* Py_UNUSED(args))
 
 
 static PyMethodDef PyMPO_methods[] = {
+	{
+		.ml_name  = "bond_quantum_numbers",
+		.ml_meth  = (PyCFunction)PyMPO_bond_quantum_numbers,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the quantum numbers of the i-th virtual bond."
+	},
 	{
 		.ml_name  = "to_matrix",
 		.ml_meth  = (PyCFunction)PyMPO_to_matrix,
@@ -628,6 +724,120 @@ static PyObject* Py_fermi_hubbard_decode_quantum_numbers(PyObject* Py_UNUSED(sel
 }
 
 
+static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	PyObject* py_obj_tkin;
+	PyObject* py_obj_vint;
+	int optimize = 0;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "optimize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|p", kwlist, &py_obj_tkin, &py_obj_vint, &optimize)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_molecular_hamiltonian_mpo(tkin, vint, optimize=False)");
+		return NULL;
+	}
+
+	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_tkin, NPY_DOUBLE, 2, 2);
+	if (py_tkin == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument 'tkin' to a NumPy array with degree 2 failed");
+		return NULL;
+	}
+	PyArrayObject* py_vint = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_vint, NPY_DOUBLE, 4, 4);
+	if (py_vint == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument 'vint' to a NumPy array with degree 4 failed");
+		return NULL;
+	}
+
+	// argument checks
+	if (PyArray_NDIM(py_tkin) != 2) {
+		char msg[1024];
+		sprintf(msg, "'tkin' must have degree 2, received %i", PyArray_NDIM(py_tkin));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) != PyArray_DIM(py_tkin, 1)) {
+		char msg[1024];
+		sprintf(msg, "'tkin' must be a square matrix, received a %li x %li matrix", PyArray_DIM(py_tkin, 0), PyArray_DIM(py_tkin, 1));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) == 0) {
+		PyErr_SetString(PyExc_ValueError, "'tkin' cannot be an empty matrix");
+		return NULL;
+	}
+	if (PyArray_TYPE(py_tkin) != NPY_DOUBLE) {
+		PyErr_SetString(PyExc_TypeError, "'tkin' must have 'double' format entries");
+		return NULL;
+	}
+	if (!(PyArray_FLAGS(py_tkin) & NPY_ARRAY_C_CONTIGUOUS)) {
+		PyErr_SetString(PyExc_SyntaxError, "'tkin' does not have contiguous C storage format");
+		return NULL;
+	}
+	if (PyArray_NDIM(py_vint) != 4) {
+		char msg[1024];
+		sprintf(msg, "'vint' must have degree 4, received %i", PyArray_NDIM(py_vint));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if ((PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 1)) ||
+	    (PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 2)) ||
+	    (PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 3))) {
+		char msg[1024];
+		sprintf(msg, "all dimensions of 'vint' must agree, received a %li x %li x %li x %li tensor", PyArray_DIM(py_vint, 0), PyArray_DIM(py_vint, 1), PyArray_DIM(py_vint, 2), PyArray_DIM(py_vint, 3));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_TYPE(py_vint) != NPY_DOUBLE) {
+		PyErr_SetString(PyExc_TypeError, "'vint' must have 'double' format entries");
+		return NULL;
+	}
+	if (!(PyArray_FLAGS(py_vint) & NPY_ARRAY_C_CONTIGUOUS)) {
+		PyErr_SetString(PyExc_SyntaxError, "'vint' does not have contiguous C storage format");
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) != PyArray_DIM(py_vint, 0)) {
+		PyErr_SetString(PyExc_SyntaxError, "'tkin' and 'vint' must have the same axis dimensions");
+		return NULL;
+	}
+
+	const long nsites = (long)PyArray_DIM(py_tkin, 0);
+	long dim_tkin[2] = { nsites, nsites };
+	struct dense_tensor tkin = {
+		.data  = PyArray_DATA(py_tkin),
+		.dim   = dim_tkin,
+		.dtype = DOUBLE_REAL,
+		.ndim  = 2,
+	};
+	long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	struct dense_tensor vint = {
+		.data  = PyArray_DATA(py_vint),
+		.dim   = dim_vint,
+		.dtype = DOUBLE_REAL,
+		.ndim  = 4,
+	};
+
+	PyMPOObject* py_mpo = (PyMPOObject*)PyMPO_new(&PyMPOType, NULL, NULL);
+	if (py_mpo == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyMPO object");
+		return NULL;
+	}
+
+	// actually construct the assembly and MPO
+	if (optimize) {
+		construct_molecular_hamiltonian_mpo_assembly_opt(&tkin, &vint, &py_mpo->assembly);
+	}
+	else {
+		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, &py_mpo->assembly);
+	}
+	mpo_from_assembly(&py_mpo->assembly, &py_mpo->mpo);
+
+	Py_DECREF(py_tkin);
+	Py_DECREF(py_vint);
+
+	return (PyObject*)py_mpo;
+}
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Two-site DMRG algorithm.
@@ -649,6 +859,7 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	// random number generator seed (for filling tensor entries of initial MPS)
 	uint64_t rng_seed = 42;
 
+	// parse input arguments
 	char* kwlist[] = { "", "num_sweeps", "maxiter_lanczos", "tol_split", "max_vdim", "qnum_sector", "rng_seed", NULL };
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|iidlil", kwlist,
 			&py_mpo,
@@ -788,6 +999,12 @@ static PyMethodDef methods[] = {
 		.ml_meth  = Py_fermi_hubbard_decode_quantum_numbers,
 		.ml_flags = METH_VARARGS,
 		.ml_doc   = "Decode a quantum number of the Fermi-Hubbard Hamiltonian into separate particle number and spin quantum numbers.\nSyntax: fermi_hubbard_decode_quantum_numbers(qnum: int)",
+	},
+	{
+		.ml_name  = "construct_molecular_hamiltonian_mpo",
+		.ml_meth  = (PyCFunction)Py_construct_molecular_hamiltonian_mpo,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc   = "Construct a molecular Hamiltonian as MPO, using physicists' convention for the interaction term:\nH = sum_{i,j} t_{i,j} ad_i a_j + 1/2 sum_{i,j,k,l} v_{i,j,k,l} ad_i ad_j a_l a_k\nSyntax: construct_molecular_hamiltonian_mpo(tkin, vint, optimize=False)",
 	},
 	{
 		.ml_name  = "dmrg",
