@@ -311,7 +311,7 @@ char* test_molecular_hamiltonian_mpo()
 	struct mpo molecular_hamiltonian_mpo;
 	{
 		struct mpo_assembly assembly;
-		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, &assembly);
+		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, false, &assembly);
 		mpo_from_assembly(&assembly, &molecular_hamiltonian_mpo);
 		delete_mpo_assembly(&assembly);
 	}
@@ -322,7 +322,7 @@ char* test_molecular_hamiltonian_mpo()
 	struct mpo molecular_hamiltonian_mpo_opt;
 	{
 		struct mpo_assembly assembly;
-		construct_molecular_hamiltonian_mpo_assembly_opt(&tkin, &vint, &assembly);
+		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, true, &assembly);
 		mpo_from_assembly(&assembly, &molecular_hamiltonian_mpo_opt);
 		delete_mpo_assembly(&assembly);
 	}

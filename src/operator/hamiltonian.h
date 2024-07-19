@@ -42,5 +42,4 @@ static inline void fermi_hubbard_decode_quantum_numbers(const qnumber qnum, qnum
 
 void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, const double u, const double mu, struct mpo_assembly* assembly);
 
-void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo_assembly* assembly);
-void construct_molecular_hamiltonian_mpo_assembly_opt(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, struct mpo_assembly* assembly);
+void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly);

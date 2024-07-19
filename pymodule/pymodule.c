@@ -823,12 +823,7 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 	}
 
 	// actually construct the assembly and MPO
-	if (optimize) {
-		construct_molecular_hamiltonian_mpo_assembly_opt(&tkin, &vint, &py_mpo->assembly);
-	}
-	else {
-		construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, &py_mpo->assembly);
-	}
+	construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, (bool)optimize, &py_mpo->assembly);
 	mpo_from_assembly(&py_mpo->assembly, &py_mpo->mpo);
 
 	Py_DECREF(py_tkin);
