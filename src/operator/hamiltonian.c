@@ -59,9 +59,9 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	assembly->dtype = DOUBLE_REAL;
 
 	// operator map
-	// 0: I
-	// 1: Z
-	// 2: X
+	const int OID_I = 0;  // identity
+	const int OID_Z = 1;  // Pauli-Z
+	const int OID_X = 2;  // Pauli-X
 	assembly->num_local_ops = 3;
 	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
@@ -70,9 +70,9 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	}
 	const double sz[4] = { 1., 0., 0., -1. };  // Z
 	const double sx[4] = { 0., 1., 1.,  0. };  // X
-	dense_tensor_set_identity(&assembly->opmap[0]);
-	memcpy(assembly->opmap[1].data, sz, sizeof(sz));
-	memcpy(assembly->opmap[2].data, sx, sizeof(sx));
+	dense_tensor_set_identity(&assembly->opmap[OID_I]);
+	memcpy(assembly->opmap[OID_Z].data, sz, sizeof(sz));
+	memcpy(assembly->opmap[OID_X].data, sx, sizeof(sx));
 
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, J, h, g };
@@ -81,9 +81,9 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[] = { 1, 1 };  qnumber qnums_c0[] = { 0, 0, 0 };
-	int oids_c1[] = { 1 };     qnumber qnums_c1[] = { 0, 0 };
-	int oids_c2[] = { 2 };     qnumber qnums_c2[] = { 0, 0 };
+	int oids_c0[] = { OID_Z, OID_Z };  qnumber qnums_c0[] = { 0, 0, 0 };
+	int oids_c1[] = { OID_Z };         qnumber qnums_c1[] = { 0, 0 };
+	int oids_c2[] = { OID_X };         qnumber qnums_c2[] = { 0, 0 };
 	struct op_chain lopchains[] = {
 		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
 		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 3, .length = ARRLEN(oids_c1), .istart = 0 },
@@ -117,20 +117,20 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	const double  sz[4] = { 0.5, 0.,  0., -0.5 };  // S_z
 
 	// operator map
-	// 0: I
-	// 1: S_up
-	// 2: S_down
-	// 3: S_z
+	const int OID_Id = 0;  // I
+	const int OID_Su = 1;  // S_up
+	const int OID_Sd = 2;  // S_down
+	const int OID_Sz = 3;  // S_z
 	assembly->num_local_ops = 4;
 	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
-	dense_tensor_set_identity(&assembly->opmap[0]);
-	memcpy(assembly->opmap[1].data, sup, sizeof(sup));
-	memcpy(assembly->opmap[2].data, sdn, sizeof(sdn));
-	memcpy(assembly->opmap[3].data, sz,  sizeof(sz));
+	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
+	memcpy(assembly->opmap[OID_Su].data, sup, sizeof(sup));
+	memcpy(assembly->opmap[OID_Sd].data, sdn, sizeof(sdn));
+	memcpy(assembly->opmap[OID_Sz].data, sz,  sizeof(sz));
 
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, 0.5*J, J*D, -h };
@@ -139,10 +139,10 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[] = { 1, 2 };  qnumber qnums_c0[] = { 0,  2,  0 };
-	int oids_c1[] = { 2, 1 };  qnumber qnums_c1[] = { 0, -2,  0 };
-	int oids_c2[] = { 3, 3 };  qnumber qnums_c2[] = { 0,  0,  0 };
-	int oids_c3[] = { 3 };     qnumber qnums_c3[] = { 0,  0 };
+	int oids_c0[] = { OID_Su, OID_Sd };  qnumber qnums_c0[] = { 0,  2,  0 };
+	int oids_c1[] = { OID_Sd, OID_Su };  qnumber qnums_c1[] = { 0, -2,  0 };
+	int oids_c2[] = { OID_Sz, OID_Sz };  qnumber qnums_c2[] = { 0,  0,  0 };
+	int oids_c3[] = { OID_Sz };          qnumber qnums_c3[] = { 0,  0 };
 	struct op_chain lopchains[] = {
 		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
 		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
@@ -174,11 +174,11 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	assembly->dtype = DOUBLE_REAL;
 
 	// operator map
-	// 0: I
-	// 1: b_{\dagger}
-	// 2: b
-	// 3: n
-	// 4: n (n - 1) / 2
+	const int OID_Id = 0;  // identity
+	const int OID_Bd = 1;  // b_{\dagger}
+	const int OID_B  = 2;  // b
+	const int OID_N  = 3;  // n
+	const int OID_NI = 4;  // n (n - 1) / 2
 	assembly->num_local_ops = 5;
 	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
@@ -186,24 +186,24 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
-	dense_tensor_set_identity(&assembly->opmap[0]);
+	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
 	// bosonic creation operator
-	double* b_dag = assembly->opmap[1].data;
+	double* b_dag = assembly->opmap[OID_Bd].data;
 	for (long i = 0; i < d - 1; i++) {
 		b_dag[(i + 1)*d + i] = sqrt(i + 1);
 	}
 	// bosonic annihilation operator
-	double* b_ann = assembly->opmap[2].data;
+	double* b_ann = assembly->opmap[OID_B].data;
 	for (long i = 0; i < d - 1; i++) {
 		b_ann[i*d + (i + 1)] = sqrt(i + 1);
 	}
 	// bosonic number operator
-	double* numop = assembly->opmap[3].data;
+	double* numop = assembly->opmap[OID_N].data;
 	for (long i = 0; i < d; i++) {
 		numop[i*d + i] = i;
 	}
 	// bosonic local interaction operator n (n - 1) / 2
-	double* v_int = assembly->opmap[4].data;
+	double* v_int = assembly->opmap[OID_NI].data;
 	for (long i = 0; i < d; i++) {
 		v_int[i*d + i] = i * (i - 1) / 2;
 	}
@@ -215,10 +215,10 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
-	int oids_c0[] = { 1, 2 };  qnumber qnums_c0[] = { 0,  1,  0 };
-	int oids_c1[] = { 2, 1 };  qnumber qnums_c1[] = { 0, -1,  0 };
-	int oids_c2[] = { 3 };     qnumber qnums_c2[] = { 0,  0 };
-	int oids_c3[] = { 4 };     qnumber qnums_c3[] = { 0,  0 };
+	int oids_c0[] = { OID_Bd, OID_B  };  qnumber qnums_c0[] = { 0,  1,  0 };
+	int oids_c1[] = { OID_B,  OID_Bd };  qnumber qnums_c1[] = { 0, -1,  0 };
+	int oids_c2[] = { OID_N  };          qnumber qnums_c2[] = { 0,  0 };
+	int oids_c3[] = { OID_NI };          qnumber qnums_c3[] = { 0,  0 };
 	struct op_chain lopchains[] = {
 		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
 		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
@@ -311,30 +311,30 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	}
 
 	// operator map
-	//  0:  I x I
-	//  1: ad x I
-	//  2:  a x I
-	//  3: ad x Z
-	//  4:  a x Z
-	//  5:  I x ad
-	//  6:  I x a
-	//  7:  Z x ad
-	//  8:  Z x a
-	//  9: n_up + n_dn
-	// 10: (n_up - 1/2) (n_dn - 1/2)
+	const int OID_Id =  0;  //  I x I
+	const int OID_CI =  1;  // ad x I
+	const int OID_AI =  2;  //  a x I
+	const int OID_CZ =  3;  // ad x Z
+	const int OID_AZ =  4;  //  a x Z
+	const int OID_IC =  5;  //  I x ad
+	const int OID_IA =  6;  //  I x a
+	const int OID_ZC =  7;  //  Z x ad
+	const int OID_ZA =  8;  //  Z x a
+	const int OID_Nt =  9;  //  n_up + n_dn
+	const int OID_NI = 10;  // (n_up - 1/2) (n_dn - 1/2)
 	assembly->num_local_ops = 11;
 	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
-	dense_tensor_kronecker_product(&id,    &id,    &assembly->opmap[0]);
-	dense_tensor_kronecker_product(&a_dag, &id,    &assembly->opmap[1]);
-	dense_tensor_kronecker_product(&a_ann, &id,    &assembly->opmap[2]);
-	dense_tensor_kronecker_product(&a_dag, &z,     &assembly->opmap[3]);
-	dense_tensor_kronecker_product(&a_ann, &z,     &assembly->opmap[4]);
-	dense_tensor_kronecker_product(&id,    &a_dag, &assembly->opmap[5]);
-	dense_tensor_kronecker_product(&id,    &a_ann, &assembly->opmap[6]);
-	dense_tensor_kronecker_product(&z,     &a_dag, &assembly->opmap[7]);
-	dense_tensor_kronecker_product(&z,     &a_ann, &assembly->opmap[8]);
-	copy_dense_tensor(&n_tot, &assembly->opmap[9]);
-	copy_dense_tensor(&n_int, &assembly->opmap[10]);
+	dense_tensor_kronecker_product(&id,    &id,    &assembly->opmap[OID_Id]);
+	dense_tensor_kronecker_product(&a_dag, &id,    &assembly->opmap[OID_CI]);
+	dense_tensor_kronecker_product(&a_ann, &id,    &assembly->opmap[OID_AI]);
+	dense_tensor_kronecker_product(&a_dag, &z,     &assembly->opmap[OID_CZ]);
+	dense_tensor_kronecker_product(&a_ann, &z,     &assembly->opmap[OID_AZ]);
+	dense_tensor_kronecker_product(&id,    &a_dag, &assembly->opmap[OID_IC]);
+	dense_tensor_kronecker_product(&id,    &a_ann, &assembly->opmap[OID_IA]);
+	dense_tensor_kronecker_product(&z,     &a_dag, &assembly->opmap[OID_ZC]);
+	dense_tensor_kronecker_product(&z,     &a_ann, &assembly->opmap[OID_ZA]);
+	copy_dense_tensor(&n_tot, &assembly->opmap[OID_Nt]);
+	copy_dense_tensor(&n_int, &assembly->opmap[OID_NI]);
 
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, -t, -mu, u };
@@ -344,14 +344,14 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 
 	// local two-site and single-site terms
 	// spin-up kinetic hopping
-	int oids_c0[] = { 3, 2 };  qnumber qnums_c0[] = { 0, fermi_hubbard_encode_quantum_numbers( 1,  1), 0 };
-	int oids_c1[] = { 4, 1 };  qnumber qnums_c1[] = { 0, fermi_hubbard_encode_quantum_numbers(-1, -1), 0 };
+	int oids_c0[] = { OID_CZ, OID_AI };  qnumber qnums_c0[] = { 0, fermi_hubbard_encode_quantum_numbers( 1,  1), 0 };
+	int oids_c1[] = { OID_AZ, OID_CI };  qnumber qnums_c1[] = { 0, fermi_hubbard_encode_quantum_numbers(-1, -1), 0 };
 	// spin-down kinetic hopping
-	int oids_c2[] = { 5, 8 };  qnumber qnums_c2[] = { 0, fermi_hubbard_encode_quantum_numbers( 1, -1), 0 };
-	int oids_c3[] = { 6, 7 };  qnumber qnums_c3[] = { 0, fermi_hubbard_encode_quantum_numbers(-1,  1), 0 };
+	int oids_c2[] = { OID_IC, OID_ZA };  qnumber qnums_c2[] = { 0, fermi_hubbard_encode_quantum_numbers( 1, -1), 0 };
+	int oids_c3[] = { OID_IA, OID_ZC };  qnumber qnums_c3[] = { 0, fermi_hubbard_encode_quantum_numbers(-1,  1), 0 };
 	// number operator - mu (n_up + n_dn) and interaction u (n_up-1/2) (n_dn-1/2)
-	int oids_c4[] = {  9 };    qnumber qnums_c4[] = { 0, 0 };
-	int oids_c5[] = { 10 };    qnumber qnums_c5[] = { 0, 0 };
+	int oids_c4[] = { OID_Nt };          qnumber qnums_c4[] = { 0, 0 };
+	int oids_c5[] = { OID_NI };          qnumber qnums_c5[] = { 0, 0 };
 	struct op_chain lopchains[] = {
 		{ .oids = oids_c0, .qnums = qnums_c0, .cid = 2, .length = ARRLEN(oids_c0), .istart = 0 },
 		{ .oids = oids_c1, .qnums = qnums_c1, .cid = 2, .length = ARRLEN(oids_c1), .istart = 0 },
@@ -534,28 +534,22 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 	const double z[4]     = { 1.,  0.,  0., -1. };
 
 	// operator map
-	// 0: I
-	// 1: a^{\dagger}
-	// 2: a
-	// 3: numop
-	// 4: Z
+	const int OID_I = 0;  // I
+	const int OID_C = 1;  // a^{\dagger}
+	const int OID_A = 2;  // a
+	const int OID_N = 3;  // numop
+	const int OID_Z = 4;  // Z
 	assembly->num_local_ops = 5;
 	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
-	dense_tensor_set_identity(&assembly->opmap[0]);
-	memcpy(assembly->opmap[1].data, a_dag, sizeof(a_dag));
-	memcpy(assembly->opmap[2].data, a_ann, sizeof(a_ann));
-	memcpy(assembly->opmap[3].data, numop, sizeof(numop));
-	memcpy(assembly->opmap[4].data, z,     sizeof(z));
-
-	const int OID_IDENT = 0;
-	const int OID_A_DAG = 1;
-	const int OID_A_ANN = 2;
-	const int OID_NUMOP = 3;
-	const int OID_Z     = 4;
+	dense_tensor_set_identity(&assembly->opmap[OID_I]);
+	memcpy(assembly->opmap[OID_C].data, a_dag, sizeof(a_dag));
+	memcpy(assembly->opmap[OID_A].data, a_ann, sizeof(a_ann));
+	memcpy(assembly->opmap[OID_N].data, numop, sizeof(numop));
+	memcpy(assembly->opmap[OID_Z].data, z,     sizeof(z));
 
 	// interaction terms 1/2 \sum_{i,j,k,l} v_{i,j,k,l} a^{\dagger}_i a^{\dagger}_j a_l a_k:
 	// can anti-commute fermionic operators such that i < j and l < k
@@ -625,11 +619,11 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int j = i + 1; j < nsites; j++)
 			{
 				allocate_op_chain(j - i + 1, &opchains[oc]);
-				opchains[oc].oids[0] = OID_A_DAG;
+				opchains[oc].oids[0] = OID_C;
 				for (int n = 1; n < j - i; n++) {
 					opchains[oc].oids[n] = OID_Z;
 				}
-				opchains[oc].oids[j - i] = OID_A_ANN;
+				opchains[oc].oids[j - i] = OID_A;
 				opchains[oc].qnums[0] = 0;
 				for (int n = 1; n < j - i + 1; n++) {
 					opchains[oc].qnums[n] = 1;
@@ -642,7 +636,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			// diagonal hopping term
 			{
 				allocate_op_chain(1, &opchains[oc]);
-				opchains[oc].oids[0]  = OID_NUMOP;
+				opchains[oc].oids[0]  = OID_N;
 				opchains[oc].qnums[0] = 0;
 				opchains[oc].qnums[1] = 0;
 				opchains[oc].cid      = tkin_cids[i*nsites + i];
@@ -653,11 +647,11 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int j = 0; j < i; j++)
 			{
 				allocate_op_chain(i - j + 1, &opchains[oc]);
-				opchains[oc].oids[0] = OID_A_ANN;
+				opchains[oc].oids[0] = OID_A;
 				for (int n = 1; n < i - j; n++) {
 					opchains[oc].oids[n] = OID_Z;
 				}
-				opchains[oc].oids[i - j] = OID_A_DAG;
+				opchains[oc].oids[i - j] = OID_C;
 				opchains[oc].qnums[0] = 0;
 				for (int n = 1; n < i - j + 1; n++) {
 					opchains[oc].qnums[n] = -1;
@@ -704,11 +698,11 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 							{
 								// two number operators
 								// operator IDs
-								opchains[oc].oids[0] = OID_NUMOP;
+								opchains[oc].oids[0] = OID_N;
 								for (int n = 1; n < da; n++) {
-									opchains[oc].oids[n] = OID_IDENT;
+									opchains[oc].oids[n] = OID_I;
 								}
-								opchains[oc].oids[da] = OID_NUMOP;
+								opchains[oc].oids[da] = OID_N;
 								// all quantum numbers are zero
 								for (int n = 0; n < da + 2; n++) {
 									opchains[oc].qnums[n] = 0;
@@ -718,15 +712,15 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 							{
 								// number operator at the beginning
 								// operator IDs
-								opchains[oc].oids[0] = OID_NUMOP;
+								opchains[oc].oids[0] = OID_N;
 								for (int n = 1; n < ca; n++) {
-									opchains[oc].oids[n] = OID_IDENT;
+									opchains[oc].oids[n] = OID_I;
 								}
-								opchains[oc].oids[ca] = (r == 1 ? OID_A_DAG : OID_A_ANN);
+								opchains[oc].oids[ca] = (r == 1 ? OID_C : OID_A);
 								for (int n = ca + 1; n < da; n++) {
 									opchains[oc].oids[n] = OID_Z;
 								}
-								opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+								opchains[oc].oids[da] = (s == 1 ? OID_C : OID_A);
 								// quantum numbers
 								for (int n = 0; n < ca + 1; n++) {
 									opchains[oc].qnums[n] = 0;
@@ -741,15 +735,15 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 						{
 							// number operator in the middle
 							// operator IDs
-							opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[0] = (p == 1 ? OID_C : OID_A);
 							for (int n = 1; n < ba; n++) {
 								opchains[oc].oids[n] = OID_Z;
 							}
-							opchains[oc].oids[ba] = OID_NUMOP;
+							opchains[oc].oids[ba] = OID_N;
 							for (int n = ba + 1; n < da; n++) {
 								opchains[oc].oids[n] = OID_Z;
 							}
-							opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[da] = (s == 1 ? OID_C : OID_A);
 							// quantum numbers
 							opchains[oc].qnums[0] = 0;
 							for (int n = 1; n < da + 1; n++) {
@@ -761,15 +755,15 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 						{
 							// number operator at the end
 							// operator IDs
-							opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[0] = (p == 1 ? OID_C : OID_A);
 							for (int n = 1; n < ba; n++) {
 								opchains[oc].oids[n] = OID_Z;
 							}
-							opchains[oc].oids[ba] = (q == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[ba] = (q == 1 ? OID_C : OID_A);
 							for (int n = ba + 1; n < ca; n++) {
-								opchains[oc].oids[n] = OID_IDENT;
+								opchains[oc].oids[n] = OID_I;
 							}
-							opchains[oc].oids[ca] = OID_NUMOP;
+							opchains[oc].oids[ca] = OID_N;
 							// quantum numbers
 							opchains[oc].qnums[0] = 0;
 							for (int n = 1; n < ba + 1; n++) {
@@ -783,19 +777,19 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 						{
 							// generic case: i, j, k, l pairwise different
 							// operator IDs
-							opchains[oc].oids[0] = (p == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[0] = (p == 1 ? OID_C : OID_A);
 							for (int n = 1; n < ba; n++) {
 								opchains[oc].oids[n] = OID_Z;
 							}
-							opchains[oc].oids[ba] = (q == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[ba] = (q == 1 ? OID_C : OID_A);
 							for (int n = ba + 1; n < ca; n++) {
-								opchains[oc].oids[n] = OID_IDENT;
+								opchains[oc].oids[n] = OID_I;
 							}
-							opchains[oc].oids[ca] = (r == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[ca] = (r == 1 ? OID_C : OID_A);
 							for (int n = ca + 1; n < da; n++) {
 								opchains[oc].oids[n] = OID_Z;
 							}
-							opchains[oc].oids[da] = (s == 1 ? OID_A_DAG : OID_A_ANN);
+							opchains[oc].oids[da] = (s == 1 ? OID_C : OID_A);
 							// quantum numbers
 							opchains[oc].qnums[0] = 0;
 							for (int n = 1; n < ba + 1; n++) {
@@ -985,16 +979,16 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		// identities connected to left and right terminals
 		for (int i = 0; i < nsites - 2; i++) {
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_identity_l[i], vids_identity_l[i + 1], OID_IDENT, CID_ONE));
+				construct_mpo_graph_edge(vids_identity_l[i], vids_identity_l[i + 1], OID_I, CID_ONE));
 		}
 		for (int i = 2; i < nsites; i++) {
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_identity_r[i], vids_identity_r[i + 1], OID_IDENT, CID_ONE));
+				construct_mpo_graph_edge(vids_identity_r[i], vids_identity_r[i + 1], OID_I, CID_ONE));
 		}
 		// a^{\dagger}_i operators connected to left terminal
 		for (int i = 0; i < nsites - 2; i++) {
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_l[i][i + 1], OID_A_DAG, CID_ONE));
+				construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_l[i][i + 1], OID_C, CID_ONE));
 			// Z operator from Jordan-Wigner transformation
 			for (int j = i + 1; j < nsites - 2; j++) {
 				linked_list_append(&edges[j],
@@ -1004,7 +998,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		// a_i operators connected to left terminal
 		for (int i = 0; i < nsites - 2; i++) {
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_identity_l[i], vids_a_ann_l[i][i + 1], OID_A_ANN, CID_ONE));
+				construct_mpo_graph_edge(vids_identity_l[i], vids_a_ann_l[i][i + 1], OID_A, CID_ONE));
 			// Z operator from Jordan-Wigner transformation
 			for (int j = i + 1; j < nsites - 2; j++) {
 				linked_list_append(&edges[j],
@@ -1015,11 +1009,11 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		for (int i = 0; i < nsites/2 - 1; i++) {
 			for (int j = i + 1; j < nsites/2; j++) {
 				linked_list_append(&edges[j],
-					construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_dag_a_dag_l[i*nsites + j][j + 1], OID_A_DAG, CID_ONE));
+					construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_dag_a_dag_l[i*nsites + j][j + 1], OID_C, CID_ONE));
 				// identities for transition to next site
 				for (int k = j + 1; k < nsites/2; k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][k], vids_a_dag_a_dag_l[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][k], vids_a_dag_a_dag_l[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 			}
 		}
@@ -1027,11 +1021,11 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		for (int i = 0; i < nsites/2 - 1; i++) {
 			for (int j = i + 1; j < nsites/2; j++) {
 				linked_list_append(&edges[j],
-					construct_mpo_graph_edge(vids_a_ann_l[i][j], vids_a_ann_a_ann_l[i*nsites + j][j + 1], OID_A_ANN, CID_ONE));
+					construct_mpo_graph_edge(vids_a_ann_l[i][j], vids_a_ann_a_ann_l[i*nsites + j][j + 1], OID_A, CID_ONE));
 				// identities for transition to next site
 				for (int k = j + 1; k < nsites/2; k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_ann_a_ann_l[i*nsites + j][k], vids_a_ann_a_ann_l[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_ann_a_ann_l[i*nsites + j][k], vids_a_ann_a_ann_l[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 			}
 		}
@@ -1040,20 +1034,20 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int j = 0; j < nsites/2; j++) {
 				if (i < j) {
 					linked_list_append(&edges[j],
-						construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_dag_a_ann_l[i*nsites + j][j + 1], OID_A_ANN, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_dag_a_ann_l[i*nsites + j][j + 1], OID_A, CID_ONE));
 				}
 				else if (i == j) {
 					linked_list_append(&edges[i],
-						construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_a_ann_l[i*nsites + j][i + 1], OID_NUMOP, CID_ONE));
+						construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_a_ann_l[i*nsites + j][i + 1], OID_N, CID_ONE));
 				}
 				else { // i > j
 					linked_list_append(&edges[i],
-						construct_mpo_graph_edge(vids_a_ann_l[j][i], vids_a_dag_a_ann_l[i*nsites + j][i + 1], OID_A_DAG, CID_ONE));
+						construct_mpo_graph_edge(vids_a_ann_l[j][i], vids_a_dag_a_ann_l[i*nsites + j][i + 1], OID_C, CID_ONE));
 				}
 				// identities for transition to next site
 				for (int k = imax(i, j) + 1; k < nsites/2; k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + j][k], vids_a_dag_a_ann_l[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + j][k], vids_a_dag_a_ann_l[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 			}
 		}
@@ -1065,7 +1059,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 					construct_mpo_graph_edge(vids_a_dag_r[i][j], vids_a_dag_r[i][j + 1], OID_Z, CID_ONE));
 			}
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_a_dag_r[i][i], vids_identity_r[i + 1], OID_A_DAG, CID_ONE));
+				construct_mpo_graph_edge(vids_a_dag_r[i][i], vids_identity_r[i + 1], OID_C, CID_ONE));
 		}
 		// a_i operators connected to right terminal
 		for (int i = 2; i < nsites; i++) {
@@ -1075,7 +1069,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 					construct_mpo_graph_edge(vids_a_ann_r[i][j], vids_a_ann_r[i][j + 1], OID_Z, CID_ONE));
 			}
 			linked_list_append(&edges[i],
-				construct_mpo_graph_edge(vids_a_ann_r[i][i], vids_identity_r[i + 1], OID_A_ANN, CID_ONE));
+				construct_mpo_graph_edge(vids_a_ann_r[i][i], vids_identity_r[i + 1], OID_A, CID_ONE));
 		}
 		// a^{\dagger}_i a^{\dagger}_j operators connected to right terminal
 		for (int i = nsites/2 + 1; i < nsites - 1; i++) {
@@ -1083,10 +1077,10 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				// identities for transition to next site
 				for (int k = nsites/2 + 1; k < i; k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_dag_a_dag_r[i*nsites + j][k], vids_a_dag_a_dag_r[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_dag_r[i*nsites + j][k], vids_a_dag_a_dag_r[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 				linked_list_append(&edges[i],
-					construct_mpo_graph_edge(vids_a_dag_a_dag_r[i*nsites + j][i], vids_a_dag_r[j][i + 1], OID_A_DAG, CID_ONE));
+					construct_mpo_graph_edge(vids_a_dag_a_dag_r[i*nsites + j][i], vids_a_dag_r[j][i + 1], OID_C, CID_ONE));
 			}
 		}
 		// a_i a_j operators connected to right terminal
@@ -1095,10 +1089,10 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				// identities for transition to next site
 				for (int k = nsites/2 + 1; k < i; k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_ann_a_ann_r[i*nsites + j][k], vids_a_ann_a_ann_r[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_ann_a_ann_r[i*nsites + j][k], vids_a_ann_a_ann_r[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 				linked_list_append(&edges[i],
-					construct_mpo_graph_edge(vids_a_ann_a_ann_r[i*nsites + j][i], vids_a_ann_r[j][i + 1], OID_A_ANN, CID_ONE));
+					construct_mpo_graph_edge(vids_a_ann_a_ann_r[i*nsites + j][i], vids_a_ann_r[j][i + 1], OID_A, CID_ONE));
 			}
 		}
 		// a^{\dagger}_i a_j operators connected to right terminal
@@ -1107,44 +1101,44 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				// identities for transition to next site
 				for (int k = nsites/2 + 1; k < imin(i, j); k++) {
 					linked_list_append(&edges[k],
-						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][k], vids_a_dag_a_ann_r[i*nsites + j][k + 1], OID_IDENT, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][k], vids_a_dag_a_ann_r[i*nsites + j][k + 1], OID_I, CID_ONE));
 				}
 				if (i < j) {
 					linked_list_append(&edges[i],
-						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][i], vids_a_ann_r[j][i + 1], OID_A_DAG, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][i], vids_a_ann_r[j][i + 1], OID_C, CID_ONE));
 				}
 				else if (i == j) {
 					linked_list_append(&edges[i],
-						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][i], vids_identity_r[i + 1], OID_NUMOP, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][i], vids_identity_r[i + 1], OID_N, CID_ONE));
 				}
 				else { // i > j
 					linked_list_append(&edges[j],
-						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][j], vids_a_dag_r[i][j + 1], OID_A_ANN, CID_ONE));
+						construct_mpo_graph_edge(vids_a_dag_a_ann_r[i*nsites + j][j], vids_a_dag_r[i][j + 1], OID_A, CID_ONE));
 				}
 			}
 		}
 		// diagonal kinetic terms t_{i,i} n_i
 		for (int i = 0; i < nsites/2; i++) {
 			linked_list_append(&edges[i + 1],
-				construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + i][i + 1], vids_identity_r[i + 2], OID_IDENT, tkin_cids[i*nsites + i]));
+				construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + i][i + 1], vids_identity_r[i + 2], OID_I, tkin_cids[i*nsites + i]));
 		}
 		for (int i = nsites/2 + 1; i < nsites; i++) {
 			linked_list_append(&edges[i - 1],
-				construct_mpo_graph_edge(vids_identity_l[i - 1], vids_a_dag_a_ann_r[i*nsites + i][i], OID_IDENT, tkin_cids[i*nsites + i]));
+				construct_mpo_graph_edge(vids_identity_l[i - 1], vids_a_dag_a_ann_r[i*nsites + i][i], OID_I, tkin_cids[i*nsites + i]));
 		}
 		linked_list_append(&edges[nsites/2],
-			construct_mpo_graph_edge(vids_identity_l[nsites/2], vids_identity_r[nsites/2 + 1], OID_NUMOP, tkin_cids[(nsites/2)*nsites + (nsites/2)]));
+			construct_mpo_graph_edge(vids_identity_l[nsites/2], vids_identity_r[nsites/2 + 1], OID_N, tkin_cids[(nsites/2)*nsites + (nsites/2)]));
 		// t_{i,j} a^{\dagger}_i a_j terms, for i < j
 		for (int i = 0; i < nsites/2; i++) {
 			for (int j = i + 1; j < nsites/2 + 1; j++) {
 				linked_list_append(&edges[j],
-					construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_identity_r[j + 1], OID_A_ANN, tkin_cids[i*nsites + j]));
+					construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_identity_r[j + 1], OID_A, tkin_cids[i*nsites + j]));
 			}
 		}
 		for (int j = nsites/2 + 1; j < nsites; j++) {
 			for (int i = nsites/2; i < j; i++) {
 				linked_list_append(&edges[i],
-					construct_mpo_graph_edge(vids_identity_l[i], vids_a_ann_r[j][i + 1], OID_A_DAG, tkin_cids[i*nsites + j]));
+					construct_mpo_graph_edge(vids_identity_l[i], vids_a_ann_r[j][i + 1], OID_C, tkin_cids[i*nsites + j]));
 			}
 		}
 		for (int i = 0; i < nsites/2; i++) {
@@ -1157,13 +1151,13 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		for (int j = 0; j < nsites/2; j++) {
 			for (int i = j + 1; i < nsites/2 + 1; i++) {
 				linked_list_append(&edges[i],
-					construct_mpo_graph_edge(vids_a_ann_l[j][i], vids_identity_r[i + 1], OID_A_DAG, tkin_cids[i*nsites + j]));
+					construct_mpo_graph_edge(vids_a_ann_l[j][i], vids_identity_r[i + 1], OID_C, tkin_cids[i*nsites + j]));
 			}
 		}
 		for (int i = nsites/2 + 1; i < nsites; i++) {
 			for (int j = nsites/2; j < i; j++) {
 				linked_list_append(&edges[j],
-					construct_mpo_graph_edge(vids_identity_l[j], vids_a_dag_r[i][j + 1], OID_A_ANN, tkin_cids[i*nsites + j]));
+					construct_mpo_graph_edge(vids_identity_l[j], vids_a_dag_r[i][j + 1], OID_A, tkin_cids[i*nsites + j]));
 			}
 		}
 		for (int j = 0; j < nsites/2; j++) {
@@ -1177,7 +1171,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int j = i + 1; j < nsites - 1; j++) {
 				for (int k = j + 1; k < nsites; k++) {
 					linked_list_append(&edges[j],
-						construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_ann_r[k][j + 1], OID_NUMOP, gint_cids[((i*nsites + j)*nsites + k)*nsites + j]));
+						construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_ann_r[k][j + 1], OID_N, gint_cids[((i*nsites + j)*nsites + k)*nsites + j]));
 				}
 			}
 		}
@@ -1186,7 +1180,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			for (int i = l + 1; i < nsites - 1; i++) {
 				for (int j = i + 1; j < nsites; j++) {
 					linked_list_append(&edges[i],
-						construct_mpo_graph_edge(vids_a_ann_l[l][i], vids_a_dag_r[j][i + 1], OID_NUMOP, gint_cids[((i*nsites + j)*nsites + i)*nsites + l]));
+						construct_mpo_graph_edge(vids_a_ann_l[l][i], vids_a_dag_r[j][i + 1], OID_N, gint_cids[((i*nsites + j)*nsites + i)*nsites + l]));
 				}
 			}
 		}
@@ -1196,7 +1190,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int l = j + 1; l < nsites/2 + 1; l++) {
 					for (int k = l + 1; k < nsites; k++) {
 						linked_list_append(&edges[l],
-							construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][l], vids_a_ann_r[k][l + 1], OID_A_ANN, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][l], vids_a_ann_r[k][l + 1], OID_A, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1206,7 +1200,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int j = nsites/2; j < l; j++) {
 					for (int i = 0; i < j; i++) {
 						linked_list_append(&edges[j],
-							construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_ann_a_ann_r[l*nsites + k][j + 1], OID_A_DAG, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_dag_l[i][j], vids_a_ann_a_ann_r[l*nsites + k][j + 1], OID_C, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1216,7 +1210,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int l = nsites/2 + 1; l < nsites - 1; l++) {
 					for (int k = l + 1; k < nsites; k++) {
 						linked_list_append(&edges[nsites/2],
-							construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][nsites/2], vids_a_ann_a_ann_r[l*nsites + k][nsites/2 + 1], OID_IDENT, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_dag_a_dag_l[i*nsites + j][nsites/2], vids_a_ann_a_ann_r[l*nsites + k][nsites/2 + 1], OID_I, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1227,7 +1221,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int i = k + 1; i < nsites/2 + 1; i++) {
 					for (int j = i + 1; j < nsites; j++) {
 						linked_list_append(&edges[i],
-							construct_mpo_graph_edge(vids_a_ann_a_ann_l[l*nsites + k][i], vids_a_dag_r[j][i + 1], OID_A_DAG, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_ann_a_ann_l[l*nsites + k][i], vids_a_dag_r[j][i + 1], OID_C, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1237,7 +1231,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int k = nsites/2; k < i; k++) {
 					for (int l = 0; l < k; l++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids_a_ann_l[l][k], vids_a_dag_a_dag_r[i*nsites + j][k + 1], OID_A_ANN, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_ann_l[l][k], vids_a_dag_a_dag_r[i*nsites + j][k + 1], OID_A, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1247,7 +1241,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int i = nsites/2 + 1; i < nsites - 1; i++) {
 					for (int j = i + 1; j < nsites; j++) {
 						linked_list_append(&edges[nsites/2],
-							construct_mpo_graph_edge(vids_a_ann_a_ann_l[l*nsites + k][nsites/2], vids_a_dag_a_dag_r[i*nsites + j][nsites/2 + 1], OID_IDENT, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_ann_a_ann_l[l*nsites + k][nsites/2], vids_a_dag_a_dag_r[i*nsites + j][nsites/2 + 1], OID_I, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}
@@ -1262,15 +1256,15 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 						}
 						if (j < k) {
 							linked_list_append(&edges[j],
-								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][j], vids_a_ann_r[k][j + 1], OID_A_DAG, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][j], vids_a_ann_r[k][j + 1], OID_C, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 						else if (j == k) {
 							linked_list_append(&edges[j],
-								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][j], vids_identity_r[j + 1], OID_NUMOP, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][j], vids_identity_r[j + 1], OID_N, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 						else { // j > k
 							linked_list_append(&edges[k],
-								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][k], vids_a_dag_r[j][k + 1], OID_A_ANN, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][k], vids_a_dag_r[j][k + 1], OID_A, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 					}
 				}
@@ -1285,15 +1279,15 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 						}
 						if (i < l) {
 							linked_list_append(&edges[l],
-								construct_mpo_graph_edge(vids_a_dag_l[i][l], vids_a_dag_a_ann_r[j*nsites + k][l + 1], OID_A_ANN, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_a_dag_l[i][l], vids_a_dag_a_ann_r[j*nsites + k][l + 1], OID_A, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 						else if (i == l) {
 							linked_list_append(&edges[i],
-								construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_a_ann_r[j*nsites + k][i + 1], OID_NUMOP, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_identity_l[i], vids_a_dag_a_ann_r[j*nsites + k][i + 1], OID_N, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 						else { // i > l
 							linked_list_append(&edges[i],
-								construct_mpo_graph_edge(vids_a_ann_l[l][i], vids_a_dag_a_ann_r[j*nsites + k][i + 1], OID_A_DAG, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+								construct_mpo_graph_edge(vids_a_ann_l[l][i], vids_a_dag_a_ann_r[j*nsites + k][i + 1], OID_C, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 						}
 					}
 				}
@@ -1304,7 +1298,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				for (int j = nsites/2 + 1; j < nsites; j++) {
 					for (int k = nsites/2 + 1; k < nsites; k++) {
 						linked_list_append(&edges[nsites/2],
-							construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][nsites/2], vids_a_dag_a_ann_r[j*nsites + k][nsites/2 + 1], OID_IDENT, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
+							construct_mpo_graph_edge(vids_a_dag_a_ann_l[i*nsites + l][nsites/2], vids_a_dag_a_ann_r[j*nsites + k][nsites/2 + 1], OID_I, gint_cids[((i*nsites + j)*nsites + k)*nsites + l]));
 					}
 				}
 			}

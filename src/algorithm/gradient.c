@@ -27,6 +27,9 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 	assert(psi->nsites == nsites);
 	assert(nsites >= 1);
 
+	// set gradients initially to zero
+	memset(dcoeff, 0, assembly->num_coeffs * sizeof_numeric_type(assembly->dtype));
+
 	// construct MPO corresponding to MPO graph
 	struct mpo mpo;
 	mpo_from_assembly(assembly, &mpo);
@@ -52,15 +55,29 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		// 'r' should now be a 1 x 1 tensor
 		assert(r.ndim == 2);
 		assert(r.dim_logical[0] == 1 && r.dim_logical[1] == 1);
-		assert(r.blocks[0] != NULL);
+
+		// 'r' is logically zero in case quantum numbers do not match
+		if (r.blocks[0] == NULL)
+		{
+			memset(avr, 0, sizeof_numeric_type(assembly->dtype));
+
+			// clean up and fast return
+			delete_block_sparse_tensor(&r);
+			delete_block_sparse_tensor(&lblock);
+			for (int l = 0; l < nsites; l++) {
+				delete_block_sparse_tensor(&rblocks[l]);
+			}
+			aligned_free(rblocks);
+			delete_mpo(&mpo);
+			return;
+		}
+
 		assert(r.blocks[0]->dtype == assembly->dtype);
 		memcpy(avr, r.blocks[0]->data, sizeof_numeric_type(r.blocks[0]->dtype));
 
 		delete_block_sparse_tensor(&r);
 	}
 
-	// set gradients initially to zero
-	memset(dcoeff, 0, assembly->num_coeffs * sizeof_numeric_type(assembly->dtype));
 
 	for (int l = 0; l < nsites; l++)
 	{

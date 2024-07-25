@@ -491,40 +491,45 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		mps_local_orthonormalize_qr(&mps->a[i], &a_tail);
 
 		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
-		double nrm = 1;
-		switch (a_tail.blocks[0]->dtype)
+		double nrm = 0;
+		// 'a_tail' can be logically zero in case quantum numbers do not match
+		if (a_tail.blocks[0] != NULL)
 		{
-			case SINGLE_REAL:
+			switch (a_tail.blocks[0]->dtype)
 			{
-				nrm = *((float*)a_tail.blocks[0]->data);
-				break;
+				case SINGLE_REAL:
+				{
+					nrm = *((float*)a_tail.blocks[0]->data);
+					break;
+				}
+				case DOUBLE_REAL:
+				{
+					nrm = *((double*)a_tail.blocks[0]->data);
+					break;
+				}
+				case SINGLE_COMPLEX:
+				{
+					nrm = crealf(*((scomplex*)a_tail.blocks[0]->data));
+					break;
+				}
+				case DOUBLE_COMPLEX:
+				{
+					nrm = creal(*((dcomplex*)a_tail.blocks[0]->data));
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
 			}
-			case DOUBLE_REAL:
+
+			if (nrm < 0)
 			{
-				nrm = *((double*)a_tail.blocks[0]->data);
-				break;
+				// flip sign such that normalization factor is always non-negative
+				rscale_block_sparse_tensor(numeric_neg_one(numeric_real_type(mps->a[i].dtype)), &mps->a[i]);
+				nrm = -nrm;
 			}
-			case SINGLE_COMPLEX:
-			{
-				nrm = crealf(*((scomplex*)a_tail.blocks[0]->data));
-				break;
-			}
-			case DOUBLE_COMPLEX:
-			{
-				nrm = creal(*((dcomplex*)a_tail.blocks[0]->data));
-				break;
-			}
-			default:
-			{
-				// unknown data type
-				assert(false);
-			}
-		}
-		if (nrm < 0)
-		{
-			// flip sign such that normalization factor is always non-negative
-			rscale_block_sparse_tensor(numeric_neg_one(numeric_real_type(mps->a[i].dtype)), &mps->a[i]);
-			nrm = -nrm;
 		}
 
 		delete_block_sparse_tensor(&a_tail);
@@ -559,40 +564,44 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		mps_local_orthonormalize_rq(&mps->a[0], &a_head);
 
 		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
-		double nrm = 1;
-		switch (a_head.blocks[0]->dtype)
+		double nrm = 0;
+		// 'a_head' can be logically zero in case quantum numbers do not match
+		if (a_head.blocks[0] != NULL)
 		{
-			case SINGLE_REAL:
+			switch (a_head.blocks[0]->dtype)
 			{
-				nrm = *((float*)a_head.blocks[0]->data);
-				break;
+				case SINGLE_REAL:
+				{
+					nrm = *((float*)a_head.blocks[0]->data);
+					break;
+				}
+				case DOUBLE_REAL:
+				{
+					nrm = *((double*)a_head.blocks[0]->data);
+					break;
+				}
+				case SINGLE_COMPLEX:
+				{
+					nrm = crealf(*((scomplex*)a_head.blocks[0]->data));
+					break;
+				}
+				case DOUBLE_COMPLEX:
+				{
+					nrm = creal(*((dcomplex*)a_head.blocks[0]->data));
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
 			}
-			case DOUBLE_REAL:
+			if (nrm < 0)
 			{
-				nrm = *((double*)a_head.blocks[0]->data);
-				break;
+				// flip sign such that normalization factor is always non-negative
+				rscale_block_sparse_tensor(numeric_neg_one(numeric_real_type(mps->a[0].dtype)), &mps->a[0]);
+				nrm = -nrm;
 			}
-			case SINGLE_COMPLEX:
-			{
-				nrm = crealf(*((scomplex*)a_head.blocks[0]->data));
-				break;
-			}
-			case DOUBLE_COMPLEX:
-			{
-				nrm = creal(*((dcomplex*)a_head.blocks[0]->data));
-				break;
-			}
-			default:
-			{
-				// unknown data type
-				assert(false);
-			}
-		}
-		if (nrm < 0)
-		{
-			// flip sign such that normalization factor is always non-negative
-			rscale_block_sparse_tensor(numeric_neg_one(numeric_real_type(mps->a[0].dtype)), &mps->a[0]);
-			nrm = -nrm;
 		}
 
 		delete_block_sparse_tensor(&a_head);

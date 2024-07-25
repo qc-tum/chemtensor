@@ -4,6 +4,7 @@
 #include <numpy/arrayobject.h>
 #include "hamiltonian.h"
 #include "dmrg.h"
+#include "gradient.h"
 #include "aligned_memory.h"
 
 
@@ -71,9 +72,8 @@ static void PyMPS_dealloc(PyMPSObject* self)
 
 static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -113,9 +113,8 @@ static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
 
 static PyObject* PyMPS_to_statevector(PyMPSObject* self, PyObject* Py_UNUSED(args))
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -167,9 +166,8 @@ static PyMethodDef PyMPS_methods[] = {
 
 static PyObject* PyMPS_d(PyMPSObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -179,9 +177,8 @@ static PyObject* PyMPS_d(PyMPSObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPS_qsite(PyMPSObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -204,9 +201,8 @@ static PyObject* PyMPS_qsite(PyMPSObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPS_nsites(PyMPSObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -216,9 +212,8 @@ static PyObject* PyMPS_nsites(PyMPSObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPS_bond_dims(PyMPSObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mps.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPS has not been initialized yet");
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
 		return NULL;
 	}
 
@@ -330,9 +325,8 @@ static void PyMPO_dealloc(PyMPOObject* self)
 
 static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -372,9 +366,8 @@ static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
 
 static PyObject* PyMPO_to_matrix(PyMPOObject* self, PyObject* Py_UNUSED(args))
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -426,9 +419,8 @@ static PyMethodDef PyMPO_methods[] = {
 
 static PyObject* PyMPO_d(PyMPOObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -438,9 +430,8 @@ static PyObject* PyMPO_d(PyMPOObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPO_qsite(PyMPOObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -463,9 +454,8 @@ static PyObject* PyMPO_qsite(PyMPOObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPO_nsites(PyMPOObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -475,9 +465,8 @@ static PyObject* PyMPO_nsites(PyMPOObject* self, void* Py_UNUSED(closure))
 
 static PyObject* PyMPO_bond_dims(PyMPOObject* self, void* Py_UNUSED(closure))
 {
-	if (self->mpo.a == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "MPO has not been initialized yet");
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
 		return NULL;
 	}
 
@@ -495,6 +484,129 @@ static PyObject* PyMPO_bond_dims(PyMPOObject* self, void* Py_UNUSED(closure))
 	}
 
 	return list;
+}
+
+
+static PyObject* PyMPO_coeffmap(PyMPOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->assembly.d == 0) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
+		return NULL;
+	}
+	if ((self->assembly.num_coeffs < 2) || (self->assembly.coeffmap == NULL)) {
+		PyErr_SetString(PyExc_RuntimeError, "PyMPO object is internally inconsistent");
+		return NULL;
+	}
+
+	npy_intp dims[1] = { self->assembly.num_coeffs };
+	PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_SimpleNew(1, dims, numeric_to_numpy_type(self->assembly.dtype));
+	if (py_coeffmap == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy vector");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_coeffmap), self->assembly.coeffmap, self->assembly.num_coeffs * sizeof_numeric_type(self->assembly.dtype));
+
+	return (PyObject*)py_coeffmap;
+}
+
+
+static int PyMPO_set_coeffmap(PyMPOObject* self, PyObject* arg, void* Py_UNUSED(closure))
+{
+	if (self->assembly.d == 0) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
+		return -1;
+	}
+	if ((self->assembly.num_coeffs < 2) || (self->assembly.coeffmap == NULL)) {
+		PyErr_SetString(PyExc_RuntimeError, "PyMPO object is internally inconsistent");
+		return -1;
+	}
+
+	// convert input argument to NumPy array
+	PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_ContiguousFromObject(arg, numeric_to_numpy_type(self->assembly.dtype), 1, 1);
+	if (py_coeffmap == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument to a NumPy array with appropriate data type failed");
+		return -1;
+	}
+	if (PyArray_NDIM(py_coeffmap) != 1) {
+		PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array");
+		Py_DECREF(py_coeffmap);
+		return -1;
+	}
+	if (PyArray_DIM(py_coeffmap, 0) != self->assembly.num_coeffs) {
+		char msg[1024];
+		sprintf(msg, "number of coefficients cannot change: expecting %i coefficients, received %li", self->assembly.num_coeffs, PyArray_DIM(py_coeffmap, 0));
+		PyErr_SetString(PyExc_ValueError, msg);
+		Py_DECREF(py_coeffmap);
+		return -1;
+	}
+
+	// first two entries must always be 0 and 1
+	switch (self->assembly.dtype)
+	{
+		case SINGLE_REAL:
+		{
+			const float* data = (float*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g and %g", data[0], data[1]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case DOUBLE_REAL:
+		{
+			const double* data = (double*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g and %g", data[0], data[1]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case SINGLE_COMPLEX:
+		{
+			const scomplex* data = (scomplex*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g%+gi and %g%+gi", crealf(data[0]), cimagf(data[0]), crealf(data[1]), cimagf(data[1]));
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case DOUBLE_COMPLEX:
+		{
+			const dcomplex* data = (dcomplex*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g%+gi and %g%+gi", creal(data[0]), cimag(data[0]), creal(data[1]), cimag(data[1]));
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			PyErr_SetString(PyExc_RuntimeError, "PyMPO object has an unknown internal data type");
+			return -1;
+		}
+	}
+
+	// actually copy the new coefficients
+	memcpy(self->assembly.coeffmap, PyArray_DATA(py_coeffmap), self->assembly.num_coeffs * sizeof_numeric_type(self->assembly.dtype));
+	// regenerate the MPO
+	mpo_from_assembly(&self->assembly, &self->mpo);
+
+	Py_DECREF(py_coeffmap);
+
+	return 0;
 }
 
 
@@ -528,6 +640,13 @@ static struct PyGetSetDef PyMPO_getset[] = {
 		.closure = NULL,
 	},
 	{
+		.name    = "coeffmap",
+		.get     = (getter)PyMPO_coeffmap,
+		.set     = (setter)PyMPO_set_coeffmap,
+		.doc     = "internal coefficient map of the MPO",
+		.closure = NULL,
+	},
+	{
 		0  // sentinel
 	},
 };
@@ -550,6 +669,123 @@ static PyTypeObject PyMPOType = {
 
 //________________________________________________________________________________________________________________________
 //
+
+
+static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	// data type
+	const char* dtype_string;
+	// number of lattice sites
+	int nsites;
+	// physical quantum numbers at each site
+	PyObject* py_obj_qsite;
+	// quantum number sector
+	qnumber qnum_sector;
+	// maximum virtual bond dimension
+	long max_vdim = 256;
+	// random number generator seed (for filling tensor entries)
+	uint64_t rng_seed = 42;
+	// whether to normalize the state
+	int normalize = 1;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siOi|llp", kwlist,
+			&dtype_string,
+			&nsites,
+			&py_obj_qsite,
+			&qnum_sector,
+			&max_vdim,
+			&rng_seed,
+			&normalize)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_mps(dtype, nsites, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
+		return NULL;
+	}
+
+	// data type
+	enum numeric_type dtype;
+	if ((strcmp(dtype_string, "float32") == 0)
+	 || (strcmp(dtype_string, "float") == 0)) {
+		dtype = SINGLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "float64") == 0)
+	      || (strcmp(dtype_string, "double") == 0)) {
+		dtype = DOUBLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "complex64") == 0) ||
+	         (strcmp(dtype_string, "float complex") == 0)) {
+		dtype = SINGLE_COMPLEX;
+	}
+	else if ((strcmp(dtype_string, "complex128") == 0)
+	      || (strcmp(dtype_string, "double complex") == 0)) {
+		dtype = DOUBLE_COMPLEX;
+	}
+	else {
+		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+		return NULL;
+	}
+
+	if (nsites <= 0) {
+		char msg[1024];
+		sprintf(msg, "'nsites' must be a positive integer, received %i", nsites);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (max_vdim <= 0) {
+		char msg[1024];
+		sprintf(msg, "'max_vdim' must be a positive integer, received %li", max_vdim);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// convert 'py_obj_qsite' to NumPy array
+	PyArrayObject* py_qsite = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_qsite, NPY_INT, 1, 1);
+	if (py_qsite == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting 'qsite' input argument to a NumPy array with integer entries failed");
+		return NULL;
+	}
+	if (PyArray_NDIM(py_qsite) != 1) {
+		PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array");
+		Py_DECREF(py_qsite);
+		return NULL;
+	}
+	const long d = PyArray_DIM(py_qsite, 0);
+	if (d == 0) {
+		PyErr_SetString(PyExc_ValueError, "'qsite' cannot be an empty list");
+		Py_DECREF(py_qsite);
+		return NULL;
+	}
+	const qnumber* qsite = PyArray_DATA(py_qsite);
+
+	struct rng_state rng_state;
+	seed_rng_state(rng_seed, &rng_state);
+
+	PyMPSObject* py_psi = (PyMPSObject*)PyMPS_new(&PyMPSType, NULL, NULL);
+	if (py_psi == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyMPS object");
+		Py_DECREF(py_qsite);
+		return NULL;
+	}
+	// actually construct the random MPS
+	construct_random_mps(dtype, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
+
+	if (normalize)
+	{
+		// perform a left and right normalization sweep to avoid superfluous bonds
+		double nrm = mps_orthonormalize_qr(&py_psi->mps, MPS_ORTHONORMAL_LEFT);
+		if (nrm == 0) {
+			// initial norm zero indicates that quantum numbers are likely incompatible
+			PyErr_SetString(PyExc_RuntimeError, "cannot normalize the MPS for the provided quantum numbers");
+			Py_DECREF(py_qsite);
+			return NULL;
+		}
+		mps_orthonormalize_qr(&py_psi->mps, MPS_ORTHONORMAL_RIGHT);
+	}
+
+	Py_DECREF(py_qsite);
+
+	return (PyObject*)py_psi;
+}
 
 
 static PyObject* Py_construct_ising_1d_mpo(PyObject* Py_UNUSED(self), PyObject* args)
@@ -909,6 +1145,12 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	struct rng_state rng_state;
 	seed_rng_state(rng_seed, &rng_state);
 	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
+	double nrm = mps_norm(&py_psi->mps);
+	if (nrm == 0) {
+		PyMPS_dealloc(py_psi);
+		PyErr_SetString(PyExc_RuntimeError, "initial random MPS has norm zero (possibly due to mismatching quantum numbers)");
+		return NULL;
+	}
 
 	// run two-site DMRG
 	double* en_sweeps = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
@@ -958,7 +1200,96 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 }
 
 
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the value and gradient of `<chi | op | psi>` with respect to the internal MPO coefficients.
+///
+static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(self), PyObject* args)
+{
+	// MPO representing the operator
+	PyMPOObject* py_op;
+	PyMPSObject* py_psi;
+	PyMPSObject* py_chi;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "OOO", &py_op, &py_psi, &py_chi)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: operator_average_coefficient_gradient(op: MPO, psi: MPS: chi: MPS)");
+		return NULL;
+	}
+
+	if (py_op->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO 'op' has not been initialized yet");
+		return NULL;
+	}
+	if ((py_op->assembly.d != py_op->mpo.d) || (py_op->assembly.graph.nsites != py_op->mpo.nsites)) {
+		PyErr_SetString(PyExc_RuntimeError, "PyMPO object is internally inconsistent");
+		return NULL;
+	}
+	if (py_psi->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS 'psi' has not been initialized yet");
+		return NULL;
+	}
+	if (py_chi->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS 'chi' has not been initialized yet");
+		return NULL;
+	}
+	// compatibility checks
+	if ((py_op->assembly.d != py_psi->mps.d) ||
+	    (py_op->assembly.d != py_chi->mps.d)) {
+		PyErr_SetString(PyExc_ValueError, "local Hilbert space dimensions of 'op', 'psi' and 'chi' do not agree");
+		return NULL;
+	}
+	if (!qnumber_all_equal(py_op->assembly.d, py_op->assembly.qsite, py_psi->mps.qsite) ||
+	    !qnumber_all_equal(py_op->assembly.d, py_op->assembly.qsite, py_chi->mps.qsite)) {
+		PyErr_SetString(PyExc_ValueError, "local Hilbert space quantum numbers of 'op', 'psi' and 'chi' do not agree");
+		return NULL;
+	}
+	if ((py_op->assembly.dtype != py_psi->mps.a[0].dtype) ||
+	    (py_op->assembly.dtype != py_chi->mps.a[0].dtype)) {
+		PyErr_SetString(PyExc_ValueError, "numeric data types of 'op', 'psi' and 'chi' do not agree");
+		return NULL;
+	}
+	if ((py_op->assembly.graph.nsites != py_psi->mps.nsites) ||
+	    (py_op->assembly.graph.nsites != py_chi->mps.nsites)) {
+		PyErr_SetString(PyExc_ValueError, "number of lattice sites of 'op', 'psi' and 'chi' do not agree");
+		return NULL;
+	}
+
+	void* avr = aligned_alloc(MEM_DATA_ALIGN, sizeof_numeric_type(py_op->assembly.dtype));
+	void* dcoeff = aligned_alloc(MEM_DATA_ALIGN, py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
+	operator_average_coefficient_gradient(&py_op->assembly, &py_psi->mps, &py_chi->mps, avr, dcoeff);
+
+	PyArrayObject* py_avr = (PyArrayObject*)PyArray_SimpleNew(0, NULL, numeric_to_numpy_type(py_op->assembly.dtype));
+	if (py_avr == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy scalar");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_avr), avr, sizeof_numeric_type(py_op->assembly.dtype));
+
+	npy_intp dims[1] = { py_op->assembly.num_coeffs };
+	PyArrayObject* py_dcoeff = (PyArrayObject*)PyArray_SimpleNew(1, dims, numeric_to_numpy_type(py_op->assembly.dtype));
+	if (py_dcoeff == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy vector");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_dcoeff), dcoeff, py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
+
+
+	aligned_free(dcoeff);
+	aligned_free(avr);
+
+
+	return PyTuple_Pack(2, py_avr, py_dcoeff);
+}
+
+
 static PyMethodDef methods[] = {
+	{
+		.ml_name  = "construct_random_mps",
+		.ml_meth  = (PyCFunction)Py_construct_random_mps,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc   = "Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_mps(dtype, nsites, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
+	},
 	{
 		.ml_name  = "construct_ising_1d_mpo",
 		.ml_meth  = Py_construct_ising_1d_mpo,
@@ -1008,6 +1339,12 @@ static PyMethodDef methods[] = {
 		.ml_doc   = "Run the two-site DMRG algorithm for the Hamiltonian provided as MPO.\nSyntax: dmrg(mpo, num_sweeps=5, maxiter_lanczos=20, tol_split=1e-10, max_vdim=256, qnum_sector=0, rng_seed=42)",
 	},
 	{
+		.ml_name  = "operator_average_coefficient_gradient",
+		.ml_meth  = Py_operator_average_coefficient_gradient,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Compute the value and gradient of `<chi | op | psi>` with respect to the internal MPO coefficients.\nSyntax: operator_average_coefficient_gradient(op: MPO, psi: MPS: chi: MPS)",
+	},
+	{
 		0  // sentinel
 	},
 };
@@ -1016,7 +1353,7 @@ static PyMethodDef methods[] = {
 static struct PyModuleDef module = {
 	.m_base     = PyModuleDef_HEAD_INIT,
 	.m_name     = "chemtensor",  // name of module
-	.m_doc      = "chemtensor module for tensor network methods",  // module documentation, may be NULL
+	.m_doc      = "chemtensor module for tensor network methods applied to chemical systems",  // module documentation, may be NULL
 	.m_size     = -1,            // size of per-interpreter state of the module, or -1 if the module keeps state in global variables
 	.m_methods  = methods,       // module methods
 	.m_slots    = NULL,          // slot definitions for multi-phase initialization

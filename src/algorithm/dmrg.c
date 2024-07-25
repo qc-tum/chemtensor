@@ -152,7 +152,10 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == DOUBLE_REAL);
 
 	// right-normalize input matrix product state
-	mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
+	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
+	if (nrm == 0) {
+		printf("Warning: in 'dmrg_singlesite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
+	}
 
 	// left and right operator blocks
 	struct block_sparse_tensor* lblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
@@ -257,7 +260,10 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == DOUBLE_REAL);
 
 	// right-normalize input matrix product state
-	mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
+	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
+	if (nrm == 0) {
+		printf("Warning: in 'dmrg_twosite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
+	}
 
 	// left and right operator blocks
 	struct block_sparse_tensor* lblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
