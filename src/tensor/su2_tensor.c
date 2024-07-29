@@ -412,28 +412,28 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 
 				switch (t->dtype)
 				{
-					case SINGLE_REAL:
+					case CT_SINGLE_REAL:
 					{
 						const float* ddata = d->data;
 						float*       tdata = t->data;
 						tdata[it] += ((float)cg) * ddata[l];
 						break;
 					}
-					case DOUBLE_REAL:
+					case CT_DOUBLE_REAL:
 					{
 						const double* ddata = d->data;
 						double*       tdata = t->data;
 						tdata[it] += cg * ddata[l];
 						break;
 					}
-					case SINGLE_COMPLEX:
+					case CT_SINGLE_COMPLEX:
 					{
 						const scomplex* ddata = d->data;
 						scomplex*       tdata = t->data;
 						tdata[it] += ((float)cg) * ddata[l];
 						break;
 					}
-					case DOUBLE_COMPLEX:
+					case CT_DOUBLE_COMPLEX:
 					{
 						const dcomplex* ddata = d->data;
 						dcomplex*       tdata = t->data;

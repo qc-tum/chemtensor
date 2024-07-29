@@ -12,22 +12,22 @@ bool coefficient_map_is_valid(const enum numeric_type dtype, const void* coeffma
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* cmap = coeffmap;
 			return (cmap[0] == 0) && (cmap[1] == 1);
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* cmap = coeffmap;
 			return (cmap[0] == 0) && (cmap[1] == 1);
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* cmap = coeffmap;
 			return (cmap[0] == 0) && (cmap[1] == 1);
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* cmap = coeffmap;
 			return (cmap[0] == 0) && (cmap[1] == 1);
@@ -54,7 +54,7 @@ void construct_local_operator(const struct local_op_ref* opics, const int nopics
 	copy_dense_tensor(&opmap[opics[0].oid], op);
 	switch (op->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* cmap = coeffmap;
 			scale_dense_tensor(&cmap[opics[0].cid], op);
@@ -64,7 +64,7 @@ void construct_local_operator(const struct local_op_ref* opics, const int nopics
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* cmap = coeffmap;
 			scale_dense_tensor(&cmap[opics[0].cid], op);
@@ -74,7 +74,7 @@ void construct_local_operator(const struct local_op_ref* opics, const int nopics
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* cmap = coeffmap;
 			scale_dense_tensor(&cmap[opics[0].cid], op);
@@ -84,7 +84,7 @@ void construct_local_operator(const struct local_op_ref* opics, const int nopics
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* cmap = coeffmap;
 			scale_dense_tensor(&cmap[opics[0].cid], op);

@@ -13,10 +13,10 @@
 ///
 enum numeric_type
 {
-	SINGLE_REAL    = 0,  //!< float
-	DOUBLE_REAL    = 1,  //!< double
-	SINGLE_COMPLEX = 2,  //!< float complex
-	DOUBLE_COMPLEX = 3,  //!< double complex
+	CT_SINGLE_REAL    = 0,  //!< float
+	CT_DOUBLE_REAL    = 1,  //!< double
+	CT_SINGLE_COMPLEX = 2,  //!< float complex
+	CT_DOUBLE_COMPLEX = 3,  //!< double complex
 };
 
 
@@ -35,19 +35,19 @@ static inline size_t sizeof_numeric_type(const enum numeric_type dtype)
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			return sizeof(float);
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			return sizeof(double);
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			return sizeof(scomplex);
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			return sizeof(dcomplex);
 		}
@@ -69,27 +69,27 @@ static inline enum numeric_type numeric_real_type(const enum numeric_type dtype)
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
-			return SINGLE_REAL;
+			return CT_SINGLE_REAL;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
-			return DOUBLE_REAL;
+			return CT_DOUBLE_REAL;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
-			return SINGLE_REAL;
+			return CT_SINGLE_REAL;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
-			return DOUBLE_REAL;
+			return CT_DOUBLE_REAL;
 		}
 		default:
 		{
 			// unknown data type
 			assert(0);
-			return DOUBLE_REAL;
+			return CT_DOUBLE_REAL;
 		}
 	}
 }
@@ -103,22 +103,22 @@ static inline const void* numeric_one(const enum numeric_type dtype)
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			static const float one = 1;
 			return &one;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			static const double one = 1;
 			return &one;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			static const scomplex one = 1;
 			return &one;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			static const dcomplex one = 1;
 			return &one;
@@ -141,22 +141,22 @@ static inline const void* numeric_zero(const enum numeric_type dtype)
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			static const float zero = 0;
 			return &zero;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			static const double zero = 0;
 			return &zero;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			static const scomplex zero = 0;
 			return &zero;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			static const dcomplex zero = 0;
 			return &zero;
@@ -179,22 +179,22 @@ static inline const void* numeric_neg_one(const enum numeric_type dtype)
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			static const float neg_one = -1;
 			return &neg_one;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			static const double neg_one = -1;
 			return &neg_one;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			static const scomplex neg_one = -1;
 			return &neg_one;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			static const dcomplex neg_one = -1;
 			return &neg_one;
@@ -217,22 +217,22 @@ static inline void numeric_from_double(const double x, const enum numeric_type d
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			*((float*)alpha) = (float)x;
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			*((double*)alpha) = x;
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			*((scomplex*)alpha) = (scomplex)x;
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			*((dcomplex*)alpha) = (dcomplex)x;
 			break;

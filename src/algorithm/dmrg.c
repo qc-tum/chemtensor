@@ -29,14 +29,14 @@ static void apply_local_hamiltonian_wrapper_d(const long n, const void* restrict
 	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
 
 	// interpret input vector as MPS tensor entries
-	assert(hdata->a->dtype == DOUBLE_REAL);
+	assert(hdata->a->dtype == CT_DOUBLE_REAL);
 	assert(n == block_sparse_tensor_num_elements_blocks(hdata->a));
 	block_sparse_tensor_deserialize_entries(hdata->a, v);
 
 	struct block_sparse_tensor ha;
 	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
 
-	assert(ha.dtype == DOUBLE_REAL);
+	assert(ha.dtype == CT_DOUBLE_REAL);
 	assert(n == block_sparse_tensor_num_elements_blocks(&ha));
 	block_sparse_tensor_serialize_entries(&ha, ret);
 
@@ -53,14 +53,14 @@ static void apply_local_hamiltonian_wrapper_z(const long n, const void* restrict
 	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
 
 	// interpret input vector as MPS tensor entries
-	assert(hdata->a->dtype == DOUBLE_COMPLEX);
+	assert(hdata->a->dtype == CT_DOUBLE_COMPLEX);
 	assert(n == block_sparse_tensor_num_elements_blocks(hdata->a));
 	block_sparse_tensor_deserialize_entries(hdata->a, v);
 
 	struct block_sparse_tensor ha;
 	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
 
-	assert(ha.dtype == DOUBLE_COMPLEX);
+	assert(ha.dtype == CT_DOUBLE_COMPLEX);
 	assert(n == block_sparse_tensor_num_elements_blocks(&ha));
 	block_sparse_tensor_serialize_entries(&ha, ret);
 
@@ -92,13 +92,13 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 
 	switch (a_start->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			// not implemented yet
 			assert(false);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			int ret = eigensystem_krylov_symmetric(n, apply_local_hamiltonian_wrapper_d, &hdata, vstart, maxiter, 1, en_min, u_opt);
 			if (ret < 0) {
@@ -106,13 +106,13 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			// not implemented yet
 			assert(false);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			int ret = eigensystem_krylov_hermitian(n, apply_local_hamiltonian_wrapper_z, &hdata, vstart, maxiter, 1, en_min, u_opt);
 			if (ret < 0) {
@@ -149,7 +149,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 	assert(nsites >= 1);
 
 	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == DOUBLE_REAL);
+	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
@@ -257,7 +257,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 	assert(nsites >= 2);
 
 	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == DOUBLE_REAL);
+	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);

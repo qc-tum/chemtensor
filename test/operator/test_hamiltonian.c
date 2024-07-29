@@ -48,7 +48,7 @@ char* test_ising_1d_mpo()
 	}
 	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor ising_1d_mat_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &ising_1d_mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &ising_1d_mat_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "ising_1d_mat", H5T_NATIVE_DOUBLE, ising_1d_mat_ref.data) < 0) {
 		return "reading matrix entries from disk failed";
@@ -118,7 +118,7 @@ char* test_heisenberg_xxz_1d_mpo()
 	}
 	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor heisenberg_xxz_1d_mat_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &heisenberg_xxz_1d_mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &heisenberg_xxz_1d_mat_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "heisenberg_xxz_1d_mat", H5T_NATIVE_DOUBLE, heisenberg_xxz_1d_mat_ref.data) < 0) {
 		return "reading matrix entries from disk failed";
@@ -191,7 +191,7 @@ char* test_bose_hubbard_1d_mpo()
 	}
 	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor bose_hubbard_1d_mat_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &bose_hubbard_1d_mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &bose_hubbard_1d_mat_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "bose_hubbard_1d_mat", H5T_NATIVE_DOUBLE, bose_hubbard_1d_mat_ref.data) < 0) {
 		return "reading matrix entries from disk failed";
@@ -261,7 +261,7 @@ char* test_fermi_hubbard_1d_mpo()
 	}
 	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor fermi_hubbard_1d_mat_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &fermi_hubbard_1d_mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &fermi_hubbard_1d_mat_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "fermi_hubbard_1d_mat", H5T_NATIVE_DOUBLE, fermi_hubbard_1d_mat_ref.data) < 0) {
 		return "reading matrix entries from disk failed";
@@ -297,13 +297,13 @@ char* test_molecular_hamiltonian_mpo()
 	// Hamiltonian coefficients
 	struct dense_tensor tkin;
 	const long dim_tkin[2] = { nmodes, nmodes };
-	allocate_dense_tensor(DOUBLE_REAL, 2, dim_tkin, &tkin);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 		return "reading kinetic hopping coefficients from disk failed";
 	}
 	struct dense_tensor vint;
 	const long dim_vint[4] = { nmodes, nmodes, nmodes, nmodes };
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_vint, &vint);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_vint, &vint);
 	if (read_hdf5_dataset(file, "vint", H5T_NATIVE_DOUBLE, vint.data) < 0) {
 		return "reading interaction potential coefficients from disk failed";
 	}
@@ -348,7 +348,7 @@ char* test_molecular_hamiltonian_mpo()
 	}
 	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor molecular_hamiltonian_mat_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 4, dim_ref, &molecular_hamiltonian_mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &molecular_hamiltonian_mat_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "molecular_hamiltonian_mat", H5T_NATIVE_DOUBLE, molecular_hamiltonian_mat_ref.data) < 0) {
 		return "reading matrix entries from disk failed";

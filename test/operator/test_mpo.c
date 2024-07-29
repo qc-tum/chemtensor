@@ -108,7 +108,7 @@ char* test_mpo_from_assembly()
 	const int num_local_ops = 15;
 	struct dense_tensor opmap_tensor;
 	const long dim_opmt[3] = { num_local_ops, d, d };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -118,7 +118,7 @@ char* test_mpo_from_assembly()
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim, &opmap[i]);
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
 	}
@@ -133,7 +133,7 @@ char* test_mpo_from_assembly()
 		.coeffmap      = (dcomplex*)coeffmap,
 		.qsite         = (qnumber*)qsite,
 		.d             = d,
-		.dtype         = DOUBLE_COMPLEX,
+		.dtype         = CT_DOUBLE_COMPLEX,
 		.num_local_ops = num_local_ops,
 		.num_coeffs    = ARRLEN(coeffmap),
 	};
@@ -162,7 +162,7 @@ char* test_mpo_from_assembly()
 
 	// convert MPO graph to a (dense) matrix, as reference
 	struct dense_tensor mat_ref;
-	mpo_graph_to_matrix(&graph, opmap, coeffmap, DOUBLE_COMPLEX, &mat_ref);
+	mpo_graph_to_matrix(&graph, opmap, coeffmap, CT_DOUBLE_COMPLEX, &mat_ref);
 	// include dummy virtual bond dimensions
 	const long dim_mat_graph[4] = { 1, mat_ref.dim[0], mat_ref.dim[1], 1};
 	reshape_dense_tensor(4, dim_mat_graph, &mat_ref);

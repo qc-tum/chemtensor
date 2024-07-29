@@ -56,7 +56,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	assembly->d = 2;
 	assembly->qsite = aligned_calloc(MEM_DATA_ALIGN, assembly->d, sizeof(qnumber));
 
-	assembly->dtype = DOUBLE_REAL;
+	assembly->dtype = CT_DOUBLE_REAL;
 
 	// operator map
 	const int OID_I = 0;  // identity
@@ -109,7 +109,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	assembly->qsite[0] =  1;
 	assembly->qsite[1] = -1;
 
-	assembly->dtype = DOUBLE_REAL;
+	assembly->dtype = CT_DOUBLE_REAL;
 
 	// spin operators
 	const double sup[4] = { 0.,  1.,  0.,  0.  };  // S_up
@@ -171,7 +171,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 		assembly->qsite[i] = i;
 	}
 
-	assembly->dtype = DOUBLE_REAL;
+	assembly->dtype = CT_DOUBLE_REAL;
 
 	// operator map
 	const int OID_Id = 0;  // identity
@@ -248,26 +248,26 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 		assembly->qsite[i] = fermi_hubbard_encode_quantum_numbers(qn[i], qs[i]);
 	}
 
-	assembly->dtype = DOUBLE_REAL;
+	assembly->dtype = CT_DOUBLE_REAL;
 
 	struct dense_tensor id;
 	{
 		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &id);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &id);
 		dense_tensor_set_identity(&id);
 	}
 	// creation and annihilation operators for a single spin and lattice site
 	struct dense_tensor a_dag;
 	{
 		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &a_dag);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &a_dag);
 		const double data[4] = { 0., 0., 1., 0. };
 		memcpy(a_dag.data, data, sizeof(data));
 	}
 	struct dense_tensor a_ann;
 	{
 		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &a_ann);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &a_ann);
 		const double data[4] = { 0., 1., 0., 0. };
 		memcpy(a_ann.data, data, sizeof(data));
 	}
@@ -275,7 +275,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor numop;
 	{
 		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &numop);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &numop);
 		const double data[4] = { 0., 0., 0., 1. };
 		memcpy(numop.data, data, sizeof(data));
 	}
@@ -283,7 +283,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor z;
 	{
 		const long dim[2] = { 2, 2 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &z);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &z);
 		const double data[4] = { 1.,  0.,  0., -1. };
 		memcpy(z.data, data, sizeof(data));
 	}
@@ -291,7 +291,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor n_tot;
 	{
 		const long dim[2] = { 4, 4 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &n_tot);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_tot);
 		const double diag[4] = { 0, 1, 1, 2 };
 		double* data = n_tot.data;
 		for (int i = 0; i < 4; i++) {
@@ -302,7 +302,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor n_int;
 	{
 		const long dim[2] = { 4, 4 };
-		allocate_dense_tensor(DOUBLE_REAL, 2, dim, &n_int);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_int);
 		const double diag[4] = {  0.25, -0.25, -0.25,  0.25 };
 		double* data = n_int.data;
 		for (int i = 0; i < 4; i++) {
@@ -498,10 +498,10 @@ static int compare_index_qnumber_tuple(const void* a, const void* b)
 ///
 void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly)
 {
-	assert(tkin->dtype == DOUBLE_REAL);
-	assert(vint->dtype == DOUBLE_REAL);
+	assert(tkin->dtype == CT_DOUBLE_REAL);
+	assert(vint->dtype == CT_DOUBLE_REAL);
 
-	assembly->dtype = DOUBLE_REAL;
+	assembly->dtype = CT_DOUBLE_REAL;
 
 	// dimension consistency checks
 	assert(tkin->ndim == 2);

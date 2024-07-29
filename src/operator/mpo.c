@@ -95,7 +95,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 			long offset = tensor_index_to_offset(a_loc.ndim, a_loc.dim, index_start);
 			switch (a_loc.dtype)
 			{
-				case SINGLE_REAL:
+				case CT_SINGLE_REAL:
 				{
 					float* al_data = a_loc.data;
 					const float* op_data = op.data;
@@ -105,7 +105,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 					}
 					break;
 				}
-				case DOUBLE_REAL:
+				case CT_DOUBLE_REAL:
 				{
 					double* al_data = a_loc.data;
 					const double* op_data = op.data;
@@ -115,7 +115,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 					}
 					break;
 				}
-				case SINGLE_COMPLEX:
+				case CT_SINGLE_COMPLEX:
 				{
 					scomplex* al_data = a_loc.data;
 					const scomplex* op_data = op.data;
@@ -125,7 +125,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 					}
 					break;
 				}
-				case DOUBLE_COMPLEX:
+				case CT_DOUBLE_COMPLEX:
 				{
 					dcomplex* al_data = a_loc.data;
 					const dcomplex* op_data = op.data;

@@ -185,7 +185,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	{
 		retained[i] = sigma[list->ind[i]];
 	}
-	info->norm_sigma = norm2(DOUBLE_REAL, list->num, retained);
+	info->norm_sigma = norm2(CT_DOUBLE_REAL, list->num, retained);
 
 	// normalized retained singular values
 	for (long i = 0; i < list->num; i++)
@@ -219,13 +219,13 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 
 	// determine retained bond indices
 	struct index_list retained;
-	if (s.dtype == DOUBLE_REAL)
+	if (s.dtype == CT_DOUBLE_REAL)
 	{
 		retained_bond_indices(s.data, s.dim[0], tol, max_vdim, &retained, info);
 	}
 	else
 	{
-		assert(s.dtype == SINGLE_REAL);
+		assert(s.dtype == CT_SINGLE_REAL);
 
 		// temporarily convert singular values to double format
 		const float* sdata = s.data;
@@ -293,14 +293,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 		// rescale retained singular values
 		assert(info->norm_sigma > 0);
 		const double scale = norm_sigma_all / info->norm_sigma;
-		if (s_ret.dtype == SINGLE_REAL)
+		if (s_ret.dtype == CT_SINGLE_REAL)
 		{
 			const float scalef = (float)scale;
 			scale_dense_tensor(&scalef, &s_ret);
 		}
 		else
 		{
-			assert(s_ret.dtype == DOUBLE_REAL);
+			assert(s_ret.dtype == CT_DOUBLE_REAL);
 			scale_dense_tensor(&scale, &s_ret);
 		}
 	}

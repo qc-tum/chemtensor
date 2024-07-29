@@ -61,7 +61,7 @@ char* test_operator_inner_product()
 	}
 
 	struct mps psi;
-	allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -85,7 +85,7 @@ char* test_operator_inner_product()
 	}
 
 	struct mps chi;
-	allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -109,7 +109,7 @@ char* test_operator_inner_product()
 	}
 
 	struct mpo op;
-	allocate_mpo(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
+	allocate_mpo(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
 
 	// read MPO tensors from disk
 	for (int i = 0; i < nsites; i++)

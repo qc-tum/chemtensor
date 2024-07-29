@@ -58,7 +58,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* xv = x;
 			const float* yv = y;
@@ -69,7 +69,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			}
 			return d;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* xv = x;
 			const double* yv = y;
@@ -80,7 +80,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			}
 			return d;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* xv = x;
 			const scomplex* yv = y;
@@ -91,7 +91,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			}
 			return d;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* xv = x;
 			const dcomplex* yv = y;
@@ -122,19 +122,19 @@ double norm2(const enum numeric_type dtype, const long n, const void* x)
 
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			return cblas_snrm2(n, x, 1);
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			return cblas_dnrm2(n, x, 1);
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			return cblas_scnrm2(n, x, 1);
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			return cblas_dznrm2(n, x, 1);
 		}

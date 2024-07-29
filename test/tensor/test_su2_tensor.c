@@ -76,7 +76,7 @@ char* test_su2_tensor_fmove()
 	const int ndim_auxiliary = 0;
 
 	struct su2_tensor t;
-	allocate_su2_tensor(DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
 
 	if (!su2_tensor_is_consistent(&t)) {
 		return "internal consistency check for SU(2) tensor failed";
@@ -231,7 +231,7 @@ char* test_su2_to_dense_tensor()
 	const int ndim_auxiliary = 1;
 
 	struct su2_tensor t;
-	allocate_su2_tensor(DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
 
 	if (!su2_tensor_is_consistent(&t)) {
 		return "internal consistency check for SU(2) tensor failed";
@@ -269,7 +269,7 @@ char* test_su2_to_dense_tensor()
 		const long d = su2_tensor_dim_logical_axis(&t, i);
 		const long dim[2] = { d, d };
 		struct dense_tensor w;
-		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim, &w);
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &w);
 
 		char varname[1024];
 		sprintf(varname, "w%i", i);

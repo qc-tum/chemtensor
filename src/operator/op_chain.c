@@ -74,25 +74,25 @@ void op_chain_to_matrix(const struct op_chain* chain, const long d, const int ns
 	dense_tensor_set_identity(a);
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* cmap = coeffmap;
 			scale_dense_tensor(&cmap[chain->cid], a);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* cmap = coeffmap;
 			scale_dense_tensor(&cmap[chain->cid], a);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* cmap = coeffmap;
 			scale_dense_tensor(&cmap[chain->cid], a);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* cmap = coeffmap;
 			scale_dense_tensor(&cmap[chain->cid], a);

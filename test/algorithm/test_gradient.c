@@ -96,7 +96,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	struct mps psi;
-	allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -120,7 +120,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	struct mps chi;
-	allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -228,7 +228,7 @@ char* test_operator_average_coefficient_gradient()
 	const int num_local_ops = 10;
 	struct dense_tensor opmap_tensor;
 	const long dim_opmt[3] = { num_local_ops, d, d };
-	allocate_dense_tensor(SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_FLOAT, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -238,7 +238,7 @@ char* test_operator_average_coefficient_gradient()
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &opmap[i]);
+		allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &opmap[i]);
 		const scomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(scomplex));
 	}
@@ -257,7 +257,7 @@ char* test_operator_average_coefficient_gradient()
 		.coeffmap      = coeffmap,
 		.qsite         = (qnumber*)qsite,
 		.d             = d,
-		.dtype         = SINGLE_COMPLEX,
+		.dtype         = CT_SINGLE_COMPLEX,
 		.num_local_ops = num_local_ops,
 		.num_coeffs    = num_coeffs,
 	};
@@ -293,7 +293,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	// compare gradient (except for first two coefficients, which must be kept fixed at 0 and 1)
-	if (uniform_distance(SINGLE_COMPLEX, num_coeffs - 2, dcoeff + 2, dcoeff_ref) > 5e-5) {
+	if (uniform_distance(CT_SINGLE_COMPLEX, num_coeffs - 2, dcoeff + 2, dcoeff_ref) > 5e-5) {
 		return "gradient with respect to coefficients computed by 'operator_average_coefficient_gradient' does not match finite difference approximation";
 	}
 

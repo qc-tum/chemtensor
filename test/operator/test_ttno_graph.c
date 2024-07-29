@@ -127,7 +127,7 @@ char* test_ttno_graph_from_opchains()
 	const int num_local_ops = 18;
 	struct dense_tensor opmap_tensor;
 	const long dim_opmt[3] = { num_local_ops, d, d };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -137,7 +137,7 @@ char* test_ttno_graph_from_opchains()
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim, &opmap[i]);
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
 	}
@@ -156,12 +156,12 @@ char* test_ttno_graph_from_opchains()
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor mat_ref;
 	const long dim_mat_ref[2] = { dim_full, dim_full };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, DOUBLE_COMPLEX, &c);
-		dense_tensor_scalar_multiply_add(numeric_one(DOUBLE_COMPLEX), &c, &mat_ref);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, CT_DOUBLE_COMPLEX, &c);
+		dense_tensor_scalar_multiply_add(numeric_one(CT_DOUBLE_COMPLEX), &c, &mat_ref);
 		delete_dense_tensor(&c);
 	}
 

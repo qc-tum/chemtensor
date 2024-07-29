@@ -49,7 +49,7 @@ char* test_mps_vdot()
 	}
 
 	struct mps psi;
-	allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -73,7 +73,7 @@ char* test_mps_vdot()
 	}
 
 	struct mps chi;
-	allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -161,7 +161,7 @@ char* test_mps_orthonormalize_qr()
 	for (int m = 0; m < 2; m++)
 	{
 		struct mps mps;
-		allocate_mps(SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+		allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -284,7 +284,7 @@ char* test_mps_split_tensor_svd()
 
 	// read dense tensor from disk
 	struct dense_tensor a_pair_dns;
-	allocate_dense_tensor(DOUBLE_REAL, 3, dim, &a_pair_dns);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 3, dim, &a_pair_dns);
 	if (read_hdf5_dataset(file, "a_pair", H5T_NATIVE_DOUBLE, a_pair_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -304,7 +304,7 @@ char* test_mps_split_tensor_svd()
 	}
 
 	struct dense_tensor a_mrg_ref;
-	allocate_dense_tensor(DOUBLE_REAL, 3, dim, &a_mrg_ref);
+	allocate_dense_tensor(CT_DOUBLE_REAL, 3, dim, &a_mrg_ref);
 	if (read_hdf5_dataset(file, "a_mrg", H5T_NATIVE_DOUBLE, a_mrg_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -399,7 +399,7 @@ char* test_mps_to_statevector()
 	}
 
 	struct mps mps;
-	allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -439,7 +439,7 @@ char* test_mps_to_statevector()
 	// read reference state vector from disk
 	struct dense_tensor vec_ref;
 	const long dim_vec_ref[3] = { 1, ipow(d, nsites), 1 };  // include dummy virtual bond dimensions
-	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_vec_ref, &vec_ref);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_vec_ref, &vec_ref);
 	if (read_hdf5_dataset(file, "vec", H5T_NATIVE_DOUBLE, vec_ref.data) < 0) {
 		return "reading state vector entries from disk failed";
 	}

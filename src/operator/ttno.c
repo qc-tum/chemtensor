@@ -79,7 +79,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			aligned_free(index_start);
 			switch (a_loc.dtype)
 			{
-				case SINGLE_REAL:
+				case CT_SINGLE_REAL:
 				{
 					float* al_data = a_loc.data;
 					const float* op_data = op.data;
@@ -89,7 +89,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 					}
 					break;
 				}
-				case DOUBLE_REAL:
+				case CT_DOUBLE_REAL:
 				{
 					double* al_data = a_loc.data;
 					const double* op_data = op.data;
@@ -99,7 +99,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 					}
 					break;
 				}
-				case SINGLE_COMPLEX:
+				case CT_SINGLE_COMPLEX:
 				{
 					scomplex* al_data = a_loc.data;
 					const scomplex* op_data = op.data;
@@ -109,7 +109,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 					}
 					break;
 				}
-				case DOUBLE_COMPLEX:
+				case CT_DOUBLE_COMPLEX:
 				{
 					dcomplex* al_data = a_loc.data;
 					const dcomplex* op_data = op.data;

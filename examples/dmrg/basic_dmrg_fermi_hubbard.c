@@ -96,7 +96,7 @@ int main()
 		assert(hmat.dim[0] == 1 && hmat.dim[3] == 1);
 		assert(hmat.dim[1] == ipow(hamiltonian.d, hamiltonian.nsites));
 		assert(hmat.dim[1] == hmat.dim[2]);
-		assert(hmat.dtype == DOUBLE_REAL);
+		assert(hmat.dtype == CT_DOUBLE_REAL);
 	}
 
 	// reference eigenvalues (based on exact diagonalization of matrix representation)

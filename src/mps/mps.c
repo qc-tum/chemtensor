@@ -320,21 +320,21 @@ double mps_norm(const struct mps* psi)
 
 	switch (psi->a[0].dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float nrm2;
 			mps_vdot(psi, psi, &nrm2);
 			assert(nrm2 >= 0);
 			return sqrt(nrm2);
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double nrm2;
 			mps_vdot(psi, psi, &nrm2);
 			assert(nrm2 >= 0);
 			return sqrt(nrm2);
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex vdot;
 			mps_vdot(psi, psi, &vdot);
@@ -342,7 +342,7 @@ double mps_norm(const struct mps* psi)
 			assert(nrm2 >= 0);
 			return sqrt(nrm2);
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex vdot;
 			mps_vdot(psi, psi, &vdot);
@@ -497,22 +497,22 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		{
 			switch (a_tail.blocks[0]->dtype)
 			{
-				case SINGLE_REAL:
+				case CT_SINGLE_REAL:
 				{
 					nrm = *((float*)a_tail.blocks[0]->data);
 					break;
 				}
-				case DOUBLE_REAL:
+				case CT_DOUBLE_REAL:
 				{
 					nrm = *((double*)a_tail.blocks[0]->data);
 					break;
 				}
-				case SINGLE_COMPLEX:
+				case CT_SINGLE_COMPLEX:
 				{
 					nrm = crealf(*((scomplex*)a_tail.blocks[0]->data));
 					break;
 				}
-				case DOUBLE_COMPLEX:
+				case CT_DOUBLE_COMPLEX:
 				{
 					nrm = creal(*((dcomplex*)a_tail.blocks[0]->data));
 					break;
@@ -570,22 +570,22 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		{
 			switch (a_head.blocks[0]->dtype)
 			{
-				case SINGLE_REAL:
+				case CT_SINGLE_REAL:
 				{
 					nrm = *((float*)a_head.blocks[0]->data);
 					break;
 				}
-				case DOUBLE_REAL:
+				case CT_DOUBLE_REAL:
 				{
 					nrm = *((double*)a_head.blocks[0]->data);
 					break;
 				}
-				case SINGLE_COMPLEX:
+				case CT_SINGLE_COMPLEX:
 				{
 					nrm = crealf(*((scomplex*)a_head.blocks[0]->data));
 					break;
 				}
-				case DOUBLE_COMPLEX:
+				case CT_DOUBLE_COMPLEX:
 				{
 					nrm = creal(*((dcomplex*)a_head.blocks[0]->data));
 					break;

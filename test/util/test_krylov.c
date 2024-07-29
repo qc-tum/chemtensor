@@ -78,13 +78,13 @@ char* test_lanczos_iteration_d()
 	}
 
 	// compare
-	if (uniform_distance(DOUBLE_REAL, maxiter, alpha, alpha_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, maxiter, alpha, alpha_ref) > 1e-13) {
 		return "'alpha' vector does not match reference";
 	}
-	if (uniform_distance(DOUBLE_REAL, maxiter - 1, beta, beta_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, maxiter - 1, beta, beta_ref) > 1e-13) {
 		return "'beta' vector does not match reference";
 	}
-	if (uniform_distance(DOUBLE_REAL, maxiter*n, v, v_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, maxiter*n, v, v_ref) > 1e-13) {
 		return "'v' matrix does not match reference";
 	}
 
@@ -156,13 +156,13 @@ char* test_lanczos_iteration_z()
 	}
 
 	// compare
-	if (uniform_distance(DOUBLE_REAL, maxiter, alpha, alpha_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, maxiter, alpha, alpha_ref) > 1e-13) {
 		return "'alpha' vector does not match reference";
 	}
-	if (uniform_distance(DOUBLE_REAL, maxiter - 1, beta, beta_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, maxiter - 1, beta, beta_ref) > 1e-13) {
 		return "'beta' vector does not match reference";
 	}
-	if (uniform_distance(DOUBLE_COMPLEX, maxiter*n, v, v_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_COMPLEX, maxiter*n, v, v_ref) > 1e-13) {
 		return "'v' matrix does not match reference";
 	}
 
@@ -228,7 +228,7 @@ char* test_eigensystem_krylov_symmetric()
 	}
 
 	// compare
-	if (uniform_distance(DOUBLE_REAL, numeig, lambda, lambda_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, numeig, lambda, lambda_ref) > 1e-13) {
 		return "Ritz eigenvalues do not match reference";
 	}
 	// Ritz eigenvectors can differ by sign factors
@@ -311,7 +311,7 @@ char* test_eigensystem_krylov_hermitian()
 	}
 
 	// compare
-	if (uniform_distance(DOUBLE_REAL, numeig, lambda, lambda_ref) > 1e-13) {
+	if (uniform_distance(CT_DOUBLE_REAL, numeig, lambda, lambda_ref) > 1e-13) {
 		return "Ritz eigenvalues do not match reference";
 	}
 	// Ritz eigenvectors can differ by phase factors

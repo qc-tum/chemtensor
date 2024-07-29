@@ -120,7 +120,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 				// explicitly contract physical axes
 				switch (assembly->dtype)
 				{
-					case SINGLE_REAL:
+					case CT_SINGLE_REAL:
 					{
 						float* dc = dcoeff;
 						const float* opdata = op->data;
@@ -141,7 +141,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 						}
 						break;
 					}
-					case DOUBLE_REAL:
+					case CT_DOUBLE_REAL:
 					{
 						double* dc = dcoeff;
 						const double* opdata = op->data;
@@ -162,7 +162,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 						}
 						break;
 					}
-					case SINGLE_COMPLEX:
+					case CT_SINGLE_COMPLEX:
 					{
 						scomplex* dc = dcoeff;
 						const scomplex* opdata = op->data;
@@ -183,7 +183,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 						}
 						break;
 					}
-					case DOUBLE_COMPLEX:
+					case CT_DOUBLE_COMPLEX:
 					{
 						dcomplex* dc = dcoeff;
 						const dcomplex* opdata = op->data;

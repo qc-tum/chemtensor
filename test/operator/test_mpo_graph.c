@@ -66,7 +66,7 @@ char* test_mpo_graph_from_opchains_basic()
 	const int num_local_ops = 12;
 	struct dense_tensor opmap_tensor;
 	const long dim_opmt[3] = { num_local_ops, d, d };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -76,7 +76,7 @@ char* test_mpo_graph_from_opchains_basic()
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim, &opmap[i]);
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
 	}
@@ -87,12 +87,12 @@ char* test_mpo_graph_from_opchains_basic()
 
 	// convert to a dense (full) tensor
 	struct dense_tensor a;
-	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, DOUBLE_COMPLEX, &a);
+	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, CT_DOUBLE_COMPLEX, &a);
 
 	// reference matrix representation
 	struct dense_tensor a_ref;
 	const long dim_a_ref[2] = { dim_full, dim_full };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim_a_ref, &a_ref);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_ref, &a_ref);
 	if (read_hdf5_dataset(file, "mat", H5T_NATIVE_DOUBLE, a_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -105,12 +105,12 @@ char* test_mpo_graph_from_opchains_basic()
 	// sum matrix representations of individual operator chains
 	struct dense_tensor a_chains;
 	const long dim_a_chains[2] = { dim_full, dim_full };
-	allocate_dense_tensor(DOUBLE_COMPLEX, 2, dim_a_chains, &a_chains);
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, DOUBLE_COMPLEX, &c);
-		dense_tensor_scalar_multiply_add(numeric_one(DOUBLE_COMPLEX), &c, &a_chains);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, CT_DOUBLE_COMPLEX, &c);
+		dense_tensor_scalar_multiply_add(numeric_one(CT_DOUBLE_COMPLEX), &c, &a_chains);
 		delete_dense_tensor(&c);
 	}
 
@@ -202,7 +202,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	const int num_local_ops = 17;
 	struct dense_tensor opmap_tensor;
 	const long dim_opmt[3] = { num_local_ops, d, d };
-	allocate_dense_tensor(SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_FLOAT, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -212,7 +212,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
-		allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &opmap[i]);
+		allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &opmap[i]);
 		const scomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(scomplex));
 	}
@@ -226,17 +226,17 @@ char* test_mpo_graph_from_opchains_advanced()
 
 	// convert to a dense (full) tensor
 	struct dense_tensor a;
-	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, SINGLE_COMPLEX, &a);
+	mpo_graph_to_matrix(&mpo_graph, opmap, coeffmap, CT_SINGLE_COMPLEX, &a);
 
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor a_chains;
 	const long dim_a_chains[2] = { dim_full, dim_full };
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, SINGLE_COMPLEX, &c);
-		dense_tensor_scalar_multiply_add(numeric_one(SINGLE_COMPLEX), &c, &a_chains);
+		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, CT_SINGLE_COMPLEX, &c);
+		dense_tensor_scalar_multiply_add(numeric_one(CT_SINGLE_COMPLEX), &c, &a_chains);
 		delete_dense_tensor(&c);
 	}
 

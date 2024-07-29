@@ -12,19 +12,19 @@ static inline enum NPY_TYPES numeric_to_numpy_type(const enum numeric_type dtype
 {
 	switch (dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			return NPY_FLOAT;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			return NPY_DOUBLE;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			return NPY_CFLOAT;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			return NPY_CDOUBLE;
 		}
@@ -543,7 +543,7 @@ static int PyMPO_set_coeffmap(PyMPOObject* self, PyObject* arg, void* Py_UNUSED(
 	// first two entries must always be 0 and 1
 	switch (self->assembly.dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* data = (float*)PyArray_DATA(py_coeffmap);
 			if ((data[0] != 0) || (data[1] != 1)) {
@@ -555,7 +555,7 @@ static int PyMPO_set_coeffmap(PyMPOObject* self, PyObject* arg, void* Py_UNUSED(
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* data = (double*)PyArray_DATA(py_coeffmap);
 			if ((data[0] != 0) || (data[1] != 1)) {
@@ -567,7 +567,7 @@ static int PyMPO_set_coeffmap(PyMPOObject* self, PyObject* arg, void* Py_UNUSED(
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* data = (scomplex*)PyArray_DATA(py_coeffmap);
 			if ((data[0] != 0) || (data[1] != 1)) {
@@ -579,7 +579,7 @@ static int PyMPO_set_coeffmap(PyMPOObject* self, PyObject* arg, void* Py_UNUSED(
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* data = (dcomplex*)PyArray_DATA(py_coeffmap);
 			if ((data[0] != 0) || (data[1] != 1)) {
@@ -706,19 +706,19 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 	enum numeric_type dtype;
 	if ((strcmp(dtype_string, "float32") == 0)
 	 || (strcmp(dtype_string, "float") == 0)) {
-		dtype = SINGLE_REAL;
+		dtype = CT_SINGLE_REAL;
 	}
 	else if ((strcmp(dtype_string, "float64") == 0)
 	      || (strcmp(dtype_string, "double") == 0)) {
-		dtype = DOUBLE_REAL;
+		dtype = CT_DOUBLE_REAL;
 	}
 	else if ((strcmp(dtype_string, "complex64") == 0) ||
 	         (strcmp(dtype_string, "float complex") == 0)) {
-		dtype = SINGLE_COMPLEX;
+		dtype = CT_SINGLE_COMPLEX;
 	}
 	else if ((strcmp(dtype_string, "complex128") == 0)
 	      || (strcmp(dtype_string, "double complex") == 0)) {
-		dtype = DOUBLE_COMPLEX;
+		dtype = CT_DOUBLE_COMPLEX;
 	}
 	else {
 		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
@@ -1041,14 +1041,14 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 	struct dense_tensor tkin = {
 		.data  = PyArray_DATA(py_tkin),
 		.dim   = dim_tkin,
-		.dtype = DOUBLE_REAL,
+		.dtype = CT_DOUBLE_REAL,
 		.ndim  = 2,
 	};
 	long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	struct dense_tensor vint = {
 		.data  = PyArray_DATA(py_vint),
 		.dim   = dim_vint,
-		.dtype = DOUBLE_REAL,
+		.dtype = CT_DOUBLE_REAL,
 		.ndim  = 4,
 	};
 

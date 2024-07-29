@@ -95,7 +95,7 @@ char* test_split_block_sparse_matrix_svd()
 
 	// read dense tensor from disk
 	struct dense_tensor a_dns;
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_dns);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_dns);
 	if (read_hdf5_dataset(file, "a", H5T_NATIVE_FLOAT, a_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -133,13 +133,13 @@ char* test_split_block_sparse_matrix_svd()
 	// reference reassembled matrix after splitting
 	// without renormalization
 	struct dense_tensor a_trunc_plain_ref;
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_trunc_plain_ref);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_trunc_plain_ref);
 	if (read_hdf5_dataset(file, "a_trunc_plain", H5T_NATIVE_FLOAT, a_trunc_plain_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// with renormalization
 	struct dense_tensor a_trunc_renrm_ref;
-	allocate_dense_tensor(SINGLE_COMPLEX, 2, dim, &a_trunc_renrm_ref);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_trunc_renrm_ref);
 	if (read_hdf5_dataset(file, "a_trunc_renrm", H5T_NATIVE_FLOAT, a_trunc_renrm_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
@@ -240,7 +240,7 @@ char* test_split_block_sparse_matrix_svd_zero()
 	const qnumber* qnums[2] = { qnums0, qnums1 };
 
 	struct block_sparse_tensor a;
-	allocate_block_sparse_tensor(SINGLE_COMPLEX, 2, dim, axis_dir, qnums, &a);
+	allocate_block_sparse_tensor(CT_SINGLE_COMPLEX, 2, dim, axis_dir, qnums, &a);
 	if (block_sparse_tensor_norm2(&a) != 0) {
 		return "block-sparse matrix should be logically zero";
 	}

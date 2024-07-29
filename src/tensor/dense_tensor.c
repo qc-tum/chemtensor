@@ -115,7 +115,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float tr = 0;
 			const float* data = t->data;
@@ -126,7 +126,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 			*((float*)ret) = tr;
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double tr = 0;
 			const double* data = t->data;
@@ -137,7 +137,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 			*((double*)ret) = tr;
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex tr = 0;
 			const scomplex* data = t->data;
@@ -148,7 +148,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 			*((scomplex*)ret) = tr;
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex tr = 0;
 			const dcomplex* data = t->data;
@@ -211,7 +211,7 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* tdata = t->data;
 			float* rdata = r->data;
@@ -224,7 +224,7 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* tdata = t->data;
 			double* rdata = r->data;
@@ -237,7 +237,7 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* tdata = t->data;
 			scomplex* rdata = r->data;
@@ -250,7 +250,7 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* tdata = t->data;
 			dcomplex* rdata = r->data;
@@ -284,19 +284,19 @@ double dense_tensor_norm2(const struct dense_tensor* t)
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			return cblas_snrm2(nelem, t->data, 1);
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			return cblas_dnrm2(nelem, t->data, 1);
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			return cblas_scnrm2(nelem, t->data, 1);
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			return cblas_dznrm2(nelem, t->data, 1);
 		}
@@ -318,22 +318,22 @@ void scale_dense_tensor(const void* alpha, struct dense_tensor* t)
 {
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			cblas_sscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			cblas_dscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			cblas_cscal(dense_tensor_num_elements(t), alpha, t->data, 1);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			cblas_zscal(dense_tensor_num_elements(t), alpha, t->data, 1);
 			break;
@@ -355,22 +355,22 @@ void rscale_dense_tensor(const void* alpha, struct dense_tensor* t)
 {
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			cblas_sscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			cblas_dscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			cblas_csscal(dense_tensor_num_elements(t), *((float*)alpha), t->data, 1);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			cblas_zdscal(dense_tensor_num_elements(t), *((double*)alpha), t->data, 1);
 			break;
@@ -411,13 +411,13 @@ void conjugate_dense_tensor(struct dense_tensor* t)
 {
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
-		case DOUBLE_REAL:
+		case CT_SINGLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			// no effect
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const long nelem = dense_tensor_num_elements(t);
 			scomplex* data = t->data;
@@ -427,7 +427,7 @@ void conjugate_dense_tensor(struct dense_tensor* t)
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const long nelem = dense_tensor_num_elements(t);
 			dcomplex* data = t->data;
@@ -468,7 +468,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float* data = t->data;
 			memset(data, 0, n*dp * sizeof(float));
@@ -478,7 +478,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double* data = t->data;
 			memset(data, 0, n*dp * sizeof(double));
@@ -488,7 +488,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex* data = t->data;
 			memset(data, 0, n*dp * sizeof(scomplex));
@@ -498,7 +498,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex* data = t->data;
 			memset(data, 0, n*dp * sizeof(dcomplex));
@@ -527,7 +527,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float* data = t->data;
 			const float a = *((float*)alpha);
@@ -537,7 +537,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double* data = t->data;
 			const double a = *((double*)alpha);
@@ -547,7 +547,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex* data = t->data;
 			const scomplex a = *((scomplex*)alpha);
@@ -557,7 +557,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex* data = t->data;
 			const dcomplex a = *((dcomplex*)alpha);
@@ -788,7 +788,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 		const long n = dp_eff.dim[dp_eff.ndim - 1];
 		switch (t->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       rdata =       (float*)r->data + or;
@@ -801,7 +801,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       rdata =       (double*)r->data + or;
@@ -814,7 +814,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       rdata =       (scomplex*)r->data + or;
@@ -827,7 +827,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       rdata =       (dcomplex*)r->data + or;
@@ -944,22 +944,22 @@ void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tens
 
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			cblas_saxpy(nelem, *((float*)alpha), s->data, 1, t->data, 1);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			cblas_daxpy(nelem, *((double*)alpha), s->data, 1, t->data, 1);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			cblas_caxpy(nelem, alpha, s->data, 1, t->data, 1);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			cblas_zaxpy(nelem, alpha, s->data, 1, t->data, 1);
 			break;
@@ -1022,7 +1022,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* sdata = s->data;
 				const float* tdata = t->data;
@@ -1036,7 +1036,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* sdata = s->data;
 				const double* tdata = t->data;
@@ -1050,11 +1050,11 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* sdata = s->data;
 				scomplex*       rdata = r->data;
-				if (t->dtype == SINGLE_COMPLEX)
+				if (t->dtype == CT_SINGLE_COMPLEX)
 				{
 					const scomplex* tdata = t->data;
 					for (long j = 0; j < nt; j++)
@@ -1067,7 +1067,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				else
 				{
-					assert(t->dtype == SINGLE_REAL);
+					assert(t->dtype == CT_SINGLE_REAL);
 					const float* tdata = t->data;
 					for (long j = 0; j < nt; j++)
 					{
@@ -1079,11 +1079,11 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* sdata = s->data;
 				dcomplex*       rdata = r->data;
-				if (t->dtype == DOUBLE_COMPLEX)
+				if (t->dtype == CT_DOUBLE_COMPLEX)
 				{
 					const dcomplex* tdata = t->data;
 					for (long j = 0; j < nt; j++)
@@ -1096,7 +1096,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				else
 				{
-					assert(t->dtype == DOUBLE_REAL);
+					assert(t->dtype == CT_DOUBLE_REAL);
 					const double* tdata = t->data;
 					for (long j = 0; j < nt; j++)
 					{
@@ -1129,7 +1129,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* sdata = s->data;
 				const float* tdata = t->data;
@@ -1143,7 +1143,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* sdata = s->data;
 				const double* tdata = t->data;
@@ -1157,11 +1157,11 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* sdata = s->data;
 				scomplex*       rdata = r->data;
-				if (t->dtype == SINGLE_COMPLEX)
+				if (t->dtype == CT_SINGLE_COMPLEX)
 				{
 					const scomplex* tdata = t->data;
 					for (long j = 0; j < lds; j++)
@@ -1174,7 +1174,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				else
 				{
-					assert(t->dtype == SINGLE_REAL);
+					assert(t->dtype == CT_SINGLE_REAL);
 					const float* tdata = t->data;
 					for (long j = 0; j < lds; j++)
 					{
@@ -1186,11 +1186,11 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* sdata = s->data;
 				dcomplex*       rdata = r->data;
-				if (t->dtype == DOUBLE_COMPLEX)
+				if (t->dtype == CT_DOUBLE_COMPLEX)
 				{
 					const dcomplex* tdata = t->data;
 					for (long j = 0; j < lds; j++)
@@ -1203,7 +1203,7 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				}
 				else
 				{
-					assert(t->dtype == DOUBLE_REAL);
+					assert(t->dtype == CT_DOUBLE_REAL);
 					const double* tdata = t->data;
 					for (long j = 0; j < lds; j++)
 					{
@@ -1301,7 +1301,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 
 	switch (s->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* sdata = s->data;
 			float*       rdata = r->data;
@@ -1311,7 +1311,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* sdata = s->data;
 			double*       rdata = r->data;
@@ -1321,7 +1321,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* sdata = s->data;
 			scomplex*       rdata = r->data;
@@ -1331,7 +1331,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* sdata = s->data;
 			dcomplex*       rdata = r->data;
@@ -1410,24 +1410,24 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
 	switch (s->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, 1.f, s->data, tds, t->data, tdt, 0.f, r->data, n);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, 1.0, s->data, tds, t->data, tdt, 0.0, r->data, n);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex one  = 1;
 			const scomplex zero = 0;
 			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, &one, s->data, tds, t->data, tdt, &zero, r->data, n);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex one  = 1;
 			const dcomplex zero = 0;
@@ -1501,22 +1501,22 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	// matrix-matrix multiplication
 	switch (s->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, *((float*)alpha), s->data, tds, t->data, tdt, *((float*)beta), r->data, n);
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, *((double*)alpha), s->data, tds, t->data, tdt, *((double*)beta), r->data, n);
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, beta, r->data, n);
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			cblas_zgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, beta, r->data, n);
 			break;
@@ -1549,7 +1549,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		// multiply single scalar entries
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* sdata = s->data;
 				const float* tdata = t->data;
@@ -1557,7 +1557,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 				rdata[0] = sdata[0] * tdata[0];
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* sdata = s->data;
 				const double* tdata = t->data;
@@ -1565,7 +1565,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 				rdata[0] = sdata[0] * tdata[0];
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* sdata = s->data;
 				const scomplex* tdata = t->data;
@@ -1573,7 +1573,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 				rdata[0] = sdata[0] * tdata[0];
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* sdata = s->data;
 				const dcomplex* tdata = t->data;
@@ -1625,23 +1625,23 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		// outer product; r->data must have been initialized with zeros
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				cblas_sger(CblasRowMajor, last_dim_s, last_dim_t, 1.f, (const float*)s->data + os, 1, (const float*)t->data + ot, 1, (float*)r->data + or, last_dim_t);
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				cblas_dger(CblasRowMajor, last_dim_s, last_dim_t, 1.0, (const double*)s->data + os, 1, (const double*)t->data + ot, 1, (double*)r->data + or, last_dim_t);
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex one = 1;
 				cblas_cgeru(CblasRowMajor, last_dim_s, last_dim_t, &one, (const scomplex*)s->data + os, 1, (const scomplex*)t->data + ot, 1, (scomplex*)r->data + or, last_dim_t);
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex one = 1;
 				cblas_zgeru(CblasRowMajor, last_dim_s, last_dim_t, &one, (const dcomplex*)s->data + os, 1, (const dcomplex*)t->data + ot, 1, (dcomplex*)r->data + or, last_dim_t);
@@ -1719,7 +1719,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 	switch (a->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
 
@@ -1787,7 +1787,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
 
@@ -1855,7 +1855,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
 
@@ -1923,7 +1923,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
 
@@ -2051,7 +2051,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 	switch (a->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
 
@@ -2119,7 +2119,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
 
@@ -2187,7 +2187,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
 
@@ -2255,7 +2255,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
 
@@ -2389,7 +2389,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 	switch (a->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			if (m >= n)
 			{
@@ -2418,7 +2418,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			if (m >= n)
 			{
@@ -2447,7 +2447,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			if (m >= n)
 			{
@@ -2476,7 +2476,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			if (m >= n)
 			{
@@ -2558,7 +2558,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 		const long n = b->dim[b->ndim - 1];
 		switch (t->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       bdata =       (float*)b->data + ob;
@@ -2571,7 +2571,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       bdata =       (double*)b->data + ob;
@@ -2584,7 +2584,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       bdata =       (scomplex*)b->data + ob;
@@ -2597,7 +2597,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       bdata =       (dcomplex*)b->data + ob;
@@ -2687,7 +2687,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 	const long n = t->dim[0] * t->dim[1];
 	switch (t->dtype)
 	{
-		case SINGLE_REAL:
+		case CT_SINGLE_REAL:
 		{
 			const float* data = t->data;
 			for (long i = 0; i < n; i++)
@@ -2699,7 +2699,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 			}
 			break;
 		}
-		case DOUBLE_REAL:
+		case CT_DOUBLE_REAL:
 		{
 			const double* data = t->data;
 			for (long i = 0; i < n; i++)
@@ -2711,7 +2711,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 			}
 			break;
 		}
-		case SINGLE_COMPLEX:
+		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* data = t->data;
 			for (long i = 0; i < n; i++)
@@ -2723,7 +2723,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 			}
 			break;
 		}
-		case DOUBLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* data = t->data;
 			for (long i = 0; i < n; i++)

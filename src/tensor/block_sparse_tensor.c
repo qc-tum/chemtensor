@@ -513,7 +513,7 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 		const long nelem = dense_tensor_num_elements(b);
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* bdata = b->data;
 				float*       tdata = t->data;
@@ -527,7 +527,7 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* bdata = b->data;
 				double*       tdata = t->data;
@@ -541,7 +541,7 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* bdata = b->data;
 				scomplex*       tdata = t->data;
@@ -555,7 +555,7 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* bdata = b->data;
 				dcomplex*       tdata = t->data;
@@ -663,7 +663,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 		const long nelem = dense_tensor_num_elements(b);
 		switch (s->dtype)
 		{
-			case SINGLE_REAL:
+			case CT_SINGLE_REAL:
 			{
 				const float* tdata = t->data;
 				float*       bdata = b->data;
@@ -677,7 +677,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 				}
 				break;
 			}
-			case DOUBLE_REAL:
+			case CT_DOUBLE_REAL:
 			{
 				const double* tdata = t->data;
 				double*       bdata = b->data;
@@ -691,7 +691,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 				}
 				break;
 			}
-			case SINGLE_COMPLEX:
+			case CT_SINGLE_COMPLEX:
 			{
 				const scomplex* tdata = t->data;
 				scomplex*       bdata = b->data;
@@ -705,7 +705,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 				}
 				break;
 			}
-			case DOUBLE_COMPLEX:
+			case CT_DOUBLE_COMPLEX:
 			{
 				const dcomplex* tdata = t->data;
 				dcomplex*       bdata = b->data;

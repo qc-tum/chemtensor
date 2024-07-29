@@ -44,7 +44,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mpo(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
+		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -96,7 +96,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -145,7 +145,7 @@ char* test_dmrg_singlesite()
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
-	if (uniform_distance(DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
+	if (uniform_distance(CT_DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
 		return "reference energies of DMRG sweeps do not match reference";
 	}
 
@@ -175,7 +175,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -265,7 +265,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mpo(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
+		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -317,7 +317,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -371,7 +371,7 @@ char* test_dmrg_twosite()
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
-	if (uniform_distance(DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
+	if (uniform_distance(CT_DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
 		return "reference energies of DMRG sweeps do not match reference";
 	}
 
@@ -401,7 +401,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mps(DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
