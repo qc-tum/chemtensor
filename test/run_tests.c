@@ -74,6 +74,7 @@ char* test_retained_bond_indices();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
 char* test_operator_inner_product();
+char* test_apply_operator();
 char* test_dmrg_singlesite();
 char* test_dmrg_twosite();
 char* test_operator_average_coefficient_gradient();
@@ -148,6 +149,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
 		TEST_FUNCTION_ENTRY(test_operator_inner_product),
+		TEST_FUNCTION_ENTRY(test_apply_operator),
 		TEST_FUNCTION_ENTRY(test_dmrg_singlesite),
 		TEST_FUNCTION_ENTRY(test_dmrg_twosite),
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),

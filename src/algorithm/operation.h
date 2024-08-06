@@ -33,3 +33,8 @@ void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const
 
 void compute_local_hamiltonian_environment(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict l, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict dw);
+
+//________________________________________________________________________________________________________________________
+//
+
+void apply_operator(const struct mpo* op, const struct mps* psi, struct mps* op_psi);

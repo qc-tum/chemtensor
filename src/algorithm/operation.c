@@ -431,3 +431,49 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 	block_sparse_tensor_cyclic_partial_trace(&s, 1, dw);
 	delete_block_sparse_tensor(&s);
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Apply an operator represented as MPO to a state in MPS form.
+///
+void apply_operator(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
+{
+	// quantum numbers on physical sites must match
+	assert(psi->d == op->d);
+	assert(qnumber_all_equal(psi->d, psi->qsite, op->qsite));
+	assert(psi->nsites == op->nsites);
+	assert(psi->nsites >= 1);
+
+	allocate_empty_mps(psi->nsites, psi->d, psi->qsite, op_psi);
+
+	for (int i = 0; i < psi->nsites; i++)
+	{
+		// move physical input axis of op->a[i] to the end
+		const int perm_op[4] = { 0, 1, 3, 2 };
+		struct block_sparse_tensor r;
+		transpose_block_sparse_tensor(perm_op, &op->a[i], &r);
+
+		// move physical axis of psi->a[i] to the beginning
+		const int perm_psi[3] = { 1, 0, 2 };
+		struct block_sparse_tensor s;
+		transpose_block_sparse_tensor(perm_psi, &psi->a[i], &s);
+
+		// contract local tensors
+		struct block_sparse_tensor t;
+		block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &s, TENSOR_AXIS_RANGE_LEADING, 1, &t);
+		delete_block_sparse_tensor(&r);
+		delete_block_sparse_tensor(&s);
+
+		// reorder axes
+		const int perm_ax[5] = { 0, 3, 1, 2, 4 };
+		transpose_block_sparse_tensor(perm_ax, &t, &r);
+		delete_block_sparse_tensor(&t);
+
+		// flatten left and right virtual bonds
+		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &s);
+		delete_block_sparse_tensor(&r);
+		flatten_block_sparse_tensor_axes(&s, 2, TENSOR_AXIS_IN, &op_psi->a[i]);
+		delete_block_sparse_tensor(&s);
+	}
+}

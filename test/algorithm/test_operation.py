@@ -62,8 +62,46 @@ def operator_inner_product_data():
         file["s"] = interleave_complex(s)
 
 
+def apply_operator_data():
+
+    rng = np.random.default_rng(975)
+
+    # physical dimension
+    d = 3
+
+    # physical quantum numbers
+    qd = rng.integers(-1, 2, size=d)
+
+    # virtual bond quantum numbers
+    qD_psi = [rng.integers(-1, 2, size=Di) for Di in (1, 7, 21, 25, 11,  4, 1)]
+    qD_op  = [rng.integers(-1, 2, size=Di) for Di in (1, 6, 15, 33, 29, 14, 1)]
+
+    # create a random matrix product state operator
+    psi = ptn.MPS(qd, qD_psi, fill="random", rng=rng)
+    op  = ptn.MPO(qd, qD_op,  fill="random", rng=rng)
+    # rescale tensors such that overall norm is of the order 1
+    for i in range(psi.nsites):
+        psi.A[i] *= 5
+    for i in range(op.nsites):
+        op.A[i] *= 5
+
+    with h5py.File("data/test_apply_operator.hdf5", "w") as file:
+        file.attrs["qsite"] = qd
+        for i, qbond in enumerate(qD_psi):
+            file.attrs[f"qbond_psi_{i}"] = qbond
+        for i, qbond in enumerate(qD_op):
+            file.attrs[f"qbond_op_{i}"] = qbond
+        for i, a in enumerate(psi.A):
+            # transposition due to different convention for axis ordering
+            file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+        for i, a in enumerate(op.A):
+            # transposition due to different convention for axis ordering
+            file[f"op_a{i}"] = interleave_complex(a.transpose((2, 0, 1, 3)))
+
+
 def main():
     operator_inner_product_data()
+    apply_operator_data()
 
 
 if __name__ == "__main__":

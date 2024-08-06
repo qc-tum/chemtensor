@@ -11,9 +11,9 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Allocate memory for a matrix product state. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
+/// \brief Allocate an "empty" matrix product state, without the actual tensors.
 ///
-void allocate_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps)
+void allocate_empty_mps(const int nsites, const long d, const qnumber* qsite, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -24,6 +24,16 @@ void allocate_mps(const enum numeric_type dtype, const int nsites, const long d,
 	memcpy(mps->qsite, qsite, d * sizeof(qnumber));
 
 	mps->a = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct block_sparse_tensor));
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Allocate memory for a matrix product state. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
+///
+void allocate_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps)
+{
+	allocate_empty_mps(nsites, d, qsite, mps);
 
 	for (int i = 0; i < nsites; i++)
 	{

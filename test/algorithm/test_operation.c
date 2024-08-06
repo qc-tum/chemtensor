@@ -164,3 +164,172 @@ char* test_operator_inner_product()
 
 	return 0;
 }
+
+
+char* test_apply_operator()
+{
+	hid_t file = H5Fopen("../test/algorithm/data/test_apply_operator.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_apply_operator failed";
+	}
+
+	// number of lattice sites
+	const int nsites = 6;
+	// local physical dimension
+	const long d = 3;
+
+	// physical quantum numbers
+	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
+		return "reading physical quantum numbers from disk failed";
+	}
+
+	// virtual bond quantum numbers for 'psi'
+	const long dim_bonds_psi[7] = { 1, 7, 21, 25, 11, 4, 1 };
+	qnumber** qbonds_psi = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		qbonds_psi[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_psi[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qbond_psi_%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_psi[i]) < 0) {
+			return "reading virtual bond quantum numbers from disk failed";
+		}
+	}
+
+	// virtual bond quantum numbers for 'op'
+	const long dim_bonds_op[7] = { 1, 6, 15, 33, 29, 14, 1 };
+	qnumber** qbonds_op = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		qbonds_op[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_op[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qbond_op_%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_op[i]) < 0) {
+			return "reading virtual bond quantum numbers from disk failed";
+		}
+	}
+
+	struct mps psi;
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+
+	// read MPS tensors from disk
+	for (int i = 0; i < nsites; i++)
+	{
+		// read dense tensors from disk
+		struct dense_tensor a_dns;
+		allocate_dense_tensor(psi.a[i].dtype, psi.a[i].ndim, psi.a[i].dim_logical, &a_dns);
+		char varname[1024];
+		sprintf(varname, "psi_a%i", i);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		dense_to_block_sparse_tensor_entries(&a_dns, &psi.a[i]);
+
+		delete_dense_tensor(&a_dns);
+	}
+
+	if (!mps_is_consistent(&psi)) {
+		return "internal MPS consistency check failed";
+	}
+
+	struct mpo op;
+	allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
+
+	// read MPO tensors from disk
+	for (int i = 0; i < nsites; i++)
+	{
+		// read dense tensors from disk
+		struct dense_tensor a_dns;
+		allocate_dense_tensor(op.a[i].dtype, op.a[i].ndim, op.a[i].dim_logical, &a_dns);
+		char varname[1024];
+		sprintf(varname, "op_a%i", i);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+
+		dense_to_block_sparse_tensor_entries(&a_dns, &op.a[i]);
+
+		delete_dense_tensor(&a_dns);
+	}
+
+	if (!mpo_is_consistent(&op)) {
+		return "internal MPO consistency check failed";
+	}
+
+	// apply operator
+	struct mps op_psi;
+	apply_operator(&op, &psi, &op_psi);
+
+	if (!mps_is_consistent(&op_psi)) {
+		return "internal MPS consistency check failed";
+	}
+
+	// convert to vector and matrix and perform matrix-vector multiplication, as reference
+	struct block_sparse_tensor op_psi_ref;
+	{
+		struct block_sparse_tensor psi_vec;
+		mps_to_statevector(&psi, &psi_vec);
+		assert(psi_vec.ndim == 3);  // includes dummy virtual bonds
+
+		struct block_sparse_tensor op_mat;
+		mpo_to_matrix(&op, &op_mat);
+		assert(op_mat.ndim == 4);  // includes dummy virtual bonds
+
+		// move physical input axis of 'op_mat' to the end
+		const int perm_op[4] = { 0, 1, 3, 2 };
+		struct block_sparse_tensor r;
+		transpose_block_sparse_tensor(perm_op, &op_mat, &r);
+
+		// move physical axis of 'psi_vec' to the beginning
+		const int perm_psi[3] = { 1, 0, 2 };
+		struct block_sparse_tensor s;
+		transpose_block_sparse_tensor(perm_psi, &psi_vec, &s);
+
+		// perform logical matrix-vector multiplication
+		struct block_sparse_tensor t;
+		block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &s, TENSOR_AXIS_RANGE_LEADING, 1, &t);
+		delete_block_sparse_tensor(&r);
+		delete_block_sparse_tensor(&s);
+
+		// reorder axes
+		const int perm_ax[5] = { 0, 3, 1, 2, 4 };
+		transpose_block_sparse_tensor(perm_ax, &t, &r);
+		delete_block_sparse_tensor(&t);
+
+		// flatten left and right dummy virtual bonds
+		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &s);
+		delete_block_sparse_tensor(&r);
+		flatten_block_sparse_tensor_axes(&s, 2, TENSOR_AXIS_IN, &op_psi_ref);
+		delete_block_sparse_tensor(&s);
+
+		delete_block_sparse_tensor(&op_mat);
+		delete_block_sparse_tensor(&psi_vec);
+	}
+	struct block_sparse_tensor op_psi_vec;
+	mps_to_statevector(&op_psi, &op_psi_vec);
+
+	// compare
+	if (!block_sparse_tensor_allclose(&op_psi_vec, &op_psi_ref, 1e-13)) {
+		return "applying an MPO to an MPS does not match reference vector based on matrix-vector multiplication";
+	}
+
+	delete_block_sparse_tensor(&op_psi_ref);
+	delete_block_sparse_tensor(&op_psi_vec);
+	delete_mps(&op_psi);
+	delete_mpo(&op);
+	delete_mps(&psi);
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		aligned_free(qbonds_op[i]);
+		aligned_free(qbonds_psi[i]);
+	}
+	aligned_free(qbonds_op);
+	aligned_free(qbonds_psi);
+	aligned_free(qsite);
+
+	H5Fclose(file);
+
+	return 0;
+}
