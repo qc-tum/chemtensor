@@ -656,16 +656,9 @@ char* test_dense_tensor_qr()
 			delete_dense_tensor(&qr);
 
 			// 'q' must be an isometry
-			struct dense_tensor qc;
-			copy_dense_tensor(&q, &qc);
-			conjugate_dense_tensor(&qc);
-			struct dense_tensor qhq;
-			dense_tensor_dot(&qc, TENSOR_AXIS_RANGE_LEADING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &qhq);
-			if (!dense_tensor_is_identity(&qhq, tol)) {
+			if (!dense_tensor_is_isometry(&q, tol, false)) {
 				return "Q matrix is not an isometry";
 			}
-			delete_dense_tensor(&qhq);
-			delete_dense_tensor(&qc);
 
 			// 'r' must be upper triangular
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
@@ -730,16 +723,9 @@ char* test_dense_tensor_rq()
 			delete_dense_tensor(&rq);
 
 			// 'q' must be an isometry
-			struct dense_tensor qc;
-			copy_dense_tensor(&q, &qc);
-			conjugate_dense_tensor(&qc);
-			struct dense_tensor qqh;
-			dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &qc, TENSOR_AXIS_RANGE_TRAILING, 1, &qqh);
-			if (!dense_tensor_is_identity(&qqh, tol)) {
+			if (!dense_tensor_is_isometry(&q, tol, true)) {
 				return "Q matrix is not an isometry";
 			}
-			delete_dense_tensor(&qqh);
-			delete_dense_tensor(&qc);
 
 			// 'r' must be upper triangular (referenced from the bottom right entry)
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
@@ -807,28 +793,14 @@ char* test_dense_tensor_svd()
 			delete_dense_tensor(&usvh);
 
 			// 'u' must be an isometry
-			struct dense_tensor uc;
-			copy_dense_tensor(&u, &uc);
-			conjugate_dense_tensor(&uc);
-			struct dense_tensor uhu;
-			dense_tensor_dot(&uc, TENSOR_AXIS_RANGE_LEADING, &u, TENSOR_AXIS_RANGE_LEADING, 1, &uhu);
-			if (!dense_tensor_is_identity(&uhu, tol)) {
+			if (!dense_tensor_is_isometry(&u, tol, false)) {
 				return "U matrix is not an isometry";
 			}
-			delete_dense_tensor(&uhu);
-			delete_dense_tensor(&uc);
 
 			// 'v' must be an isometry
-			struct dense_tensor vt;
-			copy_dense_tensor(&vh, &vt);
-			conjugate_dense_tensor(&vt);
-			struct dense_tensor vhv;
-			dense_tensor_dot(&vh, TENSOR_AXIS_RANGE_TRAILING, &vt, TENSOR_AXIS_RANGE_TRAILING, 1, &vhv);
-			if (!dense_tensor_is_identity(&vhv, tol)) {
+			if (!dense_tensor_is_isometry(&vh, tol, true)) {
 				return "V matrix is not an isometry";
 			}
-			delete_dense_tensor(&vhv);
-			delete_dense_tensor(&vt);
 
 			delete_dense_tensor(&vh);
 			delete_dense_tensor(&s);

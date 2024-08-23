@@ -61,11 +61,6 @@ double mps_norm(const struct mps* psi);
 
 // orthonormalization and canonical forms
 
-void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next);
-
-void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev);
-
-
 /// \brief MPS orthonormalization mode.
 enum mps_orthonormalization_mode
 {
@@ -73,7 +68,21 @@ enum mps_orthonormalization_mode
 	MPS_ORTHONORMAL_RIGHT = 1,  //!< right-orthonormal
 };
 
+void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next);
+
+void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev);
+
 double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_mode mode);
+
+
+int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, const bool renormalize,
+	struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next, struct trunc_info* info);
+
+int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, const bool renormalize,
+	struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev, struct trunc_info* info);
+
+int mps_compress(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+	struct mps* mps, double* restrict norm, double* restrict scaling, struct trunc_info* info);
 
 
 //________________________________________________________________________________________________________________________

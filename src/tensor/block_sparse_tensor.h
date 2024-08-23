@@ -156,6 +156,8 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 
 bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol);
 
+bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const double tol, const bool transpose);
+
 
 //________________________________________________________________________________________________________________________
 //

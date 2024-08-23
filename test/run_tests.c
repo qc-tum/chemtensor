@@ -47,6 +47,7 @@ char* test_su2_tensor_fmove();
 char* test_su2_to_dense_tensor();
 char* test_mps_vdot();
 char* test_mps_orthonormalize_qr();
+char* test_mps_compress();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
 char* test_queue();
@@ -122,6 +123,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
+		TEST_FUNCTION_ENTRY(test_mps_compress),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_queue),

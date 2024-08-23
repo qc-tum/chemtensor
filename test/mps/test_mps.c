@@ -194,7 +194,7 @@ char* test_mps_orthonormalize_qr()
 		struct block_sparse_tensor vec_ref;
 		mps_to_statevector(&mps, &vec_ref);
 
-		double nrm = mps_orthonormalize_qr(&mps, m == 0 ? MPS_ORTHONORMAL_LEFT : MPS_ORTHONORMAL_RIGHT);
+		double norm = mps_orthonormalize_qr(&mps, m == 0 ? MPS_ORTHONORMAL_LEFT : MPS_ORTHONORMAL_RIGHT);
 
 		if (!mps_is_consistent(&mps)) {
 			return "internal MPS consistency check failed";
@@ -210,15 +210,193 @@ char* test_mps_orthonormalize_qr()
 		}
 
 		// scaled vector representation must agree with original vector
-		float nrmf = (float)nrm;
-		rscale_block_sparse_tensor(&nrmf, &vec);
-		if (!block_sparse_tensor_allclose(&vec, &vec_ref, nrm * 1e-6)) {
+		float normf = (float)norm;
+		rscale_block_sparse_tensor(&normf, &vec);
+		if (!block_sparse_tensor_allclose(&vec, &vec_ref, norm * 1e-6)) {
 			return "vector representation of MPS after orthonormalization does not match reference";
+		}
+
+		if (m == 0)
+		{
+			for (int i = 0; i < nsites; i++)
+			{
+				// mps.a[i] must be an isometry
+				struct block_sparse_tensor a_mat;
+				flatten_block_sparse_tensor_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
+				if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, false)) {
+					return "MPS tensor is not isometric";
+				}
+				delete_block_sparse_tensor(&a_mat);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < nsites; i++)
+			{
+				// mps.a[i] must be an isometry
+				struct block_sparse_tensor a_mat;
+				flatten_block_sparse_tensor_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
+				if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, true)) {
+					return "MPS tensor is not isometric";
+				}
+				delete_block_sparse_tensor(&a_mat);
+			}
 		}
 
 		delete_block_sparse_tensor(&vec_ref);
 		delete_block_sparse_tensor(&vec);
 		delete_mps(&mps);
+	}
+
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		aligned_free(qbonds[i]);
+	}
+	aligned_free(qbonds);
+	aligned_free(qsite);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_mps_compress()
+{
+	hid_t file = H5Fopen("../test/mps/data/test_mps_compress.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_mps_compress failed";
+	}
+
+	// number of lattice sites
+	const int nsites = 6;
+	// local physical dimension
+	const long d = 3;
+
+	// physical quantum numbers
+	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
+		return "reading physical quantum numbers from disk failed";
+	}
+
+	// virtual bond quantum numbers
+	const long dim_bonds[7] = { 1, 23, 75, 102, 83, 30, 1 };
+	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qbond%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
+			return "reading virtual bond quantum numbers from disk failed";
+		}
+	}
+
+	const long max_vdim = 1024;
+
+	for (int j = 0; j < 2; j++)  // determines compression tolerance
+	{
+		for (int m = 0; m < 2; m++)
+		{
+			struct mps mps;
+			allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+
+			// read MPS tensors from disk
+			for (int i = 0; i < nsites; i++)
+			{
+				// read dense tensors from disk
+				struct dense_tensor a_dns;
+				allocate_dense_tensor(mps.a[i].dtype, mps.a[i].ndim, mps.a[i].dim_logical, &a_dns);
+				char varname[1024];
+				sprintf(varname, "a%i", i);
+				if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+					return "reading tensor entries from disk failed";
+				}
+
+				dense_to_block_sparse_tensor_entries(&a_dns, &mps.a[i]);
+
+				delete_dense_tensor(&a_dns);
+			}
+
+			if (!mps_is_consistent(&mps)) {
+				return "internal MPS consistency check failed";
+			}
+
+			for (int i = 0; i < nsites + 1; i++) {
+				if (mps_bond_dim(&mps, i) != dim_bonds[i]) {
+					return "MPS virtual bond dimension does not match reference";
+				}
+			}
+
+			// convert original MPS to state vector
+			struct block_sparse_tensor vec_ref;
+			mps_to_statevector(&mps, &vec_ref);
+
+			// perform compression
+			const double tol_compress = (j == 0 ? 0. : 1e-4);
+			double norm;
+			double scale;
+			struct trunc_info* info = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct trunc_info));
+			if (mps_compress(tol_compress, max_vdim, m == 0 ? MPS_ORTHONORMAL_LEFT : MPS_ORTHONORMAL_RIGHT, &mps, &norm, &scale, info) < 0) {
+				return "'mps_compress' failed internally";
+			}
+
+			if (!mps_is_consistent(&mps)) {
+				return "internal MPS consistency check failed";
+			}
+
+			if (fabs(scale - 1.) > (tol_compress == 0. ? 1e-6 : 1e-4)) {
+				return "scaling factor due to truncated SVD in MPS compression not close to 1";
+			}
+
+			// must be normalized after compression
+			if (fabs(mps_norm(&mps) - 1.) > 1e-6) {
+				return "MPS is not normalized after compression";
+			}
+
+			if (m == 0)
+			{
+				for (int i = 0; i < nsites; i++)
+				{
+					// mps.a[i] must be an isometry
+					struct block_sparse_tensor a_mat;
+					flatten_block_sparse_tensor_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
+					if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, false)) {
+						return "MPS tensor is not isometric";
+					}
+					delete_block_sparse_tensor(&a_mat);
+				}
+			}
+			else
+			{
+				for (int i = 0; i < nsites; i++)
+				{
+					// mps.a[i] must be an isometry
+					struct block_sparse_tensor a_mat;
+					flatten_block_sparse_tensor_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
+					if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, true)) {
+						return "MPS tensor is not isometric";
+					}
+					delete_block_sparse_tensor(&a_mat);
+				}
+			}
+
+			// convert compressed MPS to state vector
+			struct block_sparse_tensor vec;
+			mps_to_statevector(&mps, &vec);
+
+			// compare with original state vector
+			float normf = (float)norm;
+			rscale_block_sparse_tensor(&normf, &vec);
+			if (!block_sparse_tensor_allclose(&vec, &vec_ref, tol_compress == 0. ? 1e-6 : 0.05)) {
+				return "vector representation of MPS after compression is not close to original state vector";
+			}
+
+			aligned_free(info);
+			delete_block_sparse_tensor(&vec_ref);
+			delete_block_sparse_tensor(&vec);
+			delete_mps(&mps);
+		}
 	}
 
 	for (int i = 0; i < nsites + 1; i++)

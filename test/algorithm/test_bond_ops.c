@@ -165,36 +165,16 @@ char* test_split_block_sparse_matrix_svd()
 			if (d == 0)
 			{
 				// a1 must be an isometry
-				struct block_sparse_tensor a1c;
-				copy_block_sparse_tensor(&a1, &a1c);
-				conjugate_block_sparse_tensor(&a1c);
-				// revert tensor axes directions for multiplication
-				a1c.axis_dir[0] = -a1c.axis_dir[0];
-				a1c.axis_dir[1] = -a1c.axis_dir[1];
-				struct block_sparse_tensor p;
-				block_sparse_tensor_dot(&a1, TENSOR_AXIS_RANGE_TRAILING, &a1c, TENSOR_AXIS_RANGE_TRAILING, 1, &p);
-				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
+				if (!block_sparse_tensor_is_isometry(&a1, 5e-6, true)) {
 					return "'a1' matrix is not an isometry";
 				}
-				delete_block_sparse_tensor(&p);
-				delete_block_sparse_tensor(&a1c);
 			}
 			else
 			{
 				// a0 must be an isometry
-				struct block_sparse_tensor a0c;
-				copy_block_sparse_tensor(&a0, &a0c);
-				conjugate_block_sparse_tensor(&a0c);
-				// revert tensor axes directions for multiplication
-				a0c.axis_dir[0] = -a0c.axis_dir[0];
-				a0c.axis_dir[1] = -a0c.axis_dir[1];
-				struct block_sparse_tensor p;
-				block_sparse_tensor_dot(&a0c, TENSOR_AXIS_RANGE_LEADING, &a0, TENSOR_AXIS_RANGE_LEADING, 1, &p);
-				if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
-					return "'a1' matrix is not an isometry";
+				if (!block_sparse_tensor_is_isometry(&a0, 5e-6, false)) {
+					return "'a0' matrix is not an isometry";
 				}
-				delete_block_sparse_tensor(&p);
-				delete_block_sparse_tensor(&a0c);
 			}
 
 			// reassemble matrix after splitting, for comparison with reference
@@ -277,19 +257,9 @@ char* test_split_block_sparse_matrix_svd_zero()
 		if (d == 1)
 		{
 			// a0 must be an isometry
-			struct block_sparse_tensor a0c;
-			copy_block_sparse_tensor(&a0, &a0c);
-			conjugate_block_sparse_tensor(&a0c);
-			// revert tensor axes directions for multiplication
-			a0c.axis_dir[0] = -a0c.axis_dir[0];
-			a0c.axis_dir[1] = -a0c.axis_dir[1];
-			struct block_sparse_tensor p;
-			block_sparse_tensor_dot(&a0c, TENSOR_AXIS_RANGE_LEADING, &a0, TENSOR_AXIS_RANGE_LEADING, 1, &p);
-			if (!block_sparse_tensor_is_identity(&p, 5e-6)) {
-				return "'a1' matrix is not an isometry";
+			if (!block_sparse_tensor_is_isometry(&a0, 5e-6, false)) {
+				return "'a0' matrix is not an isometry";
 			}
-			delete_block_sparse_tensor(&p);
-			delete_block_sparse_tensor(&a0c);
 		}
 
 		// reassemble matrix after splitting, to ensure dimension compatibilty

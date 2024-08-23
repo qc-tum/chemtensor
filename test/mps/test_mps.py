@@ -78,6 +78,38 @@ def mps_orthonormalize_qr_data():
             file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
 
 
+def mps_compress_data():
+
+    # random number generator
+    rng = np.random.default_rng(934)
+
+    # physical quantum numbers
+    qd = [-1, 1, 0]
+
+    # virtual bond quantum numbers
+    qD = [rng.integers(-1, 2, size=Di) for Di in [1, 23, 75, 102, 83, 30, 1]]
+
+    # create random matrix product state with small entanglement
+    mps = ptn.MPS(qd, qD, fill="random", rng=rng)
+    for i in range(mps.nsites):
+        # imitate small entanglement by multiplying bonds with small scaling factors
+        s = np.exp(-30*(rng.uniform(size=mps.bond_dims[i + 1])))
+        s /= np.linalg.norm(s)
+        mps.A[i] = mps.A[i] * s
+        # rescale to achieve norm of order 1
+        mps.A[i] *= 5 / np.linalg.norm(mps.A[i])
+        # convert tensor entries to single precision
+        mps.A[i] = mps.A[i].astype(np.complex64)
+
+    with h5py.File("data/test_mps_compress.hdf5", "w") as file:
+        file.attrs["qsite"] = qd
+        for i, qbond in enumerate(qD):
+            file.attrs[f"qbond{i}"] = qbond
+        for i, ai in enumerate(mps.A):
+            # transposition due to different convention for axis ordering
+            file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
+
+
 def mps_split_tensor_svd_data():
 
     # random number generator
@@ -156,6 +188,7 @@ def mps_to_statevector_data():
 def main():
     mps_vdot_data()
     mps_orthonormalize_qr_data()
+    mps_compress_data()
     mps_split_tensor_svd_data()
     mps_to_statevector_data()
 

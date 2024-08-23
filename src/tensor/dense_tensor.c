@@ -2745,3 +2745,52 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 
 	return true;
 }
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether a dense tensors is an isometry within tolerance 'tol'.
+///
+bool dense_tensor_is_isometry(const struct dense_tensor* t, const double tol, const bool transpose)
+{
+	// must be a matrix
+	if (t->ndim != 2) {
+		return false;
+	}
+
+	bool is_isometry;
+	if (t->dtype == CT_SINGLE_REAL || t->dtype == CT_DOUBLE_REAL)
+	{
+		struct dense_tensor t2;
+		if (!transpose) {
+			dense_tensor_dot(t, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
+		}
+		else {
+			dense_tensor_dot(t, TENSOR_AXIS_RANGE_TRAILING, t, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
+		}
+
+		is_isometry = dense_tensor_is_identity(&t2, tol);
+
+		delete_dense_tensor(&t2);
+	}
+	else
+	{
+		struct dense_tensor tc;
+		copy_dense_tensor(t, &tc);
+		conjugate_dense_tensor(&tc);
+
+		struct dense_tensor t2;
+		if (!transpose) {
+			dense_tensor_dot(&tc, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
+		}
+		else {
+			dense_tensor_dot(t, TENSOR_AXIS_RANGE_TRAILING, &tc, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
+		}
+
+		is_isometry = dense_tensor_is_identity(&t2, tol);
+
+		delete_dense_tensor(&t2);
+		delete_dense_tensor(&tc);
+	}
+
+	return is_isometry;
+}

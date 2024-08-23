@@ -947,19 +947,9 @@ char* test_block_sparse_tensor_qr()
 		delete_block_sparse_tensor(&qr);
 
 		// 'q' must be an isometry
-		struct block_sparse_tensor qc;
-		copy_block_sparse_tensor(&q, &qc);
-		conjugate_block_sparse_tensor(&qc);
-		// revert tensor axes directions for multiplication
-		qc.axis_dir[0] = -qc.axis_dir[0];
-		qc.axis_dir[1] = -qc.axis_dir[1];
-		struct block_sparse_tensor qhq;
-		block_sparse_tensor_dot(&qc, TENSOR_AXIS_RANGE_LEADING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &qhq);
-		if (!block_sparse_tensor_is_identity(&qhq, 1e-13)) {
+		if (!block_sparse_tensor_is_isometry(&q, 1e-13, false)) {
 			return "Q matrix is not an isometry";
 		}
-		delete_block_sparse_tensor(&qhq);
-		delete_block_sparse_tensor(&qc);
 
 		// 'r' only upper triangular after sorting second axis by quantum numbers
 
@@ -1033,19 +1023,9 @@ char* test_block_sparse_tensor_rq()
 		delete_block_sparse_tensor(&rq);
 
 		// 'q' must be an isometry
-		struct block_sparse_tensor qc;
-		copy_block_sparse_tensor(&q, &qc);
-		conjugate_block_sparse_tensor(&qc);
-		// revert tensor axes directions for multiplication
-		qc.axis_dir[0] = -qc.axis_dir[0];
-		qc.axis_dir[1] = -qc.axis_dir[1];
-		struct block_sparse_tensor qqh;
-		block_sparse_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &qc, TENSOR_AXIS_RANGE_TRAILING, 1, &qqh);
-		if (!block_sparse_tensor_is_identity(&qqh, 1e-13)) {
+		if (!block_sparse_tensor_is_isometry(&q, 1e-13, true)) {
 			return "Q matrix is not an isometry";
 		}
-		delete_block_sparse_tensor(&qqh);
-		delete_block_sparse_tensor(&qc);
 
 		// 'r' only upper triangular after sorting first axis by quantum numbers
 
@@ -1127,36 +1107,16 @@ char* test_block_sparse_tensor_svd()
 		delete_block_sparse_tensor(&usvh);
 
 		// 'u' must be an isometry
-		struct block_sparse_tensor uc;
-		copy_block_sparse_tensor(&u, &uc);
-		conjugate_block_sparse_tensor(&uc);
-		// revert tensor axes directions for multiplication
-		uc.axis_dir[0] = -uc.axis_dir[0];
-		uc.axis_dir[1] = -uc.axis_dir[1];
-		struct block_sparse_tensor uhu;
-		block_sparse_tensor_dot(&uc, TENSOR_AXIS_RANGE_LEADING, &u, TENSOR_AXIS_RANGE_LEADING, 1, &uhu);
-		if (!block_sparse_tensor_is_identity(&uhu, 1e-13)) {
+		if (!block_sparse_tensor_is_isometry(&u, 1e-13, false)) {
 			return "U matrix is not an isometry";
 		}
-		delete_block_sparse_tensor(&uhu);
-		delete_block_sparse_tensor(&uc);
 
 		if (c == 0)
 		{
 			// 'vh' must be an isometry
-			struct block_sparse_tensor vt;
-			copy_block_sparse_tensor(&vh, &vt);
-			conjugate_block_sparse_tensor(&vt);
-			// revert tensor axes directions for multiplication
-			vt.axis_dir[0] = -vt.axis_dir[0];
-			vt.axis_dir[1] = -vt.axis_dir[1];
-			struct block_sparse_tensor vhv;
-			block_sparse_tensor_dot(&vh, TENSOR_AXIS_RANGE_TRAILING, &vt, TENSOR_AXIS_RANGE_TRAILING, 1, &vhv);
-			if (!block_sparse_tensor_is_identity(&vhv, 1e-13)) {
+			if (!block_sparse_tensor_is_isometry(&vh, 1e-13, true)) {
 				return "V matrix is not an isometry";
 			}
-			delete_block_sparse_tensor(&vhv);
-			delete_block_sparse_tensor(&vt);
 		}
 		else
 		{

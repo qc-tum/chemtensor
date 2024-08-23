@@ -2314,6 +2314,42 @@ bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Test whether a block-sparse tensors is an isometry within tolerance 'tol'.
+///
+bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const double tol, const bool transpose)
+{
+	// must be a matrix
+	if (t->ndim != 2) {
+		return false;
+	}
+
+	// entry-wise conjugation
+	struct block_sparse_tensor tc;
+	copy_block_sparse_tensor(t, &tc);
+	conjugate_block_sparse_tensor(&tc);
+	// revert tensor axes directions for multiplication
+	tc.axis_dir[0] = -tc.axis_dir[0];
+	tc.axis_dir[1] = -tc.axis_dir[1];
+
+	struct block_sparse_tensor t2;
+	if (!transpose) {
+		block_sparse_tensor_dot(&tc, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
+	}
+	else {
+		block_sparse_tensor_dot(t, TENSOR_AXIS_RANGE_TRAILING, &tc, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
+	}
+
+	const bool is_isometry = block_sparse_tensor_is_identity(&t2, tol);
+
+	delete_block_sparse_tensor(&t2);
+	delete_block_sparse_tensor(&tc);
+
+	return is_isometry;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Overall number of entries in the blocks of the tensor.
 ///
 long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t)
