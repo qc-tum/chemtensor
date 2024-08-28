@@ -11,9 +11,9 @@
 ///
 void numerical_gradient_forward_s(generic_func_s f, void* params, const long n, const float* restrict x, const float* restrict dir, const long m, const float h, float* restrict grad)
 {
-	float* xd = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(float));
-	float* yp = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(float));
-	float* yn = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(float));
+	float* xd = ct_malloc(n * sizeof(float));
+	float* yp = ct_malloc(m * sizeof(float));
+	float* yn = ct_malloc(m * sizeof(float));
 
 	// yp = f(x + h*dir)
 	for (long i = 0; i < n; i++)
@@ -34,9 +34,9 @@ void numerical_gradient_forward_s(generic_func_s f, void* params, const long n, 
 		grad[i] = (yp[i] - yn[i]) / (2 * h);
 	}
 
-	aligned_free(yn);
-	aligned_free(yp);
-	aligned_free(xd);
+	ct_free(yn);
+	ct_free(yp);
+	ct_free(xd);
 }
 
 
@@ -48,11 +48,11 @@ void numerical_gradient_forward_s(generic_func_s f, void* params, const long n, 
 ///
 void numerical_gradient_backward_s(generic_func_s f, void* params, const long n, const float* restrict x, const long m, const float* restrict dy, const float h, float* restrict grad)
 {
-	float* xmod = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(float));
+	float* xmod = ct_malloc(n * sizeof(float));
 	memcpy(xmod, x, n * sizeof(float));
 
 	// y = f(x)
-	float* y = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(float));
+	float* y = ct_malloc(m * sizeof(float));
 
 	for (long i = 0; i < n; i++)
 	{
@@ -82,8 +82,8 @@ void numerical_gradient_backward_s(generic_func_s f, void* params, const long n,
 		xmod[i] = x[i];
 	}
 
-	aligned_free(y);
-	aligned_free(xmod);
+	ct_free(y);
+	ct_free(xmod);
 }
 
 
@@ -95,9 +95,9 @@ void numerical_gradient_backward_s(generic_func_s f, void* params, const long n,
 ///
 void numerical_gradient_forward_d(generic_func_d f, void* params, const long n, const double* restrict x, const double* restrict dir, const long m, const double h, double* restrict grad)
 {
-	double* xd = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
-	double* yp = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(double));
-	double* yn = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(double));
+	double* xd = ct_malloc(n * sizeof(double));
+	double* yp = ct_malloc(m * sizeof(double));
+	double* yn = ct_malloc(m * sizeof(double));
 
 	// yp = f(x + h*dir)
 	for (long i = 0; i < n; i++)
@@ -118,9 +118,9 @@ void numerical_gradient_forward_d(generic_func_d f, void* params, const long n, 
 		grad[i] = (yp[i] - yn[i]) / (2 * h);
 	}
 
-	aligned_free(yn);
-	aligned_free(yp);
-	aligned_free(xd);
+	ct_free(yn);
+	ct_free(yp);
+	ct_free(xd);
 }
 
 
@@ -132,11 +132,11 @@ void numerical_gradient_forward_d(generic_func_d f, void* params, const long n, 
 ///
 void numerical_gradient_backward_d(generic_func_d f, void* params, const long n, const double* restrict x, const long m, const double* restrict dy, const double h, double* restrict grad)
 {
-	double* xmod = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* xmod = ct_malloc(n * sizeof(double));
 	memcpy(xmod, x, n * sizeof(double));
 
 	// y = f(x)
-	double* y = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(double));
+	double* y = ct_malloc(m * sizeof(double));
 
 	for (long i = 0; i < n; i++)
 	{
@@ -166,8 +166,8 @@ void numerical_gradient_backward_d(generic_func_d f, void* params, const long n,
 		xmod[i] = x[i];
 	}
 
-	aligned_free(y);
-	aligned_free(xmod);
+	ct_free(y);
+	ct_free(xmod);
 }
 
 
@@ -179,9 +179,9 @@ void numerical_gradient_backward_d(generic_func_d f, void* params, const long n,
 ///
 void numerical_gradient_forward_c(generic_func_c f, void* params, const long n, const scomplex* restrict x, const scomplex* restrict dir, const long m, const float h, scomplex* restrict grad)
 {
-	scomplex* xd = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(scomplex));
-	scomplex* yp = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(scomplex));
-	scomplex* yn = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(scomplex));
+	scomplex* xd = ct_malloc(n * sizeof(scomplex));
+	scomplex* yp = ct_malloc(m * sizeof(scomplex));
+	scomplex* yn = ct_malloc(m * sizeof(scomplex));
 
 	// yp = f(x + h*dir)
 	for (long i = 0; i < n; i++)
@@ -202,9 +202,9 @@ void numerical_gradient_forward_c(generic_func_c f, void* params, const long n, 
 		grad[i] = (yp[i] - yn[i]) / (2 * h);
 	}
 
-	aligned_free(yn);
-	aligned_free(yp);
-	aligned_free(xd);
+	ct_free(yn);
+	ct_free(yp);
+	ct_free(xd);
 }
 
 
@@ -216,11 +216,11 @@ void numerical_gradient_forward_c(generic_func_c f, void* params, const long n, 
 ///
 void numerical_gradient_backward_c(generic_func_c f, void* params, const long n, const scomplex* restrict x, const long m, const scomplex* restrict dy, const float h, scomplex* restrict grad)
 {
-	scomplex* xmod = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(scomplex));
+	scomplex* xmod = ct_malloc(n * sizeof(scomplex));
 	memcpy(xmod, x, n * sizeof(scomplex));
 
 	// y = f(x)
-	scomplex* y = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(scomplex));
+	scomplex* y = ct_malloc(m * sizeof(scomplex));
 
 	for (long i = 0; i < n; i++)
 	{
@@ -270,8 +270,8 @@ void numerical_gradient_backward_c(generic_func_c f, void* params, const long n,
 		xmod[i] = x[i];
 	}
 
-	aligned_free(y);
-	aligned_free(xmod);
+	ct_free(y);
+	ct_free(xmod);
 }
 
 
@@ -284,9 +284,9 @@ void numerical_gradient_backward_c(generic_func_c f, void* params, const long n,
 ///
 void numerical_gradient_forward_z(generic_func_z f, void* params, const long n, const dcomplex* restrict x, const dcomplex* restrict dir, const long m, const double h, dcomplex* restrict grad)
 {
-	dcomplex* xd = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(dcomplex));
-	dcomplex* yp = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(dcomplex));
-	dcomplex* yn = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(dcomplex));
+	dcomplex* xd = ct_malloc(n * sizeof(dcomplex));
+	dcomplex* yp = ct_malloc(m * sizeof(dcomplex));
+	dcomplex* yn = ct_malloc(m * sizeof(dcomplex));
 
 	// yp = f(x + h*dir)
 	for (long i = 0; i < n; i++)
@@ -307,9 +307,9 @@ void numerical_gradient_forward_z(generic_func_z f, void* params, const long n, 
 		grad[i] = (yp[i] - yn[i]) / (2 * h);
 	}
 
-	aligned_free(yn);
-	aligned_free(yp);
-	aligned_free(xd);
+	ct_free(yn);
+	ct_free(yp);
+	ct_free(xd);
 }
 
 
@@ -321,11 +321,11 @@ void numerical_gradient_forward_z(generic_func_z f, void* params, const long n, 
 ///
 void numerical_gradient_backward_z(generic_func_z f, void* params, const long n, const dcomplex* restrict x, const long m, const dcomplex* restrict dy, const double h, dcomplex* restrict grad)
 {
-	dcomplex* xmod = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(dcomplex));
+	dcomplex* xmod = ct_malloc(n * sizeof(dcomplex));
 	memcpy(xmod, x, n * sizeof(dcomplex));
 
 	// y = f(x)
-	dcomplex* y = aligned_alloc(MEM_DATA_ALIGN, m * sizeof(dcomplex));
+	dcomplex* y = ct_malloc(m * sizeof(dcomplex));
 
 	for (long i = 0; i < n; i++)
 	{
@@ -375,6 +375,6 @@ void numerical_gradient_backward_z(generic_func_z f, void* params, const long n,
 		xmod[i] = x[i];
 	}
 
-	aligned_free(y);
-	aligned_free(xmod);
+	ct_free(y);
+	ct_free(xmod);
 }

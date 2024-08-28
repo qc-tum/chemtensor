@@ -14,7 +14,7 @@ char* test_queue()
 	int static_data[6] = { -1, 3, 4, 7, 5, -2 };
 	int* data[6];
 	for (int i = 0; i < 6; i++) {
-		data[i] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+		data[i] = ct_malloc(sizeof(int));
 		*data[i] = static_data[i];
 	}
 
@@ -29,7 +29,7 @@ char* test_queue()
 	if (*d != static_data[0]) {
 		return "dequeued item does not have expected value";
 	}
-	aligned_free(d);
+	ct_free(d);
 
 	d = peek_queue(&q);
 	if (*d != static_data[1]) {
@@ -42,10 +42,10 @@ char* test_queue()
 	if (*d != static_data[1]) {
 		return "dequeued item does not have expected value";
 	}
-	aligned_free(d);
+	ct_free(d);
 
 	while (q.head != NULL) {
-		aligned_free(dequeue(&q));
+		ct_free(dequeue(&q));
 	}
 	if (!queue_is_empty(&q)) {
 		return "expecting empty queue";
@@ -58,7 +58,7 @@ char* test_queue()
 		return "peeked item of queue does not have expected value";
 	}
 
-	free_queue(&q, aligned_free);
+	free_queue(&q, ct_free);
 
 	return 0;
 }

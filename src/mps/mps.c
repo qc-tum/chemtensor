@@ -20,10 +20,10 @@ void allocate_empty_mps(const int nsites, const long d, const qnumber* qsite, st
 	mps->nsites = nsites;
 	mps->d = d;
 
-	mps->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	mps->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(mps->qsite, qsite, d * sizeof(qnumber));
 
-	mps->a = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct block_sparse_tensor));
+	mps->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
 }
 
 
@@ -55,11 +55,11 @@ void delete_mps(struct mps* mps)
 	{
 		delete_block_sparse_tensor(&mps->a[i]);
 	}
-	aligned_free(mps->a);
+	ct_free(mps->a);
 	mps->a = NULL;
 	mps->nsites = 0;
 
-	aligned_free(mps->qsite);
+	ct_free(mps->qsite);
 	mps->qsite = NULL;
 	mps->d = 0;
 }
@@ -75,29 +75,29 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 	assert(d >= 1);
 
 	// virtual bond quantum numbers
-	long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	// dummy left virtual bond; set quantum number to zero
 	dim_bonds[0] = 1;
-	qbonds[0] = aligned_alloc(MEM_DATA_ALIGN, sizeof(qnumber));
+	qbonds[0] = ct_malloc(sizeof(qnumber));
 	qbonds[0][0] = 0;
 	// dummy right virtual bond; set quantum number to overall quantum number sector
 	dim_bonds[nsites] = 1;
-	qbonds[nsites] = aligned_alloc(MEM_DATA_ALIGN, sizeof(qnumber));
+	qbonds[nsites] = ct_malloc(sizeof(qnumber));
 	qbonds[nsites][0] = qnum_sector;
 	// virtual bond quantum numbers on left half
 	for (int l = 1; l < (nsites + 1) / 2; l++)
 	{
 		// enumerate all combinations of left bond quantum numbers and local physical quantum numbers
 		const long dim_full = dim_bonds[l - 1] * d;
-		qnumber* qnums_full = aligned_alloc(MEM_DATA_ALIGN, dim_full * sizeof(qnumber));
+		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		for (long i = 0; i < dim_bonds[l - 1]; i++) {
 			for (long j = 0; j < d; j++) {
 				qnums_full[i*d + j] = qbonds[l - 1][i] + qsite[j];
 			}
 		}
 		dim_bonds[l] = lmin(dim_full, max_vdim);
-		qbonds[l] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[l] * sizeof(qnumber));
+		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
 			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
 		}
@@ -107,21 +107,21 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
 			}
 		}
-		aligned_free(qnums_full);
+		ct_free(qnums_full);
 	}
 	// virtual bond quantum numbers on right half
 	for (int l = nsites - 1; l >= (nsites + 1) / 2; l--)
 	{
 		// enumerate all combinations of right bond quantum numbers and local physical quantum numbers
 		const long dim_full = dim_bonds[l + 1] * d;
-		qnumber* qnums_full = aligned_alloc(MEM_DATA_ALIGN, dim_full * sizeof(qnumber));
+		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		for (long i = 0; i < dim_bonds[l + 1]; i++) {
 			for (long j = 0; j < d; j++) {
 				qnums_full[i*d + j] = qbonds[l + 1][i] - qsite[j];
 			}
 		}
 		dim_bonds[l] = lmin(dim_full, max_vdim);
-		qbonds[l] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[l] * sizeof(qnumber));
+		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
 			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
 		}
@@ -131,16 +131,16 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
 			}
 		}
-		aligned_free(qnums_full);
+		ct_free(qnums_full);
 	}
 
 	allocate_mps(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mps);
 
 	for (int l = 0; l < nsites + 1; l++) {
-		aligned_free(qbonds[l]);
+		ct_free(qbonds[l]);
 	}
-	aligned_free(qbonds);
-	aligned_free(dim_bonds);
+	ct_free(qbonds);
+	ct_free(dim_bonds);
 
 	// fill MPS tensor entries with pseudo-random numbers, scaled by 1 / sqrt("number of entries")
 	for (int l = 0; l < nsites; l++)
@@ -384,7 +384,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	qnumber* qnums_logical_left[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qnums_logical_left[i] = aligned_alloc(MEM_DATA_ALIGN, dim_logical_left[i] * sizeof(qnumber));
+		qnums_logical_left[i] = ct_malloc(dim_logical_left[i] * sizeof(qnumber));
 		memcpy(qnums_logical_left[i], a->qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[0] == TENSOR_AXIS_OUT && a->axis_dir[1] == TENSOR_AXIS_OUT);
@@ -405,7 +405,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	delete_block_sparse_tensor(&q);
 	for (int i = 0; i < 2; i++)
 	{
-		aligned_free(qnums_logical_left[i]);
+		ct_free(qnums_logical_left[i]);
 	}
 
 	// update 'a_next' tensor: multiply with 'r' from left
@@ -431,7 +431,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	qnumber* qnums_logical_right[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qnums_logical_right[i] = aligned_alloc(MEM_DATA_ALIGN, dim_logical_right[i] * sizeof(qnumber));
+		qnums_logical_right[i] = ct_malloc(dim_logical_right[i] * sizeof(qnumber));
 		memcpy(qnums_logical_right[i], a->qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
@@ -452,7 +452,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	delete_block_sparse_tensor(&q);
 	for (int i = 0; i < 2; i++)
 	{
-		aligned_free(qnums_logical_right[i]);
+		ct_free(qnums_logical_right[i]);
 	}
 
 	// update 'a_prev' tensor: multiply with 'r' from right
@@ -635,7 +635,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 	qnumber* qnums_logical_left[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qnums_logical_left[i] = aligned_alloc(MEM_DATA_ALIGN, dim_logical_left[i] * sizeof(qnumber));
+		qnums_logical_left[i] = ct_malloc(dim_logical_left[i] * sizeof(qnumber));
 		memcpy(qnums_logical_left[i], a->qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[0] == TENSOR_AXIS_OUT && a->axis_dir[1] == TENSOR_AXIS_OUT);
@@ -658,7 +658,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 	split_block_sparse_tensor_axis(&m0, 0, dim_logical_left, axis_dir_left, (const qnumber**)qnums_logical_left, a);
 	delete_block_sparse_tensor(&m0);
 	for (int i = 0; i < 2; i++) {
-		aligned_free(qnums_logical_left[i]);
+		ct_free(qnums_logical_left[i]);
 	}
 
 	// update 'a_next' tensor: multiply with 'm1' from left
@@ -686,7 +686,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 	qnumber* qnums_logical_right[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qnums_logical_right[i] = aligned_alloc(MEM_DATA_ALIGN, dim_logical_right[i] * sizeof(qnumber));
+		qnums_logical_right[i] = ct_malloc(dim_logical_right[i] * sizeof(qnumber));
 		memcpy(qnums_logical_right[i], a->qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
@@ -709,7 +709,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 	split_block_sparse_tensor_axis(&m1, 1, dim_logical_right, axis_dir_right, (const qnumber**)qnums_logical_right, a);
 	delete_block_sparse_tensor(&m1);
 	for (int i = 0; i < 2; i++) {
-		aligned_free(qnums_logical_right[i]);
+		ct_free(qnums_logical_right[i]);
 	}
 
 	// update 'a_prev' tensor: multiply with 'm0' from right

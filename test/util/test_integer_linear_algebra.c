@@ -39,7 +39,7 @@ static int integer_matrix_determinant(const int n, const int* a)
 	}
 
 	// Laplace expansion
-	int* t = aligned_alloc(MEM_DATA_ALIGN, (n - 1)*(n - 1) * sizeof(int));
+	int* t = ct_malloc((n - 1)*(n - 1) * sizeof(int));
 	int d = 0;
 	for (int i = 0; i < n; i++)
 	{
@@ -58,7 +58,7 @@ static int integer_matrix_determinant(const int n, const int* a)
 		d += (1 - 2 * (i % 2)) * a[i*n] * integer_matrix_determinant(n - 1, t);
 	}
 
-	aligned_free(t);
+	ct_free(t);
 
 	return d;
 }
@@ -77,15 +77,15 @@ char* test_integer_hermite_normal_form()
 		{  1,  3,  2, -4, -3, -4 },
 	};
 
-	int* h = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(int));
-	int* u = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(int));
+	int* h = ct_malloc(n*n * sizeof(int));
+	int* u = ct_malloc(n*n * sizeof(int));
 	int ret = integer_hermite_normal_form(n, (const int*)a, h, u);
 	if (ret < 0) {
 		return "Hermite decomposition incorrectly reports a singular matrix";
 	}
 
 	// test whether u @ a = h
-	int* ua = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(int));
+	int* ua = ct_malloc(n*n * sizeof(int));
 	integer_matrix_multiply(n, u, (const int*)a, ua);
 	if (integer_distance(n*n, ua, h) != 0) {
 		return "unimodular matrix times input matrix does not result in Hermite normal form matrix";
@@ -112,9 +112,9 @@ char* test_integer_hermite_normal_form()
 	}
 
 	// clean up
-	aligned_free(ua);
-	aligned_free(u);
-	aligned_free(h);
+	ct_free(ua);
+	ct_free(u);
+	ct_free(h);
 
 	return 0;
 }

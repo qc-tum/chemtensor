@@ -12,7 +12,7 @@
 ///
 void linked_list_append(struct linked_list* list, void* d)
 {
-	struct linked_list_node* node = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct linked_list_node));
+	struct linked_list_node* node = ct_malloc(sizeof(struct linked_list_node));
 	node->data = d;
 	node->next = NULL;
 
@@ -41,7 +41,7 @@ void linked_list_append(struct linked_list* list, void* d)
 ///
 void linked_list_prepend(struct linked_list* list, void* d)
 {
-	struct linked_list_node* node = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct linked_list_node));
+	struct linked_list_node* node = ct_malloc(sizeof(struct linked_list_node));
 	node->data = d;
 	node->prev = NULL;
 
@@ -72,7 +72,7 @@ void linked_list_insert_after_node(struct linked_list* list, struct linked_list_
 {
 	assert(list->size > 0);
 
-	struct linked_list_node* new_node = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct linked_list_node));
+	struct linked_list_node* new_node = ct_malloc(sizeof(struct linked_list_node));
 	new_node->data = d;
 	new_node->prev = node;
 	new_node->next = node->next;
@@ -99,7 +99,7 @@ void linked_list_insert_before_node(struct linked_list* list, struct linked_list
 {
 	assert(list->size > 0);
 
-	struct linked_list_node* new_node = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct linked_list_node));
+	struct linked_list_node* new_node = ct_malloc(sizeof(struct linked_list_node));
 	new_node->data = d;
 	new_node->next = node;
 	new_node->prev = node->prev;
@@ -151,7 +151,7 @@ void* linked_list_remove_node(struct linked_list* list, struct linked_list_node*
 
 	// free memory of node (but not its data)
 	void* data = node->data;
-	aligned_free(node);
+	ct_free(node);
 
 	return data;
 }
@@ -170,7 +170,7 @@ void delete_linked_list(struct linked_list* list, void (*free_func)(void*))
 	{
 		free_func(node->data);
 		struct linked_list_node* next = node->next;
-		aligned_free(node);
+		ct_free(node);
 		node = next;
 	}
 

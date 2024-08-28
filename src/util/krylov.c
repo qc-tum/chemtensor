@@ -20,7 +20,7 @@
 void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* restrict adata, const double* restrict vstart, const int maxiter,
 	double* restrict alpha, double* restrict beta, double* restrict v, int* restrict numiter)
 {
-	double* w = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* w = ct_malloc(n * sizeof(double));
 
 	// set first "v" vector to normalized starting vector
 	memcpy(v, vstart, n * sizeof(double));
@@ -55,7 +55,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 		{
 			// premature end of iterations
 			(*numiter) = j + 1;
-			aligned_free(w);
+			ct_free(w);
 			return;
 		}
 
@@ -79,7 +79,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 		alpha[j] = cblas_ddot(n, w, 1, &v[j*n], 1);
 	}
 
-	aligned_free(w);
+	ct_free(w);
 
 	(*numiter) = maxiter;
 }
@@ -92,7 +92,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* restrict adata, const dcomplex* restrict vstart, const int maxiter,
 	double* restrict alpha, double* restrict beta, dcomplex* restrict v, int* restrict numiter)
 {
-	dcomplex* w = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(dcomplex));
+	dcomplex* w = ct_malloc(n * sizeof(dcomplex));
 
 	// set first "v" vector to normalized starting vector
 	memcpy(v, vstart, n * sizeof(dcomplex));
@@ -129,7 +129,7 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 		{
 			// premature end of iterations
 			(*numiter) = j + 1;
-			aligned_free(w);
+			ct_free(w);
 			return;
 		}
 
@@ -155,7 +155,7 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 		alpha[j] = creal(t);  // should be real for self-adjoint linear operation
 	}
 
-	aligned_free(w);
+	ct_free(w);
 
 	(*numiter) = maxiter;
 }
@@ -171,9 +171,9 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 {
 	assert(numeig <= maxiter);
 
-	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	double* v     = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(double));
+	double* alpha = ct_malloc(maxiter       * sizeof(double));
+	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));
+	double* v     = ct_malloc(maxiter*n     * sizeof(double));
 	int numiter;
 	lanczos_iteration_d(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
@@ -183,7 +183,7 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 	}
 
 	// diagonalize Hessenberg matrix
-	double* u = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(double));
+	double* u = ct_malloc(numiter*numiter * sizeof(double));
 	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
 	if (info != 0) {
 		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
@@ -197,10 +197,10 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 	cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, 1., v, n, u, numiter, 0., u_ritz, numeig);
 
 	// clean up
-	aligned_free(u);
-	aligned_free(v);
-	aligned_free(beta);
-	aligned_free(alpha);
+	ct_free(u);
+	ct_free(v);
+	ct_free(beta);
+	ct_free(alpha);
 
 	return 0;
 }
@@ -216,9 +216,9 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 {
 	assert(numeig <= maxiter);
 
-	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	dcomplex* v   = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(dcomplex));
+	double* alpha = ct_malloc(maxiter       * sizeof(double));
+	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));
+	dcomplex* v   = ct_malloc(maxiter*n     * sizeof(dcomplex));
 	int numiter;
 	lanczos_iteration_z(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
@@ -228,7 +228,7 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 	}
 
 	// diagonalize Hessenberg matrix
-	double* u = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(double));
+	double* u = ct_malloc(numiter*numiter * sizeof(double));
 	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
 	if (info != 0) {
 		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
@@ -240,7 +240,7 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 
 	// compute Ritz eigenvectors
 	// require complex 'u' entries for matrix multiplication
-	dcomplex* uz = aligned_alloc(MEM_DATA_ALIGN, numiter*numiter * sizeof(dcomplex));
+	dcomplex* uz = ct_malloc(numiter*numiter * sizeof(dcomplex));
 	for (int i = 0; i < numiter*numiter; i++) {
 		uz[i] = (dcomplex)u[i];
 	}
@@ -249,11 +249,11 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 	cblas_zgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, &one, v, n, uz, numiter, &zero, u_ritz, numeig);
 
 	// clean up
-	aligned_free(uz);
-	aligned_free(u);
-	aligned_free(v);
-	aligned_free(beta);
-	aligned_free(alpha);
+	ct_free(uz);
+	ct_free(u);
+	ct_free(v);
+	ct_free(beta);
+	ct_free(alpha);
 
 	return 0;
 }

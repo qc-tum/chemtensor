@@ -58,8 +58,8 @@ int main()
 	const int num_sweeps      = 4;
 	const int maxiter_lanczos = 25;
 	double tol_split          = 1e-8;
-	double* en_sweeps = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
-	double* entropy   = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(double));
+	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
+	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
 	printf("Running two-site DMRG (using num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g)... ", num_sweeps, maxiter_lanczos, tol_split);
 	if (dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy) < 0) {
 		fprintf(stderr, "'dmrg_twosite' failed internally");
@@ -100,7 +100,7 @@ int main()
 	}
 
 	// reference eigenvalues (based on exact diagonalization of matrix representation)
-	double* w_ref = aligned_alloc(MEM_DATA_ALIGN, hmat.dim[1] * sizeof(double));
+	double* w_ref = ct_malloc(hmat.dim[1] * sizeof(double));
 	int info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'N', 'U', hmat.dim[1], hmat.data, hmat.dim[2], w_ref);
 	if (info != 0) {
 		fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
@@ -113,10 +113,10 @@ int main()
 		printf("%i: %g, diff to reference: %g\n", i + 1, en_sweeps[i], en_sweeps[i] - w_ref[0]);
 	}
 
-	aligned_free(w_ref);
+	ct_free(w_ref);
 	delete_dense_tensor(&hmat);
-	aligned_free(entropy);
-	aligned_free(en_sweeps);
+	ct_free(entropy);
+	ct_free(en_sweeps);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);
 

@@ -1153,12 +1153,12 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	}
 
 	// run two-site DMRG
-	double* en_sweeps = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
-	double* entropy   = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(double));
+	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
+	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
 	int ret = dmrg_twosite(&py_mpo->mpo, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &py_psi->mps, en_sweeps, entropy);
 	if (ret < 0) {
-		aligned_free(entropy);
-		aligned_free(en_sweeps);
+		ct_free(entropy);
+		ct_free(en_sweeps);
 		PyMPS_dealloc(py_psi);
 		PyErr_SetString(PyExc_RuntimeError, "two-site DMRG failed internally (likely since Krylov subspace method did not converge)");
 		return NULL;
@@ -1193,8 +1193,8 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	}
 
 	// clean up
-	aligned_free(entropy);
-	aligned_free(en_sweeps);
+	ct_free(entropy);
+	ct_free(en_sweeps);
 
 	return PyTuple_Pack(3, py_psi, py_en_sweeps, py_entropy);
 }
@@ -1255,8 +1255,8 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 		return NULL;
 	}
 
-	void* avr = aligned_alloc(MEM_DATA_ALIGN, sizeof_numeric_type(py_op->assembly.dtype));
-	void* dcoeff = aligned_alloc(MEM_DATA_ALIGN, py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
+	void* avr = ct_malloc(sizeof_numeric_type(py_op->assembly.dtype));
+	void* dcoeff = ct_malloc(py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
 	operator_average_coefficient_gradient(&py_op->assembly, &py_psi->mps, &py_chi->mps, avr, dcoeff);
 
 	PyArrayObject* py_avr = (PyArrayObject*)PyArray_SimpleNew(0, NULL, numeric_to_numpy_type(py_op->assembly.dtype));
@@ -1275,8 +1275,8 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 	memcpy(PyArray_DATA(py_dcoeff), dcoeff, py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
 
 
-	aligned_free(dcoeff);
-	aligned_free(avr);
+	ct_free(dcoeff);
+	ct_free(avr);
 
 
 	return PyTuple_Pack(2, py_avr, py_dcoeff);

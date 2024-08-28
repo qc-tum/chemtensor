@@ -25,7 +25,7 @@ static void operator_inner_product_wrapper(const scomplex* restrict x, void* p, 
 	const struct operator_inner_product_params* params = p;
 
 	assert(params->num_coeffs >= 2);
-	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, params->num_coeffs * sizeof(scomplex));
+	scomplex* coeffmap = ct_malloc(params->num_coeffs * sizeof(scomplex));
 	// first two coefficients must always be 0 and 1
 	coeffmap[0] = 0;
 	coeffmap[1] = 1;
@@ -50,7 +50,7 @@ static void operator_inner_product_wrapper(const scomplex* restrict x, void* p, 
 	operator_inner_product(params->chi, &mpo, params->psi, y);
 
 	delete_mpo(&mpo);
-	aligned_free(coeffmap);
+	ct_free(coeffmap);
 }
 
 
@@ -71,10 +71,10 @@ char* test_operator_average_coefficient_gradient()
 
 	// virtual bond quantum numbers for 'psi'
 	const long dim_bonds_psi[5] = { 1, 8, 23, 9, 1 };
-	qnumber** qbonds_psi = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds_psi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds_psi[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_psi[i] * sizeof(qnumber));
+		qbonds_psi[i] = ct_malloc(dim_bonds_psi[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond_psi_%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_psi[i]) < 0) {
@@ -84,10 +84,10 @@ char* test_operator_average_coefficient_gradient()
 
 	// virtual bond quantum numbers for 'chi'
 	const long dim_bonds_chi[5] = { 1, 11, 15, 5, 1 };
-	qnumber** qbonds_chi = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds_chi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds_chi[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_chi[i] * sizeof(qnumber));
+		qbonds_chi[i] = ct_malloc(dim_bonds_chi[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond_chi_%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_chi[i]) < 0) {
@@ -234,7 +234,7 @@ char* test_operator_average_coefficient_gradient()
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
-	struct dense_tensor* opmap = aligned_alloc(MEM_DATA_ALIGN, num_local_ops * sizeof(struct dense_tensor));
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
@@ -246,7 +246,7 @@ char* test_operator_average_coefficient_gradient()
 
 	// coefficient map; first two entries must always be 0 and 1
 	const int num_coeffs = 9;
-	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, num_coeffs * sizeof(scomplex));
+	scomplex* coeffmap = ct_malloc(num_coeffs * sizeof(scomplex));
 	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
@@ -264,7 +264,7 @@ char* test_operator_average_coefficient_gradient()
 
 	// compute gradient with respect to coefficients
 	scomplex avr;
-	scomplex* dcoeff = aligned_alloc(MEM_DATA_ALIGN, num_coeffs * sizeof(scomplex));
+	scomplex* dcoeff = ct_malloc(num_coeffs * sizeof(scomplex));
 	operator_average_coefficient_gradient(&assembly, &psi, &chi, &avr, dcoeff);
 
 	// reference average value
@@ -283,7 +283,7 @@ char* test_operator_average_coefficient_gradient()
 		.num_local_ops = num_local_ops,
 		.num_coeffs    = num_coeffs,
 	};
-	scomplex* dcoeff_ref = aligned_alloc(MEM_DATA_ALIGN, (num_coeffs - 2) * sizeof(scomplex));
+	scomplex* dcoeff_ref = ct_malloc((num_coeffs - 2) * sizeof(scomplex));
 	scomplex dy = 1;
 	numerical_gradient_backward_c(operator_inner_product_wrapper, &params, num_coeffs - 2, coeffmap + 2, 1, &dy, h, dcoeff_ref);
 
@@ -298,21 +298,21 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	// clean up
-	aligned_free(dcoeff_ref);
-	aligned_free(dcoeff);
-	aligned_free(coeffmap);
+	ct_free(dcoeff_ref);
+	ct_free(dcoeff);
+	ct_free(coeffmap);
 	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}
-	aligned_free(opmap);
+	ct_free(opmap);
 	delete_mps(&chi);
 	delete_mps(&psi);
 	for (int i = 0; i < nsites + 1; i++) {
-		aligned_free(qbonds_chi[i]);
-		aligned_free(qbonds_psi[i]);
+		ct_free(qbonds_chi[i]);
+		ct_free(qbonds_psi[i]);
 	}
-	aligned_free(qbonds_chi);
-	aligned_free(qbonds_psi);
+	ct_free(qbonds_chi);
+	ct_free(qbonds_psi);
 
 	H5Fclose(file);
 

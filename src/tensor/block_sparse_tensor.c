@@ -53,38 +53,38 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		t->qnums_blocks  = NULL;
 
 		// allocate memory for a single block
-		t->blocks = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor*));
-		t->blocks[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		t->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
+		t->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		allocate_dense_tensor(dtype, ndim, dim, t->blocks[0]);
 
 		return;
 	}
 
-	t->dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+	t->dim_logical = ct_malloc(ndim * sizeof(long));
 	memcpy(t->dim_logical, dim, ndim * sizeof(long));
 
-	t->dim_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	t->dim_blocks = ct_calloc(ndim, sizeof(long));
 
-	t->axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	t->axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	memcpy(t->axis_dir, axis_dir, ndim * sizeof(enum tensor_axis_direction));
 
-	t->qnums_logical = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	t->qnums_logical = ct_calloc(ndim, sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		t->qnums_logical[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		t->qnums_logical[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		memcpy(t->qnums_logical[i], qnums[i], dim[i] * sizeof(qnumber));
 	}
 
-	t->qnums_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	t->qnums_blocks = ct_calloc(ndim, sizeof(qnumber*));
 
 	// count quantum numbers along each dimension axis
-	struct qnumber_count** qcounts = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(struct qnumber_count*));
+	struct qnumber_count** qcounts = ct_malloc(ndim * sizeof(struct qnumber_count*));
 	for (int i = 0; i < ndim; i++)
 	{
 		assert(dim[i] > 0);
 
 		// likely not requiring all the allocated memory
-		qcounts[i] = aligned_calloc(MEM_DATA_ALIGN, dim[i], sizeof(struct qnumber_count));
+		qcounts[i] = ct_calloc(dim[i], sizeof(struct qnumber_count));
 		long nqc = 0;
 		for (long j = 0; j < dim[i]; j++)
 		{
@@ -111,7 +111,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		t->dim_blocks[i] = nqc;
 
 		// store quantum numbers
-		t->qnums_blocks[i] = aligned_calloc(MEM_DATA_ALIGN, nqc, sizeof(qnumber));
+		t->qnums_blocks[i] = ct_calloc(nqc, sizeof(qnumber));
 		for (long j = 0; j < nqc; j++) {
 			t->qnums_blocks[i][j] = qcounts[i][j].qnum;
 		}
@@ -119,8 +119,8 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 
 	// allocate dense tensor blocks
 	const long nblocks = integer_product(t->dim_blocks, ndim);
-	t->blocks = aligned_calloc(MEM_DATA_ALIGN, nblocks, sizeof(struct dense_tensor*));
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	t->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	long* index_block = ct_calloc(ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(ndim, t->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -134,21 +134,21 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		}
 
 		// allocate dense tensor block
-		t->blocks[k] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
-		long* bdim = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+		t->blocks[k] = ct_calloc(1, sizeof(struct dense_tensor));
+		long* bdim = ct_malloc(ndim * sizeof(long));
 		for (int i = 0; i < ndim; i++) {
 			bdim[i] = qcounts[i][index_block[i]].count;
 		}
 		allocate_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
-		aligned_free(bdim);
+		ct_free(bdim);
 	}
-	aligned_free(index_block);
+	ct_free(index_block);
 
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qcounts[i]);
+		ct_free(qcounts[i]);
 	}
-	aligned_free(qcounts);
+	ct_free(qcounts);
 }
 
 
@@ -171,15 +171,15 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 	if (t->ndim == 0)  // special case
 	{
 		delete_dense_tensor(t->blocks[0]);
-		aligned_free(t->blocks[0]);
-		aligned_free(t->blocks);
+		ct_free(t->blocks[0]);
+		ct_free(t->blocks);
 
 		return;
 	}
 
 	// free dense tensor blocks
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+	long* index_block = ct_calloc(t->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -194,24 +194,24 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 
 		assert(t->blocks[k] != NULL);
 		delete_dense_tensor(t->blocks[k]);
-		aligned_free(t->blocks[k]);
+		ct_free(t->blocks[k]);
 	}
-	aligned_free(index_block);
-	aligned_free(t->blocks);
+	ct_free(index_block);
+	ct_free(t->blocks);
 	t->blocks = NULL;
 
 	for (int i = 0; i < t->ndim; i++)
 	{
-		aligned_free(t->qnums_blocks[i]);
-		aligned_free(t->qnums_logical[i]);
+		ct_free(t->qnums_blocks[i]);
+		ct_free(t->qnums_logical[i]);
 	}
-	aligned_free(t->qnums_blocks);
-	aligned_free(t->qnums_logical);
+	ct_free(t->qnums_blocks);
+	ct_free(t->qnums_logical);
 
-	aligned_free(t->axis_dir);
+	ct_free(t->axis_dir);
 
-	aligned_free(t->dim_blocks);
-	aligned_free(t->dim_logical);
+	ct_free(t->dim_blocks);
+	ct_free(t->dim_logical);
 }
 
 
@@ -237,40 +237,40 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 		dst->qnums_blocks  = NULL;
 
 		// allocate memory for a single block
-		dst->blocks = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor*));
-		dst->blocks[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		dst->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
+		dst->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		copy_dense_tensor(src->blocks[0], dst->blocks[0]);
 
 		return;
 	}
 
-	dst->dim_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	dst->dim_blocks = ct_calloc(ndim, sizeof(long));
 	memcpy(dst->dim_blocks, src->dim_blocks, ndim * sizeof(long));
 
-	dst->dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+	dst->dim_logical = ct_malloc(ndim * sizeof(long));
 	memcpy(dst->dim_logical, src->dim_logical, ndim * sizeof(long));
 
-	dst->axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	dst->axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	memcpy(dst->axis_dir, src->axis_dir, ndim * sizeof(enum tensor_axis_direction));
 
-	dst->qnums_blocks = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	dst->qnums_blocks = ct_calloc(ndim, sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		dst->qnums_blocks[i] = aligned_alloc(MEM_DATA_ALIGN, src->dim_blocks[i] * sizeof(qnumber));
+		dst->qnums_blocks[i] = ct_malloc(src->dim_blocks[i] * sizeof(qnumber));
 		memcpy(dst->qnums_blocks[i], src->qnums_blocks[i], src->dim_blocks[i] * sizeof(qnumber));
 	}
 
-	dst->qnums_logical = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber*));
+	dst->qnums_logical = ct_calloc(ndim, sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		dst->qnums_logical[i] = aligned_alloc(MEM_DATA_ALIGN, src->dim_logical[i] * sizeof(qnumber));
+		dst->qnums_logical[i] = ct_malloc(src->dim_logical[i] * sizeof(qnumber));
 		memcpy(dst->qnums_logical[i], src->qnums_logical[i], src->dim_logical[i] * sizeof(qnumber));
 	}
 
 	// copy dense tensor blocks
 	const long nblocks = integer_product(src->dim_blocks, ndim);
-	dst->blocks = aligned_calloc(MEM_DATA_ALIGN, nblocks, sizeof(struct dense_tensor*));
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(long));
+	dst->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	long* index_block = ct_calloc(ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(ndim, src->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -286,10 +286,10 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 		assert(src->blocks[k] != NULL);
 
 		// allocate and copy dense tensor block
-		dst->blocks[k] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		dst->blocks[k] = ct_calloc(1, sizeof(struct dense_tensor));
 		copy_dense_tensor(src->blocks[k], dst->blocks[k]);
 	}
-	aligned_free(index_block);
+	ct_free(index_block);
 }
 
 
@@ -326,7 +326,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 	assert(t->ndim > 0);
 
 	// find indices corresponding to quantum numbers
-	long* index = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	long* index = ct_malloc(t->ndim * sizeof(long));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		index[i] = -1;
@@ -345,7 +345,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 
 	long o = tensor_index_to_offset(t->ndim, t->dim_blocks, index);
 
-	aligned_free(index);
+	ct_free(index);
 
 	return t->blocks[o];
 }
@@ -472,7 +472,7 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(s->dim_blocks, s->ndim);
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
+	long* index_block = ct_calloc(s->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(s->ndim, s->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -491,10 +491,10 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 		assert(b->dtype == s->dtype);
 
 		// fan-out dense to logical indices
-		long** index_map = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long*));
+		long** index_map = ct_calloc(s->ndim, sizeof(long*));
 		for (int i = 0; i < s->ndim; i++)
 		{
-			index_map[i] = aligned_calloc(MEM_DATA_ALIGN, b->dim[i], sizeof(long));
+			index_map[i] = ct_calloc(b->dim[i], sizeof(long));
 			long c = 0;
 			for (long j = 0; j < s->dim_logical[i]; j++)
 			{
@@ -508,8 +508,8 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 		}
 
 		// distribute dense tensor entries
-		long* index_b = aligned_calloc(MEM_DATA_ALIGN, b->ndim, sizeof(long));
-		long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+		long* index_b = ct_calloc(b->ndim, sizeof(long));
+		long* index_t = ct_calloc(t->ndim, sizeof(long));
 		const long nelem = dense_tensor_num_elements(b);
 		switch (s->dtype)
 		{
@@ -575,17 +575,17 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 				assert(false);
 			}
 		}
-		aligned_free(index_t);
-		aligned_free(index_b);
+		ct_free(index_t);
+		ct_free(index_b);
 
 		for (int i = 0; i < s->ndim; i++)
 		{
-			aligned_free(index_map[i]);
+			ct_free(index_map[i]);
 		}
-		aligned_free(index_map);
+		ct_free(index_map);
 	}
 
-	aligned_free(index_block);
+	ct_free(index_block);
 }
 
 
@@ -622,7 +622,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(s->dim_blocks, s->ndim);
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
+	long* index_block = ct_calloc(s->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(s->ndim, s->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -641,10 +641,10 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 		assert(b->dtype == t->dtype);
 
 		// fan-out dense to logical indices
-		long** index_map = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long*));
+		long** index_map = ct_calloc(s->ndim, sizeof(long*));
 		for (int i = 0; i < s->ndim; i++)
 		{
-			index_map[i] = aligned_calloc(MEM_DATA_ALIGN, b->dim[i], sizeof(long));
+			index_map[i] = ct_calloc(b->dim[i], sizeof(long));
 			long c = 0;
 			for (long j = 0; j < s->dim_logical[i]; j++)
 			{
@@ -658,8 +658,8 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 		}
 
 		// collect dense tensor entries
-		long* index_b = aligned_calloc(MEM_DATA_ALIGN, b->ndim, sizeof(long));
-		long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+		long* index_b = ct_calloc(b->ndim, sizeof(long));
+		long* index_t = ct_calloc(t->ndim, sizeof(long));
 		const long nelem = dense_tensor_num_elements(b);
 		switch (s->dtype)
 		{
@@ -725,17 +725,17 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 				assert(false);
 			}
 		}
-		aligned_free(index_t);
-		aligned_free(index_b);
+		ct_free(index_t);
+		ct_free(index_b);
 
 		for (int i = 0; i < s->ndim; i++)
 		{
-			aligned_free(index_map[i]);
+			ct_free(index_map[i]);
 		}
-		aligned_free(index_map);
+		ct_free(index_map);
 	}
 
-	aligned_free(index_block);
+	ct_free(index_block);
 }
 
 
@@ -762,8 +762,8 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 		r->qnums_blocks  = NULL;
 
 		// allocate memory for a single block
-		r->blocks = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor*));
-		r->blocks[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		r->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
+		r->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		allocate_dense_tensor(r->dtype, 0, NULL, r->blocks[0]);
 		// copy single number
 		memcpy(r->blocks[0]->data, t->blocks[0]->data, sizeof_numeric_type(t->blocks[0]->dtype));
@@ -772,7 +772,7 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 	}
 
 	// ensure that 'perm' is a valid permutation
-	int* ax_list = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(int));
+	int* ax_list = ct_calloc(t->ndim, sizeof(int));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		assert(0 <= perm[i] && perm[i] < t->ndim);
@@ -782,12 +782,12 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 	{
 		assert(ax_list[i] == 1);
 	}
-	aligned_free(ax_list);
+	ct_free(ax_list);
 
 	// dimensions
-	r->dim_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
-	r->dim_blocks  = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
-	r->axis_dir    = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(enum tensor_axis_direction));
+	r->dim_logical = ct_malloc(t->ndim * sizeof(long));
+	r->dim_blocks  = ct_malloc(t->ndim * sizeof(long));
+	r->axis_dir    = ct_malloc(t->ndim * sizeof(enum tensor_axis_direction));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		r->dim_logical[i] = t->dim_logical[perm[i]];
@@ -796,26 +796,26 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 	}
 
 	// logical quantum numbers
-	r->qnums_logical = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(qnumber*));
+	r->qnums_logical = ct_calloc(t->ndim, sizeof(qnumber*));
 	for (int i = 0; i < t->ndim; i++)
 	{
-		r->qnums_logical[i] = aligned_alloc(MEM_DATA_ALIGN, r->dim_logical[i] * sizeof(qnumber));
+		r->qnums_logical[i] = ct_malloc(r->dim_logical[i] * sizeof(qnumber));
 		memcpy(r->qnums_logical[i], t->qnums_logical[perm[i]], r->dim_logical[i] * sizeof(qnumber));
 	}
 
 	// block quantum numbers
-	r->qnums_blocks = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(qnumber*));
+	r->qnums_blocks = ct_calloc(t->ndim, sizeof(qnumber*));
 	for (int i = 0; i < t->ndim; i++)
 	{
-		r->qnums_blocks[i] = aligned_alloc(MEM_DATA_ALIGN, r->dim_blocks[i] * sizeof(qnumber));
+		r->qnums_blocks[i] = ct_malloc(r->dim_blocks[i] * sizeof(qnumber));
 		memcpy(r->qnums_blocks[i], t->qnums_blocks[perm[i]], r->dim_blocks[i] * sizeof(qnumber));
 	}
 
 	// dense tensor blocks
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
-	r->blocks = aligned_calloc(MEM_DATA_ALIGN, nblocks, sizeof(struct dense_tensor*));
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	r->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block_t))
 	{
 		// probe whether quantum numbers sum to zero
@@ -839,11 +839,11 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 		long j = tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r);
 
 		// transpose dense tensor block
-		r->blocks[j] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		r->blocks[j] = ct_calloc(1, sizeof(struct dense_tensor));
 		transpose_dense_tensor(perm, t->blocks[k], r->blocks[j]);
 	}
-	aligned_free(index_block_r);
-	aligned_free(index_block_t);
+	ct_free(index_block_r);
+	ct_free(index_block_t);
 }
 
 
@@ -875,8 +875,8 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 
 	// construct new block-sparse tensor 'r'
 	{
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim - 1) * sizeof(long));
-		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, (t->ndim - 1) * sizeof(enum tensor_axis_direction));
+		long* r_dim_logical = ct_malloc((t->ndim - 1) * sizeof(long));
+		enum tensor_axis_direction* r_axis_dir = ct_malloc((t->ndim - 1) * sizeof(enum tensor_axis_direction));
 		for (int i = 0; i < i_ax; i++)
 		{
 			r_dim_logical[i] = t->dim_logical[i];
@@ -890,7 +890,7 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 			r_axis_dir   [i - 1] = t->axis_dir   [i];
 		}
 		// logical quantum numbers
-		qnumber* r_qnums_ax_flat = aligned_alloc(MEM_DATA_ALIGN, r_dim_logical[i_ax] * sizeof(qnumber));
+		qnumber* r_qnums_ax_flat = ct_malloc(r_dim_logical[i_ax] * sizeof(qnumber));
 		for (long j = 0; j < t->dim_logical[i_ax]; j++)
 		{
 			for (long k = 0; k < t->dim_logical[i_ax + 1]; k++)
@@ -900,7 +900,7 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 					                t->axis_dir[i_ax + 1] * t->qnums_logical[i_ax + 1][k]);
 			}
 		}
-		qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim - 1) * sizeof(qnumber*));
+		qnumber** r_qnums_logical = ct_malloc((t->ndim - 1) * sizeof(qnumber*));
 		for (int i = 0; i < i_ax; i++)
 		{
 			// simply copy the pointer
@@ -916,18 +916,18 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 		// allocate new block-sparse tensor 'r'
 		allocate_block_sparse_tensor(t->dtype, t->ndim - 1, r_dim_logical, r_axis_dir, (const qnumber**)r_qnums_logical, r);
 
-		aligned_free(r_qnums_logical);
-		aligned_free(r_qnums_ax_flat);
-		aligned_free(r_axis_dir);
-		aligned_free(r_dim_logical);
+		ct_free(r_qnums_logical);
+		ct_free(r_qnums_ax_flat);
+		ct_free(r_axis_dir);
+		ct_free(r_dim_logical);
 	}
 
 	const size_t dtype_size = sizeof_numeric_type(t->dtype);
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block_t))
 	{
 		// probe whether quantum numbers sum to zero
@@ -976,13 +976,13 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 		assert(br->dtype == r->dtype);
 
 		// construct index map for dense block entries along to-be flattened dimensions
-		long* index_map_block = aligned_alloc(MEM_DATA_ALIGN, bt->dim[i_ax] * bt->dim[i_ax + 1] * sizeof(long));
+		long* index_map_block = ct_malloc(bt->dim[i_ax] * bt->dim[i_ax + 1] * sizeof(long));
 		{
 			// fan-out dense to logical indices for original axes 'i_ax' and 'i_ax + 1'
 			long* index_map_fanout[2];
 			for (int i = 0; i < 2; i++)
 			{
-				index_map_fanout[i] = aligned_calloc(MEM_DATA_ALIGN, bt->dim[i_ax + i], sizeof(long));
+				index_map_fanout[i] = ct_calloc(bt->dim[i_ax + i], sizeof(long));
 				long c = 0;
 				for (long j = 0; j < t->dim_logical[i_ax + i]; j++)
 				{
@@ -995,7 +995,7 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 				assert(c == bt->dim[i_ax + i]);
 			}
 			// fan-in logical to block indices for flattened axis
-			long* index_map_fanin = aligned_calloc(MEM_DATA_ALIGN, r->dim_logical[i_ax], sizeof(long));
+			long* index_map_fanin = ct_calloc(r->dim_logical[i_ax], sizeof(long));
 			long c = 0;
 			for (long j = 0; j < r->dim_logical[i_ax]; j++)
 			{
@@ -1011,16 +1011,16 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 					index_map_block[j0*bt->dim[i_ax + 1] + j1] = index_map_fanin[index_map_fanout[0][j0] * t->dim_logical[i_ax + 1] + index_map_fanout[1][j1]];
 				}
 			}
-			aligned_free(index_map_fanin);
+			ct_free(index_map_fanin);
 			for (int i = 0; i < 2; i++) {
-				aligned_free(index_map_fanout[i]);
+				ct_free(index_map_fanout[i]);
 			}
 		}
 
 		// copy block tensor entries
 		const long nslices = integer_product(bt->dim, i_ax + 2);
-		long* index_slice_bt = aligned_calloc(MEM_DATA_ALIGN, i_ax + 2, sizeof(long));
-		long* index_slice_br = aligned_calloc(MEM_DATA_ALIGN, i_ax + 1, sizeof(long));
+		long* index_slice_bt = ct_calloc(i_ax + 2, sizeof(long));
+		long* index_slice_br = ct_calloc(i_ax + 1, sizeof(long));
 		const long stride = integer_product(bt->dim + (i_ax + 2), bt->ndim - (i_ax + 2));
 		assert(stride == integer_product(br->dim + (i_ax + 1), br->ndim - (i_ax + 1)));
 		for (long j = 0; j < nslices; j++, next_tensor_index(i_ax + 2, bt->dim, index_slice_bt))
@@ -1034,14 +1034,14 @@ void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict
 			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 			memcpy((int8_t*)br->data + (l*stride) * dtype_size, (int8_t*)bt->data + (j*stride) * dtype_size, stride * dtype_size);
 		}
-		aligned_free(index_slice_br);
-		aligned_free(index_slice_bt);
+		ct_free(index_slice_br);
+		ct_free(index_slice_bt);
 
-		aligned_free(index_map_block);
+		ct_free(index_map_block);
 	}
 
-	aligned_free(index_block_t);
-	aligned_free(index_block_r);
+	ct_free(index_block_t);
+	ct_free(index_block_r);
 }
 
 
@@ -1067,8 +1067,8 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 
 	// construct new block-sparse tensor 'r'
 	{
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(long));
-		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(enum tensor_axis_direction));
+		long* r_dim_logical = ct_malloc((t->ndim + 1) * sizeof(long));
+		enum tensor_axis_direction* r_axis_dir = ct_malloc((t->ndim + 1) * sizeof(enum tensor_axis_direction));
 		for (int i = 0; i < i_ax; i++)
 		{
 			r_dim_logical[i] = t->dim_logical[i];
@@ -1084,7 +1084,7 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 			r_axis_dir   [i + 1] = t->axis_dir   [i];
 		}
 		// logical quantum numbers
-		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, (t->ndim + 1) * sizeof(qnumber*));
+		const qnumber** r_qnums_logical = ct_malloc((t->ndim + 1) * sizeof(qnumber*));
 		for (int i = 0; i < i_ax; i++)
 		{
 			// simply copy the pointer
@@ -1101,17 +1101,17 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 		// allocate new block-sparse tensor 'r'
 		allocate_block_sparse_tensor(t->dtype, t->ndim + 1, r_dim_logical, r_axis_dir, r_qnums_logical, r);
 
-		aligned_free(r_qnums_logical);
-		aligned_free(r_axis_dir);
-		aligned_free(r_dim_logical);
+		ct_free(r_qnums_logical);
+		ct_free(r_axis_dir);
+		ct_free(r_dim_logical);
 	}
 
 	const size_t dtype_size = sizeof_numeric_type(t->dtype);
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers sum to zero
@@ -1160,13 +1160,13 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 		assert(bt->dtype == t->dtype);
 
 		// construct index map for dense block entries along to-be split dimensions
-		long* index_map_block = aligned_alloc(MEM_DATA_ALIGN, br->dim[i_ax] * br->dim[i_ax + 1] * sizeof(long));
+		long* index_map_block = ct_malloc(br->dim[i_ax] * br->dim[i_ax + 1] * sizeof(long));
 		{
 			// fan-out dense to logical indices for new axes 'i_ax' and 'i_ax + 1'
 			long* index_map_fanout[2];
 			for (int i = 0; i < 2; i++)
 			{
-				index_map_fanout[i] = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax + i], sizeof(long));
+				index_map_fanout[i] = ct_calloc(br->dim[i_ax + i], sizeof(long));
 				long c = 0;
 				for (long j = 0; j < r->dim_logical[i_ax + i]; j++)
 				{
@@ -1179,7 +1179,7 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 				assert(c == br->dim[i_ax + i]);
 			}
 			// fan-in logical to block indices for original axis
-			long* index_map_fanin = aligned_calloc(MEM_DATA_ALIGN, t->dim_logical[i_ax], sizeof(long));
+			long* index_map_fanin = ct_calloc(t->dim_logical[i_ax], sizeof(long));
 			long c = 0;
 			for (long j = 0; j < t->dim_logical[i_ax]; j++)
 			{
@@ -1195,16 +1195,16 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 					index_map_block[j0*br->dim[i_ax + 1] + j1] = index_map_fanin[index_map_fanout[0][j0] * r->dim_logical[i_ax + 1] + index_map_fanout[1][j1]];
 				}
 			}
-			aligned_free(index_map_fanin);
+			ct_free(index_map_fanin);
 			for (int i = 0; i < 2; i++) {
-				aligned_free(index_map_fanout[i]);
+				ct_free(index_map_fanout[i]);
 			}
 		}
 
 		// copy block tensor entries
 		const long nslices = integer_product(br->dim, i_ax + 2);
-		long* index_slice_bt = aligned_calloc(MEM_DATA_ALIGN, i_ax + 1, sizeof(long));
-		long* index_slice_br = aligned_calloc(MEM_DATA_ALIGN, i_ax + 2, sizeof(long));
+		long* index_slice_bt = ct_calloc(i_ax + 1, sizeof(long));
+		long* index_slice_br = ct_calloc(i_ax + 2, sizeof(long));
 		const long stride = integer_product(br->dim + (i_ax + 2), br->ndim - (i_ax + 2));
 		assert(stride == integer_product(bt->dim + (i_ax + 1), bt->ndim - (i_ax + 1)));
 		for (long j = 0; j < nslices; j++, next_tensor_index(i_ax + 2, br->dim, index_slice_br))
@@ -1218,14 +1218,14 @@ void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t
 			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 			memcpy((int8_t*)br->data + (j*stride) * dtype_size, (int8_t*)bt->data + (l*stride) * dtype_size, stride * dtype_size);
 		}
-		aligned_free(index_slice_bt);
-		aligned_free(index_slice_br);
+		ct_free(index_slice_bt);
+		ct_free(index_slice_br);
 
-		aligned_free(index_map_block);
+		ct_free(index_map_block);
 	}
 
-	aligned_free(index_block_t);
-	aligned_free(index_block_r);
+	ct_free(index_block_t);
+	ct_free(index_block_r);
 }
 
 
@@ -1243,16 +1243,16 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 
 	// construct new block-sparse tensor 'r'
 	{
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+		long* r_dim_logical = ct_malloc(t->ndim * sizeof(long));
 		memcpy(r_dim_logical, t->dim_logical, t->ndim * sizeof(long));
 		r_dim_logical[i_ax] = nind;
 		// logical quantum numbers
-		qnumber* r_qnums_logical_i_ax = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(qnumber));
+		qnumber* r_qnums_logical_i_ax = ct_malloc(nind * sizeof(qnumber));
 		for (long j = 0; j < nind; j++) {
 			assert(0 <= ind[j] && ind[j] < t->dim_logical[i_ax]);
 			r_qnums_logical_i_ax[j] = t->qnums_logical[i_ax][ind[j]];
 		}
-		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(qnumber*));
+		const qnumber** r_qnums_logical = ct_malloc(t->ndim * sizeof(qnumber*));
 		for (int i = 0; i < t->ndim; i++)
 		{
 			// simply copy the pointer for i != i_ax
@@ -1262,15 +1262,15 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		// allocate new block-sparse tensor 'r'
 		allocate_block_sparse_tensor(t->dtype, t->ndim, r_dim_logical, t->axis_dir, r_qnums_logical, r);
 
-		aligned_free(r_qnums_logical);
-		aligned_free(r_qnums_logical_i_ax);
-		aligned_free(r_dim_logical);
+		ct_free(r_qnums_logical);
+		ct_free(r_qnums_logical_i_ax);
+		ct_free(r_dim_logical);
 	}
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers sum to zero
@@ -1308,7 +1308,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		assert(bt->dtype == t->dtype);
 
 		// fan-out dense to logical indices for axis 'i_ax' in 'r'
-		long* index_map_fanout_r = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax], sizeof(long));
+		long* index_map_fanout_r = ct_calloc(br->dim[i_ax], sizeof(long));
 		long c = 0;
 		for (long j = 0; j < r->dim_logical[i_ax]; j++)
 		{
@@ -1321,7 +1321,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		assert(c == br->dim[i_ax]);
 
 		// fan-in logical to block indices for axis i_ax in 't'
-		long* index_map_fanin_t = aligned_calloc(MEM_DATA_ALIGN, t->dim_logical[i_ax], sizeof(long));
+		long* index_map_fanin_t = ct_calloc(t->dim_logical[i_ax], sizeof(long));
 		c = 0;
 		for (long j = 0; j < t->dim_logical[i_ax]; j++)
 		{
@@ -1332,7 +1332,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		}
 
 		// indices for slicing of current block
-		long* ind_block = aligned_alloc(MEM_DATA_ALIGN, br->dim[i_ax] * sizeof(long));
+		long* ind_block = ct_malloc(br->dim[i_ax] * sizeof(long));
 		for (long j = 0; j < br->dim[i_ax]; j++)
 		{
 			assert(t->qnums_logical[i_ax][ind[index_map_fanout_r[j]]] == qnum);
@@ -1342,13 +1342,13 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		// slice block
 		dense_tensor_slice_fill(bt, i_ax, ind_block, br->dim[i_ax], br);
 
-		aligned_free(ind_block);
-		aligned_free(index_map_fanin_t);
-		aligned_free(index_map_fanout_r);
+		ct_free(ind_block);
+		ct_free(index_map_fanin_t);
+		ct_free(index_map_fanout_r);
 	}
 
-	aligned_free(index_block_r);
-	aligned_free(index_block_t);
+	ct_free(index_block_r);
+	ct_free(index_block_t);
 }
 
 
@@ -1378,8 +1378,8 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 	// for each block with matching quantum numbers...
 	const long nblocks_r = integer_product(r->dim_blocks, r->ndim);
 	const long nblocks_p = integer_product(t->dim_blocks, ndim_trace);
-	long* index_block_t  = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r  = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_t  = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r  = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks_r; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers sum to zero
@@ -1409,8 +1409,8 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 		}
 	}
 
-	aligned_free(index_block_r);
-	aligned_free(index_block_t);
+	ct_free(index_block_r);
+	ct_free(index_block_t);
 }
 
 
@@ -1433,7 +1433,7 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers sum to zero
@@ -1454,7 +1454,7 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 		assert(bs != NULL);
 
 		// fan-out dense to logical indices
-		long* index_map = aligned_calloc(MEM_DATA_ALIGN, br->dim[i_ax], sizeof(long));
+		long* index_map = ct_calloc(br->dim[i_ax], sizeof(long));
 		long c = 0;
 		for (long j = 0; j < r->dim_logical[i_ax]; j++)
 		{
@@ -1472,10 +1472,10 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 		dense_tensor_multiply_pointwise_fill(bs, &t_slice, axrange, br);
 
 		delete_dense_tensor(&t_slice);
-		aligned_free(index_map);
+		ct_free(index_map);
 	}
 
-	aligned_free(index_block_r);
+	ct_free(index_block_r);
 }
 
 
@@ -1506,33 +1506,33 @@ void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* restric
 		const int ndimr = s->ndim + t->ndim - 2;
 
 		// logical dimensions of new tensor 'r'
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(long));
+		long* r_dim_logical = ct_malloc(ndimr * sizeof(long));
 		memcpy( r_dim_logical, s->dim_logical, i_ax * sizeof(long));
 		memcpy(&r_dim_logical[i_ax], &t->dim_logical[offset_t], (t->ndim - 1) * sizeof(long));
 		memcpy(&r_dim_logical[i_ax + t->ndim - 1], &s->dim_logical[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(long));
 		// axis directions of new tensor 'r'
-		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* r_axis_dir = ct_malloc(ndimr * sizeof(enum tensor_axis_direction));
 		memcpy( r_axis_dir, s->axis_dir, i_ax * sizeof(enum tensor_axis_direction));
 		memcpy(&r_axis_dir[i_ax], &t->axis_dir[offset_t], (t->ndim - 1) * sizeof(enum tensor_axis_direction));
 		memcpy(&r_axis_dir[i_ax + t->ndim - 1], &s->axis_dir[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(enum tensor_axis_direction));
 		// logical quantum numbers along each dimension
-		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(qnumber*));
+		const qnumber** r_qnums_logical = ct_malloc(ndimr * sizeof(qnumber*));
 		// simply copy the pointers
 		memcpy( r_qnums_logical, s->qnums_logical, i_ax * sizeof(qnumber*));
 		memcpy(&r_qnums_logical[i_ax], &t->qnums_logical[offset_t], (t->ndim - 1) * sizeof(qnumber*));
 		memcpy(&r_qnums_logical[i_ax + t->ndim - 1], &s->qnums_logical[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(qnumber*));
 		// create new tensor 'r'
 		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, r_axis_dir, r_qnums_logical, r);
-		aligned_free(r_qnums_logical);
-		aligned_free(r_axis_dir);
-		aligned_free(r_dim_logical);
+		ct_free(r_qnums_logical);
+		ct_free(r_axis_dir);
+		ct_free(r_dim_logical);
 	}
 
 	// for each dense block of 'r'...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
-	long* index_block_s = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_s = ct_calloc(s->ndim, sizeof(long));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers in 'r' sum to zero
@@ -1588,9 +1588,9 @@ void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* restric
 		}
 	}
 
-	aligned_free(index_block_r);
-	aligned_free(index_block_t);
-	aligned_free(index_block_s);
+	ct_free(index_block_r);
+	ct_free(index_block_t);
+	ct_free(index_block_s);
 }
 
 
@@ -1630,7 +1630,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		const int ndimr = s->ndim + t->ndim - 2*ndim_mult;
 
 		// logical dimensions of new tensor 'r'
-		long* r_dim_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(long));
+		long* r_dim_logical = ct_malloc(ndimr * sizeof(long));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
 			r_dim_logical[i] = s->dim_logical[offset_s + i];
@@ -1640,7 +1640,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			r_dim_logical[(s->ndim - ndim_mult) + i] = t->dim_logical[offset_t + i];
 		}
 		// axis directions of new tensor 'r'
-		enum tensor_axis_direction* r_axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* r_axis_dir = ct_malloc(ndimr * sizeof(enum tensor_axis_direction));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
 			r_axis_dir[i] = s->axis_dir[offset_s + i];
@@ -1650,7 +1650,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			r_axis_dir[(s->ndim - ndim_mult) + i] = t->axis_dir[offset_t + i];
 		}
 		// logical quantum numbers along each dimension
-		const qnumber** r_qnums_logical = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(qnumber*));
+		const qnumber** r_qnums_logical = ct_malloc(ndimr * sizeof(qnumber*));
 		for (int i = 0; i < s->ndim - ndim_mult; i++)
 		{
 			// simply copy the pointer
@@ -1663,18 +1663,18 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		}
 		// create new tensor 'r'
 		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, r_axis_dir, r_qnums_logical, r);
-		aligned_free(r_qnums_logical);
-		aligned_free(r_axis_dir);
-		aligned_free(r_dim_logical);
+		ct_free(r_qnums_logical);
+		ct_free(r_axis_dir);
+		ct_free(r_dim_logical);
 	}
 
 	const void* one = numeric_one(s->dtype);
 
 	// for each dense block of 'r'...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
-	long* index_block_s = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
-	long* index_block_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_block_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_block_s = ct_calloc(s->ndim, sizeof(long));
+	long* index_block_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
 	{
 		// probe whether quantum numbers in 'r' sum to zero
@@ -1693,7 +1693,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 		// for each quantum number combination of the to-be contracted axes...
 		const long ncontract = integer_product(t->dim_blocks + shift_t, ndim_mult);
-		long* index_contract = aligned_calloc(MEM_DATA_ALIGN, ndim_mult, sizeof(long));
+		long* index_contract = ct_calloc(ndim_mult, sizeof(long));
 		for (long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_blocks + shift_t, index_contract))
 		{
 			for (int i = 0; i < s->ndim - ndim_mult; i++) {
@@ -1735,12 +1735,12 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, one, br);
 		}
 
-		aligned_free(index_contract);
+		ct_free(index_contract);
 	}
 
-	aligned_free(index_block_r);
-	aligned_free(index_block_t);
-	aligned_free(index_block_s);
+	ct_free(index_block_r);
+	ct_free(index_block_t);
+	ct_free(index_block_s);
 }
 
 
@@ -1762,7 +1762,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 	long dim_interm = 0;
 
 	// allocating array of maximum possible length
-	qnumber* qnums_interm = aligned_calloc(MEM_DATA_ALIGN, a->dim_logical[1], sizeof(qnumber));
+	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
 
 	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
 	for (long j = 0; j < a->dim_blocks[1]; j++)
@@ -1817,7 +1817,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 	const qnumber* qnums_r[2] = { qnums_interm, a->qnums_logical[1] };
 	allocate_block_sparse_tensor(a->dtype, 2, dim_r, axis_dir_r, qnums_r, r);
 
-	aligned_free(qnums_interm);
+	ct_free(qnums_interm);
 
 	if (create_dummy_qr)
 	{
@@ -1901,7 +1901,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 	long dim_interm = 0;
 
 	// allocating array of maximum possible length
-	qnumber* qnums_interm = aligned_calloc(MEM_DATA_ALIGN, a->dim_logical[0], sizeof(qnumber));
+	qnumber* qnums_interm = ct_calloc(a->dim_logical[0], sizeof(qnumber));
 
 	// loop over first dimension is outer loop to ensure that logical quantum numbers are sorted
 	for (long i = 0; i < a->dim_blocks[0]; i++)
@@ -1956,7 +1956,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 	const qnumber* qnums_q[2] = { qnums_interm, a->qnums_logical[1] };
 	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->axis_dir, qnums_q, q);
 
-	aligned_free(qnums_interm);
+	ct_free(qnums_interm);
 
 	if (create_dummy_qr)
 	{
@@ -2040,7 +2040,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	long dim_interm = 0;
 
 	// allocating array of maximum possible length
-	qnumber* qnums_interm = aligned_calloc(MEM_DATA_ALIGN, a->dim_logical[1], sizeof(qnumber));
+	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
 
 	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
 	for (long j = 0; j < a->dim_blocks[1]; j++)
@@ -2099,7 +2099,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	const qnumber* qnums_vh[2] = { qnums_interm, a->qnums_logical[1] };
 	allocate_block_sparse_tensor(a->dtype, 2, dim_vh, axis_dir_vh, qnums_vh, vh);
 
-	aligned_free(qnums_interm);
+	ct_free(qnums_interm);
 
 	if (create_dummy_svd)
 	{
@@ -2240,7 +2240,7 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(s->dim_blocks, s->ndim);
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
+	long* index_block = ct_calloc(s->ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(s->ndim, s->dim_blocks, index_block))
 	{
 		// probe whether quantum numbers sum to zero
@@ -2260,11 +2260,11 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 		assert(bt != NULL);
 		if (!dense_tensor_allclose(bs, bt, tol))
 		{
-			aligned_free(index_block);
+			ct_free(index_block);
 			return false;
 		}
 	}
-	aligned_free(index_block);
+	ct_free(index_block);
 
 	return true;
 }
@@ -2428,7 +2428,7 @@ void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, cons
 ///
 static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, const long dim, const qnumber* unique_qnums, const long num_qnums, long* index_map_block, long* index_map_block_entry)
 {
-	long* counter = aligned_calloc(MEM_DATA_ALIGN, num_qnums, sizeof(long));
+	long* counter = ct_calloc(num_qnums, sizeof(long));
 
 	for (long i = 0; i < dim; i++)
 	{
@@ -2445,7 +2445,7 @@ static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, 
 		assert(found);
 	}
 
-	aligned_free(counter);
+	ct_free(counter);
 }
 
 
@@ -2457,13 +2457,13 @@ void create_block_sparse_tensor_entry_accessor(const struct block_sparse_tensor*
 {
 	acc->tensor = t;
 
-	acc->index_map_blocks        = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long*));
-	acc->index_map_block_entries = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long*));
+	acc->index_map_blocks        = ct_malloc(t->ndim * sizeof(long*));
+	acc->index_map_block_entries = ct_malloc(t->ndim * sizeof(long*));
 
 	for (int i = 0; i < t->ndim; i++)
 	{
-		acc->index_map_blocks[i]        = aligned_alloc(MEM_DATA_ALIGN, t->dim_logical[i] * sizeof(long));
-		acc->index_map_block_entries[i] = aligned_alloc(MEM_DATA_ALIGN, t->dim_logical[i] * sizeof(long));
+		acc->index_map_blocks[i]        = ct_malloc(t->dim_logical[i] * sizeof(long));
+		acc->index_map_block_entries[i] = ct_malloc(t->dim_logical[i] * sizeof(long));
 
 		construct_logical_to_block_index_maps(
 			t->qnums_logical[i], t->dim_logical[i], t->qnums_blocks[i], t->dim_blocks[i],
@@ -2480,12 +2480,12 @@ void delete_block_sparse_tensor_entry_accessor(struct block_sparse_tensor_entry_
 {
 	for (int i = 0; i < acc->tensor->ndim; i++)
 	{
-		aligned_free(acc->index_map_blocks[i]);
-		aligned_free(acc->index_map_block_entries[i]);
+		ct_free(acc->index_map_blocks[i]);
+		ct_free(acc->index_map_block_entries[i]);
 	}
 
-	aligned_free(acc->index_map_blocks);
-	aligned_free(acc->index_map_block_entries);
+	ct_free(acc->index_map_blocks);
+	ct_free(acc->index_map_block_entries);
 }
 
 
@@ -2496,14 +2496,14 @@ void delete_block_sparse_tensor_entry_accessor(struct block_sparse_tensor_entry_
 void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_accessor* acc, const long* index)
 {
 	// retrieve block
-	long* index_block = aligned_alloc(MEM_DATA_ALIGN, acc->tensor->ndim * sizeof(long));
+	long* index_block = ct_malloc(acc->tensor->ndim * sizeof(long));
 	for (int i = 0; i < acc->tensor->ndim; i++)
 	{
 		assert(0 <= index[i] && index[i] < acc->tensor->dim_logical[i]);
 		index_block[i] = acc->index_map_blocks[i][index[i]];
 	}
 	const long ob = tensor_index_to_offset(acc->tensor->ndim, acc->tensor->dim_blocks, index_block);
-	aligned_free(index_block);
+	ct_free(index_block);
 
 	const struct dense_tensor* block = acc->tensor->blocks[ob];
 	if (block == NULL) {
@@ -2511,13 +2511,13 @@ void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_acces
 		return NULL;
 	}
 
-	long* index_entry = aligned_alloc(MEM_DATA_ALIGN, acc->tensor->ndim * sizeof(long));
+	long* index_entry = ct_malloc(acc->tensor->ndim * sizeof(long));
 	for (int i = 0; i < acc->tensor->ndim; i++)
 	{
 		index_entry[i] = acc->index_map_block_entries[i][index[i]];
 	}
 	const long oe = tensor_index_to_offset(block->ndim, block->dim, index_entry);
-	aligned_free(index_entry);
+	ct_free(index_entry);
 
 	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 	return (int8_t*)block->data + oe * sizeof_numeric_type(acc->tensor->dtype);

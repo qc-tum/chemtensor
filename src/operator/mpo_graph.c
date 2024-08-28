@@ -19,7 +19,7 @@ void mpo_graph_vertex_add_edge(const int direction, const int eid, struct mpo_gr
 
 	if (vertex->num_edges[direction] == 0)
 	{
-		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+		vertex->eids[direction] = ct_malloc(sizeof(int));
 		vertex->eids[direction][0] = eid;
 	}
 	else
@@ -27,9 +27,9 @@ void mpo_graph_vertex_add_edge(const int direction, const int eid, struct mpo_gr
 		// re-allocate memory for indices
 		int* eids_prev = vertex->eids[direction];
 		const int num = vertex->num_edges[direction];
-		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, (num + 1) * sizeof(int));
+		vertex->eids[direction] = ct_malloc((num + 1) * sizeof(int));
 		memcpy(vertex->eids[direction], eids_prev, num * sizeof(int));
-		aligned_free(eids_prev);
+		ct_free(eids_prev);
 		vertex->eids[direction][num] = eid;
 	}
 
@@ -43,8 +43,8 @@ void mpo_graph_vertex_add_edge(const int direction, const int eid, struct mpo_gr
 ///
 static void delete_mpo_graph_vertex(struct mpo_graph_vertex* vertex)
 {
-	aligned_free(vertex->eids[0]);
-	aligned_free(vertex->eids[1]);
+	ct_free(vertex->eids[0]);
+	ct_free(vertex->eids[1]);
 }
 
 
@@ -56,7 +56,7 @@ static void allocate_mpo_graph_edge(const int nopics, struct mpo_graph_edge* edg
 {
 	edge->vids[0] = -1;
 	edge->vids[1] = -1;
-	edge->opics = aligned_calloc(MEM_DATA_ALIGN, nopics, sizeof(struct local_op_ref));
+	edge->opics = ct_calloc(nopics, sizeof(struct local_op_ref));
 	edge->nopics = nopics;
 }
 
@@ -67,7 +67,7 @@ static void allocate_mpo_graph_edge(const int nopics, struct mpo_graph_edge* edg
 ///
 static void delete_mpo_graph_edge(struct mpo_graph_edge* edge)
 {
-	aligned_free(edge->opics);
+	ct_free(edge->opics);
 	edge->nopics = 0;
 }
 
@@ -91,8 +91,8 @@ struct op_halfchain
 ///
 static void allocate_op_halfchain(const int length, struct op_halfchain* chain)
 {
-	chain->oids   = aligned_calloc(MEM_DATA_ALIGN, length, sizeof(int));
-	chain->qnums  = aligned_calloc(MEM_DATA_ALIGN, length + 1, sizeof(qnumber));
+	chain->oids   = ct_calloc(length, sizeof(int));
+	chain->qnums  = ct_calloc(length + 1, sizeof(qnumber));
 	chain->length = length;
 	chain->vidl   = -1;
 }
@@ -117,8 +117,8 @@ static void copy_op_halfchain(const struct op_halfchain* restrict src, struct op
 ///
 static void delete_op_halfchain(struct op_halfchain* chain)
 {
-	aligned_free(chain->qnums);
-	aligned_free(chain->oids);
+	ct_free(chain->qnums);
+	ct_free(chain->oids);
 	chain->length = 0;
 }
 
@@ -260,12 +260,12 @@ struct site_halfchain_partition
 ///
 static void delete_site_halfchain_partition(struct site_halfchain_partition* partition)
 {
-	aligned_free(partition->gamma);
+	ct_free(partition->gamma);
 	for (int j = 0; j < partition->num_v; j++) {
 		delete_op_halfchain(&partition->vlist[j]);
 	}
-	aligned_free(partition->vlist);
-	aligned_free(partition->ulist);
+	ct_free(partition->vlist);
+	ct_free(partition->ulist);
 }
 
 
@@ -277,8 +277,8 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 {
 	memset(partition, 0, sizeof(struct site_halfchain_partition));
 	// upper bound on required memory
-	partition->ulist = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct u_node));
-	partition->vlist = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_halfchain));
+	partition->ulist = ct_calloc(nchains, sizeof(struct u_node));
+	partition->vlist = ct_calloc(nchains, sizeof(struct op_halfchain));
 
 	// use a linked list for intermediate storage of gamma coefficients
 	struct linked_list gamma_list = { 0 };
@@ -301,7 +301,7 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 			// insert node into array
 			memcpy(&partition->ulist[partition->num_u], &u, sizeof(struct u_node));
 			// insert (node, array index) into hash table
-			i = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+			i = ct_malloc(sizeof(int));
 			*i = partition->num_u;
 			hash_table_insert(&u_ht, &u, i);
 			partition->num_u++;
@@ -322,7 +322,7 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 			// insert half-chain into array
 			memcpy(&partition->vlist[partition->num_v], &v, sizeof(struct op_halfchain));
 			// insert (half-chain, array index) into hash table
-			j = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+			j = ct_malloc(sizeof(int));
 			*j = partition->num_v;
 			hash_table_insert(&v_ht, &v, j);
 			partition->num_v++;
@@ -335,7 +335,7 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 		}
 
 		// record gamma coefficient index
-		struct weighted_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct weighted_edge));
+		struct weighted_edge* edge = ct_malloc(sizeof(struct weighted_edge));
 		edge->i = (*i);
 		edge->j = (*j);
 		edge->cid = cids[k];
@@ -343,7 +343,7 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 	}
 
 	// copy entries into final gamma matrix
-	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->num_v, sizeof(int));  // using that CID_ZERO == 0
+	partition->gamma = ct_calloc(partition->num_u*partition->num_v, sizeof(int));  // using that CID_ZERO == 0
 	struct linked_list_node* node = gamma_list.head;
 	while (node != NULL)
 	{
@@ -353,10 +353,10 @@ static void site_partition_halfchains(const struct op_halfchain* chains, const i
 		partition->gamma[edge->i*partition->num_v + edge->j] = edge->cid;
 		node = node->next;
 	}
-	delete_linked_list(&gamma_list, aligned_free);
+	delete_linked_list(&gamma_list, ct_free);
 
-	delete_hash_table(&v_ht, aligned_free);
-	delete_hash_table(&u_ht, aligned_free);
+	delete_hash_table(&v_ht, ct_free);
+	delete_hash_table(&u_ht, ct_free);
 }
 
 
@@ -397,7 +397,7 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 
 	// pad identities and filter out chains with zero coefficients
 	int nhalfchains = 0;
-	struct op_chain* chains_full = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_chain));
+	struct op_chain* chains_full = ct_calloc(nchains, sizeof(struct op_chain));
 	for (int k = 0; k < nchains; k++)
 	{
 		if (chains[k].cid != CID_ZERO)
@@ -411,9 +411,9 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 	assert(nhalfchains > 0);
 
 	// convert to half-chains and add a dummy identity operator
-	struct op_halfchain* vlist_next = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(struct op_halfchain));
-	int* cids_next                  = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(int));
-	hash_type* halfchain_hashes     = aligned_alloc(MEM_DATA_ALIGN, nhalfchains * sizeof(hash_type));
+	struct op_halfchain* vlist_next = ct_malloc(nhalfchains * sizeof(struct op_halfchain));
+	int* cids_next                  = ct_malloc(nhalfchains * sizeof(int));
+	hash_type* halfchain_hashes     = ct_malloc(nhalfchains * sizeof(hash_type));
 	for (int k = 0; k < nhalfchains; k++)
 	{
 		// dummy identity operator at the end
@@ -431,7 +431,7 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 	for (int k = 0; k < nhalfchains; k++) {
 		delete_op_chain(&chains_full[k]);
 	}
-	aligned_free(chains_full);
+	ct_free(chains_full);
 
 	// half-chains must be unique (to avoid repeated bipartite graph edges)
 	qsort(halfchain_hashes, nhalfchains, sizeof(hash_type), compare_hashes);
@@ -441,16 +441,16 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 			return -1;
 		}
 	}
-	aligned_free(halfchain_hashes);
+	ct_free(halfchain_hashes);
 
 	mpo_graph->nsites = nsites;
-	mpo_graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
-	mpo_graph->edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(struct mpo_graph_edge*));
-	mpo_graph->num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
-	mpo_graph->num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,     sizeof(int));
+	mpo_graph->verts     = ct_calloc(nsites + 1, sizeof(struct mpo_graph_vertex*));
+	mpo_graph->edges     = ct_calloc(nsites,     sizeof(struct mpo_graph_edge*));
+	mpo_graph->num_verts = ct_calloc(nsites + 1, sizeof(int));
+	mpo_graph->num_edges = ct_calloc(nsites,     sizeof(int));
 	// left start vertex
 	mpo_graph->num_verts[0] = 1;
-	mpo_graph->verts[0] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct mpo_graph_vertex));
+	mpo_graph->verts[0] = ct_calloc(1, sizeof(struct mpo_graph_vertex));
 
 	// sweep from left to right
 	for (int l = 0; l < nsites; l++)
@@ -467,7 +467,7 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 				}
 			}
 		}
-		struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct bipartite_graph_edge));
+		struct bipartite_graph_edge* edges = ct_malloc(nedges * sizeof(struct bipartite_graph_edge));
 		int c = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.num_v; j++) {
@@ -482,9 +482,9 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 		// construct bipartite graph and find a minimum vertex cover
 		struct bipartite_graph bigraph;
 		init_bipartite_graph(partition.num_u, partition.num_v, edges, nedges, &bigraph);
-		aligned_free(edges);
-		bool* u_cover = aligned_calloc(MEM_DATA_ALIGN, bigraph.num_u, sizeof(bool));
-		bool* v_cover = aligned_calloc(MEM_DATA_ALIGN, bigraph.num_v, sizeof(bool));
+		ct_free(edges);
+		bool* u_cover = ct_calloc(bigraph.num_u, sizeof(bool));
+		bool* v_cover = ct_calloc(bigraph.num_v, sizeof(bool));
 		if (partition.num_v == 1) {
 			// for the special case of a single V vertex, make this the cover vertex
 			// to ensure that coefficients are not passed on beyond last site
@@ -506,20 +506,20 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 			}
 		}
 
-		aligned_free(cids_next);
+		ct_free(cids_next);
 		for (int k = 0; k < nhalfchains; k++) {
 			delete_op_halfchain(&vlist_next[k]);
 		}
-		aligned_free(vlist_next);
+		ct_free(vlist_next);
 		nhalfchains = 0;
 
 		// allocate memory for next iteration, using bipartite graph 'nedges' as upper bound for number of required half-chains
-		vlist_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct op_halfchain));
-		cids_next  = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(int));
+		vlist_next = ct_malloc(nedges * sizeof(struct op_halfchain));
+		cids_next  = ct_malloc(nedges * sizeof(int));
 
 		// using bipartite graph 'nedges' as upper bound for number of required MPO graph edges
-		mpo_graph->edges[l] = aligned_calloc(MEM_DATA_ALIGN, nedges, sizeof(struct mpo_graph_edge));
-		mpo_graph->verts[l + 1] = aligned_calloc(MEM_DATA_ALIGN, num_u_cover + num_v_cover, sizeof(struct mpo_graph_vertex));
+		mpo_graph->edges[l] = ct_calloc(nedges, sizeof(struct mpo_graph_edge));
+		mpo_graph->verts[l + 1] = ct_calloc(num_u_cover + num_v_cover, sizeof(struct mpo_graph_vertex));
 
 		// current edge and vertex counter
 		int ce = 0;
@@ -630,8 +630,8 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 		mpo_graph->num_verts[l + 1] = cv;
 		mpo_graph->num_edges[l]     = ce;
 
-		aligned_free(v_cover);
-		aligned_free(u_cover);
+		ct_free(v_cover);
+		ct_free(u_cover);
 		delete_bipartite_graph(&bigraph);
 		delete_site_halfchain_partition(&partition);
 	}
@@ -639,11 +639,11 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 	// dummy trailing half-chain
 	assert(nhalfchains == 1);
 	assert(cids_next[0] == CID_ONE);
-	aligned_free(cids_next);
+	ct_free(cids_next);
 	for (int k = 0; k < nhalfchains; k++) {
 		delete_op_halfchain(&vlist_next[k]);
 	}
-	aligned_free(vlist_next);
+	ct_free(vlist_next);
 	nhalfchains = 0;
 
 	return 0;
@@ -662,10 +662,10 @@ void delete_mpo_graph(struct mpo_graph* mpo_graph)
 		{
 			delete_mpo_graph_edge(&mpo_graph->edges[l][i]);
 		}
-		aligned_free(mpo_graph->edges[l]);
+		ct_free(mpo_graph->edges[l]);
 	}
-	aligned_free(mpo_graph->edges);
-	aligned_free(mpo_graph->num_edges);
+	ct_free(mpo_graph->edges);
+	ct_free(mpo_graph->num_edges);
 
 	for (int l = 0; l < mpo_graph->nsites + 1; l++)
 	{
@@ -673,10 +673,10 @@ void delete_mpo_graph(struct mpo_graph* mpo_graph)
 		{
 			delete_mpo_graph_vertex(&mpo_graph->verts[l][i]);
 		}
-		aligned_free(mpo_graph->verts[l]);
+		ct_free(mpo_graph->verts[l]);
 	}
-	aligned_free(mpo_graph->verts);
-	aligned_free(mpo_graph->num_verts);
+	ct_free(mpo_graph->verts);
+	ct_free(mpo_graph->num_verts);
 }
 
 
@@ -768,7 +768,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 	struct dense_tensor* blocks[2];
 
 	// initial 1x1 tensor
-	blocks[0] = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct dense_tensor));
+	blocks[0] = ct_malloc(sizeof(struct dense_tensor));
 	const long dim_init[2] = { 1, 1 };
 	allocate_dense_tensor(dtype, 2, dim_init, blocks[0]);
 	dense_tensor_set_identity(blocks[0]);
@@ -776,7 +776,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 	// sweep from left to right
 	for (int l = 0; l < nsites; l++)
 	{
-		blocks[(l + 1) % 2] = aligned_alloc(MEM_DATA_ALIGN, mpo_graph->num_verts[l + 1] * sizeof(struct dense_tensor));
+		blocks[(l + 1) % 2] = ct_malloc(mpo_graph->num_verts[l + 1] * sizeof(struct dense_tensor));
 
 		for (int i = 0; i < mpo_graph->num_verts[l + 1]; i++)
 		{
@@ -812,11 +812,11 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 		{
 			delete_dense_tensor(&blocks[l % 2][i]);
 		}
-		aligned_free(blocks[l % 2]);
+		ct_free(blocks[l % 2]);
 	}
 
 	// final single block contains result
 	assert(mpo_graph->num_verts[nsites] == 1);
 	move_dense_tensor_data(&blocks[nsites % 2][0], mat);
-	aligned_free(blocks[nsites % 2]);
+	ct_free(blocks[nsites % 2]);
 }

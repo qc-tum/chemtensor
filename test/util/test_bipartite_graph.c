@@ -23,7 +23,7 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 	if (get_hdf5_dataset_dims(file, "edges", edge_dims) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
-	struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, edge_dims[0] * sizeof(struct bipartite_graph_edge));
+	struct bipartite_graph_edge* edges = ct_malloc(edge_dims[0] * sizeof(struct bipartite_graph_edge));
 	if (read_hdf5_dataset(file, "edges", H5T_NATIVE_INT, edges) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
@@ -42,7 +42,7 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 		return "reading bipartite graph matching from disk failed";
 	}
 	struct bipartite_graph_matching matching_ref = { .edges = NULL, .nedges = matching_ref_dims[0] };
-	matching_ref.edges = aligned_alloc(MEM_DATA_ALIGN, matching_ref.nedges * sizeof(struct bipartite_graph_edge));
+	matching_ref.edges = ct_malloc(matching_ref.nedges * sizeof(struct bipartite_graph_edge));
 	if (read_hdf5_dataset(file, "matching", H5T_NATIVE_INT, matching_ref.edges) < 0) {
 		return "reading bipartite graph matching from disk failed";
 	}
@@ -58,10 +58,10 @@ char* test_bipartite_graph_maximum_cardinality_matching()
 	}
 
 	// clean up
-	aligned_free(matching.edges);
-	aligned_free(matching_ref.edges);
+	ct_free(matching.edges);
+	ct_free(matching_ref.edges);
 	delete_bipartite_graph(&graph);
-	aligned_free(edges);
+	ct_free(edges);
 
 	H5Fclose(file);
 
@@ -90,7 +90,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 	if (get_hdf5_dataset_dims(file, "edges", edge_dims) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
-	struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, edge_dims[0] * sizeof(struct bipartite_graph_edge));
+	struct bipartite_graph_edge* edges = ct_malloc(edge_dims[0] * sizeof(struct bipartite_graph_edge));
 	if (read_hdf5_dataset(file, "edges", H5T_NATIVE_INT, edges) < 0) {
 		return "reading bipartite graph edges from disk failed";
 	}
@@ -100,13 +100,13 @@ char* test_bipartite_graph_minimum_vertex_cover()
 	init_bipartite_graph(num_u, num_v, edges, edge_dims[0], &graph);
 
 	// determine minimum vertex cover
-	bool* u_cover_indicator = aligned_alloc(MEM_DATA_ALIGN, graph.num_u * sizeof(bool));
-	bool* v_cover_indicator = aligned_alloc(MEM_DATA_ALIGN, graph.num_v * sizeof(bool));
+	bool* u_cover_indicator = ct_malloc(graph.num_u * sizeof(bool));
+	bool* v_cover_indicator = ct_malloc(graph.num_v * sizeof(bool));
 	bipartite_graph_minimum_vertex_cover(&graph, u_cover_indicator, v_cover_indicator);
 
 	// convert to vertex lists
 	int num_u_cover = 0;
-	int* u_cover = aligned_alloc(MEM_DATA_ALIGN, graph.num_u * sizeof(int));
+	int* u_cover = ct_malloc(graph.num_u * sizeof(int));
 	for (int u = 0; u < graph.num_u; u++) {
 		if (u_cover_indicator[u]) {
 			u_cover[num_u_cover] = u;
@@ -114,7 +114,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 		}
 	}
 	int num_v_cover = 0;
-	int* v_cover = aligned_alloc(MEM_DATA_ALIGN, graph.num_v * sizeof(int));
+	int* v_cover = ct_malloc(graph.num_v * sizeof(int));
 	for (int v = 0; v < graph.num_v; v++) {
 		if (v_cover_indicator[v]) {
 			v_cover[num_v_cover] = v;
@@ -127,7 +127,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 	if (get_hdf5_dataset_dims(file, "u_cover", &num_u_cover_ref) < 0) {
 		return "reading bipartite graph 'U' cover vertices from disk failed";
 	}
-	int* u_cover_ref = aligned_alloc(MEM_DATA_ALIGN, num_u_cover_ref * sizeof(int));
+	int* u_cover_ref = ct_malloc(num_u_cover_ref * sizeof(int));
 	if (read_hdf5_dataset(file, "u_cover", H5T_NATIVE_INT, u_cover_ref) < 0) {
 		return "reading bipartite graph 'U' cover vertices from disk failed";
 	}
@@ -135,7 +135,7 @@ char* test_bipartite_graph_minimum_vertex_cover()
 	if (get_hdf5_dataset_dims(file, "v_cover", &num_v_cover_ref) < 0) {
 		return "reading bipartite graph 'V' cover vertices from disk failed";
 	}
-	int* v_cover_ref = aligned_alloc(MEM_DATA_ALIGN, num_v_cover_ref * sizeof(int));
+	int* v_cover_ref = ct_malloc(num_v_cover_ref * sizeof(int));
 	if (read_hdf5_dataset(file, "v_cover", H5T_NATIVE_INT, v_cover_ref) < 0) {
 		return "reading bipartite graph 'V' cover vertices from disk failed";
 	}
@@ -159,14 +159,14 @@ char* test_bipartite_graph_minimum_vertex_cover()
 	}
 
 	// clean up
-	aligned_free(v_cover_ref);
-	aligned_free(u_cover_ref);
-	aligned_free(v_cover);
-	aligned_free(u_cover);
-	aligned_free(v_cover_indicator);
-	aligned_free(u_cover_indicator);
+	ct_free(v_cover_ref);
+	ct_free(u_cover_ref);
+	ct_free(v_cover);
+	ct_free(u_cover);
+	ct_free(v_cover_indicator);
+	ct_free(u_cover_indicator);
 	delete_bipartite_graph(&graph);
-	aligned_free(edges);
+	ct_free(edges);
 
 	H5Fclose(file);
 

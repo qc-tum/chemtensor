@@ -80,7 +80,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 	assert(w->dtype == a_start->dtype);
 
 	const int n = block_sparse_tensor_num_elements_blocks(a_start);
-	void* vstart = aligned_alloc(MEM_DATA_ALIGN, n * sizeof_numeric_type(a_start->dtype));
+	void* vstart = ct_malloc(n * sizeof_numeric_type(a_start->dtype));
 	block_sparse_tensor_serialize_entries(a_start, vstart);
 
 	// using 'a_opt' as temporary tensor for iterations
@@ -88,7 +88,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 
 	struct local_hamiltonian_data hdata = { .w = w, .l = l, .r = r, .a = a_opt };
 
-	void* u_opt = aligned_alloc(MEM_DATA_ALIGN, n * sizeof_numeric_type(a_start->dtype));
+	void* u_opt = ct_malloc(n * sizeof_numeric_type(a_start->dtype));
 
 	switch (a_start->dtype)
 	{
@@ -129,8 +129,8 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 
 	block_sparse_tensor_deserialize_entries(a_opt, u_opt);
 
-	aligned_free(u_opt);
-	aligned_free(vstart);
+	ct_free(u_opt);
+	ct_free(vstart);
 
 	return 0;
 }
@@ -158,8 +158,8 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 	}
 
 	// left and right operator blocks
-	struct block_sparse_tensor* lblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
-	struct block_sparse_tensor* rblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* lblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* rblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
 	compute_right_operator_blocks(psi, psi, hamiltonian, rblocks);
 	create_dummy_operator_block_left(&psi->a[0], &psi->a[0], &hamiltonian->a[0], &lblocks[0]);
 	for (int i = 1; i < nsites; i++) {
@@ -236,8 +236,8 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 		delete_block_sparse_tensor(&rblocks[i]);
 		delete_block_sparse_tensor(&lblocks[i]);
 	}
-	aligned_free(rblocks);
-	aligned_free(lblocks);
+	ct_free(rblocks);
+	ct_free(lblocks);
 
 	return 0;
 }
@@ -266,8 +266,8 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 	}
 
 	// left and right operator blocks
-	struct block_sparse_tensor* lblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
-	struct block_sparse_tensor* rblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* lblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* rblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
 	compute_right_operator_blocks(psi, psi, hamiltonian, rblocks);
 	create_dummy_operator_block_left(&psi->a[0], &psi->a[0], &hamiltonian->a[0], &lblocks[0]);
 	for (int i = 1; i < nsites; i++) {
@@ -275,7 +275,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 	}
 
 	// precompute merged neighboring Hamiltonian MPO tensors
-	struct block_sparse_tensor* h2 = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* h2 = ct_malloc((nsites - 1) * sizeof(struct block_sparse_tensor));
 	for (int i = 0; i < nsites - 1; i++) {
 		mpo_merge_tensor_pair(&hamiltonian->a[i], &hamiltonian->a[i + 1], &h2[i]);
 	}
@@ -375,14 +375,14 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 	{
 		delete_block_sparse_tensor(&h2[i]);
 	}
-	aligned_free(h2);
+	ct_free(h2);
 	for (int i = 0; i < nsites; i++)
 	{
 		delete_block_sparse_tensor(&rblocks[i]);
 		delete_block_sparse_tensor(&lblocks[i]);
 	}
-	aligned_free(rblocks);
-	aligned_free(lblocks);
+	ct_free(rblocks);
+	ct_free(lblocks);
 
 	return 0;
 }

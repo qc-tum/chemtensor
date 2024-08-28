@@ -17,17 +17,17 @@ char* test_mps_vdot()
 	const long d = 3;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
 
 	// virtual bond quantum numbers for 'psi'
 	const long dim_bonds_psi[5] = { 1, 13, 17, 8, 1 };
-	qnumber** qbonds_psi = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds_psi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds_psi[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_psi[i] * sizeof(qnumber));
+		qbonds_psi[i] = ct_malloc(dim_bonds_psi[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond_psi_%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_psi[i]) < 0) {
@@ -37,10 +37,10 @@ char* test_mps_vdot()
 
 	// virtual bond quantum numbers for 'chi'
 	const long dim_bonds_chi[5] = { 1, 15, 20, 11, 1 };
-	qnumber** qbonds_chi = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds_chi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds_chi[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds_chi[i] * sizeof(qnumber));
+		qbonds_chi[i] = ct_malloc(dim_bonds_chi[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond_chi_%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds_chi[i]) < 0) {
@@ -114,12 +114,12 @@ char* test_mps_vdot()
 	delete_mps(&psi);
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		aligned_free(qbonds_chi[i]);
-		aligned_free(qbonds_psi[i]);
+		ct_free(qbonds_chi[i]);
+		ct_free(qbonds_psi[i]);
 	}
-	aligned_free(qbonds_chi);
-	aligned_free(qbonds_psi);
-	aligned_free(qsite);
+	ct_free(qbonds_chi);
+	ct_free(qbonds_psi);
+	ct_free(qsite);
 
 	H5Fclose(file);
 
@@ -140,17 +140,17 @@ char* test_mps_orthonormalize_qr()
 	const long d = 3;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
 
 	// virtual bond quantum numbers
 	const long dim_bonds[7] = { 1, 4, 11, 9, 7, 3, 1 };
-	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
@@ -250,10 +250,10 @@ char* test_mps_orthonormalize_qr()
 
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		aligned_free(qbonds[i]);
+		ct_free(qbonds[i]);
 	}
-	aligned_free(qbonds);
-	aligned_free(qsite);
+	ct_free(qbonds);
+	ct_free(qsite);
 
 	H5Fclose(file);
 
@@ -274,17 +274,17 @@ char* test_mps_compress()
 	const long d = 3;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
 
 	// virtual bond quantum numbers
 	const long dim_bonds[7] = { 1, 23, 75, 102, 83, 30, 1 };
-	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
@@ -336,7 +336,7 @@ char* test_mps_compress()
 			const double tol_compress = (j == 0 ? 0. : 1e-4);
 			double norm;
 			double scale;
-			struct trunc_info* info = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct trunc_info));
+			struct trunc_info* info = ct_calloc(nsites, sizeof(struct trunc_info));
 			if (mps_compress(tol_compress, max_vdim, m == 0 ? MPS_ORTHONORMAL_LEFT : MPS_ORTHONORMAL_RIGHT, &mps, &norm, &scale, info) < 0) {
 				return "'mps_compress' failed internally";
 			}
@@ -392,7 +392,7 @@ char* test_mps_compress()
 				return "vector representation of MPS after compression is not close to original state vector";
 			}
 
-			aligned_free(info);
+			ct_free(info);
 			delete_block_sparse_tensor(&vec_ref);
 			delete_block_sparse_tensor(&vec);
 			delete_mps(&mps);
@@ -401,10 +401,10 @@ char* test_mps_compress()
 
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		aligned_free(qbonds[i]);
+		ct_free(qbonds[i]);
 	}
-	aligned_free(qbonds);
-	aligned_free(qsite);
+	ct_free(qbonds);
+	ct_free(qsite);
 
 	H5Fclose(file);
 
@@ -429,7 +429,7 @@ char* test_mps_split_tensor_svd()
 	qnumber* qsite[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qsite[i] = aligned_alloc(MEM_DATA_ALIGN, d[i] * sizeof(qnumber));
+		qsite[i] = ct_malloc(d[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qsite%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qsite[i]) < 0) {
@@ -437,7 +437,7 @@ char* test_mps_split_tensor_svd()
 		}
 	}
 	// flattened quantum numbers
-	qnumber* qsite_flat = aligned_alloc(MEM_DATA_ALIGN, d[0] * d[1] * sizeof(qnumber));
+	qnumber* qsite_flat = ct_malloc(d[0] * d[1] * sizeof(qnumber));
 	for (long i = 0; i < d[0]; i++)
 	{
 		for (long j = 0; j < d[1]; j++)
@@ -450,7 +450,7 @@ char* test_mps_split_tensor_svd()
 	qnumber* qbonds[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbonds%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
@@ -534,10 +534,10 @@ char* test_mps_split_tensor_svd()
 	delete_block_sparse_tensor(&a_pair);
 	for (int i = 0; i < 2; i++)
 	{
-		aligned_free(qbonds[i]);
-		aligned_free(qsite[i]);
+		ct_free(qbonds[i]);
+		ct_free(qsite[i]);
 	}
-	aligned_free(qsite_flat);
+	ct_free(qsite_flat);
 
 	H5Fclose(file);
 
@@ -558,17 +558,17 @@ char* test_mps_to_statevector()
 	const long d = 3;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
 
 	// virtual bond quantum numbers
 	const long dim_bonds[6] = { 1, 7, 10, 11, 5, 1 };
-	qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+		qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qbond%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
@@ -633,10 +633,10 @@ char* test_mps_to_statevector()
 	delete_mps(&mps);
 	for (int i = 0; i < nsites + 1; i++)
 	{
-		aligned_free(qbonds[i]);
+		ct_free(qbonds[i]);
 	}
-	aligned_free(qbonds);
-	aligned_free(qsite);
+	ct_free(qbonds);
+	ct_free(qsite);
 
 	H5Fclose(file);
 

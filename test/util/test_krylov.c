@@ -40,20 +40,20 @@ char* test_lanczos_iteration_d()
 	const int maxiter = 24;
 
 	// load 'a' matrix from disk
-	double* a = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(double));
+	double* a = ct_malloc(n*n * sizeof(double));
 	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
-	double* vstart = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* vstart = ct_malloc(n * sizeof(double));
 	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
-	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	double* v     = aligned_alloc(MEM_DATA_ALIGN, n*maxiter     * sizeof(double));
+	double* alpha = ct_malloc(maxiter       * sizeof(double));
+	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));
+	double* v     = ct_malloc(n*maxiter     * sizeof(double));
 
 	// perform Lanczos iteration
 	int numiter;
@@ -64,9 +64,9 @@ char* test_lanczos_iteration_d()
 	}
 
 	// load reference data from disk
-	double* alpha_ref = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta_ref  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	double* v_ref     = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(double));
+	double* alpha_ref = ct_malloc(maxiter       * sizeof(double));
+	double* beta_ref  = ct_malloc((maxiter - 1) * sizeof(double));
+	double* v_ref     = ct_malloc(maxiter*n     * sizeof(double));
 	if (read_hdf5_dataset(file, "alpha", H5T_NATIVE_DOUBLE, alpha_ref) < 0) {
 		return "reading 'alpha' vector from disk failed";
 	}
@@ -89,14 +89,14 @@ char* test_lanczos_iteration_d()
 	}
 
 	// clean up
-	aligned_free(v_ref);
-	aligned_free(beta_ref);
-	aligned_free(alpha_ref);
-	aligned_free(v);
-	aligned_free(beta);
-	aligned_free(alpha);
-	aligned_free(vstart);
-	aligned_free(a);
+	ct_free(v_ref);
+	ct_free(beta_ref);
+	ct_free(alpha_ref);
+	ct_free(v);
+	ct_free(beta);
+	ct_free(alpha);
+	ct_free(vstart);
+	ct_free(a);
 
 	H5Fclose(file);
 
@@ -118,20 +118,20 @@ char* test_lanczos_iteration_z()
 	const int maxiter = 24;
 
 	// load 'a' matrix from disk
-	dcomplex* a = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(dcomplex));
+	dcomplex* a = ct_malloc(n*n * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
-	dcomplex* vstart = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(dcomplex));
+	dcomplex* vstart = ct_malloc(n * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
-	double* alpha = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	dcomplex* v   = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(dcomplex));
+	double* alpha = ct_malloc(maxiter       * sizeof(double));
+	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));
+	dcomplex* v   = ct_malloc(maxiter*n     * sizeof(dcomplex));
 
 	// perform Lanczos iteration
 	int numiter;
@@ -142,9 +142,9 @@ char* test_lanczos_iteration_z()
 	}
 
 	// load reference data from disk
-	double* alpha_ref = aligned_alloc(MEM_DATA_ALIGN, maxiter       * sizeof(double));
-	double* beta_ref  = aligned_alloc(MEM_DATA_ALIGN, (maxiter - 1) * sizeof(double));
-	dcomplex* v_ref   = aligned_alloc(MEM_DATA_ALIGN, maxiter*n     * sizeof(dcomplex));
+	double* alpha_ref = ct_malloc(maxiter       * sizeof(double));
+	double* beta_ref  = ct_malloc((maxiter - 1) * sizeof(double));
+	dcomplex* v_ref   = ct_malloc(maxiter*n     * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "alpha", H5T_NATIVE_DOUBLE, alpha_ref) < 0) {
 		return "reading 'alpha' vector from disk failed";
 	}
@@ -167,14 +167,14 @@ char* test_lanczos_iteration_z()
 	}
 
 	// clean up
-	aligned_free(v_ref);
-	aligned_free(beta_ref);
-	aligned_free(alpha_ref);
-	aligned_free(v);
-	aligned_free(beta);
-	aligned_free(alpha);
-	aligned_free(vstart);
-	aligned_free(a);
+	ct_free(v_ref);
+	ct_free(beta_ref);
+	ct_free(alpha_ref);
+	ct_free(v);
+	ct_free(beta);
+	ct_free(alpha);
+	ct_free(vstart);
+	ct_free(a);
 
 	H5Fclose(file);
 
@@ -199,27 +199,27 @@ char* test_eigensystem_krylov_symmetric()
 	const int numeig = 5;
 
 	// load 'a' matrix from disk
-	double* a = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(double));
+	double* a = ct_malloc(n*n * sizeof(double));
 	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
-	double* vstart = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* vstart = ct_malloc(n * sizeof(double));
 	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
-	double* lambda = aligned_alloc(MEM_DATA_ALIGN, numeig   * sizeof(double));
-	double* u_ritz = aligned_alloc(MEM_DATA_ALIGN, n*numeig * sizeof(double));
+	double* lambda = ct_malloc(numeig   * sizeof(double));
+	double* u_ritz = ct_malloc(n*numeig * sizeof(double));
 	int ret = eigensystem_krylov_symmetric(n, multiply_matrix_vector_d, a, vstart, maxiter, numeig, lambda, u_ritz);
 	if (ret < 0) {
 		return "'eigensystem_krylov_symmetric' failed internally";
 	}
 
 	// load reference data from disk
-	double* lambda_ref = aligned_alloc(MEM_DATA_ALIGN, numeig   * sizeof(double));
-	double* u_ritz_ref = aligned_alloc(MEM_DATA_ALIGN, n*numeig * sizeof(double));
+	double* lambda_ref = ct_malloc(numeig   * sizeof(double));
+	double* u_ritz_ref = ct_malloc(n*numeig * sizeof(double));
 	if (read_hdf5_dataset(file, "lambda", H5T_NATIVE_DOUBLE, lambda_ref) < 0) {
 		return "reading Ritz eigenvalues from disk failed";
 	}
@@ -252,12 +252,12 @@ char* test_eigensystem_krylov_symmetric()
 		return "Ritz eigenvectors do not match reference";
 	}
 
-	aligned_free(u_ritz_ref);
-	aligned_free(lambda_ref);
-	aligned_free(u_ritz);
-	aligned_free(lambda);
-	aligned_free(vstart);
-	aligned_free(a);
+	ct_free(u_ritz_ref);
+	ct_free(lambda_ref);
+	ct_free(u_ritz);
+	ct_free(lambda);
+	ct_free(vstart);
+	ct_free(a);
 
 	H5Fclose(file);
 
@@ -282,27 +282,27 @@ char* test_eigensystem_krylov_hermitian()
 	const int numeig = 6;
 
 	// load 'a' matrix from disk
-	dcomplex* a = aligned_alloc(MEM_DATA_ALIGN, n*n * sizeof(dcomplex));
+	dcomplex* a = ct_malloc(n*n * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
-	dcomplex* vstart = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(dcomplex));
+	dcomplex* vstart = ct_malloc(n * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
-	double* lambda   = aligned_alloc(MEM_DATA_ALIGN, numeig   * sizeof(double));
-	dcomplex* u_ritz = aligned_alloc(MEM_DATA_ALIGN, n*numeig * sizeof(dcomplex));
+	double* lambda   = ct_malloc(numeig   * sizeof(double));
+	dcomplex* u_ritz = ct_malloc(n*numeig * sizeof(dcomplex));
 	int ret = eigensystem_krylov_hermitian(n, multiply_matrix_vector_z, a, vstart, maxiter, numeig, lambda, u_ritz);
 	if (ret < 0) {
 		return "'eigensystem_krylov_hermitian' failed internally";
 	}
 
 	// load reference data from disk
-	double*   lambda_ref = aligned_alloc(MEM_DATA_ALIGN, numeig   * sizeof(double));
-	dcomplex* u_ritz_ref = aligned_alloc(MEM_DATA_ALIGN, n*numeig * sizeof(dcomplex));
+	double*   lambda_ref = ct_malloc(numeig   * sizeof(double));
+	dcomplex* u_ritz_ref = ct_malloc(n*numeig * sizeof(dcomplex));
 	if (read_hdf5_dataset(file, "lambda", H5T_NATIVE_DOUBLE, lambda_ref) < 0) {
 		return "reading Ritz eigenvalues from disk failed";
 	}
@@ -335,12 +335,12 @@ char* test_eigensystem_krylov_hermitian()
 		return "Ritz eigenvectors do not match reference";
 	}
 
-	aligned_free(u_ritz_ref);
-	aligned_free(lambda_ref);
-	aligned_free(u_ritz);
-	aligned_free(lambda);
-	aligned_free(vstart);
-	aligned_free(a);
+	ct_free(u_ritz_ref);
+	ct_free(lambda_ref);
+	ct_free(u_ritz);
+	ct_free(lambda);
+	ct_free(vstart);
+	ct_free(a);
 
 	H5Fclose(file);
 

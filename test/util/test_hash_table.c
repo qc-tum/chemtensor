@@ -60,7 +60,7 @@ char* test_hash_table()
 	const short static_vals[9] = { 7, 4, -5, 64, 25, -1, 73, -2, 23 };
 	short* vals[9];
 	for (int i = 0; i < 9; i++) {
-		vals[i] = aligned_alloc(MEM_DATA_ALIGN, sizeof(short));
+		vals[i] = ct_malloc(sizeof(short));
 		*vals[i] = static_vals[i];
 	}
 
@@ -114,19 +114,19 @@ char* test_hash_table()
 	if (*pval != static_vals[1]) {
 		return "returned value after removing key from hash table does not match expected value";
 	}
-	aligned_free(pval);
+	ct_free(pval);
 	if (ht.num_entries != 5) {
 		return "incorrect number of entry counter in hash table";
 	}
 
 	// re-insert third key
-	short* val2_2 = aligned_alloc(MEM_DATA_ALIGN, sizeof(short));
+	short* val2_2 = ct_malloc(sizeof(short));
 	*val2_2 = -6;
 	pval = hash_table_insert(&ht, &keys[2], val2_2);
 	if (*pval != static_vals[2]) {
 		return "re-inserting a key should return previous value";
 	}
-	aligned_free(pval);
+	ct_free(pval);
 	// ensure that hash table actually stores new value
 	pval = hash_table_get(&ht, &keys[2]);
 	if (*pval != *val2_2) {
@@ -145,7 +145,7 @@ char* test_hash_table()
 		return "retrieved value from hash table does not match expected value";
 	}
 
-	delete_hash_table(&ht, aligned_free);
+	delete_hash_table(&ht, ct_free);
 
 	return 0;
 }

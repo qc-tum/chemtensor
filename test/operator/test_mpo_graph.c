@@ -72,7 +72,7 @@ char* test_mpo_graph_from_opchains_basic()
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
-	struct dense_tensor* opmap = aligned_alloc(MEM_DATA_ALIGN, num_local_ops * sizeof(struct dense_tensor));
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
@@ -126,7 +126,7 @@ char* test_mpo_graph_from_opchains_basic()
 	{
 		delete_dense_tensor(&opmap[i]);
 	}
-	aligned_free(opmap);
+	ct_free(opmap);
 	delete_mpo_graph(&mpo_graph);
 
 	H5Fclose(file);
@@ -150,7 +150,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	const long dim_full = ipow(d, nsites);
 
 	const int nchains = 7;
-	struct op_chain* chains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
+	struct op_chain* chains = ct_malloc(nchains * sizeof(struct op_chain));
 	for (int i = 0; i < nchains; i++)
 	{
 		char varname[1024];
@@ -208,7 +208,7 @@ char* test_mpo_graph_from_opchains_advanced()
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
-	struct dense_tensor* opmap = aligned_alloc(MEM_DATA_ALIGN, num_local_ops * sizeof(struct dense_tensor));
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
@@ -219,7 +219,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	delete_dense_tensor(&opmap_tensor);
 
 	// coefficient map
-	scomplex* coeffmap = aligned_alloc(MEM_DATA_ALIGN, 8 * sizeof(scomplex));
+	scomplex* coeffmap = ct_malloc(8 * sizeof(scomplex));
 	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
@@ -247,15 +247,15 @@ char* test_mpo_graph_from_opchains_advanced()
 
 	delete_dense_tensor(&a_chains);
 	delete_dense_tensor(&a);
-	aligned_free(coeffmap);
+	ct_free(coeffmap);
 	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}
-	aligned_free(opmap);
+	ct_free(opmap);
 	for (int i = 0; i < nchains; i++) {
 		delete_op_chain(&chains[i]);
 	}
-	aligned_free(chains);
+	ct_free(chains);
 	delete_mpo_graph(&mpo_graph);
 
 	H5Fclose(file);

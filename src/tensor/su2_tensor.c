@@ -24,7 +24,7 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 
 	// irreducible 'j' quantum numbers on outer axes
 	const int ndim_outer = ndim_logical + ndim_auxiliary;
-	t->outer_jlists = aligned_alloc(MEM_DATA_ALIGN, ndim_outer * sizeof(struct su2_irreducible_list));
+	t->outer_jlists = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
 	for (int i = 0; i < ndim_outer; i++) {
 		copy_su2_irreducible_list(&outer_jlists[i], &t->outer_jlists[i]);
 	}
@@ -32,7 +32,7 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 	su2_fuse_split_tree_enumerate_charge_sectors(&t->tree, t->outer_jlists, &t->charge_sectors);
 
 	// degeneracy tensors
-	t->dim_degen = aligned_alloc(MEM_DATA_ALIGN, t->ndim_logical * sizeof(long*));
+	t->dim_degen = ct_malloc(t->ndim_logical * sizeof(long*));
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
 		assert(t->outer_jlists[i].num > 0);
@@ -40,24 +40,24 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 		for (int k = 0; k < t->outer_jlists[i].num; k++) {
 			j_max = imax(j_max, t->outer_jlists[i].jlist[k]);
 		}
-		t->dim_degen[i] = aligned_alloc(MEM_DATA_ALIGN, (j_max + 1) * sizeof(long));
+		t->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(long));
 		memcpy(t->dim_degen[i], dim_degen[i], (j_max + 1) * sizeof(long));
 	}
-	t->degensors = aligned_alloc(MEM_DATA_ALIGN, t->charge_sectors.nsec * sizeof(struct dense_tensor*));
+	t->degensors = ct_malloc(t->charge_sectors.nsec * sizeof(struct dense_tensor*));
 	for (long c = 0; c < t->charge_sectors.nsec; c++)
 	{
 		// current 'j' quantum numbers
 		const qnumber* jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
 		// dimension of degeneracy tensor
-		long* dim_d = aligned_alloc(MEM_DATA_ALIGN, t->ndim_logical * sizeof(long));
+		long* dim_d = ct_malloc(t->ndim_logical * sizeof(long));
 		for (int i = 0; i < t->ndim_logical; i++) {
 			const qnumber j = jlist[i];
 			assert(t->dim_degen[i][j] > 0);
 			dim_d[i] = t->dim_degen[i][j];
 		}
-		t->degensors[c] = aligned_calloc(MEM_DATA_ALIGN, 1, sizeof(struct dense_tensor));
+		t->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
 		allocate_dense_tensor(t->dtype, t->ndim_logical, dim_d, t->degensors[c]);
-		aligned_free(dim_d);
+		ct_free(dim_d);
 	}
 }
 
@@ -72,15 +72,15 @@ void delete_su2_tensor(struct su2_tensor* t)
 	for (long c = 0; c < t->charge_sectors.nsec; c++)
 	{
 		delete_dense_tensor(t->degensors[c]);
-		aligned_free(t->degensors[c]);
+		ct_free(t->degensors[c]);
 	}
-	aligned_free(t->degensors);
+	ct_free(t->degensors);
 	t->degensors = NULL;
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
-		aligned_free(t->dim_degen[i]);
+		ct_free(t->dim_degen[i]);
 	}
-	aligned_free(t->dim_degen);
+	ct_free(t->dim_degen);
 	t->dim_degen = NULL;
 
 	delete_charge_sectors(&t->charge_sectors);
@@ -89,7 +89,7 @@ void delete_su2_tensor(struct su2_tensor* t)
 	for (int i = 0; i < ndim_outer; i++) {
 		delete_su2_irreducible_list(&t->outer_jlists[i]);
 	}
-	aligned_free(t->outer_jlists);
+	ct_free(t->outer_jlists);
 	t->outer_jlists = NULL;
 
 	delete_su2_fuse_split_tree(&t->tree);
@@ -336,10 +336,10 @@ static inline void next_quantum_index(const int ndim, const int* restrict dim, i
 void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tensor* restrict t)
 {
 	// start of 'j' charge sector entries, along each logical axis
-	long** sector_offsets = aligned_alloc(MEM_DATA_ALIGN, s->ndim_logical * sizeof(long*));
+	long** sector_offsets = ct_malloc(s->ndim_logical * sizeof(long*));
 
 	// logical dimensions of dense tensor
-	long* dim_t = aligned_calloc(MEM_DATA_ALIGN, s->ndim_logical, sizeof(long));
+	long* dim_t = ct_calloc(s->ndim_logical, sizeof(long));
 
 	for (int i = 0; i < s->ndim_logical; i++)
 	{
@@ -348,7 +348,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		for (int k = 0; k < s->outer_jlists[i].num; k++) {
 			j_max = imax(j_max, s->outer_jlists[i].jlist[k]);
 		}
-		sector_offsets[i] = aligned_calloc(MEM_DATA_ALIGN, j_max + 1, sizeof(long));
+		sector_offsets[i] = ct_calloc(j_max + 1, sizeof(long));
 		for (int k = 0; k < s->outer_jlists[i].num; k++)
 		{
 			const qnumber j = s->outer_jlists[i].jlist[k];
@@ -360,7 +360,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 
 	// allocate dense tensor
 	allocate_dense_tensor(s->dtype, s->ndim_logical, dim_t, t);
-	aligned_free(dim_t);
+	ct_free(dim_t);
 
 	// number of outer dimensions, i.e., number of leaves
 	const int ndim_outer = s->ndim_logical + s->ndim_auxiliary;
@@ -377,7 +377,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		const qnumber* jlist = &s->charge_sectors.jlists[c * s->charge_sectors.ndim];
 
 		// dimensions of outer 'm' quantum numbers (defined on leaves)
-		int* dim_m_outer = aligned_alloc(MEM_DATA_ALIGN, ndim_outer * sizeof(int));
+		int* dim_m_outer = ct_malloc(ndim_outer * sizeof(int));
 		int nconfigs = 1;
 		for (int k = 0; k < ndim_outer; k++) {
 			dim_m_outer[k] = jlist[k] + 1;
@@ -385,7 +385,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		}
 
 		// iterate over outer 'm' quantum numbers; auxiliary 'm' quantum numbers are traced out
-		int* im_outer = aligned_calloc(MEM_DATA_ALIGN, ndim_outer, sizeof(int));
+		int* im_outer = ct_calloc(ndim_outer, sizeof(int));
 		for (int k = 0; k < nconfigs; k++, next_quantum_index(ndim_outer, dim_m_outer, im_outer))
 		{
 			// evaluate Clebsch-Gordan coefficients of tree nodes
@@ -394,11 +394,11 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 				continue;
 			}
 
-			long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
+			long* index_t = ct_calloc(t->ndim, sizeof(long));
 
 			// distribute degeneracy tensor entries multiplied by Clebsch-Gordan factor
 			const long nelem_d = dense_tensor_num_elements(d);
-			long* index_d = aligned_calloc(MEM_DATA_ALIGN, d->ndim, sizeof(long));
+			long* index_d = ct_calloc(d->ndim, sizeof(long));
 			for (long l = 0; l < nelem_d; l++, next_tensor_index(d->ndim, d->dim, index_d))
 			{
 				// index in 't' tensor
@@ -448,16 +448,16 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 				}
 			}
 
-			aligned_free(index_d);
-			aligned_free(index_t);
+			ct_free(index_d);
+			ct_free(index_t);
 		}
 
-		aligned_free(im_outer);
-		aligned_free(dim_m_outer);
+		ct_free(im_outer);
+		ct_free(dim_m_outer);
 	}
 
 	for (int i = 0; i < s->ndim_logical; i++) {
-		aligned_free(sector_offsets[i]);
+		ct_free(sector_offsets[i]);
 	}
-	aligned_free(sector_offsets);
+	ct_free(sector_offsets);
 }

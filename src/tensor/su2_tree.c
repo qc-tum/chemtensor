@@ -16,7 +16,7 @@
 void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su2_irreducible_list* dst)
 {
 	dst->num = src->num;
-	dst->jlist = aligned_alloc(MEM_DATA_ALIGN, src->num * sizeof(qnumber));
+	dst->jlist = ct_malloc(src->num * sizeof(qnumber));
 	memcpy(dst->jlist, src->jlist, src->num * sizeof(qnumber));
 }
 
@@ -27,7 +27,7 @@ void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su
 ///
 void delete_su2_irreducible_list(struct su2_irreducible_list* list)
 {
-	aligned_free(list->jlist);
+	ct_free(list->jlist);
 	list->num = 0;
 }
 
@@ -38,7 +38,7 @@ void delete_su2_irreducible_list(struct su2_irreducible_list* list)
 ///
 void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors)
 {
-	sectors->jlists = aligned_alloc(MEM_DATA_ALIGN, nsec * ndim * sizeof(qnumber));
+	sectors->jlists = ct_malloc(nsec * ndim * sizeof(qnumber));
 	sectors->nsec = nsec;
 	sectors->ndim = ndim;
 }
@@ -50,7 +50,7 @@ void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sect
 ///
 void delete_charge_sectors(struct charge_sectors* sectors)
 {
-	aligned_free(sectors->jlists);
+	ct_free(sectors->jlists);
 	sectors->nsec = 0;
 }
 
@@ -68,8 +68,8 @@ void copy_su2_tree(const struct su2_tree_node* src, struct su2_tree_node* dst)
 	if (src->c[0] != NULL)
 	{
 		assert(src->c[1] != NULL);
-		dst->c[0] = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
-		dst->c[1] = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+		dst->c[0] = ct_malloc(sizeof(struct su2_tree_node));
+		dst->c[1] = ct_malloc(sizeof(struct su2_tree_node));
 		copy_su2_tree(src->c[0], dst->c[0]);
 		copy_su2_tree(src->c[1], dst->c[1]);
 	}
@@ -97,8 +97,8 @@ void delete_su2_tree(struct su2_tree_node* tree)
 		delete_su2_tree(tree->c[0]);
 		delete_su2_tree(tree->c[1]);
 
-		aligned_free(tree->c[0]);
-		aligned_free(tree->c[1]);
+		ct_free(tree->c[0]);
+		ct_free(tree->c[1]);
 		tree->c[0] = NULL;
 		tree->c[1] = NULL;
 	}
@@ -262,7 +262,7 @@ double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnum
 	const qnumber j2 = jlist[tree->c[1]->i_ax];
 	const qnumber j3 = jlist[tree->i_ax];
 
-	double* e2_list = aligned_alloc(MEM_DATA_ALIGN, (j2 + 1) * sizeof(double));
+	double* e2_list = ct_malloc((j2 + 1) * sizeof(double));
 	for (int im2 = 0; im2 <= j2; im2++) {
 		e2_list[im2] = su2_tree_eval_clebsch_gordan(tree->c[1], jlist, im_leaves, im2);
 	}
@@ -285,7 +285,7 @@ double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnum
 		}
 	}
 
-	aligned_free(e2_list);
+	ct_free(e2_list);
 
 	return v;
 }
@@ -373,7 +373,7 @@ static bool su2_tree_next_charge_sector(const struct su2_tree_node** ordered_nod
 ///
 static void* allocate_copy(const void* data, const size_t size)
 {
-	void* p = aligned_alloc(MEM_DATA_ALIGN, size);
+	void* p = ct_malloc(size);
 	memcpy(p, data, size);
 	return p;
 }
@@ -391,7 +391,7 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 
 	const int num_nodes = su2_tree_num_nodes(tree);
 
-	const struct su2_tree_node** ordered_nodes = aligned_alloc(MEM_DATA_ALIGN, num_nodes * sizeof(struct su2_tree_node*));
+	const struct su2_tree_node** ordered_nodes = ct_malloc(num_nodes * sizeof(struct su2_tree_node*));
 
 	// traverse tree breadth-first to assemble ordered nodes
 	{
@@ -412,7 +412,7 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 		assert(c == num_nodes);
 	}
 
-	qnumber* jlist = aligned_calloc(MEM_DATA_ALIGN, ndim, sizeof(qnumber));
+	qnumber* jlist = ct_calloc(ndim, sizeof(qnumber));
 	// initialize internal 'j' quantum numbers with their smallest possible values
 	for (int i = num_nodes - 1; i >= 0; i--)  // start with unrestricted (logical or auxiliary) leaf nodes first
 	{
@@ -438,9 +438,9 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 	}
 	assert(i == charges.size);
 
-	delete_linked_list(&charges, aligned_free);
-	aligned_free(jlist);
-	aligned_free(ordered_nodes);
+	delete_linked_list(&charges, ct_free);
+	ct_free(jlist);
+	ct_free(ordered_nodes);
 }
 
 
@@ -452,8 +452,8 @@ void copy_su2_fuse_split_tree(const struct su2_fuse_split_tree* src, struct su2_
 {
 	dst->ndim = src->ndim;
 
-	dst->tree_fuse  = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
-	dst->tree_split = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct su2_tree_node));
+	dst->tree_fuse  = ct_malloc(sizeof(struct su2_tree_node));
+	dst->tree_split = ct_malloc(sizeof(struct su2_tree_node));
 	copy_su2_tree(src->tree_fuse,  dst->tree_fuse);
 	copy_su2_tree(src->tree_split, dst->tree_split);
 }
@@ -467,8 +467,8 @@ void delete_su2_fuse_split_tree(struct su2_fuse_split_tree* tree)
 {
 	delete_su2_tree(tree->tree_split);
 	delete_su2_tree(tree->tree_fuse);
-	aligned_free(tree->tree_split);
-	aligned_free(tree->tree_fuse);
+	ct_free(tree->tree_split);
+	ct_free(tree->tree_fuse);
 }
 
 
@@ -487,31 +487,31 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
 	}
 	const int i_ax_shared = tree->tree_fuse->i_ax;
 
-	bool* indicator_fuse  = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
-	bool* indicator_split = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	bool* indicator_fuse  = ct_calloc(tree->ndim, sizeof(bool));
+	bool* indicator_split = ct_calloc(tree->ndim, sizeof(bool));
 	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
 	su2_tree_axes(tree->tree_split, indicator_split);
 	for (int i = 0; i < tree->ndim; i++)
 	{
 		if (i == i_ax_shared) {
 			if (!(indicator_fuse[i] && indicator_split[i])) {
-				aligned_free(indicator_split);
-				aligned_free(indicator_fuse);
+				ct_free(indicator_split);
+				ct_free(indicator_fuse);
 				return false;
 			}
 		}
 		else {
 			// axis must be assigned either to the fusion or to the splitting tree
 			if (indicator_fuse[i] == indicator_split[i]) {
-				aligned_free(indicator_split);
-				aligned_free(indicator_fuse);
+				ct_free(indicator_split);
+				ct_free(indicator_fuse);
 				return false;
 			}
 		}
 	}
 
-	aligned_free(indicator_split);
-	aligned_free(indicator_fuse);
+	ct_free(indicator_split);
+	ct_free(indicator_fuse);
 
 	return true;
 }
@@ -587,8 +587,8 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	assert(tree->tree_fuse->i_ax == tree->tree_split->i_ax);
 	const int i_ax_shared = tree->tree_fuse->i_ax;
 
-	bool* indicator_fuse  = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
-	bool* indicator_split = aligned_calloc(MEM_DATA_ALIGN, tree->ndim, sizeof(bool));
+	bool* indicator_fuse  = ct_calloc(tree->ndim, sizeof(bool));
+	bool* indicator_split = ct_calloc(tree->ndim, sizeof(bool));
 	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
 	su2_tree_axes(tree->tree_split, indicator_split);
 	// consistency check
@@ -609,7 +609,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	assert(sectors_split.ndim == tree->ndim);
 
 	// merge the charge sectors of the fuse and split trees
-	struct su2_irreducible_list* merged_sectors = aligned_alloc(MEM_DATA_ALIGN, sectors_fuse.nsec * sectors_split.nsec * sizeof(struct su2_irreducible_list));
+	struct su2_irreducible_list* merged_sectors = ct_malloc(sectors_fuse.nsec * sectors_split.nsec * sizeof(struct su2_irreducible_list));
 	long c = 0;
 	for (long j = 0; j < sectors_fuse.nsec; j++)
 	{
@@ -619,7 +619,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 			if (sectors_fuse.jlists[j * tree->ndim + i_ax_shared] == sectors_split.jlists[k * tree->ndim + i_ax_shared])
 			{
 				merged_sectors[c].num = tree->ndim;
-				merged_sectors[c].jlist = aligned_alloc(MEM_DATA_ALIGN, tree->ndim * sizeof(qnumber));
+				merged_sectors[c].jlist = ct_malloc(tree->ndim * sizeof(qnumber));
 				// merge quantum numbers
 				for (int i = 0; i < tree->ndim; i++)
 				{
@@ -642,12 +642,12 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	for (long i = 0; i < c; i++)
 	{
 		memcpy(&sectors->jlists[i * tree->ndim], merged_sectors[i].jlist, tree->ndim * sizeof(qnumber));
-		aligned_free(merged_sectors[i].jlist);
+		ct_free(merged_sectors[i].jlist);
 	}
 
-	aligned_free(merged_sectors);
-	aligned_free(indicator_split);
-	aligned_free(indicator_fuse);
+	ct_free(merged_sectors);
+	ct_free(indicator_split);
+	ct_free(indicator_fuse);
 	delete_charge_sectors(&sectors_split);
 	delete_charge_sectors(&sectors_fuse);
 }

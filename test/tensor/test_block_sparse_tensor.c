@@ -20,15 +20,15 @@ char* test_block_sparse_tensor_copy()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -52,10 +52,10 @@ char* test_block_sparse_tensor_copy()
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t2);
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_dns);
@@ -83,15 +83,15 @@ char* test_block_sparse_tensor_get_block()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -104,7 +104,7 @@ char* test_block_sparse_tensor_get_block()
 	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
 
 	const long nblocks = integer_product(t.dim_blocks, t.ndim);
-	long* index_block = aligned_calloc(MEM_DATA_ALIGN, t.ndim, sizeof(long));
+	long* index_block = ct_calloc(t.ndim, sizeof(long));
 	for (long k = 0; k < nblocks; k++, next_tensor_index(t.ndim, t.dim_blocks, index_block))
 	{
 		// probe whether quantum numbers in 't' sum to zero
@@ -121,7 +121,7 @@ char* test_block_sparse_tensor_get_block()
 		assert(b_ref != NULL);
 		assert(b_ref->ndim == t.ndim);
 
-		qnumber* qnums_block = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+		qnumber* qnums_block = ct_malloc(ndim * sizeof(qnumber*));
 		for (int i = 0; i < ndim; i++)
 		{
 			qnums_block[i] = t.qnums_blocks[i][index_block[i]];
@@ -133,17 +133,17 @@ char* test_block_sparse_tensor_get_block()
 			return "retrieved tensor block based on quantum numbers does not match reference";
 		}
 
-		aligned_free(qnums_block);
+		ct_free(qnums_block);
 	}
-	aligned_free(index_block);
+	ct_free(index_block);
 
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_dns);
 
@@ -171,15 +171,15 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -214,10 +214,10 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t_tr_ref);
 	delete_block_sparse_tensor(&t_tr);
 	delete_block_sparse_tensor(&t);
@@ -247,15 +247,15 @@ char* test_block_sparse_tensor_norm2()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -282,10 +282,10 @@ char* test_block_sparse_tensor_norm2()
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_dns);
 
@@ -318,15 +318,15 @@ char* test_block_sparse_tensor_transpose()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -355,10 +355,10 @@ char* test_block_sparse_tensor_transpose()
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t_tp);
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_tp_dns);
@@ -388,15 +388,15 @@ char* test_block_sparse_tensor_reshape()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -456,10 +456,10 @@ char* test_block_sparse_tensor_reshape()
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
@@ -485,15 +485,15 @@ char* test_block_sparse_tensor_slice()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -507,7 +507,7 @@ char* test_block_sparse_tensor_slice()
 
 	// slicing indices
 	const long nind = 17;
-	long *ind = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(long));
+	long *ind = ct_malloc(nind * sizeof(long));
 	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
 		return "reading slice indices from disk failed";
 	}
@@ -538,14 +538,14 @@ char* test_block_sparse_tensor_slice()
 	delete_dense_tensor(&s_ref);
 	delete_dense_tensor(&s_dns);
 	delete_block_sparse_tensor(&s);
-	aligned_free(ind);
+	ct_free(ind);
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
@@ -571,15 +571,15 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -635,10 +635,10 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 	delete_block_sparse_tensor(&s);
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_dense_tensor(&s_dns);
 
 	H5Fclose(file);
@@ -664,15 +664,15 @@ char* test_block_sparse_tensor_multiply_axis()
 			return "reading tensor entries from disk failed";
 		}
 
-		enum tensor_axis_direction* s_axis_dir = aligned_alloc(MEM_DATA_ALIGN, s_dns.ndim * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* s_axis_dir = ct_malloc(s_dns.ndim * sizeof(enum tensor_axis_direction));
 		if (read_hdf5_attribute(file, "s_axis_dir", H5T_NATIVE_INT, s_axis_dir) < 0) {
 			return "reading axis directions from disk failed";
 		}
 
-		qnumber** s_qnums = aligned_alloc(MEM_DATA_ALIGN, s_dns.ndim * sizeof(qnumber*));
+		qnumber** s_qnums = ct_malloc(s_dns.ndim * sizeof(qnumber*));
 		for (int i = 0; i < s_dns.ndim; i++)
 		{
-			s_qnums[i] = aligned_alloc(MEM_DATA_ALIGN, s_dns.dim[i] * sizeof(qnumber));
+			s_qnums[i] = ct_malloc(s_dns.dim[i] * sizeof(qnumber));
 			char varname[1024];
 			sprintf(varname, "s_qnums%i", i);
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, s_qnums[i]) < 0) {
@@ -684,10 +684,10 @@ char* test_block_sparse_tensor_multiply_axis()
 		dense_to_block_sparse_tensor(&s_dns, s_axis_dir, (const qnumber**)s_qnums, &s);
 
 		for (int i = 0; i < s_dns.ndim; i++) {
-			aligned_free(s_qnums[i]);
+			ct_free(s_qnums[i]);
 		}
-		aligned_free(s_qnums);
-		aligned_free(s_axis_dir);
+		ct_free(s_qnums);
+		ct_free(s_axis_dir);
 		delete_dense_tensor(&s_dns);
 	}
 
@@ -704,16 +704,16 @@ char* test_block_sparse_tensor_multiply_axis()
 			return "reading tensor entries from disk failed";
 		}
 
-		enum tensor_axis_direction* t_axis_dir = aligned_alloc(MEM_DATA_ALIGN, t_dns.ndim * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* t_axis_dir = ct_malloc(t_dns.ndim * sizeof(enum tensor_axis_direction));
 		sprintf(varname, "t%i_axis_dir", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, t_axis_dir) < 0) {
 			return "reading axis directions from disk failed";
 		}
 
-		qnumber** t_qnums = aligned_alloc(MEM_DATA_ALIGN, t_dns.ndim * sizeof(qnumber*));
+		qnumber** t_qnums = ct_malloc(t_dns.ndim * sizeof(qnumber*));
 		for (int j = 0; j < t_dns.ndim; j++)
 		{
-			t_qnums[j] = aligned_alloc(MEM_DATA_ALIGN, t_dns.dim[j] * sizeof(qnumber));
+			t_qnums[j] = ct_malloc(t_dns.dim[j] * sizeof(qnumber));
 			sprintf(varname, "t%i_qnums%i", i, j);
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, t_qnums[j]) < 0) {
 				return "reading quantum numbers from disk failed";
@@ -724,10 +724,10 @@ char* test_block_sparse_tensor_multiply_axis()
 		dense_to_block_sparse_tensor(&t_dns, t_axis_dir, (const qnumber**)t_qnums, &t[i]);
 
 		for (int j = 0; j < t_dns.ndim; j++) {
-			aligned_free(t_qnums[j]);
+			ct_free(t_qnums[j]);
 		}
-		aligned_free(t_qnums);
-		aligned_free(t_axis_dir);
+		ct_free(t_qnums);
+		ct_free(t_axis_dir);
 		delete_dense_tensor(&t_dns);
 	}
 
@@ -803,15 +803,15 @@ char* test_block_sparse_tensor_dot()
 	}
 	assert(s_dns.ndim + t_dns.ndim - ndim_mult == ndim);
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -823,13 +823,13 @@ char* test_block_sparse_tensor_dot()
 	struct block_sparse_tensor s;
 	dense_to_block_sparse_tensor(&s_dns, axis_dir, (const qnumber**)qnums, &s);
 	// the axis directions of the to-be contracted axes are reversed for the 't' tensor
-	enum tensor_axis_direction* axis_dir_t = aligned_alloc(MEM_DATA_ALIGN, t_dns.ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir_t = ct_malloc(t_dns.ndim * sizeof(enum tensor_axis_direction));
 	for (int i = 0; i < t_dns.ndim; i++) {
 		axis_dir_t[i] = (i < ndim_mult ? -1 : 1) * axis_dir[s_dns.ndim - ndim_mult + i];
 	}
 	struct block_sparse_tensor t;
 	dense_to_block_sparse_tensor(&t_dns, axis_dir_t, (const qnumber**)(qnums + (s_dns.ndim - ndim_mult)), &t);
-	aligned_free(axis_dir_t);
+	ct_free(axis_dir_t);
 
 	for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
 	{
@@ -879,10 +879,10 @@ char* test_block_sparse_tensor_dot()
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_dense_tensor(&r_dns_ref);
 	delete_dense_tensor(&s_dns);
 	delete_dense_tensor(&t_dns);
@@ -922,7 +922,7 @@ char* test_block_sparse_tensor_qr()
 		qnumber* qnums[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+			qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 			char varname[1024];
 			sprintf(varname, "qnums%i%i", c, i);
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -958,7 +958,7 @@ char* test_block_sparse_tensor_qr()
 		delete_block_sparse_tensor(&q);
 		delete_block_sparse_tensor(&a);
 		for (int i = 0; i < 2; i++) {
-			aligned_free(qnums[i]);
+			ct_free(qnums[i]);
 		}
 		delete_dense_tensor(&a_dns);
 	}
@@ -998,7 +998,7 @@ char* test_block_sparse_tensor_rq()
 		qnumber* qnums[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+			qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 			char varname[1024];
 			sprintf(varname, "qnums%i%i", c, i);
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -1034,7 +1034,7 @@ char* test_block_sparse_tensor_rq()
 		delete_block_sparse_tensor(&q);
 		delete_block_sparse_tensor(&a);
 		for (int i = 0; i < 2; i++) {
-			aligned_free(qnums[i]);
+			ct_free(qnums[i]);
 		}
 		delete_dense_tensor(&a_dns);
 	}
@@ -1074,7 +1074,7 @@ char* test_block_sparse_tensor_svd()
 		qnumber* qnums[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+			qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 			char varname[1024];
 			sprintf(varname, "qnums%i%i", c, i);
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -1132,7 +1132,7 @@ char* test_block_sparse_tensor_svd()
 		delete_block_sparse_tensor(&u);
 		delete_block_sparse_tensor(&a);
 		for (int i = 0; i < 2; i++) {
-			aligned_free(qnums[i]);
+			ct_free(qnums[i]);
 		}
 		delete_dense_tensor(&a_dns);
 	}
@@ -1160,15 +1160,15 @@ char* test_block_sparse_tensor_serialize()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -1182,7 +1182,7 @@ char* test_block_sparse_tensor_serialize()
 
 	// serialize
 	const long nelem = block_sparse_tensor_num_elements_blocks(&t);
-	scomplex* entries = aligned_alloc(MEM_DATA_ALIGN, nelem * sizeof(scomplex));
+	scomplex* entries = ct_malloc(nelem * sizeof(scomplex));
 	block_sparse_tensor_serialize_entries(&t, entries);
 
 	// create a block-sparse tensor with same dimensions and quantum numbers
@@ -1200,11 +1200,11 @@ char* test_block_sparse_tensor_serialize()
 	// clean up
 	for (int i = 0; i < ndim; i++)
 	{
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
-	aligned_free(entries);
+	ct_free(qnums);
+	ct_free(axis_dir);
+	ct_free(entries);
 	delete_block_sparse_tensor(&s);
 	delete_block_sparse_tensor(&t);
 	delete_dense_tensor(&t_dns);
@@ -1232,15 +1232,15 @@ char* test_block_sparse_tensor_get_entry()
 		return "reading tensor entries from disk failed";
 	}
 
-	enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(enum tensor_axis_direction));
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(qnumber*));
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dims[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -1259,7 +1259,7 @@ char* test_block_sparse_tensor_get_entry()
 	// reconstruct dense tensor entry-by-entry
 	struct dense_tensor t_reconstr;
 	allocate_dense_tensor(t.dtype, t.ndim, t.dim_logical, &t_reconstr);
-	long* index = aligned_calloc(MEM_DATA_ALIGN, t.ndim, sizeof(long));
+	long* index = ct_calloc(t.ndim, sizeof(long));
 	const long nelem = dense_tensor_num_elements(&t_reconstr);
 	float* tdata = t_reconstr.data;
 	for (long k = 0; k < nelem; k++, next_tensor_index(t_reconstr.ndim, t_reconstr.dim, index))
@@ -1269,7 +1269,7 @@ char* test_block_sparse_tensor_get_entry()
 			tdata[tensor_index_to_offset(t_reconstr.ndim, t_reconstr.dim, index)] = (*pentry);
 		}
 	}
-	aligned_free(index);
+	ct_free(index);
 
 	// compare
 	if (!dense_tensor_allclose(&t_reconstr, &t_dns, 0.)) {
@@ -1281,10 +1281,10 @@ char* test_block_sparse_tensor_get_entry()
 	delete_block_sparse_tensor_entry_accessor(&acc);
 	delete_block_sparse_tensor(&t);
 	for (int i = 0; i < ndim; i++) {
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
-	aligned_free(qnums);
-	aligned_free(axis_dir);
+	ct_free(qnums);
+	ct_free(axis_dir);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);

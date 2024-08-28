@@ -114,7 +114,7 @@ char* test_mpo_from_assembly()
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
-	struct dense_tensor* opmap = aligned_alloc(MEM_DATA_ALIGN, num_local_ops * sizeof(struct dense_tensor));
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
 		const long dim[2] = { d, d };
@@ -179,7 +179,7 @@ char* test_mpo_from_assembly()
 	for (int i = 0; i < num_local_ops; i++) {
 		delete_dense_tensor(&opmap[i]);
 	}
-	aligned_free(opmap);
+	ct_free(opmap);
 
 	H5Fclose(file);
 

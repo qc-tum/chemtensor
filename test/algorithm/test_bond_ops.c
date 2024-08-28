@@ -17,7 +17,7 @@ char* test_retained_bond_indices()
 		return "reading number of singular values from disk failed";
 	}
 	const long n = sigma_dims[0];
-	double* sigma = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* sigma = ct_malloc(n * sizeof(double));
 	if (read_hdf5_dataset(file, "sigma", H5T_NATIVE_DOUBLE, sigma) < 0) {
 		return "reading singular values from disk failed";
 	}
@@ -33,7 +33,7 @@ char* test_retained_bond_indices()
 	if (get_hdf5_dataset_dims(file, "ind", ind_ref_dims)) {
 		return "reading number of reference indices from disk failed";
 	}
-	long* ind_ref = aligned_alloc(MEM_DATA_ALIGN, ind_ref_dims[0] * sizeof(long));
+	long* ind_ref = ct_malloc(ind_ref_dims[0] * sizeof(long));
 	if (read_hdf5_dataset(file, "ind", H5T_NATIVE_LONG, ind_ref) < 0) {
 		return "reading reference indices from disk failed";
 	}
@@ -74,8 +74,8 @@ char* test_retained_bond_indices()
 		delete_index_list(&list);
 	}
 
-	aligned_free(ind_ref);
-	aligned_free(sigma);
+	ct_free(ind_ref);
+	ct_free(sigma);
 
 	H5Fclose(file);
 
@@ -108,7 +108,7 @@ char* test_split_block_sparse_matrix_svd()
 	qnumber* qnums[2];
 	for (int i = 0; i < 2; i++)
 	{
-		qnums[i] = aligned_alloc(MEM_DATA_ALIGN, dim[i] * sizeof(qnumber));
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
@@ -198,7 +198,7 @@ char* test_split_block_sparse_matrix_svd()
 	delete_dense_tensor(&a_trunc_plain_ref);
 	delete_block_sparse_tensor(&a);
 	for (int i = 0; i < 2; i++) {
-		aligned_free(qnums[i]);
+		ct_free(qnums[i]);
 	}
 	delete_dense_tensor(&a_dns);
 

@@ -14,8 +14,8 @@
 void allocate_op_chain(const int length, struct op_chain* chain)
 {
 	assert(length > 0);
-	chain->oids   = aligned_calloc(MEM_DATA_ALIGN, length, sizeof(int));
-	chain->qnums  = aligned_calloc(MEM_DATA_ALIGN, length + 1, sizeof(qnumber));  // includes a leading and trailing quantum number
+	chain->oids   = ct_calloc(length, sizeof(int));
+	chain->qnums  = ct_calloc(length + 1, sizeof(qnumber));  // includes a leading and trailing quantum number
 	chain->length = length;
 	chain->cid    = CID_ONE;  // initialize coefficient by default value 1
 	chain->istart = 0;
@@ -28,8 +28,8 @@ void allocate_op_chain(const int length, struct op_chain* chain)
 ///
 void delete_op_chain(struct op_chain* chain)
 {
-	aligned_free(chain->qnums);
-	aligned_free(chain->oids);
+	ct_free(chain->qnums);
+	ct_free(chain->oids);
 	chain->qnums = NULL;
 	chain->oids  = NULL;
 	chain->length = 0;

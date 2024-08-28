@@ -24,7 +24,7 @@ static void local_opchains_to_mpo_graph(const int nsites, const struct op_chain*
 		assert(lopchains[j].length <= nsites);
 		nchains += (nsites - lopchains[j].length + 1);
 	}
-	struct op_chain* opchains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
+	struct op_chain* opchains = ct_malloc(nchains * sizeof(struct op_chain));
 	int c = 0;
 	for (int j = 0; j < nlopchains; j++)
 	{
@@ -40,7 +40,7 @@ static void local_opchains_to_mpo_graph(const int nsites, const struct op_chain*
 
 	mpo_graph_from_opchains(opchains, nchains, nsites, graph);
 
-	aligned_free(opchains);
+	ct_free(opchains);
 }
 
 
@@ -54,7 +54,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 
 	// set physical quantum numbers to zero
 	assembly->d = 2;
-	assembly->qsite = aligned_calloc(MEM_DATA_ALIGN, assembly->d, sizeof(qnumber));
+	assembly->qsite = ct_calloc(assembly->d, sizeof(qnumber));
 
 	assembly->dtype = CT_DOUBLE_REAL;
 
@@ -63,7 +63,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	const int OID_Z = 1;  // Pauli-Z
 	const int OID_X = 2;  // Pauli-X
 	assembly->num_local_ops = 3;
-	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
@@ -77,7 +77,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, J, h, g };
 	assembly->num_coeffs = ARRLEN(coeffmap);
-	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	assembly->coeffmap = ct_malloc(sizeof(coeffmap));
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
@@ -105,7 +105,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 
 	// physical quantum numbers (multiplied by 2)
 	assembly->d = 2;
-	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	assembly->qsite[0] =  1;
 	assembly->qsite[1] = -1;
 
@@ -122,7 +122,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	const int OID_Sd = 2;  // S_down
 	const int OID_Sz = 3;  // S_z
 	assembly->num_local_ops = 4;
-	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
@@ -135,7 +135,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, 0.5*J, J*D, -h };
 	assembly->num_coeffs = ARRLEN(coeffmap);
-	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	assembly->coeffmap = ct_malloc(sizeof(coeffmap));
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
@@ -166,7 +166,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 
 	// physical quantum numbers (particle number)
 	assembly->d = d;
-	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (long i = 0; i < d; i++) {
 		assembly->qsite[i] = i;
 	}
@@ -180,7 +180,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	const int OID_N  = 3;  // n
 	const int OID_NI = 4;  // n (n - 1) / 2
 	assembly->num_local_ops = 5;
-	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { d, d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
@@ -211,7 +211,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, -t, -mu, u };
 	assembly->num_coeffs = ARRLEN(coeffmap);
-	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	assembly->coeffmap = ct_malloc(sizeof(coeffmap));
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
@@ -243,7 +243,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	const qnumber qn[4] = { 0,  1,  1,  2 };
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
-	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = fermi_hubbard_encode_quantum_numbers(qn[i], qs[i]);
 	}
@@ -323,7 +323,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	const int OID_Nt =  9;  //  n_up + n_dn
 	const int OID_NI = 10;  // (n_up - 1/2) (n_dn - 1/2)
 	assembly->num_local_ops = 11;
-	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	dense_tensor_kronecker_product(&id,    &id,    &assembly->opmap[OID_Id]);
 	dense_tensor_kronecker_product(&a_dag, &id,    &assembly->opmap[OID_CI]);
 	dense_tensor_kronecker_product(&a_ann, &id,    &assembly->opmap[OID_AI]);
@@ -339,7 +339,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	// coefficient map; first two entries must always be 0 and 1
 	const double coeffmap[] = { 0, 1, -t, -mu, u };
 	assembly->num_coeffs = ARRLEN(coeffmap);
-	assembly->coeffmap = aligned_alloc(MEM_DATA_ALIGN, sizeof(coeffmap));
+	assembly->coeffmap = ct_malloc(sizeof(coeffmap));
 	memcpy(assembly->coeffmap, coeffmap, sizeof(coeffmap));
 
 	// local two-site and single-site terms
@@ -473,7 +473,7 @@ static int compare_index_qnumber_tuple(const void* a, const void* b)
 ///
 static int* allocate_vertex_ids(const int nsites)
 {
-	int* vids = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(int));
+	int* vids = ct_malloc((nsites + 1) * sizeof(int));
 	// initialize by invalid index
 	for (int i = 0; i < nsites + 1; i++) {
 		vids[i] = -1;
@@ -488,10 +488,10 @@ static int* allocate_vertex_ids(const int nsites)
 ///
 static struct mpo_graph_edge* construct_mpo_graph_edge(const int vid0, const int vid1, const int oid, const int cid)
 {
-	struct mpo_graph_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct mpo_graph_edge));
+	struct mpo_graph_edge* edge = ct_malloc(sizeof(struct mpo_graph_edge));
 	edge->vids[0] = vid0;
 	edge->vids[1] = vid1;
-	edge->opics = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct local_op_ref));
+	edge->opics = ct_malloc(sizeof(struct local_op_ref));
 	edge->opics[0].oid = oid;
 	edge->opics[0].cid = cid;
 	edge->nopics = 1;
@@ -535,8 +535,8 @@ struct molecular_mpo_graph_vids
 ///
 static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_graph* graph, struct molecular_mpo_graph_vids* vids)
 {
-	graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(struct mpo_graph_vertex*));
-	graph->num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
+	graph->verts     = ct_calloc(nsites + 1, sizeof(struct mpo_graph_vertex*));
+	graph->num_verts = ct_calloc(nsites + 1, sizeof(int));
 	graph->nsites    = nsites;
 
 	for (int i = 0; i < nsites + 1; i++)
@@ -553,12 +553,12 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 		int chi3 = 2 * ((i < nsites - 1 ? nl : 0) + (i > 1 ? nr : 0));
 
 		graph->num_verts[i] = chi1 + chi2 + chi3;
-		graph->verts[i] = aligned_calloc(MEM_DATA_ALIGN, graph->num_verts[i], sizeof(struct mpo_graph_vertex));
+		graph->verts[i] = ct_calloc(graph->num_verts[i], sizeof(struct mpo_graph_vertex));
 	}
 
 	vids->nsites = nsites;
 
-	int* vertex_counter = aligned_calloc(MEM_DATA_ALIGN, nsites + 1, sizeof(int));
+	int* vertex_counter = ct_calloc(nsites + 1, sizeof(int));
 
 	// vertex IDs
 
@@ -573,7 +573,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i operators connected to left boundary
-	vids->a_dag[MOLECULAR_CONN_LEFT] = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(int*));
+	vids->a_dag[MOLECULAR_CONN_LEFT] = ct_calloc(nsites, sizeof(int*));
 	for (int i = 0; i < nsites - 2; i++) {
 		vids->a_dag[MOLECULAR_CONN_LEFT][i] = allocate_vertex_ids(nsites);
 		for (int j = i + 1; j < nsites - 1; j++) {
@@ -584,7 +584,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a_i operators connected to left boundary
-	vids->a_ann[MOLECULAR_CONN_LEFT] = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(int*));
+	vids->a_ann[MOLECULAR_CONN_LEFT] = ct_calloc(nsites, sizeof(int*));
 	for (int i = 0; i < nsites - 2; i++) {
 		vids->a_ann[MOLECULAR_CONN_LEFT][i] = allocate_vertex_ids(nsites);
 		for (int j = i + 1; j < nsites - 1; j++) {
@@ -595,7 +595,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i a^{\dagger}_j operators connected to left boundary
-	vids->a_dag_a_dag[MOLECULAR_CONN_LEFT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_dag_a_dag[MOLECULAR_CONN_LEFT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = 0; i < nsites/2 - 1; i++) {
 		for (int j = i + 1; j < nsites/2; j++) {
 			vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -608,7 +608,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a_i a_j operators connected to left boundary
-	vids->a_ann_a_ann[MOLECULAR_CONN_LEFT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_ann_a_ann[MOLECULAR_CONN_LEFT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = 0; i < nsites/2; i++) {
 		for (int j = 0; j < i; j++) {
 			vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -621,7 +621,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i a_j operators connected to left boundary
-	vids->a_dag_a_ann[MOLECULAR_CONN_LEFT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_dag_a_ann[MOLECULAR_CONN_LEFT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = 0; i < nsites/2; i++) {
 		for (int j = 0; j < nsites/2; j++) {
 			vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -633,7 +633,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i operators connected to right boundary
-	vids->a_dag[MOLECULAR_CONN_RIGHT] = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(int*));
+	vids->a_dag[MOLECULAR_CONN_RIGHT] = ct_calloc(nsites, sizeof(int*));
 	for (int i = 2; i < nsites; i++) {
 		vids->a_dag[MOLECULAR_CONN_RIGHT][i] = allocate_vertex_ids(nsites);
 		for (int j = 2; j < i + 1; j++) {
@@ -644,7 +644,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a_i operators connected to right boundary
-	vids->a_ann[MOLECULAR_CONN_RIGHT] = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(int*));
+	vids->a_ann[MOLECULAR_CONN_RIGHT] = ct_calloc(nsites, sizeof(int*));
 	for (int i = 2; i < nsites; i++) {
 		vids->a_ann[MOLECULAR_CONN_RIGHT][i] = allocate_vertex_ids(nsites);
 		for (int j = 2; j < i + 1; j++) {
@@ -655,7 +655,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i a^{\dagger}_j operators connected to right boundary
-	vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = nsites/2 + 1; i < nsites - 1; i++) {
 		for (int j = i + 1; j < nsites; j++) {
 			vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -668,7 +668,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a_i a_j operators connected to right boundary
-	vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = nsites/2 + 1; i < nsites; i++) {
 		for (int j = nsites/2 + 1; j < i; j++) {
 			vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -681,7 +681,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 	}
 
 	// a^{\dagger}_i a_j operators connected to right boundary
-	vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT] = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int*));
+	vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT] = ct_calloc(nsites*nsites, sizeof(int*));
 	for (int i = nsites/2 + 1; i < nsites; i++) {
 		for (int j = nsites/2 + 1; j < nsites; j++) {
 			vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j] = allocate_vertex_ids(nsites);
@@ -697,7 +697,7 @@ static void create_molecular_mpo_graph_vertices(const int nsites, struct mpo_gra
 		assert(vertex_counter[i] == graph->num_verts[i]);
 	}
 
-	aligned_free(vertex_counter);
+	ct_free(vertex_counter);
 }
 
 
@@ -709,64 +709,64 @@ static void delete_molecular_mpo_graph_vertices(struct molecular_mpo_graph_vids*
 {
 	const int nsites = vids->nsites;
 
-	aligned_free(vids->identity[MOLECULAR_CONN_LEFT]);
-	aligned_free(vids->identity[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->identity[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->identity[MOLECULAR_CONN_RIGHT]);
 
 	for (int i = 0; i < nsites - 2; i++) {
-		aligned_free(vids->a_dag[MOLECULAR_CONN_LEFT][i]);
-		aligned_free(vids->a_ann[MOLECULAR_CONN_LEFT][i]);
+		ct_free(vids->a_dag[MOLECULAR_CONN_LEFT][i]);
+		ct_free(vids->a_ann[MOLECULAR_CONN_LEFT][i]);
 	}
-	aligned_free(vids->a_dag[MOLECULAR_CONN_LEFT]);
-	aligned_free(vids->a_ann[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->a_dag[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->a_ann[MOLECULAR_CONN_LEFT]);
 
 	for (int i = 0; i < nsites/2 - 1; i++) {
 		for (int j = i + 1; j < nsites/2; j++) {
-			aligned_free(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][i*nsites + j]);
+			ct_free(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT]);
 
 	for (int i = 0; i < nsites/2; i++) {
 		for (int j = 0; j < i; j++) {
-			aligned_free(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j]);
+			ct_free(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT]);
 
 	for (int i = 0; i < nsites/2; i++) {
 		for (int j = 0; j < nsites/2; j++) {
-			aligned_free(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j]);
+			ct_free(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT]);
+	ct_free(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT]);
 
 	for (int i = 2; i < nsites; i++) {
-		aligned_free(vids->a_dag[MOLECULAR_CONN_RIGHT][i]);
-		aligned_free(vids->a_ann[MOLECULAR_CONN_RIGHT][i]);
+		ct_free(vids->a_dag[MOLECULAR_CONN_RIGHT][i]);
+		ct_free(vids->a_ann[MOLECULAR_CONN_RIGHT][i]);
 	}
-	aligned_free(vids->a_dag[MOLECULAR_CONN_RIGHT]);
-	aligned_free(vids->a_ann[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->a_dag[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->a_ann[MOLECULAR_CONN_RIGHT]);
 
 	for (int i = nsites/2 + 1; i < nsites - 1; i++) {
 		for (int j = i + 1; j < nsites; j++) {
-			aligned_free(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][i*nsites + j]);
+			ct_free(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT]);
 
 	for (int i = nsites/2 + 1; i < nsites; i++) {
 		for (int j = nsites/2 + 1; j < i; j++) {
-			aligned_free(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j]);
+			ct_free(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT]);
 
 	for (int i = nsites/2 + 1; i < nsites; i++) {
 		for (int j = nsites/2 + 1; j < nsites; j++) {
-			aligned_free(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j]);
+			ct_free(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][i*nsites + j]);
 		}
 	}
-	aligned_free(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT]);
+	ct_free(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT]);
 }
 
 
@@ -1032,7 +1032,7 @@ static void molecular_mpo_graph_add_term(const struct molecular_mpo_graph_vids* 
 	const int nsites = vids->nsites;
 
 	// sort by site (orbital) index
-	struct molecular_local_op_ref* oplist_sorted = aligned_alloc(MEM_DATA_ALIGN, numops * sizeof(struct molecular_local_op_ref));
+	struct molecular_local_op_ref* oplist_sorted = ct_malloc(numops * sizeof(struct molecular_local_op_ref));
 	memcpy(oplist_sorted, oplist, numops * sizeof(struct molecular_local_op_ref));
 	qsort(oplist_sorted, numops, sizeof(struct molecular_local_op_ref), compare_molecular_local_op_ref);
 
@@ -1142,7 +1142,7 @@ static void molecular_mpo_graph_add_term(const struct molecular_mpo_graph_vids* 
 		assert(false);
 	}
 
-	aligned_free(oplist_sorted);
+	ct_free(oplist_sorted);
 }
 
 
@@ -1181,7 +1181,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 
 	// physical quantum numbers (particle number)
 	assembly->d = 2;
-	assembly->qsite = aligned_alloc(MEM_DATA_ALIGN, assembly->d * sizeof(qnumber));
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	assembly->qsite[0] = 0;
 	assembly->qsite[1] = 1;
 
@@ -1196,7 +1196,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 
 	// operator map
 	assembly->num_local_ops = 5;
-	assembly->opmap = aligned_alloc(MEM_DATA_ALIGN, assembly->num_local_ops * sizeof(struct dense_tensor));
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
@@ -1216,12 +1216,12 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 	scale_dense_tensor(&one_half, &gint);
 
 	// coefficient map
-	double* coeffmap = aligned_alloc(MEM_DATA_ALIGN, (2 + nsites2 + nsites_choose_two * nsites_choose_two) * sizeof(double));
+	double* coeffmap = ct_malloc((2 + nsites2 + nsites_choose_two * nsites_choose_two) * sizeof(double));
 	// first two entries must always be 0 and 1
 	coeffmap[0] = 0.;
 	coeffmap[1] = 1.;
-	int* tkin_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2, sizeof(int));
-	int* gint_cids = aligned_calloc(MEM_DATA_ALIGN, nsites2*nsites2, sizeof(int));
+	int* tkin_cids = ct_calloc(nsites2, sizeof(int));
+	int* gint_cids = ct_calloc(nsites2*nsites2, sizeof(int));
 	int c = 2;
 	const double* tkin_data = tkin->data;
 	for (int i = 0; i < nsites; i++) {
@@ -1266,7 +1266,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 	if (optimize)
 	{
 		const int nchains = nsites2 + nsites_choose_two * nsites_choose_two;
-		struct op_chain* opchains = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(struct op_chain));
+		struct op_chain* opchains = ct_malloc(nchains * sizeof(struct op_chain));
 		int oc = 0;
 		// kinetic hopping terms t_{i,j} a^{\dagger}_i a_j
 		for (int i = 0; i < nsites; i++)
@@ -1475,7 +1475,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		for (int i = 0; i < nchains; i++) {
 			delete_op_chain(&opchains[i]);
 		}
-		aligned_free(opchains);
+		ct_free(opchains);
 	}
 	else
 	{
@@ -1486,7 +1486,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		create_molecular_mpo_graph_vertices(nsites, &assembly->graph, &vids);
 
 		// temporarily store edges in linked lists
-		struct linked_list* edges = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct linked_list));
+		struct linked_list* edges = ct_calloc(nsites, sizeof(struct linked_list));
 		molecular_mpo_graph_connect_operator_strings(&vids, edges);
 
 		// kinetic hopping terms \sum_{i,j} t_{i,j} a^{\dagger}_i a_j
@@ -1516,12 +1516,12 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		}
 
 		// transfer edges into mpo_graph structure and connect vertices
-		assembly->graph.edges     = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct mpo_graph_edge*));
-		assembly->graph.num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(int));
+		assembly->graph.edges     = ct_calloc(nsites, sizeof(struct mpo_graph_edge*));
+		assembly->graph.num_edges = ct_calloc(nsites, sizeof(int));
 		for (int i = 0; i < nsites; i++)
 		{
 			assembly->graph.num_edges[i] = edges[i].size;
-			assembly->graph.edges[i] = aligned_alloc(MEM_DATA_ALIGN, edges[i].size * sizeof(struct mpo_graph_edge));
+			assembly->graph.edges[i] = ct_malloc(edges[i].size * sizeof(struct mpo_graph_edge));
 			struct linked_list_node* edge_ref = edges[i].head;
 			long eid = 0;
 			while (edge_ref != NULL)
@@ -1539,16 +1539,16 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 				eid++;
 			}
 			// note: opics pointers of edges have been retained in transfer
-			delete_linked_list(&edges[i], aligned_free);
+			delete_linked_list(&edges[i], ct_free);
 		}
-		aligned_free(edges);
+		ct_free(edges);
 
 		assert(mpo_graph_is_consistent(&assembly->graph));
 
 		delete_molecular_mpo_graph_vertices(&vids);
 	}
 
-	aligned_free(gint_cids);
-	aligned_free(tkin_cids);
+	ct_free(gint_cids);
+	ct_free(tkin_cids);
 	delete_dense_tensor(&gint);
 }

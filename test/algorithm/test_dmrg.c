@@ -18,7 +18,7 @@ char* test_dmrg_singlesite()
 	const long d = 3;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
@@ -27,8 +27,8 @@ char* test_dmrg_singlesite()
 	struct mpo hamiltonian;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -38,7 +38,7 @@ char* test_dmrg_singlesite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -48,10 +48,10 @@ char* test_dmrg_singlesite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPO tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -79,8 +79,8 @@ char* test_dmrg_singlesite()
 	struct mps psi;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -90,7 +90,7 @@ char* test_dmrg_singlesite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -100,10 +100,10 @@ char* test_dmrg_singlesite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -132,7 +132,7 @@ char* test_dmrg_singlesite()
 	const int num_sweeps = 6;
 	const int maxiter_lanczos = 25;
 
-	double* en_sweeps = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
+	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
 
 	if (dmrg_singlesite(&hamiltonian, num_sweeps, maxiter_lanczos, &psi, en_sweeps) < 0) {
 		return "'dmrg_singlesite' failed internally";
@@ -141,7 +141,7 @@ char* test_dmrg_singlesite()
 	// compare with reference data
 
 	// energies
-	double* en_sweeps_ref = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
+	double* en_sweeps_ref = ct_malloc(num_sweeps * sizeof(double));
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
@@ -158,8 +158,8 @@ char* test_dmrg_singlesite()
 	struct mps psi_ref;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -169,7 +169,7 @@ char* test_dmrg_singlesite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -179,10 +179,10 @@ char* test_dmrg_singlesite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -213,12 +213,12 @@ char* test_dmrg_singlesite()
 		return "overlap between optimized and reference state vector must have absolute value 1";
 	}
 
-	aligned_free(en_sweeps_ref);
-	aligned_free(en_sweeps);
+	ct_free(en_sweeps_ref);
+	ct_free(en_sweeps);
 	delete_mps(&psi_ref);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);
-	aligned_free(qsite);
+	ct_free(qsite);
 
 	H5Fclose(file);
 
@@ -239,7 +239,7 @@ char* test_dmrg_twosite()
 	const long d = 2;
 
 	// physical quantum numbers
-	qnumber* qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
 		return "reading physical quantum numbers from disk failed";
 	}
@@ -248,8 +248,8 @@ char* test_dmrg_twosite()
 	struct mpo hamiltonian;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -259,7 +259,7 @@ char* test_dmrg_twosite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -269,10 +269,10 @@ char* test_dmrg_twosite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPO tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -300,8 +300,8 @@ char* test_dmrg_twosite()
 	struct mps psi;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -311,7 +311,7 @@ char* test_dmrg_twosite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -321,10 +321,10 @@ char* test_dmrg_twosite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -357,8 +357,8 @@ char* test_dmrg_twosite()
 		return "reading splitting tolerance from disk failed";
 	}
 	const long max_vdim = ipow(d, nsites / 2);
-	double* en_sweeps = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
-	double* entropy   = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(double));
+	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
+	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
 
 	if (dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy) < 0) {
 		return "'dmrg_twosite' failed internally";
@@ -367,7 +367,7 @@ char* test_dmrg_twosite()
 	// compare with reference data
 
 	// energies
-	double* en_sweeps_ref = aligned_alloc(MEM_DATA_ALIGN, num_sweeps * sizeof(double));
+	double* en_sweeps_ref = ct_malloc(num_sweeps * sizeof(double));
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
@@ -384,8 +384,8 @@ char* test_dmrg_twosite()
 	struct mps psi_ref;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(long));
-		qnumber** qbonds = aligned_alloc(MEM_DATA_ALIGN, (nsites + 1) * sizeof(qnumber*));
+		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
+		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -395,7 +395,7 @@ char* test_dmrg_twosite()
 				return "reading virtual bond quantum number dimensions from disk failed";
 			}
 			dim_bonds[i] = qdims[0];
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, dim_bonds[i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
 			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0) {
 				return "reading virtual bond quantum numbers from disk failed";
 			}
@@ -405,10 +405,10 @@ char* test_dmrg_twosite()
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
-		aligned_free(qbonds);
-		aligned_free(dim_bonds);
+		ct_free(qbonds);
+		ct_free(dim_bonds);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -439,13 +439,13 @@ char* test_dmrg_twosite()
 		return "overlap between optimized and reference state vector must have absolute value 1";
 	}
 
-	aligned_free(entropy);
-	aligned_free(en_sweeps_ref);
-	aligned_free(en_sweeps);
+	ct_free(entropy);
+	ct_free(en_sweeps_ref);
+	ct_free(en_sweeps);
 	delete_mps(&psi_ref);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);
-	aligned_free(qsite);
+	ct_free(qsite);
 
 	H5Fclose(file);
 

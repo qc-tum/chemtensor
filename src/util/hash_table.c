@@ -15,7 +15,7 @@ void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_
 	ht->key_equal   = key_equal;
 	ht->hash_func   = hash_func;
 	ht->key_size    = key_size;
-	ht->buckets     = aligned_calloc(MEM_DATA_ALIGN, num_buckets, sizeof(struct hash_table_entry*));
+	ht->buckets     = ct_calloc(num_buckets, sizeof(struct hash_table_entry*));
 	ht->num_buckets = num_buckets;
 	ht->num_entries = 0;
 }
@@ -34,14 +34,14 @@ void delete_hash_table(struct hash_table* ht, void (*free_func)(void*))
 		struct hash_table_entry* entry = ht->buckets[i];
 		while (entry != NULL)
 		{
-			aligned_free(entry->key);
+			ct_free(entry->key);
 			free_func(entry->val);
 			struct hash_table_entry* next = entry->next;
-			aligned_free(entry);
+			ct_free(entry);
 			entry = next;
 		}
 	}
-	aligned_free(ht->buckets);
+	ct_free(ht->buckets);
 
 	ht->num_buckets = 0;
 	ht->num_entries = 0;
@@ -75,9 +75,9 @@ void* hash_table_insert(struct hash_table* ht, void* key, void* val)
 	}
 
 	// key not found, insert entry
-	struct hash_table_entry* entry = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct hash_table_entry));
+	struct hash_table_entry* entry = ct_malloc(sizeof(struct hash_table_entry));
 	// copy key
-	entry->key = aligned_alloc(MEM_DATA_ALIGN, ht->key_size);
+	entry->key = ct_malloc(ht->key_size);
 	memcpy(entry->key, key, ht->key_size);
 	entry->val = val;
 	entry->next = NULL;
@@ -133,8 +133,8 @@ void* hash_table_remove(struct hash_table* ht, void* key)
 
 			(*p_entry) = entry->next;   // redirect pointer, effectively removing current entry from linked list
 			void* val = entry->val;     // keep reference to current value
-			aligned_free(entry->key);   // delete current entry
-			aligned_free(entry);
+			ct_free(entry->key);   // delete current entry
+			ct_free(entry);
 			ht->num_entries--;
 
 			return val;

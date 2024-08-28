@@ -152,7 +152,7 @@ char* test_dense_tensor_slice()
 	}
 	// read indices from disk
 	const long nind = 10;
-	long *ind = aligned_alloc(MEM_DATA_ALIGN, nind * sizeof(long));
+	long *ind = ct_malloc(nind * sizeof(long));
 	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
 		return "reading slice indices from disk failed";
 	}
@@ -177,7 +177,7 @@ char* test_dense_tensor_slice()
 	// clean up
 	delete_dense_tensor(&s_ref);
 	delete_dense_tensor(&s);
-	aligned_free(ind);
+	ct_free(ind);
 	delete_dense_tensor(&t);
 
 	H5Fclose(file);
@@ -662,13 +662,13 @@ char* test_dense_tensor_qr()
 
 			// 'r' must be upper triangular
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
-			void* zero_vec = aligned_calloc(MEM_DATA_ALIGN, k, sizeof_numeric_type(r.dtype));
+			void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
 			for (long l = 0; l < k; l++) {
 				if (uniform_distance(r.dtype, l, (char*)r.data + (l*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
 					return "R matrix is not upper triangular";
 				}
 			}
-			aligned_free(zero_vec);
+			ct_free(zero_vec);
 
 			delete_dense_tensor(&r);
 			delete_dense_tensor(&q);
@@ -729,13 +729,13 @@ char* test_dense_tensor_rq()
 
 			// 'r' must be upper triangular (referenced from the bottom right entry)
 			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
-			void* zero_vec = aligned_calloc(MEM_DATA_ALIGN, k, sizeof_numeric_type(r.dtype));
+			void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
 			for (long l = 0; l < k; l++) {
 				if (uniform_distance(r.dtype, l, (char*)r.data + ((dim[0] - k + l)*k)*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
 					return "R matrix is not upper triangular";
 				}
 			}
-			aligned_free(zero_vec);
+			ct_free(zero_vec);
 
 			delete_dense_tensor(&r);
 			delete_dense_tensor(&q);

@@ -4,7 +4,7 @@
 
 static int* construct_integer(int v)
 {
-	int* p = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+	int* p = ct_malloc(sizeof(int));
 	*p = v;
 	return p;
 }
@@ -60,13 +60,13 @@ char* test_linked_list()
 	if (list.size != 5) {
 		return "linked list does not have expected size";
 	}
-	int* arr0 = aligned_alloc(MEM_DATA_ALIGN, list.size * sizeof(int));
+	int* arr0 = ct_malloc(list.size * sizeof(int));
 	linked_list_export_integer_array(&list, arr0);
 	const int arr0_ref[5] = { 5, 6, 3, -1, 11 };
 	if (!integer_array_equal(list.size, arr0, arr0_ref)) {
 		return "linked list does not contain expected values";
 	}
-	aligned_free(arr0);
+	ct_free(arr0);
 
 	linked_list_insert_after_node(&list, list.head->next, construct_integer(2));
 
@@ -84,12 +84,12 @@ char* test_linked_list()
 	if (*p1 != -1) {
 		return "data pointer of removed node does not store expected value";
 	}
-	aligned_free(p1);
+	ct_free(p1);
 	int* p2 = linked_list_remove_node(&list, list.head);
 	if (*p2 != 5) {
 		return "data pointer of removed node does not store expected value";
 	}
-	aligned_free(p2);
+	ct_free(p2);
 
 	if (!linked_list_is_consistent(&list)) {
 		return "internal linked list consistency check failed";
@@ -104,15 +104,15 @@ char* test_linked_list()
 	if (list.size != 6) {
 		return "linked list does not have expected size";
 	}
-	int* arr1 = aligned_alloc(MEM_DATA_ALIGN, list.size * sizeof(int));
+	int* arr1 = ct_malloc(list.size * sizeof(int));
 	linked_list_export_integer_array(&list, arr1);
 	const int arr1_ref[6] = { 9, 6, 2, 3, 4, 11 };
 	if (!integer_array_equal(list.size, arr1, arr1_ref)) {
 		return "linked list does not contain expected values";
 	}
-	aligned_free(arr1);
+	ct_free(arr1);
 
-	delete_linked_list(&list, aligned_free);
+	delete_linked_list(&list, ct_free);
 
 	return 0;
 }

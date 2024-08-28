@@ -19,7 +19,7 @@ void ttno_graph_vertex_add_edge(const int direction, const int eid, struct ttno_
 
 	if (vertex->num_edges[direction] == 0)
 	{
-		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+		vertex->eids[direction] = ct_malloc(sizeof(int));
 		vertex->eids[direction][0] = eid;
 	}
 	else
@@ -27,9 +27,9 @@ void ttno_graph_vertex_add_edge(const int direction, const int eid, struct ttno_
 		// re-allocate memory for indices
 		int* eids_prev = vertex->eids[direction];
 		const int num = vertex->num_edges[direction];
-		vertex->eids[direction] = aligned_alloc(MEM_DATA_ALIGN, (num + 1) * sizeof(int));
+		vertex->eids[direction] = ct_malloc((num + 1) * sizeof(int));
 		memcpy(vertex->eids[direction], eids_prev, num * sizeof(int));
-		aligned_free(eids_prev);
+		ct_free(eids_prev);
 		vertex->eids[direction][num] = eid;
 	}
 
@@ -43,8 +43,8 @@ void ttno_graph_vertex_add_edge(const int direction, const int eid, struct ttno_
 ///
 static void delete_ttno_graph_vertex(struct ttno_graph_vertex* vertex)
 {
-	aligned_free(vertex->eids[0]);
-	aligned_free(vertex->eids[1]);
+	ct_free(vertex->eids[0]);
+	ct_free(vertex->eids[1]);
 }
 
 
@@ -54,8 +54,8 @@ static void delete_ttno_graph_vertex(struct ttno_graph_vertex* vertex)
 ///
 static void allocate_ttno_graph_hyperedge(const int order, const int nopics, struct ttno_graph_hyperedge* edge)
 {
-	edge->vids   = aligned_alloc(MEM_DATA_ALIGN, order  * sizeof(int));
-	edge->opics  = aligned_alloc(MEM_DATA_ALIGN, nopics * sizeof(struct local_op_ref));
+	edge->vids   = ct_malloc(order  * sizeof(int));
+	edge->opics  = ct_malloc(nopics * sizeof(struct local_op_ref));
 	edge->order  = order;
 	edge->nopics = nopics;
 }
@@ -67,8 +67,8 @@ static void allocate_ttno_graph_hyperedge(const int order, const int nopics, str
 ///
 static void delete_ttno_graph_hyperedge(struct ttno_graph_hyperedge* edge)
 {
-	aligned_free(edge->opics);
-	aligned_free(edge->vids);
+	ct_free(edge->opics);
+	ct_free(edge->vids);
 	edge->nopics = 0;
 	edge->order  = 0;
 }
@@ -95,9 +95,9 @@ struct op_cluster
 ///
 static void allocate_op_cluster(const int size, const int nbonds, const int nverts, struct op_cluster* cluster)
 {
-	cluster->oids  = aligned_alloc(MEM_DATA_ALIGN, size   * sizeof(int));
-	cluster->qnums = aligned_alloc(MEM_DATA_ALIGN, nbonds * sizeof(qnumber));
-	cluster->vids  = aligned_alloc(MEM_DATA_ALIGN, nverts * sizeof(int));
+	cluster->oids  = ct_malloc(size   * sizeof(int));
+	cluster->qnums = ct_malloc(nbonds * sizeof(qnumber));
+	cluster->vids  = ct_malloc(nverts * sizeof(int));
 
 	cluster->size   = size;
 	cluster->nbonds = nbonds;
@@ -124,9 +124,9 @@ static void copy_op_cluster(const struct op_cluster* restrict src, struct op_clu
 ///
 static void delete_op_cluster(struct op_cluster* cluster)
 {
-	aligned_free(cluster->oids);
-	aligned_free(cluster->qnums);
-	aligned_free(cluster->vids);
+	ct_free(cluster->oids);
+	ct_free(cluster->qnums);
+	ct_free(cluster->vids);
 }
 
 
@@ -229,12 +229,12 @@ static void delete_op_cluster_assembly(struct op_cluster_assembly* assembly)
 	for (int i = 0; i < assembly->nclusters; i++) {
 		delete_op_cluster(&assembly->clusters[i]);
 	}
-	aligned_free(assembly->clusters);
+	ct_free(assembly->clusters);
 	assembly->nclusters = 0;
 
-	aligned_free(assembly->active_sites);
-	aligned_free(assembly->qnum_index_map);
-	aligned_free(assembly->vid_index_map);
+	ct_free(assembly->active_sites);
+	ct_free(assembly->qnum_index_map);
+	ct_free(assembly->vid_index_map);
 }
 
 
@@ -327,14 +327,14 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 	const int nsites = topology->num_nodes;
 
 	// mark all sites as active
-	assembly->active_sites = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(bool));
+	assembly->active_sites = ct_malloc(nsites * sizeof(bool));
 	for (int l = 0; l < nsites; l++) {
 		assembly->active_sites[l] = true;
 	}
 
 	// transform operator chain quantum numbers to quantum numbers of tree layout
 	int c = 0;
-	int* m_qnums = aligned_calloc(MEM_DATA_ALIGN, nsites * (nsites - 1), sizeof(int));
+	int* m_qnums = ct_calloc(nsites * (nsites - 1), sizeof(int));
 	// note: require same enumeration order as in 'construct_qnumber_index_map'
 	for (int l = 0; l < nsites; l++)
 	{
@@ -354,14 +354,14 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 	assert(c == nsites - 1);
 
 	// ignoring last row (otherwise linear system would be over-determined)
-	int* h_qnums = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * (nsites - 1) * sizeof(int));
-	int* u_qnums = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * (nsites - 1) * sizeof(int));
+	int* h_qnums = ct_malloc((nsites - 1) * (nsites - 1) * sizeof(int));
+	int* u_qnums = ct_malloc((nsites - 1) * (nsites - 1) * sizeof(int));
 	if (integer_hermite_normal_form(nsites - 1, m_qnums, h_qnums, u_qnums) < 0) {
 		fprintf(stderr, "Hermite decomposition of quantum number map for given tree topology encountered singular matrix\n");
 		return -1;
 	}
 
-	assembly->clusters = aligned_calloc(MEM_DATA_ALIGN, nchains, sizeof(struct op_cluster));
+	assembly->clusters = ct_calloc(nchains, sizeof(struct op_cluster));
 	c = 0;
 	for (int k = 0; k < nchains; k++)
 	{
@@ -378,30 +378,30 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 		assert(pad_chain.qnums[0] == 0 && pad_chain.qnums[nsites] == 0);
 
 		// copy operator IDs
-		assembly->clusters[c].oids = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(int));
+		assembly->clusters[c].oids = ct_malloc(nsites * sizeof(int));
 		memcpy(assembly->clusters[c].oids, pad_chain.oids, nsites * sizeof(int));
 		assembly->clusters[c].size = nsites;
 
 		// quantum numbers
-		qnumber* dq = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(qnumber));
+		qnumber* dq = ct_malloc(nsites * sizeof(qnumber));
 		for (int l = 0; l < nsites; l++) {
 			// local quantum number for site 'l'
 			dq[l] = pad_chain.qnums[l] - pad_chain.qnums[l + 1];
 		}
-		qnumber* u_dq = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(qnumber));
+		qnumber* u_dq = ct_malloc((nsites - 1) * sizeof(qnumber));
 		// skipping last quantum number difference to avoid over-determined linear system
 		integer_gemv(nsites - 1, nsites - 1, u_qnums, dq, u_dq);
-		assembly->clusters[c].qnums = aligned_alloc(MEM_DATA_ALIGN, (nsites - 1) * sizeof(qnumber));
+		assembly->clusters[c].qnums = ct_malloc((nsites - 1) * sizeof(qnumber));
 		if (integer_backsubstitute(h_qnums, nsites - 1, u_dq, assembly->clusters[c].qnums) < 0) {
 			fprintf(stderr, "integer backsubstitution for obtaining quantum number assignment for given tree topology failed\n");
 			return -1;
 		}
-		aligned_free(u_dq);
-		aligned_free(dq);
+		ct_free(u_dq);
+		ct_free(dq);
 		assembly->clusters[c].nbonds = nsites - 1;
 
 		// no inactive sites, hence no connected vertices
-		assembly->clusters[c].vids = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));  // allocate a dummy block
+		assembly->clusters[c].vids = ct_malloc(sizeof(int));  // allocate a dummy block
 		assembly->clusters[c].nverts = 0;
 
 		// record coefficient index
@@ -416,14 +416,14 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 	assembly->nclusters = c;
 
 	// meta-information
-	assembly->qnum_index_map = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
-	assembly->vid_index_map  = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
+	assembly->qnum_index_map = ct_malloc(nsites*nsites * sizeof(int));
+	assembly->vid_index_map  = ct_malloc(nsites*nsites * sizeof(int));
 	construct_qnumber_index_map(topology, assembly->active_sites, assembly->qnum_index_map);
 	construct_vid_index_map(topology, assembly->active_sites, assembly->vid_index_map);
 
-	aligned_free(u_qnums);
-	aligned_free(h_qnums);
-	aligned_free(m_qnums);
+	ct_free(u_qnums);
+	ct_free(h_qnums);
+	ct_free(m_qnums);
 
 	return 0;
 }
@@ -451,8 +451,8 @@ struct u_node
 static void allocate_u_node(const int order, struct u_node* node)
 {
 	assert(order >= 1);
-	node->qnums = aligned_alloc(MEM_DATA_ALIGN, order * sizeof(qnumber));
-	node->vids  = aligned_alloc(MEM_DATA_ALIGN, (order - 1) * sizeof(int));
+	node->qnums = ct_malloc(order * sizeof(qnumber));
+	node->vids  = ct_malloc((order - 1) * sizeof(int));
 	node->order = order;
 }
 
@@ -463,8 +463,8 @@ static void allocate_u_node(const int order, struct u_node* node)
 ///
 static void delete_u_node(struct u_node* node)
 {
-	aligned_free(node->vids);
-	aligned_free(node->qnums);
+	ct_free(node->vids);
+	ct_free(node->qnums);
 	node->order = 0;
 }
 
@@ -553,12 +553,12 @@ struct site_cluster_partition
 ///
 static void delete_site_cluster_partition(struct site_cluster_partition* partition)
 {
-	aligned_free(partition->gamma);
+	ct_free(partition->gamma);
 	delete_op_cluster_assembly(&partition->part_assembly);
 	for (int i = 0; i < partition->num_u; i++) {
 		delete_u_node(&partition->ulist[i]);
 	}
-	aligned_free(partition->ulist);
+	ct_free(partition->ulist);
 }
 
 
@@ -593,21 +593,21 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 
 	memset(partition, 0, sizeof(struct site_cluster_partition));
 	// upper bound on required memory
-	partition->ulist = aligned_calloc(MEM_DATA_ALIGN, assembly->nclusters, sizeof(struct u_node));
-	partition->part_assembly.clusters = aligned_calloc(MEM_DATA_ALIGN, assembly->nclusters, sizeof(struct op_cluster));
+	partition->ulist = ct_calloc(assembly->nclusters, sizeof(struct u_node));
+	partition->part_assembly.clusters = ct_calloc(assembly->nclusters, sizeof(struct op_cluster));
 
 	// copy pointer to topology
 	partition->part_assembly.topology = topology;
 	// new active sites
-	partition->part_assembly.active_sites = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(bool));
+	partition->part_assembly.active_sites = ct_calloc(nsites, sizeof(bool));
 	for (int l = 0; l < nsites; l++) {
 		if (assembly->active_sites[l] && l != i_site) {
 			partition->part_assembly.active_sites[l] = true;
 		}
 	}
 	// meta-information
-	partition->part_assembly.qnum_index_map = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
-	partition->part_assembly.vid_index_map  = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
+	partition->part_assembly.qnum_index_map = ct_malloc(nsites*nsites * sizeof(int));
+	partition->part_assembly.vid_index_map  = ct_malloc(nsites*nsites * sizeof(int));
 	const int part_nbonds = construct_qnumber_index_map(topology, partition->part_assembly.active_sites, partition->part_assembly.qnum_index_map);
 	const int part_nverts = construct_vid_index_map(topology, partition->part_assembly.active_sites, partition->part_assembly.vid_index_map);
 
@@ -650,7 +650,7 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 			// insert node into array
 			memcpy(&partition->ulist[partition->num_u], &u, sizeof(struct u_node));
 			// insert (node, array index) into hash table
-			i = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+			i = ct_malloc(sizeof(int));
 			*i = partition->num_u;
 			hash_table_insert(&u_ht, &u, i);
 			partition->num_u++;
@@ -696,7 +696,7 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 			// insert cluster into array
 			memcpy(&partition->part_assembly.clusters[partition->part_assembly.nclusters], &v, sizeof(struct op_cluster));
 			// insert (cluster, array index) into hash table
-			j = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+			j = ct_malloc(sizeof(int));
 			*j = partition->part_assembly.nclusters;
 			hash_table_insert(&v_ht, &v, j);
 			partition->part_assembly.nclusters++;
@@ -709,7 +709,7 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 		}
 
 		// record gamma coefficient index
-		struct weighted_edge* edge = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct weighted_edge));
+		struct weighted_edge* edge = ct_malloc(sizeof(struct weighted_edge));
 		edge->i = (*i);
 		edge->j = (*j);
 		edge->cid = cids[m];
@@ -717,7 +717,7 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 	}
 
 	// copy entries into final gamma matrix
-	partition->gamma = aligned_calloc(MEM_DATA_ALIGN, partition->num_u*partition->part_assembly.nclusters, sizeof(int));
+	partition->gamma = ct_calloc(partition->num_u*partition->part_assembly.nclusters, sizeof(int));
 	struct linked_list_node* node = gamma_list.head;
 	while (node != NULL)
 	{
@@ -727,10 +727,10 @@ static void site_partition_clusters(const struct op_cluster_assembly* assembly, 
 		partition->gamma[edge->i*partition->part_assembly.nclusters + edge->j] = edge->cid;
 		node = node->next;
 	}
-	delete_linked_list(&gamma_list, aligned_free);
+	delete_linked_list(&gamma_list, ct_free);
 
-	delete_hash_table(&v_ht, aligned_free);
-	delete_hash_table(&u_ht, aligned_free);
+	delete_hash_table(&v_ht, ct_free);
+	delete_hash_table(&u_ht, ct_free);
 }
 
 
@@ -835,13 +835,13 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 
 	// initial operator cluster assembly
 	struct op_cluster_assembly assembly;
-	int* cids_next = aligned_alloc(MEM_DATA_ALIGN, nchains * sizeof(int));
+	int* cids_next = ct_malloc(nchains * sizeof(int));
 	if (cluster_assembly_from_opchains(chains, nchains, topology, &assembly, cids_next) < 0) {
 		return -1;
 	}
 
 	// clusters must be unique (to avoid repeated bipartite graph edges)
-	hash_type* cluster_hashes = aligned_alloc(MEM_DATA_ALIGN, assembly.nclusters * sizeof(hash_type));
+	hash_type* cluster_hashes = ct_malloc(assembly.nclusters * sizeof(hash_type));
 	for (int k = 0; k < assembly.nclusters; k++) {
 		cluster_hashes[k] = op_cluster_hash_func(&assembly.clusters[k]);
 	}
@@ -852,13 +852,13 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			return -2;
 		}
 	}
-	aligned_free(cluster_hashes);
+	ct_free(cluster_hashes);
 
 	copy_abstract_graph(topology, &ttno_graph->topology);
-	ttno_graph->edges     = aligned_calloc(MEM_DATA_ALIGN, nsites,        sizeof(struct ttno_graph_edge*));
-	ttno_graph->verts     = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(struct ttno_graph_vertex*));
-	ttno_graph->num_edges = aligned_calloc(MEM_DATA_ALIGN, nsites,        sizeof(int));
-	ttno_graph->num_verts = aligned_calloc(MEM_DATA_ALIGN, nsites*nsites, sizeof(int));
+	ttno_graph->edges     = ct_calloc(nsites,        sizeof(struct ttno_graph_edge*));
+	ttno_graph->verts     = ct_calloc(nsites*nsites, sizeof(struct ttno_graph_vertex*));
+	ttno_graph->num_edges = ct_calloc(nsites,        sizeof(int));
+	ttno_graph->num_verts = ct_calloc(nsites*nsites, sizeof(int));
 	ttno_graph->nsites = nsites;
 
 	// select site with maximum number of neighbors as root
@@ -868,7 +868,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			i_root = l;
 		}
 	}
-	struct site_distance_tuple* sd = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct site_distance_tuple));
+	struct site_distance_tuple* sd = ct_malloc(nsites * sizeof(struct site_distance_tuple));
 	enumerate_site_distance_tuples(topology, i_root, -1, 0, sd);
 	// sort by distance from root in descending order
 	qsort(sd, nsites, sizeof(struct site_distance_tuple), compare_site_distance_tuples);
@@ -892,7 +892,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 				}
 			}
 		}
-		struct bipartite_graph_edge* edges = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct bipartite_graph_edge));
+		struct bipartite_graph_edge* edges = ct_malloc(nedges * sizeof(struct bipartite_graph_edge));
 		int c = 0;
 		for (int i = 0; i < partition.num_u; i++) {
 			for (int j = 0; j < partition.part_assembly.nclusters; j++) {
@@ -907,9 +907,9 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		// construct bipartite graph and find a minimum vertex cover
 		struct bipartite_graph bigraph;
 		init_bipartite_graph(partition.num_u, partition.part_assembly.nclusters, edges, nedges, &bigraph);
-		aligned_free(edges);
-		bool* u_cover = aligned_calloc(MEM_DATA_ALIGN, bigraph.num_u, sizeof(bool));
-		bool* v_cover = aligned_calloc(MEM_DATA_ALIGN, bigraph.num_v, sizeof(bool));
+		ct_free(edges);
+		bool* u_cover = ct_calloc(bigraph.num_u, sizeof(bool));
+		bool* v_cover = ct_calloc(bigraph.num_v, sizeof(bool));
 		if (partition.part_assembly.nclusters == 1) {
 			// for the special case of a single V vertex, make this the cover vertex
 			// to ensure that coefficients are not passed on beyond last site
@@ -931,27 +931,27 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 		}
 
-		aligned_free(cids_next);
+		ct_free(cids_next);
 		delete_op_cluster_assembly(&assembly);
 
 		// allocate memory for next iteration, using bipartite graph 'nedges' as upper bound for number of required operator clusters
-		assembly.clusters  = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(struct op_cluster));
+		assembly.clusters  = ct_malloc(nedges * sizeof(struct op_cluster));
 		assembly.nclusters = 0;
 		// copy meta-information from partition
 		assembly.topology = topology;
-		assembly.active_sites   = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(bool));
-		assembly.qnum_index_map = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
-		assembly.vid_index_map  = aligned_alloc(MEM_DATA_ALIGN, nsites*nsites * sizeof(int));
+		assembly.active_sites   = ct_malloc(nsites * sizeof(bool));
+		assembly.qnum_index_map = ct_malloc(nsites*nsites * sizeof(int));
+		assembly.vid_index_map  = ct_malloc(nsites*nsites * sizeof(int));
 		memcpy(assembly.active_sites,   partition.part_assembly.active_sites,   nsites * sizeof(bool));
 		memcpy(assembly.qnum_index_map, partition.part_assembly.qnum_index_map, nsites*nsites * sizeof(int));
 		memcpy(assembly.vid_index_map,  partition.part_assembly.vid_index_map,  nsites*nsites * sizeof(int));
 
-		cids_next = aligned_alloc(MEM_DATA_ALIGN, nedges * sizeof(int));
+		cids_next = ct_malloc(nedges * sizeof(int));
 
 		// using bipartite graph 'nedges' as upper bound for number of required TTNO graph hyperedges
-		ttno_graph->edges[i_site] = aligned_calloc(MEM_DATA_ALIGN, nedges, sizeof(struct ttno_graph_hyperedge));
+		ttno_graph->edges[i_site] = ct_calloc(nedges, sizeof(struct ttno_graph_hyperedge));
 		const int iv = edge_to_vertex_index(nsites, i_site, i_parent);
-		ttno_graph->verts[iv] = aligned_calloc(MEM_DATA_ALIGN, num_u_cover + num_v_cover, sizeof(struct ttno_graph_vertex));
+		ttno_graph->verts[iv] = ct_calloc(num_u_cover + num_v_cover, sizeof(struct ttno_graph_vertex));
 
 		// current edge and vertex counter
 		int ce = 0;
@@ -1093,15 +1093,15 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 		ttno_graph->num_verts[iv]     = cv;
 		ttno_graph->num_edges[i_site] = ce;
 
-		aligned_free(v_cover);
-		aligned_free(u_cover);
+		ct_free(v_cover);
+		ct_free(u_cover);
 		delete_bipartite_graph(&bigraph);
 		delete_site_cluster_partition(&partition);
 	}
 
 	// hyperedges for root node
 	assert(assembly.active_sites[i_root]);
-	ttno_graph->edges[i_root] = aligned_calloc(MEM_DATA_ALIGN, assembly.nclusters, sizeof(struct ttno_graph_hyperedge));
+	ttno_graph->edges[i_root] = ct_calloc(assembly.nclusters, sizeof(struct ttno_graph_hyperedge));
 	for (int ce = 0; ce < assembly.nclusters; ce++)
 	{
 		const struct op_cluster* cluster = &assembly.clusters[ce];
@@ -1122,10 +1122,10 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	}
 	ttno_graph->num_edges[i_root] = assembly.nclusters;
 
-	aligned_free(cids_next);
+	ct_free(cids_next);
 	delete_op_cluster_assembly(&assembly);
 
-	aligned_free(sd);
+	ct_free(sd);
 
 	return 0;
 }
@@ -1144,10 +1144,10 @@ void delete_ttno_graph(struct ttno_graph* graph)
 		{
 			delete_ttno_graph_hyperedge(&graph->edges[l][i]);
 		}
-		aligned_free(graph->edges[l]);
+		ct_free(graph->edges[l]);
 	}
-	aligned_free(graph->edges);
-	aligned_free(graph->num_edges);
+	ct_free(graph->edges);
+	ct_free(graph->num_edges);
 
 	// vertices
 	for (int l = 0; l < graph->nsites; l++)
@@ -1162,11 +1162,11 @@ void delete_ttno_graph(struct ttno_graph* graph)
 			for (int i = 0; i < graph->num_verts[iv]; i++) {
 				delete_ttno_graph_vertex(&graph->verts[iv][i]);
 			}
-			aligned_free(graph->verts[iv]);
+			ct_free(graph->verts[iv]);
 		}
 	}
-	aligned_free(graph->verts);
-	aligned_free(graph->num_verts);
+	ct_free(graph->verts);
+	ct_free(graph->num_verts);
 
 	delete_abstract_graph(&graph->topology);
 }
@@ -1327,8 +1327,8 @@ static void delete_ttno_graph_contracted_subtree(struct ttno_graph_contracted_su
 	for (int i = 0; i < subtree->nblocks; i++) {
 		delete_dense_tensor(&subtree->blocks[i]);
 	}
-	aligned_free(subtree->blocks);
-	aligned_free(subtree->i_sites);
+	ct_free(subtree->blocks);
+	ct_free(subtree->i_sites);
 }
 
 
@@ -1375,7 +1375,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	const long d = opmap[0].dim[0];
 
 	// construct blocks for connections to child nodes
-	struct ttno_graph_contracted_subtree* children = aligned_alloc(MEM_DATA_ALIGN, graph->topology.num_neighbors[i_site] * sizeof(struct ttno_graph_contracted_subtree));
+	struct ttno_graph_contracted_subtree* children = ct_malloc(graph->topology.num_neighbors[i_site] * sizeof(struct ttno_graph_contracted_subtree));
 	for (int n = 0; n < graph->topology.num_neighbors[i_site]; n++)
 	{
 		const int k = graph->topology.neighbor_map[i_site][n];
@@ -1386,7 +1386,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	}
 
 	// determine collection of site indices of to-be contracted subtree
-	contracted->i_sites = aligned_alloc(MEM_DATA_ALIGN, sizeof(int));
+	contracted->i_sites = ct_malloc(sizeof(int));
 	contracted->i_sites[0] = i_site;
 	contracted->nsites = 1;
 	for (int n = 0; n < graph->topology.num_neighbors[i_site]; n++)
@@ -1396,7 +1396,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			continue;
 		}
 
-		int* i_sites_new = aligned_alloc(MEM_DATA_ALIGN, (contracted->nsites + children[n].nsites) * sizeof(int));
+		int* i_sites_new = ct_malloc((contracted->nsites + children[n].nsites) * sizeof(int));
 		if (k < i_site) {
 			memcpy( i_sites_new, children[n].i_sites, children[n].nsites * sizeof(int));
 			memcpy(&i_sites_new[children[n].nsites], contracted->i_sites, contracted->nsites * sizeof(int));
@@ -1405,7 +1405,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			memcpy( i_sites_new, contracted->i_sites, contracted->nsites * sizeof(int));
 			memcpy(&i_sites_new[contracted->nsites], children[n].i_sites, children[n].nsites * sizeof(int));
 		}
-		aligned_free(contracted->i_sites);
+		ct_free(contracted->i_sites);
 		contracted->i_sites = i_sites_new;
 		contracted->nsites += children[n].nsites;
 	}
@@ -1413,7 +1413,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	if (i_parent < 0)  // root node
 	{
 		contracted->nblocks = 1;
-		contracted->blocks = aligned_alloc(MEM_DATA_ALIGN, contracted->nblocks * sizeof(struct dense_tensor));
+		contracted->blocks = ct_malloc(contracted->nblocks * sizeof(struct dense_tensor));
 
 		assert(graph->num_edges[i_site] > 0);
 		for (int j = 0; j < graph->num_edges[i_site]; j++)
@@ -1458,7 +1458,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		assert(graph->verts[iv] != NULL);
 
 		contracted->nblocks = graph->num_verts[iv];
-		contracted->blocks = aligned_alloc(MEM_DATA_ALIGN, contracted->nblocks * sizeof(struct dense_tensor));
+		contracted->blocks = ct_malloc(contracted->nblocks * sizeof(struct dense_tensor));
 
 		for (int i = 0; i < graph->num_verts[iv]; i++)
 		{
@@ -1518,22 +1518,22 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		}
 		delete_ttno_graph_contracted_subtree(&children[n]);
 	}
-	aligned_free(children);
+	ct_free(children);
 
 	// sort axes by site indices
-	struct indexed_site_index* indexed_sites = aligned_alloc(MEM_DATA_ALIGN, contracted->nsites * sizeof(struct indexed_site_index));
+	struct indexed_site_index* indexed_sites = ct_malloc(contracted->nsites * sizeof(struct indexed_site_index));
 	for (int j = 0; j < contracted->nsites; j++) {
 		indexed_sites[j].i_site = contracted->i_sites[j];
 		indexed_sites[j].index = j;
 	}
 	qsort(indexed_sites, contracted->nsites, sizeof(struct indexed_site_index), compare_indexed_site_index);
-	int* perm = aligned_alloc(MEM_DATA_ALIGN, 2 * contracted->nsites * sizeof(int));
+	int* perm = ct_malloc(2 * contracted->nsites * sizeof(int));
 	for (int j = 0; j < contracted->nsites; j++)
 	{
 		contracted->i_sites[j] = indexed_sites[j].i_site;
 		perm[j] = indexed_sites[j].index;
 	}
-	aligned_free(indexed_sites);
+	ct_free(indexed_sites);
 	// skip permutation operations in case of an identity permutation
 	bool is_identity_perm = true;
 	for (int j = 0; j < contracted->nsites; j++) {
@@ -1548,7 +1548,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		for (int j = 0; j < contracted->nsites; j++) {
 			perm[contracted->nsites + j] = contracted->nsites + perm[j];
 		}
-		long* dim = aligned_alloc(MEM_DATA_ALIGN, 2 * contracted->nsites * sizeof(long));
+		long* dim = ct_malloc(2 * contracted->nsites * sizeof(long));
 		for (int j = 0; j < 2 * contracted->nsites; j++) {
 			dim[j] = d;
 		}
@@ -1566,9 +1566,9 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 
 			reshape_dense_tensor(2, orig_dim, &contracted->blocks[i]);
 		}
-		aligned_free(dim);
+		ct_free(dim);
 	}
-	aligned_free(perm);
+	ct_free(perm);
 }
 
 
@@ -1599,6 +1599,6 @@ void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_ten
 		assert(contracted.i_sites[l] == l);
 	}
 	move_dense_tensor_data(&contracted.blocks[0], mat);
-	aligned_free(contracted.blocks);
-	aligned_free(contracted.i_sites);
+	ct_free(contracted.blocks);
+	ct_free(contracted.i_sites);
 }

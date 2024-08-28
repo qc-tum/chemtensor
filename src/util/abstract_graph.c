@@ -13,13 +13,13 @@ void copy_abstract_graph(const struct abstract_graph* restrict src, struct abstr
 {
 	dst->num_nodes = src->num_nodes;
 
-	dst->num_neighbors = aligned_alloc(MEM_DATA_ALIGN, src->num_nodes * sizeof(int));
+	dst->num_neighbors = ct_malloc(src->num_nodes * sizeof(int));
 	memcpy(dst->num_neighbors, src->num_neighbors, src->num_nodes * sizeof(int));
 
-	dst->neighbor_map = aligned_alloc(MEM_DATA_ALIGN, src->num_nodes * sizeof(int*));
+	dst->neighbor_map = ct_malloc(src->num_nodes * sizeof(int*));
 	for (int l = 0; l < src->num_nodes; l++)
 	{
-		dst->neighbor_map[l] = aligned_alloc(MEM_DATA_ALIGN, src->num_neighbors[l] * sizeof(int));
+		dst->neighbor_map[l] = ct_malloc(src->num_neighbors[l] * sizeof(int));
 		memcpy(dst->neighbor_map[l], src->neighbor_map[l], src->num_neighbors[l] * sizeof(int));
 	}
 }
@@ -33,10 +33,10 @@ void delete_abstract_graph(struct abstract_graph* graph)
 {
 	for (int l = 0; l < graph->num_nodes; l++)
 	{
-		aligned_free(graph->neighbor_map[l]);
+		ct_free(graph->neighbor_map[l]);
 	}
-	aligned_free(graph->neighbor_map);
-	aligned_free(graph->num_neighbors);
+	ct_free(graph->neighbor_map);
+	ct_free(graph->num_neighbors);
 
 	graph->num_nodes = 0;
 }
@@ -136,21 +136,21 @@ bool abstract_graph_is_connected_tree(const struct abstract_graph* graph)
 		return false;
 	}
 
-	bool* visited = aligned_calloc(MEM_DATA_ALIGN, graph->num_nodes, sizeof(bool));
+	bool* visited = ct_calloc(graph->num_nodes, sizeof(bool));
 	if (!traverse_abstract_graph(graph, 0, -1, visited)) {
-		aligned_free(visited);
+		ct_free(visited);
 		return false;
 	}
 
 	// all nodes must have been visited, i.e., graph must be connected
 	for (int i = 0; i < graph->num_nodes; i++) {
 		if (!visited[i]) {
-			aligned_free(visited);
+			ct_free(visited);
 			return false;
 		}
 	}
 
-	aligned_free(visited);
+	ct_free(visited);
 
 	return true;
 }

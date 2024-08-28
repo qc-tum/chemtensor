@@ -35,7 +35,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 	mpo_from_assembly(assembly, &mpo);
 
 	// right operator blocks
-	struct block_sparse_tensor* rblocks = aligned_alloc(MEM_DATA_ALIGN, nsites * sizeof(struct block_sparse_tensor));
+	struct block_sparse_tensor* rblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
 	compute_right_operator_blocks(psi, chi, &mpo, rblocks);
 	struct block_sparse_tensor lblock;
 	create_dummy_operator_block_left(&psi->a[0], &chi->a[0], &mpo.a[0], &lblock);
@@ -67,7 +67,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 			for (int l = 0; l < nsites; l++) {
 				delete_block_sparse_tensor(&rblocks[l]);
 			}
-			aligned_free(rblocks);
+			ct_free(rblocks);
 			delete_mpo(&mpo);
 			return;
 		}
@@ -224,7 +224,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		move_block_sparse_tensor_data(&lblock_next, &lblock);
 	}
 
-	aligned_free(rblocks);
+	ct_free(rblocks);
 	delete_block_sparse_tensor(&lblock);
 	delete_mpo(&mpo);
 }

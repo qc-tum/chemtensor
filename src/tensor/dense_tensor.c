@@ -24,19 +24,19 @@ void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const 
 
 	if (ndim > 0)
 	{
-		t->dim = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+		t->dim = ct_malloc(ndim * sizeof(long));
 		memcpy(t->dim, dim, ndim * sizeof(long));
 	}
 	else    // ndim == 0
 	{
-		// aligned_alloc(MEM_DATA_ALIGN, 0) not guaranteed to return NULL
+		// ct_malloc(0) not guaranteed to return NULL
 		t->dim = NULL;
 	}
 
 	const long nelem = dense_tensor_num_elements(t);
 	// dimensions must be strictly positive
 	assert(nelem > 0);
-	t->data = aligned_calloc(MEM_DATA_ALIGN, nelem, sizeof_numeric_type(dtype));
+	t->data = ct_calloc(nelem, sizeof_numeric_type(dtype));
 	assert(t->data != NULL);
 }
 
@@ -47,12 +47,12 @@ void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const 
 ///
 void delete_dense_tensor(struct dense_tensor* t)
 {
-	aligned_free(t->data);
+	ct_free(t->data);
 	t->data = NULL;
 
 	if (t->ndim > 0)
 	{
-		aligned_free(t->dim);
+		ct_free(t->dim);
 	}
 	t->ndim = 0;
 }
@@ -395,8 +395,8 @@ void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* 
 
 	// new dimensions
 	t->ndim = ndim;
-	aligned_free(t->dim);
-	t->dim = aligned_alloc(MEM_DATA_ALIGN, ndim * sizeof(long));
+	ct_free(t->dim);
+	t->dim = ct_malloc(ndim * sizeof(long));
 	memcpy(t->dim, dim, ndim * sizeof(long));
 }
 
@@ -597,7 +597,7 @@ static void squeeze_dimensions(const struct dimension_permutation* restrict dp, 
 	assert(dp->ndim >= 1);
 
 	// map from original to effective axis
-	int* axis_map = aligned_alloc(MEM_DATA_ALIGN, dp->ndim * sizeof(int));
+	int* axis_map = ct_malloc(dp->ndim * sizeof(int));
 	dp_eff->ndim = 0;
 	for (int i = 0; i < dp->ndim; i++)
 	{
@@ -612,12 +612,12 @@ static void squeeze_dimensions(const struct dimension_permutation* restrict dp, 
 	}
 	if (dp_eff->ndim == 0) {
 		// special case: all dimensions are 1
-		aligned_free(axis_map);
+		ct_free(axis_map);
 		return;
 	}
 
 	// effective dimensions
-	dp_eff->dim = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(long));
+	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(long));
 	for (int i = 0; i < dp->ndim; i++) {
 		if (dp->dim[i] != 1) {
 			dp_eff->dim[axis_map[i]] = dp->dim[i];
@@ -625,7 +625,7 @@ static void squeeze_dimensions(const struct dimension_permutation* restrict dp, 
 	}
 
 	// effective permutation
-	dp_eff->perm = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(int));
+	dp_eff->perm = ct_malloc(dp_eff->ndim * sizeof(int));
 	int c = 0;
 	for (int i = 0; i < dp->ndim; i++) {
 		if (dp->dim[dp->perm[i]] != 1) {
@@ -635,7 +635,7 @@ static void squeeze_dimensions(const struct dimension_permutation* restrict dp, 
 	}
 	assert(c == dp_eff->ndim);
 
-	aligned_free(axis_map);
+	ct_free(axis_map);
 }
 
 
@@ -648,7 +648,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	assert(dp->ndim >= 1);
 
 	// whether to fuse with previous axis
-	int* fuse_map = aligned_calloc(MEM_DATA_ALIGN, dp->ndim, sizeof(int));
+	int* fuse_map = ct_calloc(dp->ndim, sizeof(int));
 	for (int i = 1; i < dp->ndim; i++) {
 		if (dp->perm[i] == dp->perm[i - 1] + 1) {
 			fuse_map[dp->perm[i]] = true;
@@ -656,7 +656,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	}
 
 	// map from original to effective axis
-	int* axis_map = aligned_alloc(MEM_DATA_ALIGN, dp->ndim * sizeof(int));
+	int* axis_map = ct_malloc(dp->ndim * sizeof(int));
 	dp_eff->ndim = 0;
 	for (int i = 0; i < dp->ndim; i++) {
 		if (fuse_map[i]) {
@@ -670,7 +670,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	assert(dp_eff->ndim >= 1);
 
 	// effective dimensions
-	dp_eff->dim = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(long));
+	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(long));
 	for (int i = 0; i < dp_eff->ndim; i++) {
 		dp_eff->dim[i] = 1;
 	}
@@ -680,7 +680,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	}
 
 	// effective permutation
-	dp_eff->perm = aligned_alloc(MEM_DATA_ALIGN, dp_eff->ndim * sizeof(int));
+	dp_eff->perm = ct_malloc(dp_eff->ndim * sizeof(int));
 	int c = 0;
 	for (int i = 0; i < dp->ndim; i++) {
 		if (!fuse_map[dp->perm[i]]) {
@@ -690,8 +690,8 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	}
 	assert(c == dp_eff->ndim);
 
-	aligned_free(fuse_map);
-	aligned_free(axis_map);
+	ct_free(fuse_map);
+	ct_free(axis_map);
 }
 
 
@@ -715,7 +715,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	}
 
 	// ensure that 'perm' is a valid permutation
-	int* ax_list = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(int));
+	int* ax_list = ct_calloc(t->ndim, sizeof(int));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		assert(0 <= perm[i] && perm[i] < t->ndim);
@@ -725,16 +725,16 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	{
 		assert(ax_list[i] == 1);
 	}
-	aligned_free(ax_list);
+	ct_free(ax_list);
 
 	// dimensions of new tensor 'r'
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	long* rdim = ct_malloc(t->ndim * sizeof(long));
 	for (int i = 0; i < t->ndim; i++) {
 		rdim[i] = t->dim[perm[i]];
 	}
 	// create new tensor 'r'
 	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
-	aligned_free(rdim);
+	ct_free(rdim);
 
 	// effective dimensions and permutation
 	const struct dimension_permutation dp = { .dim = t->dim, .perm = (int*)perm, .ndim = t->ndim };
@@ -749,11 +749,11 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	}
 	struct dimension_permutation dp_eff;
 	fuse_permutation_axes(&dp_squeeze, &dp_eff);
-	aligned_free(dp_squeeze.perm);
-	aligned_free(dp_squeeze.dim);
+	ct_free(dp_squeeze.perm);
+	ct_free(dp_squeeze.dim);
 
 	// effective dimensions of 'r'
-	long* rdim_eff = aligned_alloc(MEM_DATA_ALIGN, dp_eff.ndim * sizeof(long));
+	long* rdim_eff = ct_malloc(dp_eff.ndim * sizeof(long));
 	for (int i = 0; i < dp_eff.ndim; i++) {
 		rdim_eff[i] = dp_eff.dim[dp_eff.perm[i]];
 	}
@@ -772,8 +772,8 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	const long nelem = integer_product(dp_eff.dim, dp_eff.ndim);
 	assert(nelem == dense_tensor_num_elements(t));
 
-	long* index_t = aligned_calloc(MEM_DATA_ALIGN, dp_eff.ndim,  sizeof(long));
-	long* index_r =  aligned_alloc(MEM_DATA_ALIGN, dp_eff.ndim * sizeof(long));
+	long* index_t = ct_calloc(dp_eff.ndim,  sizeof(long));
+	long* index_r =  ct_malloc(dp_eff.ndim * sizeof(long));
 
 	for (long ot = 0; ot < nelem; ot += dp_eff.dim[dp_eff.ndim - 1])
 	{
@@ -852,11 +852,11 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	}
 
 	// clean up
-	aligned_free(rdim_eff);
-	aligned_free(dp_eff.perm);
-	aligned_free(dp_eff.dim);
-	aligned_free(index_r);
-	aligned_free(index_t);
+	ct_free(rdim_eff);
+	ct_free(dp_eff.perm);
+	ct_free(dp_eff.dim);
+	ct_free(index_r);
+	ct_free(index_t);
 }
 
 
@@ -886,11 +886,11 @@ void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, c
 	assert(0 <= i_ax && i_ax < t->ndim);
 	assert(nind > 0);
 
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, t->ndim * sizeof(long));
+	long* rdim = ct_malloc(t->ndim * sizeof(long));
 	memcpy(rdim, t->dim, t->ndim * sizeof(long));
 	rdim[i_ax] = nind;
 	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
-	aligned_free(rdim);
+	ct_free(rdim);
 
 	dense_tensor_slice_fill(t, i_ax, ind, nind, r);
 }
@@ -1242,12 +1242,12 @@ void dense_tensor_multiply_axis(const struct dense_tensor* restrict s, const int
 
 	// allocate output tensor
 	{
-		long* rdim = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim - 2) * sizeof(long));
+		long* rdim = ct_malloc((s->ndim + t->ndim - 2) * sizeof(long));
 		memcpy( rdim, s->dim, i_ax * sizeof(long));
 		memcpy(&rdim[i_ax], &t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 1 : 0], (t->ndim - 1) * sizeof(long));
 		memcpy(&rdim[i_ax + t->ndim - 1], &s->dim[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(long));
 		allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2, rdim, r);
-		aligned_free(rdim);
+		ct_free(rdim);
 	}
 
 	dense_tensor_multiply_axis_update(numeric_one(s->dtype), s, i_ax, t, axrange_t, numeric_zero(s->dtype), r);
@@ -1372,7 +1372,7 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 
 	// dimensions of new tensor 'r'
 	const int ndimr = s->ndim + t->ndim - 2*ndim_mult;
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, ndimr * sizeof(long));
+	long* rdim = ct_malloc(ndimr * sizeof(long));
 	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
@@ -1385,7 +1385,7 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 	}
 	// create new tensor 'r'
 	allocate_dense_tensor(s->dtype, ndimr, rdim, r);
-	aligned_free(rdim);
+	ct_free(rdim);
 
 	const int nlds = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : s->ndim - ndim_mult);
 	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
@@ -1592,18 +1592,18 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	}
 
 	// interleave dimensions of 's' and 't'
-	long* rdim_il = aligned_alloc(MEM_DATA_ALIGN, (s->ndim + t->ndim) * sizeof(long));
+	long* rdim_il = ct_malloc((s->ndim + t->ndim) * sizeof(long));
 	for (int i = 0; i < s->ndim; i++)
 	{
 		rdim_il[2*i  ] = s->dim[i];
 		rdim_il[2*i+1] = t->dim[i];
 	}
 	allocate_dense_tensor(s->dtype, s->ndim + t->ndim, rdim_il, r);
-	aligned_free(rdim_il);
+	ct_free(rdim_il);
 
-	long* index_s = aligned_calloc(MEM_DATA_ALIGN, s->ndim, sizeof(long));
-	long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_r = aligned_calloc(MEM_DATA_ALIGN, r->ndim, sizeof(long));
+	long* index_s = ct_calloc(s->ndim, sizeof(long));
+	long* index_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_r = ct_calloc(r->ndim, sizeof(long));
 
 	const long last_dim_s = s->dim[s->ndim - 1];
 	const long last_dim_t = t->dim[t->ndim - 1];
@@ -1655,18 +1655,18 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		}
 	}
 
-	aligned_free(index_r);
-	aligned_free(index_t);
-	aligned_free(index_s);
+	ct_free(index_r);
+	ct_free(index_t);
+	ct_free(index_s);
 
 	// actual dimensions of 'r'
-	long* rdim = aligned_alloc(MEM_DATA_ALIGN, s->ndim * sizeof(long));
+	long* rdim = ct_malloc(s->ndim * sizeof(long));
 	for (int i = 0; i < s->ndim; i++)
 	{
 		rdim[i] = s->dim[i] * t->dim[i];
 	}
 	reshape_dense_tensor(s->ndim, rdim, r);
-	aligned_free(rdim);
+	ct_free(rdim);
 }
 
 
@@ -1721,7 +1721,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 	{
 		case CT_SINGLE_REAL:
 		{
-			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
+			float* tau = ct_malloc(k * sizeof(float));
 
 			if (m >= n)
 			{
@@ -1783,13 +1783,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
+			double* tau = ct_malloc(k * sizeof(double));
 
 			if (m >= n)
 			{
@@ -1851,13 +1851,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
+			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
 			if (m >= n)
 			{
@@ -1919,13 +1919,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
+			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
 			if (m >= n)
 			{
@@ -1987,7 +1987,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
@@ -2053,7 +2053,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 	{
 		case CT_SINGLE_REAL:
 		{
-			float* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(float));
+			float* tau = ct_malloc(k * sizeof(float));
 
 			if (n >= m)
 			{
@@ -2115,13 +2115,13 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			double* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(double));
+			double* tau = ct_malloc(k * sizeof(double));
 
 			if (n >= m)
 			{
@@ -2183,13 +2183,13 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			scomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(scomplex));
+			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
 			if (n >= m)
 			{
@@ -2251,13 +2251,13 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			dcomplex* tau = aligned_alloc(MEM_DATA_ALIGN, k * sizeof(dcomplex));
+			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
 			if (n >= m)
 			{
@@ -2319,7 +2319,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				return -2;
 			}
 
-			aligned_free(tau);
+			ct_free(tau);
 
 			break;
 		}
@@ -2385,7 +2385,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 	assert(vh->dim[0] == k);
 	assert(vh->dim[1] == n);
 
-	void* superb = aligned_alloc(MEM_DATA_ALIGN, (k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)));
+	void* superb = ct_malloc((k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)));
 
 	switch (a->dtype)
 	{
@@ -2512,7 +2512,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 		}
 	}
 
-	aligned_free(superb);
+	ct_free(superb);
 
 	return 0;
 }
@@ -2537,8 +2537,8 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 
 	const long nelem = dense_tensor_num_elements(b);
 
-	long* index_t = aligned_calloc(MEM_DATA_ALIGN, t->ndim, sizeof(long));
-	long* index_b = aligned_calloc(MEM_DATA_ALIGN, b->ndim, sizeof(long));
+	long* index_t = ct_calloc(t->ndim, sizeof(long));
+	long* index_b = ct_calloc(b->ndim, sizeof(long));
 
 	// map first index of tensor 'b' to index of tensor 't', except for last dimension (will be handled in copy loop)
 	for (int i = 0; i < t->ndim - 1; i++)
@@ -2628,8 +2628,8 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 	}
 
 	// clean up
-	aligned_free(index_b);
-	aligned_free(index_t);
+	ct_free(index_b);
+	ct_free(index_t);
 }
 
 

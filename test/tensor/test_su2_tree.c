@@ -56,7 +56,7 @@ char* test_su2_tree_enumerate_charge_sectors()
 	if (get_hdf5_dataset_dims(file, "charge_sectors", dims_ref) < 0) {
 		return "obtaining charge sector dimensions failed";
 	}
-	qnumber* sectors_ref = aligned_alloc(MEM_DATA_ALIGN, dims_ref[0] * dims_ref[1] * sizeof(qnumber));
+	qnumber* sectors_ref = ct_malloc(dims_ref[0] * dims_ref[1] * sizeof(qnumber));
 	// read values from disk
 	if (read_hdf5_dataset(file, "charge_sectors", H5T_NATIVE_INT, sectors_ref) < 0) {
 		return "reading charge sectors from disk failed";
@@ -77,7 +77,7 @@ char* test_su2_tree_enumerate_charge_sectors()
 		}
 	}
 
-	aligned_free(sectors_ref);
+	ct_free(sectors_ref);
 	delete_charge_sectors(&sectors);
 
 	H5Fclose(file);
@@ -157,7 +157,7 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors()
 	if (get_hdf5_dataset_dims(file, "charge_sectors", dims_ref) < 0) {
 		return "obtaining charge sector dimensions failed";
 	}
-	qnumber* sectors_ref = aligned_alloc(MEM_DATA_ALIGN, dims_ref[0] * dims_ref[1] * sizeof(qnumber));
+	qnumber* sectors_ref = ct_malloc(dims_ref[0] * dims_ref[1] * sizeof(qnumber));
 	// read values from disk
 	if (read_hdf5_dataset(file, "charge_sectors", H5T_NATIVE_INT, sectors_ref) < 0) {
 		return "reading charge sectors from disk failed";
@@ -178,7 +178,7 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors()
 		}
 	}
 
-	aligned_free(sectors_ref);
+	ct_free(sectors_ref);
 	delete_charge_sectors(&sectors);
 
 	H5Fclose(file);

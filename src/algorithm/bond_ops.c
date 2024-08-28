@@ -35,7 +35,7 @@ double von_neumann_entropy(const double* sigma, const long n)
 void delete_index_list(struct index_list* list)
 {
 	if (list->ind != NULL) {
-		aligned_free(list->ind);
+		ct_free(list->ind);
 		list->ind = NULL;
 	}
 
@@ -92,7 +92,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	info->tol_eff = tol;
 
 	// store singular values as value-index pairs and sort them by value
-	struct val_idx* s_sort = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(struct val_idx));
+	struct val_idx* s_sort = ct_malloc(n * sizeof(struct val_idx));
 	for (long i = 0; i < n; i++)
 	{
 		s_sort[i].v = sigma[i];
@@ -110,7 +110,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	// special case: all singular values zero
 	if (sqsum == 0)
 	{
-		aligned_free(s_sort);
+		ct_free(s_sort);
 
 		list->ind = NULL;
 		list->num = 0;
@@ -143,18 +143,18 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	}
 
 	// restore original ordering of accumulated squares
-	double* accum = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(double));
+	double* accum = ct_malloc(n * sizeof(double));
 	for (long i = 0; i < n; i++)
 	{
 		accum[s_sort[i].i] = s_sort[i].v;
 	}
 
-	aligned_free(s_sort);
+	ct_free(s_sort);
 
 	// indices of accumulated squares larger than tolerance
 	// filter out singular values which are (almost) zero to machine precision
 	const double tol_mzero = fmax(tol, 1e-28);
-	list->ind = aligned_alloc(MEM_DATA_ALIGN, n * sizeof(long));
+	list->ind = ct_malloc(n * sizeof(long));
 	list->num = 0;
 	for (long i = 0; i < n; i++)
 	{
@@ -165,13 +165,13 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 		}
 	}
 	assert(list->num <= max_vdim);
-	aligned_free(accum);
+	ct_free(accum);
 
 	if (list->num == 0)
 	{
 		// special case: all singular values truncated
 
-		aligned_free(list->ind);
+		ct_free(list->ind);
 		list->ind = NULL;
 
 		info->norm_sigma = 0;
@@ -180,7 +180,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	}
 
 	// record norm and von Neumann entropy of retained singular values
-	double* retained = aligned_alloc(MEM_DATA_ALIGN, list->num * sizeof(double));
+	double* retained = ct_malloc(list->num * sizeof(double));
 	for (long i = 0; i < list->num; i++)
 	{
 		retained[i] = sigma[list->ind[i]];
@@ -195,7 +195,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	info->entropy = von_neumann_entropy(retained, list->num);
 
-	aligned_free(retained);
+	ct_free(retained);
 }
 
 
@@ -229,14 +229,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 
 		// temporarily convert singular values to double format
 		const float* sdata = s.data;
-		double* sigma = aligned_alloc(MEM_DATA_ALIGN, s.dim[0] * sizeof(double));
+		double* sigma = ct_malloc(s.dim[0] * sizeof(double));
 		for (long i = 0; i < s.dim[0]; i++) {
 			sigma[i] = (double)sdata[i];
 		}
 
 		retained_bond_indices(sigma, s.dim[0], tol, max_vdim, &retained, info);
 
-		aligned_free(sigma);
+		ct_free(sigma);
 	}
 
 	if (retained.num == 0)

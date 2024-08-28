@@ -23,16 +23,16 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 	// tree topology
 	copy_abstract_graph(&assembly->graph.topology, &ttno->topology);
 
-	ttno->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	ttno->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(ttno->qsite, assembly->qsite, d * sizeof(qnumber));
 
-	ttno->a = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.nsites, sizeof(struct block_sparse_tensor));
+	ttno->a = ct_calloc(assembly->graph.nsites, sizeof(struct block_sparse_tensor));
 
 	for (int l = 0; l < assembly->graph.nsites; l++)
 	{
 		// accumulate entries in a dense tensor first
 		const int ndim_a_loc = assembly->graph.topology.num_neighbors[l] + 2;
-		long* dim_a_loc = aligned_alloc(MEM_DATA_ALIGN, ndim_a_loc * sizeof(long));
+		long* dim_a_loc = ct_malloc(ndim_a_loc * sizeof(long));
 		for (int i = 0; i < ndim_a_loc; i++) {
 			dim_a_loc[i] = d;
 		}
@@ -54,7 +54,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		}
 		struct dense_tensor a_loc;
 		allocate_dense_tensor(assembly->dtype, ndim_a_loc, dim_a_loc, &a_loc);
-		aligned_free(dim_a_loc);
+		ct_free(dim_a_loc);
 
 		for (int n = 0; n < assembly->graph.num_edges[l]; n++)
 		{
@@ -68,7 +68,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			assert(op.dtype == a_loc.dtype);
 
 			// add entries of local operator 'op' to 'a_loc' (supporting multiple hyperedges between same nodes)
-			long* index_start = aligned_calloc(MEM_DATA_ALIGN, a_loc.ndim, sizeof(long));
+			long* index_start = ct_calloc(a_loc.ndim, sizeof(long));
 			for (int i = 0; i < edge->order; i++) {
 				int k = assembly->graph.topology.neighbor_map[l][i];
 				assert(k != l);
@@ -76,7 +76,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 				assert(0 <= edge->vids[i] && edge->vids[i] < a_loc.dim[k < l ? i : i + 2]);
 			}
 			long offset = tensor_index_to_offset(a_loc.ndim, a_loc.dim, index_start);
-			aligned_free(index_start);
+			ct_free(index_start);
 			switch (a_loc.dtype)
 			{
 				case CT_SINGLE_REAL:
@@ -130,15 +130,15 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		}
 
 		// note: entries not adhering to the quantum number sparsity pattern are ignored
-		qnumber** qnums = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.topology.num_neighbors[l] + 2, sizeof(qnumber*));
+		qnumber** qnums = ct_calloc(assembly->graph.topology.num_neighbors[l] + 2, sizeof(qnumber*));
 		// virtual bond axis is oriented towards smaller site index
-		enum tensor_axis_direction* axis_dir = aligned_alloc(MEM_DATA_ALIGN, (assembly->graph.topology.num_neighbors[l] + 2) * sizeof(enum tensor_axis_direction));
+		enum tensor_axis_direction* axis_dir = ct_malloc((assembly->graph.topology.num_neighbors[l] + 2) * sizeof(enum tensor_axis_direction));
 		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
 		{
 			int k = assembly->graph.topology.neighbor_map[l][i];
 			if (k < l) {
 				const int iv = k*assembly->graph.nsites + l;
-				qnums[i] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[iv] * sizeof(qnumber));
+				qnums[i] = ct_malloc(assembly->graph.num_verts[iv] * sizeof(qnumber));
 				for (int n = 0; n < assembly->graph.num_verts[iv]; n++)
 				{
 					qnums[i][n] = assembly->graph.verts[iv][n].qnum;
@@ -147,7 +147,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			}
 			else {
 				const int iv = l*assembly->graph.nsites + k;
-				qnums[i + 2] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[iv] * sizeof(qnumber));
+				qnums[i + 2] = ct_malloc(assembly->graph.num_verts[iv] * sizeof(qnumber));
 				for (int n = 0; n < assembly->graph.num_verts[iv]; n++)
 				{
 					qnums[i + 2][n] = assembly->graph.verts[iv][n].qnum;
@@ -174,10 +174,10 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
 		{
 			int k = assembly->graph.topology.neighbor_map[l][i];
-			aligned_free(qnums[k < l ? i : i + 2]);
+			ct_free(qnums[k < l ? i : i + 2]);
 		}
-		aligned_free(qnums);
-		aligned_free(axis_dir);
+		ct_free(qnums);
+		ct_free(axis_dir);
 
 		#ifdef DEBUG
 		struct dense_tensor a_loc_conv;
@@ -203,14 +203,14 @@ void delete_ttno(struct ttno* ttno)
 	{
 		delete_block_sparse_tensor(&ttno->a[l]);
 	}
-	aligned_free(ttno->a);
+	ct_free(ttno->a);
 	ttno->a = NULL;
 
 	delete_abstract_graph(&ttno->topology);
 
 	ttno->nsites = 0;
 
-	aligned_free(ttno->qsite);
+	ct_free(ttno->qsite);
 	ttno->qsite = NULL;
 	ttno->d = 0;
 }
@@ -283,10 +283,10 @@ bool ttno_is_consistent(const struct ttno* ttno)
 		return false;
 	}
 
-	struct ttno_tensor_axis_desc** axis_desc = aligned_alloc(MEM_DATA_ALIGN, ttno->nsites * sizeof(struct ttno_tensor_axis_desc*));
+	struct ttno_tensor_axis_desc** axis_desc = ct_malloc(ttno->nsites * sizeof(struct ttno_tensor_axis_desc*));
 	for (int l = 0; l < ttno->nsites; l++)
 	{
-		axis_desc[l] = aligned_alloc(MEM_DATA_ALIGN, ttno->a[l].ndim * sizeof(struct ttno_tensor_axis_desc));
+		axis_desc[l] = ct_malloc(ttno->a[l].ndim * sizeof(struct ttno_tensor_axis_desc));
 		ttno_tensor_get_axis_desc(ttno, l, axis_desc[l]);
 	}
 
@@ -360,9 +360,9 @@ bool ttno_is_consistent(const struct ttno* ttno)
 
 	for (int l = 0; l < ttno->nsites; l++)
 	{
-		aligned_free(axis_desc[l]);
+		ct_free(axis_desc[l]);
 	}
-	aligned_free(axis_desc);
+	ct_free(axis_desc);
 
 	return true;
 }
@@ -391,11 +391,11 @@ static void transpose_ttno_contracted_subtree(const int* perm, struct ttno_contr
 	move_block_sparse_tensor_data(&t, &subtree->tensor);
 
 	// update axis descriptions
-	struct ttno_tensor_axis_desc* new_axis_desc = aligned_alloc(MEM_DATA_ALIGN, subtree->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
+	struct ttno_tensor_axis_desc* new_axis_desc = ct_malloc(subtree->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
 	for (int i = 0; i < subtree->tensor.ndim; i++) {
 		new_axis_desc[i] = subtree->axis_desc[perm[i]];
 	}
-	aligned_free(subtree->axis_desc);
+	ct_free(subtree->axis_desc);
 	subtree->axis_desc = new_axis_desc;
 }
 
@@ -407,7 +407,7 @@ static void transpose_ttno_contracted_subtree(const int* perm, struct ttno_contr
 static void delete_ttno_contracted_subtree(struct ttno_contracted_subtree* subtree)
 {
 	delete_block_sparse_tensor(&subtree->tensor);
-	aligned_free(subtree->axis_desc);
+	ct_free(subtree->axis_desc);
 }
 
 
@@ -457,7 +457,7 @@ static int compare_ttno_indexed_tensor_axis_desc(const void* a, const void* b)
 static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, const int i_parent, struct ttno_contracted_subtree* contracted)
 {
 	copy_block_sparse_tensor(&ttno->a[i_site], &contracted->tensor);
-	contracted->axis_desc = aligned_alloc(MEM_DATA_ALIGN, contracted->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
+	contracted->axis_desc = ct_malloc(contracted->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
 	ttno_tensor_get_axis_desc(ttno, i_site, contracted->axis_desc);
 
 	// merge child subtrees into current subtree
@@ -508,7 +508,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 			axrange_c = TENSOR_AXIS_RANGE_TRAILING;
 
 			// transpose child tensor such that to-be contracted axis is the trailing axis
-			int* perm = aligned_alloc(MEM_DATA_ALIGN, child.tensor.ndim * sizeof(int));
+			int* perm = ct_malloc(child.tensor.ndim * sizeof(int));
 			for (int j = 0; j < child.tensor.ndim - 1; j++)
 			{
 				perm[j] = (j < i_ax_p ? j : j + 1);
@@ -517,7 +517,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 
 			transpose_ttno_contracted_subtree(perm, &child);
 
-			aligned_free(perm);
+			ct_free(perm);
 		}
 
 		// contract current tensor with child
@@ -525,31 +525,31 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 		block_sparse_tensor_multiply_axis(&contracted->tensor, i_ax_c, &child.tensor, axrange_c, &t);
 
 		// update axis descriptions
-		struct ttno_tensor_axis_desc* new_axis_desc = aligned_alloc(MEM_DATA_ALIGN, t.ndim * sizeof(struct ttno_tensor_axis_desc));
+		struct ttno_tensor_axis_desc* new_axis_desc = ct_malloc(t.ndim * sizeof(struct ttno_tensor_axis_desc));
 		memcpy( new_axis_desc, contracted->axis_desc, i_ax_c * sizeof(struct ttno_tensor_axis_desc));
 		memcpy(&new_axis_desc[i_ax_c], &child.axis_desc[axrange_c == TENSOR_AXIS_RANGE_LEADING ? 1 : 0], (child.tensor.ndim - 1) * sizeof(struct ttno_tensor_axis_desc));
 		memcpy(&new_axis_desc[i_ax_c + child.tensor.ndim - 1], &contracted->axis_desc[i_ax_c + 1], (contracted->tensor.ndim - i_ax_c - 1) * sizeof(struct ttno_tensor_axis_desc));
 
 		delete_block_sparse_tensor(&contracted->tensor);
 		move_block_sparse_tensor_data(&t, &contracted->tensor);
-		aligned_free(contracted->axis_desc);
+		ct_free(contracted->axis_desc);
 		contracted->axis_desc = new_axis_desc;
 
 		delete_ttno_contracted_subtree(&child);
 
 		// sort new axes
 		// determine corresponding permutation
-		struct ttno_indexed_tensor_axis_desc* indexed_axis_desc = aligned_alloc(MEM_DATA_ALIGN, contracted->tensor.ndim * sizeof(struct ttno_indexed_tensor_axis_desc));
+		struct ttno_indexed_tensor_axis_desc* indexed_axis_desc = ct_malloc(contracted->tensor.ndim * sizeof(struct ttno_indexed_tensor_axis_desc));
 		for (int j = 0; j < contracted->tensor.ndim; j++) {
 			indexed_axis_desc[j].axis_desc = contracted->axis_desc[j];
 			indexed_axis_desc[j].index = j;
 		}
 		qsort(indexed_axis_desc, contracted->tensor.ndim, sizeof(struct ttno_indexed_tensor_axis_desc), compare_ttno_indexed_tensor_axis_desc);
-		int* perm = aligned_alloc(MEM_DATA_ALIGN, contracted->tensor.ndim * sizeof(int));
+		int* perm = ct_malloc(contracted->tensor.ndim * sizeof(int));
 		for (int j = 0; j < contracted->tensor.ndim; j++) {
 			perm[j] = indexed_axis_desc[j].index;
 		}
-		aligned_free(indexed_axis_desc);
+		ct_free(indexed_axis_desc);
 		// skip permutation operations in case of an identity permutation
 		bool is_identity_perm = true;
 		for (int j = 0; j < contracted->tensor.ndim; j++) {
@@ -561,7 +561,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 		if (!is_identity_perm) {
 			transpose_ttno_contracted_subtree(perm, contracted);
 		}
-		aligned_free(perm);
+		ct_free(perm);
 	}
 }
 
@@ -592,10 +592,10 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 		assert(contracted.axis_desc[2*l    ].index == l && contracted.axis_desc[2*l    ].type == TTNO_TENSOR_AXIS_PHYS_OUT);
 		assert(contracted.axis_desc[2*l + 1].index == l && contracted.axis_desc[2*l + 1].type == TTNO_TENSOR_AXIS_PHYS_IN);
 	}
-	aligned_free(contracted.axis_desc);
+	ct_free(contracted.axis_desc);
 
 	// iteratively merge physical axes
-	int* perm = aligned_alloc(MEM_DATA_ALIGN, contracted.tensor.ndim * sizeof(int));
+	int* perm = ct_malloc(contracted.tensor.ndim * sizeof(int));
 	for (int i = 0; i < contracted.tensor.ndim; i++) {
 		perm[i] = i;
 	}
@@ -618,7 +618,7 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 		delete_block_sparse_tensor(&s);
 	}
 	assert(contracted.tensor.ndim == 2);
-	aligned_free(perm);
+	ct_free(perm);
 
 	move_block_sparse_tensor_data(&contracted.tensor, mat);
 }

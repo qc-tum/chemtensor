@@ -16,9 +16,9 @@ void delete_mpo_assembly(struct mpo_assembly* assembly)
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		delete_dense_tensor(&assembly->opmap[i]);
 	}
-	aligned_free(assembly->opmap);
-	aligned_free(assembly->coeffmap);
-	aligned_free(assembly->qsite);
+	ct_free(assembly->opmap);
+	ct_free(assembly->coeffmap);
+	ct_free(assembly->qsite);
 
 	assembly->opmap    = NULL;
 	assembly->coeffmap = NULL;
@@ -37,10 +37,10 @@ void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d,
 	mpo->nsites = nsites;
 	mpo->d = d;
 
-	mpo->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	mpo->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(mpo->qsite, qsite, d * sizeof(qnumber));
 
-	mpo->a = aligned_calloc(MEM_DATA_ALIGN, nsites, sizeof(struct block_sparse_tensor));
+	mpo->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
 
 	for (int i = 0; i < nsites; i++)
 	{
@@ -66,10 +66,10 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 
 	assert(coefficient_map_is_valid(assembly->dtype, assembly->coeffmap));
 
-	mpo->qsite = aligned_alloc(MEM_DATA_ALIGN, d * sizeof(qnumber));
+	mpo->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(mpo->qsite, assembly->qsite, d * sizeof(qnumber));
 
-	mpo->a = aligned_calloc(MEM_DATA_ALIGN, assembly->graph.nsites, sizeof(struct block_sparse_tensor));
+	mpo->a = ct_calloc(assembly->graph.nsites, sizeof(struct block_sparse_tensor));
 
 	for (int l = 0; l < assembly->graph.nsites; l++)
 	{
@@ -149,7 +149,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 		qnumber* qbonds[2];
 		for (int i = 0; i < 2; i++)
 		{
-			qbonds[i] = aligned_alloc(MEM_DATA_ALIGN, assembly->graph.num_verts[l + i] * sizeof(qnumber));
+			qbonds[i] = ct_malloc(assembly->graph.num_verts[l + i] * sizeof(qnumber));
 			for (int j = 0; j < assembly->graph.num_verts[l + i]; j++)
 			{
 				qbonds[i][j] = assembly->graph.verts[l + i][j].qnum;
@@ -160,7 +160,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 		dense_to_block_sparse_tensor(&a_loc, axis_dir, qnums, &mpo->a[l]);
 		for (int i = 0; i < 2; i++)
 		{
-			aligned_free(qbonds[i]);
+			ct_free(qbonds[i]);
 		}
 
 		#ifdef DEBUG
@@ -187,11 +187,11 @@ void delete_mpo(struct mpo* mpo)
 	{
 		delete_block_sparse_tensor(&mpo->a[i]);
 	}
-	aligned_free(mpo->a);
+	ct_free(mpo->a);
 	mpo->a = NULL;
 	mpo->nsites = 0;
 
-	aligned_free(mpo->qsite);
+	ct_free(mpo->qsite);
 	mpo->qsite = NULL;
 	mpo->d = 0;
 }

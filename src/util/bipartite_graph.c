@@ -16,11 +16,11 @@ void init_bipartite_graph(const int num_u, const int num_v, const struct biparti
 	assert(num_v >= 1);
 	graph->num_u = num_u;
 	graph->num_v = num_v;
-	graph->num_adj_u = aligned_calloc(MEM_DATA_ALIGN, num_u, sizeof(int));
-	graph->num_adj_v = aligned_calloc(MEM_DATA_ALIGN, num_v, sizeof(int));
+	graph->num_adj_u = ct_calloc(num_u, sizeof(int));
+	graph->num_adj_v = ct_calloc(num_v, sizeof(int));
 	// upper bounds for memory allocation
-	int* num_adj_u_max = aligned_calloc(MEM_DATA_ALIGN, num_u, sizeof(int));
-	int* num_adj_v_max = aligned_calloc(MEM_DATA_ALIGN, num_v, sizeof(int));
+	int* num_adj_u_max = ct_calloc(num_u, sizeof(int));
+	int* num_adj_v_max = ct_calloc(num_v, sizeof(int));
 	for (int i = 0; i < nedges; i++)
 	{
 		int u = edges[i].u;
@@ -31,13 +31,13 @@ void init_bipartite_graph(const int num_u, const int num_v, const struct biparti
 		num_adj_v_max[v]++;
 	}
 	// construct adjacency maps
-	graph->adj_u = aligned_calloc(MEM_DATA_ALIGN, num_u, sizeof(int*));
-	graph->adj_v = aligned_calloc(MEM_DATA_ALIGN, num_v, sizeof(int*));
+	graph->adj_u = ct_calloc(num_u, sizeof(int*));
+	graph->adj_v = ct_calloc(num_v, sizeof(int*));
 	for (int u = 0; u < num_u; u++) {
-		graph->adj_u[u] = aligned_calloc(MEM_DATA_ALIGN, num_adj_u_max[u], sizeof(int));
+		graph->adj_u[u] = ct_calloc(num_adj_u_max[u], sizeof(int));
 	}
 	for (int v = 0; v < num_v; v++) {
-		graph->adj_v[v] = aligned_calloc(MEM_DATA_ALIGN, num_adj_v_max[v], sizeof(int));
+		graph->adj_v[v] = ct_calloc(num_adj_v_max[v], sizeof(int));
 	}
 	for (int i = 0; i < nedges; i++)
 	{
@@ -73,8 +73,8 @@ void init_bipartite_graph(const int num_u, const int num_v, const struct biparti
 		assert(graph->num_adj_v[v] <= num_adj_v_max[v]);
 	}
 
-	aligned_free(num_adj_u_max);
-	aligned_free(num_adj_v_max);
+	ct_free(num_adj_u_max);
+	ct_free(num_adj_v_max);
 }
 
 
@@ -85,17 +85,17 @@ void init_bipartite_graph(const int num_u, const int num_v, const struct biparti
 void delete_bipartite_graph(struct bipartite_graph* graph)
 {
 	for (int u = 0; u < graph->num_u; u++) {
-		aligned_free(graph->adj_u[u]);
+		ct_free(graph->adj_u[u]);
 	}
 	for (int v = 0; v < graph->num_v; v++) {
-		aligned_free(graph->adj_v[v]);
+		ct_free(graph->adj_v[v]);
 	}
-	aligned_free(graph->adj_u);
-	aligned_free(graph->adj_v);
+	ct_free(graph->adj_u);
+	ct_free(graph->adj_v);
 	graph->adj_u = NULL;
 	graph->adj_v = NULL;
-	aligned_free(graph->num_adj_u);
-	aligned_free(graph->num_adj_v);
+	ct_free(graph->num_adj_u);
+	ct_free(graph->num_adj_v);
 	graph->num_adj_u = NULL;
 	graph->num_adj_v = NULL;
 	graph->num_u = 0;
@@ -125,8 +125,8 @@ static void init_hopcroft_karp_data(const struct bipartite_graph* graph, struct 
 	// store a reference to the graph
 	data->graph = graph;
 
-	data->matched_pairs_u = aligned_alloc(MEM_DATA_ALIGN, graph->num_u * sizeof(int));
-	data->matched_pairs_v = aligned_alloc(MEM_DATA_ALIGN, graph->num_v * sizeof(int));
+	data->matched_pairs_u = ct_malloc(graph->num_u * sizeof(int));
+	data->matched_pairs_v = ct_malloc(graph->num_v * sizeof(int));
 	// NIL vertex is indexed by -1
 	for (int u = 0; u < graph->num_u; u++) {
 		data->matched_pairs_u[u] = -1;
@@ -138,7 +138,7 @@ static void init_hopcroft_karp_data(const struct bipartite_graph* graph, struct 
 	// formally "infinite" distance
 	const int inf_dist = graph->num_u + 1;
 
-	data->dist = aligned_alloc(MEM_DATA_ALIGN, (graph->num_u + 1) * sizeof(int));
+	data->dist = ct_malloc((graph->num_u + 1) * sizeof(int));
 	data->dist++;  // advance pointer since NIL vertex is indexed by -1
 	for (int u = -1; u < graph->num_u; u++) {
 		data->dist[u] = inf_dist;
@@ -154,9 +154,9 @@ static void delete_hopcroft_karp_data(struct hopcroft_karp_data* data)
 {
 	// restore original memory pointer
 	data->dist--;
-	aligned_free(data->dist);
-	aligned_free(data->matched_pairs_v);
-	aligned_free(data->matched_pairs_u);
+	ct_free(data->dist);
+	ct_free(data->matched_pairs_v);
+	ct_free(data->matched_pairs_u);
 	data->graph = NULL;
 }
 
@@ -270,7 +270,7 @@ void bipartite_graph_maximum_cardinality_matching(const struct bipartite_graph* 
 			matching->nedges++;
 		}
 	}
-	matching->edges = aligned_alloc(MEM_DATA_ALIGN, matching->nedges * sizeof(struct bipartite_graph_edge));
+	matching->edges = ct_malloc(matching->nedges * sizeof(struct bipartite_graph_edge));
 	int c = 0;
 	for (int u = 0; u < graph->num_u; u++)
 	{
@@ -353,7 +353,7 @@ void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, b
 	bipartite_graph_maximum_cardinality_matching(graph, &matching);
 
 	// unmatched vertices in 'U'
-	bool* alist = aligned_alloc(MEM_DATA_ALIGN, graph->num_u * sizeof(bool));
+	bool* alist = ct_malloc(graph->num_u * sizeof(bool));
 	for (int u = 0; u < graph->num_u; u++) {
 		alist[u] = true;
 	}
@@ -368,8 +368,8 @@ void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, b
 		v_cover[v] = false;
 	}
 
-	bool* u_visited = aligned_alloc(MEM_DATA_ALIGN, graph->num_u * sizeof(bool));
-	bool* v_visited = aligned_alloc(MEM_DATA_ALIGN, graph->num_v * sizeof(bool));
+	bool* u_visited = ct_malloc(graph->num_u * sizeof(bool));
+	bool* v_visited = ct_malloc(graph->num_v * sizeof(bool));
 
 	// vertices which are either in 'alist' or are connected to 'alist' by alternating paths
 	for (int u = 0; u < graph->num_u; u++)
@@ -412,8 +412,8 @@ void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, b
 	assert(num_cover == matching.nedges);
 
 	// clean up
-	aligned_free(v_visited);
-	aligned_free(u_visited);
-	aligned_free(alist);
-	aligned_free(matching.edges);
+	ct_free(v_visited);
+	ct_free(u_visited);
+	ct_free(alist);
+	ct_free(matching.edges);
 }

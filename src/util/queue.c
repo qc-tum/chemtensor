@@ -12,7 +12,7 @@
 ///
 void enqueue(struct queue* q, void* d)
 {
-	struct queue_node* node = aligned_alloc(MEM_DATA_ALIGN, sizeof(struct queue_node));
+	struct queue_node* node = ct_malloc(sizeof(struct queue_node));
 	node->data = d;
 	node->next = NULL;
 
@@ -37,7 +37,7 @@ void* dequeue(struct queue* q)
 	// move head to next node and delete current head node
 	struct queue_node* tmp = q->head;
 	q->head = q->head->next;
-	aligned_free(tmp);
+	ct_free(tmp);
 	if (q->head == NULL) {
 		q->tail = NULL;
 	}
