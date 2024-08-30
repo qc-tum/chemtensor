@@ -167,7 +167,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 		struct dense_tensor a_loc_conv;
 		block_sparse_to_dense_tensor(&mpo->a[l], &a_loc_conv);
 		if (!dense_tensor_allclose(&a_loc_conv, &a_loc, 0.)) {
-			fprintf(stderr, "Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'mpo_from_graph', site %i\n", l);
+			fprintf(stderr, "Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'mpo_from_assembly', site %i\n", l);
 		}
 		delete_dense_tensor(&a_loc_conv);
 		#endif

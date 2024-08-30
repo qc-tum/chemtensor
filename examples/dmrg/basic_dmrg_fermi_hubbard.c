@@ -23,7 +23,7 @@ int main()
 	const qnumber q_pnum = 7;
 	const qnumber q_spin = 1;
 	printf("psi restricted to overall quantum number sector with particle number %i and spin %i (integer convention)\n", q_pnum, q_spin);
-	const qnumber qnum_sector = fermi_hubbard_encode_quantum_numbers(q_pnum, q_spin);
+	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
 	// maximum allowed MPS bond dimension
 	const long max_vdim = 32;

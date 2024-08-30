@@ -94,6 +94,25 @@ def molecular_hamiltonian_mpo_data():
         file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
 
 
+def spin_molecular_hamiltonian_mpo_data():
+
+    rng = np.random.default_rng(205)
+
+    # number of spin-endowed lattice sites
+    nsites = 4
+    # Hamiltonian parameters
+    tkin = rng.standard_normal(2 * (nsites,))
+    vint = rng.standard_normal(4 * (nsites,))
+
+    # reference Hamiltonian
+    molecular_hamiltonian_mat = construct_spin_molecular_hamiltonian(tkin, vint).todense()
+
+    with h5py.File("data/test_spin_molecular_hamiltonian_mpo.hdf5", "w") as file:
+        file["tkin"] = tkin
+        file["vint"] = vint
+        file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
+
+
 def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
     """
     Construct the Ising Hamiltonian `sum J Z Z + h Z + g X`
@@ -242,12 +261,43 @@ def construct_molecular_hamiltonian(tkin, vint):
     return H
 
 
+def construct_spin_molecular_hamiltonian(tkin, vint):
+    """
+    Construct a molecular Hamiltonian for a spin orbital basis as sparse matrix.
+    """
+    tkin = np.asarray(tkin)
+    vint = np.asarray(vint)
+
+    nsites = tkin.shape[0]
+    assert tkin.shape == 2 * (nsites,)
+    assert vint.shape == 4 * (nsites,)
+
+    # enlarge the single- and two-particle electron overlap integral tensors
+    # from an orbital basis without spin to a spin orbital basis
+
+    # single-particle integrals
+    tkin_spin = np.kron(tkin, np.eye(2))
+
+    # two-particle integrals
+    tmp = np.zeros((2*nsites, nsites, 2*nsites, nsites), dtype=vint.dtype)
+    for i in range(nsites):
+        for j in range(nsites):
+            tmp[:, i, :, j] = np.kron(vint[:, i, :, j], np.eye(2))
+    vint_spin = np.zeros((2*nsites, 2*nsites, 2*nsites, 2*nsites), dtype=vint.dtype)
+    for i in range(2*nsites):
+        for j in range(2*nsites):
+            vint_spin[i, :, j, :] = np.kron(tmp[i, :, j, :], np.eye(2))
+
+    return construct_molecular_hamiltonian(tkin_spin, vint_spin)
+
+
 def main():
     ising_1d_mpo_data()
     heisenberg_xxz_1d_mpo_data()
     bose_hubbard_1d_mpo_data()
     fermi_hubbard_1d_mpo_data()
     molecular_hamiltonian_mpo_data()
+    spin_molecular_hamiltonian_mpo_data()
 
 
 if __name__ == "__main__":

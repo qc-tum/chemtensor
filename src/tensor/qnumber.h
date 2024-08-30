@@ -20,6 +20,35 @@ bool qnumber_all_equal(const long n, const qnumber* restrict qnums0, const qnumb
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Encode a pair of quantum numbers into a single quantum number.
+///
+static inline qnumber encode_quantum_number_pair(const qnumber qa, const qnumber qb)
+{
+	return (qa << 16) + qb;
+}
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Decode a quantum number into two separate quantum numbers.
+///
+static inline void decode_quantum_number_pair(const qnumber qnum, qnumber* qa, qnumber* qb)
+{
+	qnumber q1 = qnum % (1 << 16);
+	if (q1 >= (1 << 15)) {
+		q1 -= (1 << 16);
+	}
+	else if (q1 < -(1 << 15)) {
+		q1 += (1 << 16);
+	}
+	qnumber q0 = (qnum - q1) >> 16;
+
+	(*qa) = q0;
+	(*qb) = q1;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Tensor axis direction (orientation), equivalent to endowing quantum numbers with a sign factor.
 ///
 enum tensor_axis_direction

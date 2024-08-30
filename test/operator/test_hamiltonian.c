@@ -377,3 +377,77 @@ char* test_molecular_hamiltonian_mpo()
 
 	return 0;
 }
+
+
+char* test_spin_molecular_hamiltonian_mpo()
+{
+	hid_t file = H5Fopen("../test/operator/data/test_spin_molecular_hamiltonian_mpo.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_spin_molecular_hamiltonian_mpo failed";
+	}
+
+	// number of spin-endowed lattice sites (spatial orbitals)
+	const int nsites = 4;
+
+	// Hamiltonian coefficients
+	struct dense_tensor tkin;
+	const long dim_tkin[2] = { nsites, nsites };
+	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
+	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
+		return "reading kinetic hopping coefficients from disk failed";
+	}
+	struct dense_tensor vint;
+	const long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_vint, &vint);
+	if (read_hdf5_dataset(file, "vint", H5T_NATIVE_DOUBLE, vint.data) < 0) {
+		return "reading interaction potential coefficients from disk failed";
+	}
+
+	struct mpo molecular_hamiltonian_mpo;
+	{
+		struct mpo_assembly assembly;
+		construct_spin_molecular_hamiltonian_mpo_assembly(&tkin, &vint, false, &assembly);
+		mpo_from_assembly(&assembly, &molecular_hamiltonian_mpo);
+		delete_mpo_assembly(&assembly);
+	}
+	if (!mpo_is_consistent(&molecular_hamiltonian_mpo)) {
+		return "internal consistency check for molecular Hamiltonian MPO failed";
+	}
+
+	struct block_sparse_tensor molecular_hamiltonian_mat;
+	mpo_to_matrix(&molecular_hamiltonian_mpo, &molecular_hamiltonian_mat);
+
+	// convert to dense tensor for comparison with reference
+	struct dense_tensor molecular_hamiltonian_mat_dns;
+	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat, &molecular_hamiltonian_mat_dns);
+
+	// reference matrix for checking
+	hsize_t dims_ref_hsize[2];
+	if (get_hdf5_dataset_dims(file, "molecular_hamiltonian_mat", dims_ref_hsize) < 0) {
+		return "obtaining dimensions of reference Hamiltonian failed";
+	}
+	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	struct dense_tensor molecular_hamiltonian_mat_ref;
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &molecular_hamiltonian_mat_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "molecular_hamiltonian_mat", H5T_NATIVE_DOUBLE, molecular_hamiltonian_mat_ref.data) < 0) {
+		return "reading matrix entries from disk failed";
+	}
+
+	// compare
+	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
+		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
+	}
+
+	// clean up
+	delete_block_sparse_tensor(&molecular_hamiltonian_mat);
+	delete_dense_tensor(&molecular_hamiltonian_mat_dns);
+	delete_dense_tensor(&molecular_hamiltonian_mat_ref);
+	delete_mpo(&molecular_hamiltonian_mpo);
+	delete_dense_tensor(&vint);
+	delete_dense_tensor(&tkin);
+
+	H5Fclose(file);
+
+	return 0;
+}

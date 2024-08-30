@@ -936,7 +936,7 @@ static PyObject* Py_fermi_hubbard_encode_quantum_numbers(PyObject* Py_UNUSED(sel
 	}
 
 	// encode particle and spin quantum numbers
-	qnumber q = fermi_hubbard_encode_quantum_numbers(q_pnum, q_spin);
+	qnumber q = encode_quantum_number_pair(q_pnum, q_spin);
 
 	return PyLong_FromLong(q);
 }
@@ -954,7 +954,7 @@ static PyObject* Py_fermi_hubbard_decode_quantum_numbers(PyObject* Py_UNUSED(sel
 
 	// decode quantum numbers
 	qnumber q_pnum, q_spin;
-	fermi_hubbard_decode_quantum_numbers(qnum, &q_pnum, &q_spin);
+	decode_quantum_number_pair(qnum, &q_pnum, &q_spin);
 
 	return PyTuple_Pack(2, PyLong_FromLong(q_pnum), PyLong_FromLong(q_spin));
 }
