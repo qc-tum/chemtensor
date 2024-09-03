@@ -671,6 +671,41 @@ static PyTypeObject PyMPOType = {
 //
 
 
+static PyObject* Py_encode_quantum_number_pair(PyObject* Py_UNUSED(self), PyObject* args)
+{
+	// individual quantum numbers
+	qnumber qa, qb;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "ii", &qa, &qb)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: encode_quantum_number_pair(qa: int, qb: int)");
+		return NULL;
+	}
+
+	qnumber qnum = encode_quantum_number_pair(qa, qb);
+
+	return PyLong_FromLong(qnum);
+}
+
+
+static PyObject* Py_decode_quantum_number_pair(PyObject* Py_UNUSED(self), PyObject* args)
+{
+	qnumber qnum;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "i", &qnum)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: decode_quantum_number_pair(qnum: int)");
+		return NULL;
+	}
+
+	// decode quantum numbers
+	qnumber qa, qb;
+	decode_quantum_number_pair(qnum, &qa, &qb);
+
+	return PyTuple_Pack(2, PyLong_FromLong(qa), PyLong_FromLong(qb));
+}
+
+
 static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
 {
 	// data type
@@ -922,44 +957,6 @@ static PyObject* Py_construct_fermi_hubbard_1d_mpo(PyObject* Py_UNUSED(self), Py
 }
 
 
-static PyObject* Py_fermi_hubbard_encode_quantum_numbers(PyObject* Py_UNUSED(self), PyObject* args)
-{
-	// particle number quantum number
-	qnumber q_pnum;
-	// spin quantum number
-	qnumber q_spin;
-
-	// parse input arguments
-	if (!PyArg_ParseTuple(args, "ii", &q_pnum, &q_spin)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: fermi_hubbard_encode_quantum_numbers(q_pnum: int, q_spin: int)");
-		return NULL;
-	}
-
-	// encode particle and spin quantum numbers
-	qnumber q = encode_quantum_number_pair(q_pnum, q_spin);
-
-	return PyLong_FromLong(q);
-}
-
-
-static PyObject* Py_fermi_hubbard_decode_quantum_numbers(PyObject* Py_UNUSED(self), PyObject* args)
-{
-	qnumber qnum;
-
-	// parse input arguments
-	if (!PyArg_ParseTuple(args, "i", &qnum)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: fermi_hubbard_decode_quantum_numbers(qnum: int)");
-		return NULL;
-	}
-
-	// decode quantum numbers
-	qnumber q_pnum, q_spin;
-	decode_quantum_number_pair(qnum, &q_pnum, &q_spin);
-
-	return PyTuple_Pack(2, PyLong_FromLong(q_pnum), PyLong_FromLong(q_spin));
-}
-
-
 static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
 {
 	PyObject* py_obj_tkin;
@@ -1060,6 +1057,115 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 
 	// actually construct the assembly and MPO
 	construct_molecular_hamiltonian_mpo_assembly(&tkin, &vint, (bool)optimize, &py_mpo->assembly);
+	mpo_from_assembly(&py_mpo->assembly, &py_mpo->mpo);
+
+	Py_DECREF(py_tkin);
+	Py_DECREF(py_vint);
+
+	return (PyObject*)py_mpo;
+}
+
+
+static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	PyObject* py_obj_tkin;
+	PyObject* py_obj_vint;
+	int optimize = 0;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "optimize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|p", kwlist, &py_obj_tkin, &py_obj_vint, &optimize)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_spin_molecular_hamiltonian_mpo(tkin, vint, optimize=False)");
+		return NULL;
+	}
+
+	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_tkin, NPY_DOUBLE, 2, 2);
+	if (py_tkin == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument 'tkin' to a NumPy array with degree 2 failed");
+		return NULL;
+	}
+	PyArrayObject* py_vint = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_vint, NPY_DOUBLE, 4, 4);
+	if (py_vint == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument 'vint' to a NumPy array with degree 4 failed");
+		return NULL;
+	}
+
+	// argument checks
+	if (PyArray_NDIM(py_tkin) != 2) {
+		char msg[1024];
+		sprintf(msg, "'tkin' must have degree 2, received %i", PyArray_NDIM(py_tkin));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) != PyArray_DIM(py_tkin, 1)) {
+		char msg[1024];
+		sprintf(msg, "'tkin' must be a square matrix, received a %li x %li matrix", PyArray_DIM(py_tkin, 0), PyArray_DIM(py_tkin, 1));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) == 0) {
+		PyErr_SetString(PyExc_ValueError, "'tkin' cannot be an empty matrix");
+		return NULL;
+	}
+	if (PyArray_TYPE(py_tkin) != NPY_DOUBLE) {
+		PyErr_SetString(PyExc_TypeError, "'tkin' must have 'double' format entries");
+		return NULL;
+	}
+	if (!(PyArray_FLAGS(py_tkin) & NPY_ARRAY_C_CONTIGUOUS)) {
+		PyErr_SetString(PyExc_SyntaxError, "'tkin' does not have contiguous C storage format");
+		return NULL;
+	}
+	if (PyArray_NDIM(py_vint) != 4) {
+		char msg[1024];
+		sprintf(msg, "'vint' must have degree 4, received %i", PyArray_NDIM(py_vint));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if ((PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 1)) ||
+	    (PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 2)) ||
+	    (PyArray_DIM(py_vint, 0) != PyArray_DIM(py_vint, 3))) {
+		char msg[1024];
+		sprintf(msg, "all dimensions of 'vint' must agree, received a %li x %li x %li x %li tensor", PyArray_DIM(py_vint, 0), PyArray_DIM(py_vint, 1), PyArray_DIM(py_vint, 2), PyArray_DIM(py_vint, 3));
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (PyArray_TYPE(py_vint) != NPY_DOUBLE) {
+		PyErr_SetString(PyExc_TypeError, "'vint' must have 'double' format entries");
+		return NULL;
+	}
+	if (!(PyArray_FLAGS(py_vint) & NPY_ARRAY_C_CONTIGUOUS)) {
+		PyErr_SetString(PyExc_SyntaxError, "'vint' does not have contiguous C storage format");
+		return NULL;
+	}
+	if (PyArray_DIM(py_tkin, 0) != PyArray_DIM(py_vint, 0)) {
+		PyErr_SetString(PyExc_SyntaxError, "'tkin' and 'vint' must have the same axis dimensions");
+		return NULL;
+	}
+
+	const long nsites = (long)PyArray_DIM(py_tkin, 0);
+	long dim_tkin[2] = { nsites, nsites };
+	struct dense_tensor tkin = {
+		.data  = PyArray_DATA(py_tkin),
+		.dim   = dim_tkin,
+		.dtype = CT_DOUBLE_REAL,
+		.ndim  = 2,
+	};
+	long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	struct dense_tensor vint = {
+		.data  = PyArray_DATA(py_vint),
+		.dim   = dim_vint,
+		.dtype = CT_DOUBLE_REAL,
+		.ndim  = 4,
+	};
+
+	PyMPOObject* py_mpo = (PyMPOObject*)PyMPO_new(&PyMPOType, NULL, NULL);
+	if (py_mpo == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyMPO object");
+		return NULL;
+	}
+
+	// actually construct the assembly and MPO
+	construct_spin_molecular_hamiltonian_mpo_assembly(&tkin, &vint, (bool)optimize, &py_mpo->assembly);
 	mpo_from_assembly(&py_mpo->assembly, &py_mpo->mpo);
 
 	Py_DECREF(py_tkin);
@@ -1285,6 +1391,18 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 
 static PyMethodDef methods[] = {
 	{
+		.ml_name  = "encode_quantum_number_pair",
+		.ml_meth  = Py_encode_quantum_number_pair,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Encode a pair of quantum numbers into a single quantum number.\nSyntax: encode_quantum_number_pair(qa: int, qb: int)",
+	},
+	{
+		.ml_name  = "decode_quantum_number_pair",
+		.ml_meth  = Py_decode_quantum_number_pair,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Decode a quantum number into two separate quantum numbers.\nSyntax: decode_quantum_number_pair(qnum: int)",
+	},
+	{
 		.ml_name  = "construct_random_mps",
 		.ml_meth  = (PyCFunction)Py_construct_random_mps,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -1315,22 +1433,16 @@ static PyMethodDef methods[] = {
 		.ml_doc   = "Construct an MPO representation of the Fermi-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.\nSyntax: construct_fermi_hubbard_1d_mpo(nsites: int, t: float, u: float, mu: float)",
 	},
 	{
-		.ml_name  = "fermi_hubbard_encode_quantum_numbers",
-		.ml_meth  = Py_fermi_hubbard_encode_quantum_numbers,
-		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Encode a particle number and spin quantum number for the Fermi-Hubbard Hamiltonian into a single quantum number.\nSyntax: fermi_hubbard_encode_quantum_numbers(q_pnum: int, q_spin: int)",
-	},
-	{
-		.ml_name  = "fermi_hubbard_decode_quantum_numbers",
-		.ml_meth  = Py_fermi_hubbard_decode_quantum_numbers,
-		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Decode a quantum number of the Fermi-Hubbard Hamiltonian into separate particle number and spin quantum numbers.\nSyntax: fermi_hubbard_decode_quantum_numbers(qnum: int)",
-	},
-	{
 		.ml_name  = "construct_molecular_hamiltonian_mpo",
 		.ml_meth  = (PyCFunction)Py_construct_molecular_hamiltonian_mpo,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc   = "Construct a molecular Hamiltonian as MPO, using physicists' convention for the interaction term:\nH = sum_{i,j} t_{i,j} ad_i a_j + 1/2 sum_{i,j,k,l} v_{i,j,k,l} ad_i ad_j a_l a_k\nSyntax: construct_molecular_hamiltonian_mpo(tkin, vint, optimize=False)",
+	},
+	{
+		.ml_name  = "construct_spin_molecular_hamiltonian_mpo",
+		.ml_meth  = (PyCFunction)Py_construct_spin_molecular_hamiltonian_mpo,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc   = "Construct a molecular Hamiltonian as MPO assuming a spin orbital basis, using physicists' convention for the interaction term:\nH = sum_{i,j,sigma} t_{i,j} ad_{i,sigma} a_{j,sigma} + 1/2 sum_{i,j,k,l,sigma,tau} v_{i,j,k,l} ad_{i,sigma} ad_{j,tau} a_{l,tau} a_{k,sigma}\nSyntax: construct_spin_molecular_hamiltonian_mpo(tkin, vint, optimize=False)",
 	},
 	{
 		.ml_name  = "dmrg",
