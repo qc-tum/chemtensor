@@ -310,6 +310,372 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Contract two SU(2) tensors for the scenario that the to-be contracted axes form subtrees with matching topology and
+/// that the resulting fusion-splitting tree is again simple.
+///
+void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* restrict i_ax_s, const struct su2_tensor* restrict t, const int* restrict i_ax_t, const int ndim_mult, struct su2_tensor* restrict r)
+{
+	assert(s->dtype == t->dtype);
+
+	// dimension and quantum number compatibility checks
+	assert(ndim_mult >= 1);
+	for (int i = 0; i < ndim_mult; i++)
+	{
+		assert(0 <= i_ax_s[i] && i_ax_s[i] < s->ndim_logical + s->ndim_auxiliary);
+		assert(0 <= i_ax_t[i] && i_ax_t[i] < t->ndim_logical + t->ndim_auxiliary);
+
+		// must both be logical or both be auxiliary axes
+		assert((i_ax_s[i] < s->ndim_logical && i_ax_t[i] < t->ndim_logical) || (i_ax_s[i] >= s->ndim_logical && i_ax_t[i] >= t->ndim_logical));
+
+		const struct su2_irreducible_list* irred_s = &s->outer_jlists[i_ax_s[i]];
+		const struct su2_irreducible_list* irred_t = &t->outer_jlists[i_ax_t[i]];
+		assert(su2_irreducible_list_equal(irred_s, irred_t));
+		if (i_ax_s[i] < s->ndim_logical) {
+			for (int k = 0; k < irred_s->num; k++) {
+				// degeneracy dimensions for to-be contracted axes must match
+				assert(s->dim_degen[i_ax_s[i]][irred_s->jlist[k]] ==
+				       t->dim_degen[i_ax_t[i]][irred_t->jlist[k]]);
+			}
+		}
+	}
+
+	const int ndim_outer_s = s->ndim_logical + s->ndim_auxiliary;
+	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;
+
+	const struct su2_tree_node* subtree_s = su2_subtree_with_leaf_axes(s->tree.tree_split, i_ax_s, ndim_mult);
+	const struct su2_tree_node* subtree_t = su2_subtree_with_leaf_axes(t->tree.tree_fuse,  i_ax_t, ndim_mult);
+	assert(subtree_s != NULL);
+	assert(subtree_t != NULL);
+	assert(su2_tree_equal_topology(subtree_s, subtree_t));
+	// at least one of the subtrees must actually be the full tree, otherwise the resulting fusion-splitting tree is not simple
+	assert((subtree_s == s->tree.tree_split) || (subtree_t == t->tree.tree_fuse));
+	// at least one of the subtree roots must be an internal axis (to ensure consistency of axis enumeration)
+	assert((subtree_s->i_ax >= ndim_outer_s) || (subtree_t->i_ax >= ndim_outer_t));
+
+	const int ndim_s = su2_tensor_ndim(s);
+	const int ndim_t = su2_tensor_ndim(t);
+
+	int* i_ax_subtree_s = ct_malloc(ndim_s * sizeof(int));
+	int* i_ax_subtree_t = ct_malloc(ndim_t * sizeof(int));
+	const int ndim_subtree_s = su2_tree_axes_list(subtree_s, i_ax_subtree_s);
+	const int ndim_subtree_t = su2_tree_axes_list(subtree_t, i_ax_subtree_t);
+	assert(ndim_subtree_s == ndim_subtree_t);  // also contains internal axes
+	// ensure that axes paired according to tree topology match the provided to-be contracted axes indices
+	for (int i = 0; i < ndim_mult; i++) {
+		bool found = false;
+		for (int j = 0; j < ndim_subtree_s; j++) {
+			if (i_ax_s[i] == i_ax_subtree_s[j]) {
+				assert(i_ax_t[i] == i_ax_subtree_t[j]);
+				found = true;
+				break;
+			}
+		}
+		assert(found);
+	}
+
+	// map axes of 's' and 't' to axes of contracted tensor
+	int* axis_map_s = ct_calloc(ndim_s, sizeof(int));
+	int* axis_map_t = ct_calloc(ndim_t, sizeof(int));
+	// mark to-be contracted axes as invalid
+	for (int i = 0; i < ndim_subtree_s; i++) {
+		assert(0 <= i_ax_subtree_s[i] && i_ax_subtree_s[i] < ndim_s);
+		axis_map_s[i_ax_subtree_s[i]] = -1;
+	}
+	for (int i = 0; i < ndim_subtree_t; i++) {
+		assert(0 <= i_ax_subtree_t[i] && i_ax_subtree_t[i] < ndim_t);
+		axis_map_t[i_ax_subtree_t[i]] = -1;
+	}
+	// retain one of the subtree roots as axis
+	assert(axis_map_s[subtree_s->i_ax] == -1);
+	assert(axis_map_t[subtree_t->i_ax] == -1);
+	if (subtree_t->i_ax >= ndim_outer_t) {  // subtree root in 't' is an internal axis, does not need to be retained
+		// retain subtree root in 's'
+		axis_map_s[subtree_s->i_ax] = 0;
+	}
+	else {
+		assert(subtree_s->i_ax >= ndim_outer_s);  // subtree root in 's' is an internal axis, does not need to be retained
+		// retain subtree root in 't'
+		axis_map_t[subtree_t->i_ax] = 0;
+	}
+	// new logical axes
+	int ndim_logical_r = 0;
+	for (int i = 0; i < s->ndim_logical; i++) {
+		if (axis_map_s[i] != -1) {
+			axis_map_s[i] = ndim_logical_r++;
+		}
+	}
+	for (int i = 0; i < t->ndim_logical; i++) {
+		if (axis_map_t[i] != -1) {
+			axis_map_t[i] = ndim_logical_r++;
+		}
+	}
+	// new auxiliary axes
+	int ndim_auxiliary_r = 0;
+	for (int i = s->ndim_logical; i < s->ndim_logical + s->ndim_auxiliary; i++) {
+		if (axis_map_s[i] != -1) {
+			axis_map_s[i] = ndim_logical_r + ndim_auxiliary_r++;
+		}
+	}
+	for (int i = t->ndim_logical; i < t->ndim_logical + t->ndim_auxiliary; i++) {
+		if (axis_map_t[i] != -1) {
+			axis_map_t[i] = ndim_logical_r + ndim_auxiliary_r++;
+		}
+	}
+	// new internal axes
+	const int ndim_outer_r = ndim_logical_r + ndim_auxiliary_r;
+	int ndim_internal_r = 0;
+	for (int i = s->ndim_logical + s->ndim_auxiliary; i < ndim_s; i++) {
+		if (axis_map_s[i] != -1) {
+			axis_map_s[i] = ndim_outer_r + ndim_internal_r++;
+		}
+	}
+	for (int i = t->ndim_logical + t->ndim_auxiliary; i < ndim_t; i++) {
+		if (axis_map_t[i] != -1) {
+			axis_map_t[i] = ndim_outer_r + ndim_internal_r++;
+		}
+	}
+	assert(ndim_internal_r == ndim_outer_r - 3);
+	// identify roots of subtrees as same axis (after contracting subtrees to identity)
+	if (axis_map_t[subtree_t->i_ax] == -1) {
+		assert(axis_map_s[subtree_s->i_ax] >= 0);
+		axis_map_t[subtree_t->i_ax] = axis_map_s[subtree_s->i_ax];
+	}
+	else {
+		assert(axis_map_s[subtree_s->i_ax] == -1);
+		axis_map_s[subtree_s->i_ax] = axis_map_t[subtree_t->i_ax];
+	}
+
+	struct su2_fuse_split_tree mapped_tree_s, mapped_tree_t;
+	copy_su2_fuse_split_tree(&s->tree, &mapped_tree_s);
+	copy_su2_fuse_split_tree(&t->tree, &mapped_tree_t);
+	su2_fuse_split_tree_update_axes_indices(&mapped_tree_s, axis_map_s);
+	su2_fuse_split_tree_update_axes_indices(&mapped_tree_t, axis_map_t);
+
+	// construct the new fusion-splitting tree
+	struct su2_fuse_split_tree tree_r;
+	tree_r.ndim = ndim_logical_r + ndim_auxiliary_r + ndim_internal_r;
+
+	if (subtree_s == s->tree.tree_split)
+	{
+		tree_r.tree_split = mapped_tree_t.tree_split;
+
+		if (subtree_t == t->tree.tree_fuse)
+		{
+			tree_r.tree_fuse = mapped_tree_s.tree_fuse;
+		}
+		else
+		{
+			tree_r.tree_fuse = mapped_tree_t.tree_fuse;
+			// make a copy to avoid freeing same memory twice
+			struct su2_tree_node* tree_fuse_s = ct_malloc(sizeof(struct su2_tree_node));
+			copy_su2_tree(mapped_tree_s.tree_fuse, tree_fuse_s);
+			struct su2_tree_node* old_subtree = su2_tree_replace_subtree(tree_r.tree_fuse, axis_map_t[subtree_t->i_ax], tree_fuse_s);
+			assert(old_subtree != NULL);
+			delete_su2_tree(old_subtree);
+			ct_free(old_subtree);  // free actual node
+		}
+	}
+	else
+	{
+		assert(subtree_t == t->tree.tree_fuse);
+		tree_r.tree_fuse = mapped_tree_s.tree_fuse;
+
+		tree_r.tree_split = mapped_tree_s.tree_split;
+		// make a copy to avoid freeing same memory twice
+		struct su2_tree_node* tree_split_t = ct_malloc(sizeof(struct su2_tree_node));
+		copy_su2_tree(mapped_tree_t.tree_split, tree_split_t);
+		struct su2_tree_node* old_subtree = su2_tree_replace_subtree(tree_r.tree_split, axis_map_s[subtree_s->i_ax], tree_split_t);
+		assert(old_subtree != NULL);
+		delete_su2_tree(old_subtree);
+		ct_free(old_subtree);  // free actual node
+	}
+
+	struct su2_irreducible_list* outer_jlists_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
+	for (int i = 0; i < ndim_outer_s; i++) {
+		if (axis_map_s[i] == -1) {
+			continue;
+		}
+		assert(axis_map_s[i] < ndim_outer_r);
+		copy_su2_irreducible_list(&s->outer_jlists[i], &outer_jlists_r[axis_map_s[i]]);
+	}
+	for (int i = 0; i < ndim_outer_t; i++) {
+		if (axis_map_t[i] == -1) {
+			continue;
+		}
+		assert(axis_map_t[i] < ndim_outer_r);
+		copy_su2_irreducible_list(&t->outer_jlists[i], &outer_jlists_r[axis_map_t[i]]);
+	}
+
+	long** dim_degen_r = ct_calloc(ndim_logical_r, sizeof(long*));
+	for (int is = 0; is < s->ndim_logical; is++)
+	{
+		if (axis_map_s[is] == -1) {
+			continue;
+		}
+		const int ir = axis_map_s[is];
+		assert(0 <= ir && ir < ndim_logical_r);
+		assert(outer_jlists_r[ir].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
+			j_max = imax(j_max, outer_jlists_r[ir].jlist[k]);
+		}
+		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
+		memcpy(dim_degen_r[ir], s->dim_degen[is], (j_max + 1) * sizeof(long));
+	}
+	for (int it = 0; it < t->ndim_logical; it++)
+	{
+		if (axis_map_t[it] == -1) {
+			continue;
+		}
+		const int ir = axis_map_t[it];
+		assert(0 <= ir && ir < ndim_logical_r);
+		assert(outer_jlists_r[ir].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
+			j_max = imax(j_max, outer_jlists_r[ir].jlist[k]);
+		}
+		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
+		memcpy(dim_degen_r[ir], t->dim_degen[it], (j_max + 1) * sizeof(long));
+	}
+
+	allocate_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_jlists_r, (const long**)dim_degen_r, r);
+
+	// permutations of dense degeneracy tensors before contraction
+	int* perm_s = ct_malloc(s->ndim_logical * sizeof(int));
+	int c = 0;
+	for (int i = 0; i < s->ndim_logical; i++) {
+		if (axis_map_s[i] != -1) {
+			perm_s[c++] = i;
+		}
+	}
+	for (int i = 0; i < ndim_mult; i++) {
+		// ignore auxiliary axes for permutation
+		if (i_ax_s[i] < s->ndim_logical) {
+			perm_s[c++] = i_ax_s[i];
+		}
+	}
+	assert(c == s->ndim_logical);
+	int* perm_t = ct_malloc(t->ndim_logical * sizeof(int));
+	c = 0;
+	for (int i = 0; i < ndim_mult; i++) {
+		// ignore auxiliary axes for permutation
+		if (i_ax_t[i] < t->ndim_logical) {
+			perm_t[c++] = i_ax_t[i];
+		}
+	}
+	for (int i = 0; i < t->ndim_logical; i++) {
+		if (axis_map_t[i] != -1) {
+			perm_t[c++] = i;
+		}
+	}
+	assert(c == t->ndim_logical);
+	// number of to-be multiplied logical dimensions
+	int ndim_mult_logical = 0;
+	for (int i = 0; i < ndim_mult; i++) {
+		// ignore auxiliary axes
+		if (i_ax_s[i] < s->ndim_logical) {
+			ndim_mult_logical++;
+		}
+	}
+
+	// contract degeneracy tensors
+	qnumber* jlist_r = ct_malloc(su2_tensor_ndim(r) * sizeof(qnumber));
+	for (long cs = 0; cs < s->charge_sectors.nsec; cs++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist_s = &s->charge_sectors.jlists[cs * s->charge_sectors.ndim];
+
+		// corresponding "degeneracy" tensor
+		const struct dense_tensor* ds = s->degensors[cs];
+		assert(ds->dtype == s->dtype);
+		assert(ds->ndim  == s->ndim_logical);
+		struct dense_tensor ds_perm;
+		transpose_dense_tensor(perm_s, ds, &ds_perm);
+
+		// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
+		for (int i = 0; i < ndim_s; i++) {
+			if (axis_map_s[i] == -1) {
+				continue;
+			}
+			jlist_r[axis_map_s[i]] = jlist_s[i];
+		}
+
+		for (long ct = 0; ct < t->charge_sectors.nsec; ct++)
+		{
+			// 'j' quantum numbers of current sector
+			const qnumber* jlist_t = &t->charge_sectors.jlists[ct * t->charge_sectors.ndim];
+
+			bool compatible_sector = true;
+			for (int i = 0; i < ndim_subtree_s; i++) {
+				if (jlist_s[i_ax_subtree_s[i]] != jlist_t[i_ax_subtree_t[i]]) {
+					compatible_sector = false;
+					break;
+				}
+			}
+			if (!compatible_sector) {
+				continue;
+			}
+
+			// corresponding "degeneracy" tensor
+			const struct dense_tensor* dt = t->degensors[ct];
+			assert(dt->dtype == t->dtype);
+			assert(dt->ndim  == t->ndim_logical);
+			struct dense_tensor dt_perm;
+			transpose_dense_tensor(perm_t, dt, &dt_perm);
+
+			// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
+			for (int i = 0; i < ndim_t; i++) {
+				if (axis_map_t[i] == -1) {
+					continue;
+				}
+				jlist_r[axis_map_t[i]] = jlist_t[i];
+			}
+
+			const long cr = charge_sector_index(&r->charge_sectors, jlist_r);
+			assert(cr != -1);
+
+			// corresponding "degeneracy" tensor
+			struct dense_tensor* dr = r->degensors[cr];
+			assert(dr->dtype == r->dtype);
+			assert(dr->ndim  == r->ndim_logical);
+
+			// actually multiply dense tensors and add result to 'dr'
+			dense_tensor_dot_update(numeric_one(s->dtype), &ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, ndim_mult_logical, numeric_one(s->dtype), dr);
+
+			delete_dense_tensor(&dt_perm);
+		}
+
+		delete_dense_tensor(&ds_perm);
+	}
+
+	ct_free(perm_t);
+	ct_free(perm_s);
+
+	ct_free(jlist_r);
+
+	for (int i = 0; i < ndim_logical_r; i++) {
+		ct_free(dim_degen_r[i]);
+	}
+	ct_free(dim_degen_r);
+
+	for (int i = 0; i < ndim_outer_r; i++) {
+		delete_su2_irreducible_list(&outer_jlists_r[i]);
+	}
+	ct_free(outer_jlists_r);
+
+	delete_su2_fuse_split_tree(&mapped_tree_t);
+	delete_su2_fuse_split_tree(&mapped_tree_s);
+
+	ct_free(axis_map_t);
+	ct_free(axis_map_s);
+
+	ct_free(i_ax_subtree_t);
+	ct_free(i_ax_subtree_s);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the lexicographically next quantum index.
 ///
 static inline void next_quantum_index(const int ndim, const int* restrict dim, int* restrict index)

@@ -2669,6 +2669,70 @@ bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct d
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Test whether a dense tensors is entrywise zero within tolerance 'tol'.
+///
+/// To test whether the tensor is exactly zero, set 'tol = 0.0'.
+///
+bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol)
+{
+	const long nelem = dense_tensor_num_elements(t);
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* data = t->data;
+			for (long i = 0; i < nelem; i++) {
+				if (fabsf(data[i]) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* data = t->data;
+			for (long i = 0; i < nelem; i++) {
+				if (fabs(data[i]) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* data = t->data;
+			for (long i = 0; i < nelem; i++) {
+				if (cabsf(data[i]) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* data = t->data;
+			for (long i = 0; i < nelem; i++) {
+				if (cabs(data[i]) > tol) {
+					return false;
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Test whether a dense tensors is close to the identity matrix within tolerance 'tol'.
 ///
 bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
@@ -2745,6 +2809,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 
 	return true;
 }
+
 
 //________________________________________________________________________________________________________________________
 ///

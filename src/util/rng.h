@@ -23,7 +23,7 @@ void seed_rng_state(const uint64_t seed, struct rng_state* state);
 //________________________________________________________________________________________________________________________
 //
 
-// uniformly distributed integer random numbers.
+// uniformly distributed integer random numbers
 
 uint32_t rand_uint32(struct rng_state* state);
 

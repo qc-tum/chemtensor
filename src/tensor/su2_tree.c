@@ -34,6 +34,51 @@ void delete_su2_irreducible_list(struct su2_irreducible_list* list)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether two irreducible 'j' quantum number lists are logically equal.
+///
+bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t)
+{
+	if (s->num != t->num) {
+		return false;
+	}
+
+	for (int k = 0; k < s->num; k++) {
+		if (s->jlist[k] != t->jlist[k]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function used by 'qsort'.
+///
+static int compare_su2_irreducible_lists(const void* a, const void* b)
+{
+	const struct su2_irreducible_list* x = a;
+	const struct su2_irreducible_list* y = b;
+
+	assert(x->num == y->num);
+	for (int i = 0; i < x->num; i++)
+	{
+		if (x->jlist[i] < y->jlist[i]) {
+			return -1;
+		}
+		else if (x->jlist[i] > y->jlist[i]) {
+			return 1;
+		}
+	}
+
+	// lists are equal
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Allocate a charge sector array.
 ///
 void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors)
@@ -52,6 +97,48 @@ void delete_charge_sectors(struct charge_sectors* sectors)
 {
 	ct_free(sectors->jlists);
 	sectors->nsec = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Find the index of charge sector 'jlist', assuming that the list of charge sectors is sorted.
+/// Returns -1 if charge sector cannot be found.
+///
+long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist)
+{
+	const struct su2_irreducible_list target = {
+		.jlist = (qnumber*)jlist,  // cast to avoid compiler warning; we do not modify 'jlist'
+		.num   = sectors->ndim,
+	};
+
+	// search interval: [lower, upper)
+	long lower = 0;
+	long upper = sectors->nsec;
+	while (true)
+	{
+		if (lower >= upper) {
+			return -1;
+		}
+		const long i = (lower + upper) / 2;
+		const struct su2_irreducible_list current = {
+			.jlist = &sectors->jlists[i * sectors->ndim],
+			.num   = sectors->ndim,
+		};
+		const int c = compare_su2_irreducible_lists(&target, &current);
+		if (c < 0) {
+			// target < current
+			upper = i;
+		}
+		else if (c == 0) {
+			// target == current -> found it
+			return i;
+		}
+		else {
+			// target > current
+			lower = i + 1;
+		}
+	}
 }
 
 
@@ -109,7 +196,7 @@ void delete_su2_tree(struct su2_tree_node* tree)
 ///
 /// \brief Whether two SU(2) symmetry trees are logically equal.
 ///
-bool su2_tree_equal(const struct su2_tree_node* s, const struct su2_tree_node* t)
+bool su2_tree_equal(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t)
 {
 	if (s->i_ax != t->i_ax) {
 		return false;
@@ -128,6 +215,28 @@ bool su2_tree_equal(const struct su2_tree_node* s, const struct su2_tree_node* t
 
 	// test whether subtrees are equal
 	return su2_tree_equal(s->c[0], t->c[0]) && su2_tree_equal(s->c[1], t->c[1]);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether two SU(2) symmetry trees have the same topology.
+///
+bool su2_tree_equal_topology(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t)
+{
+	// test whether both nodes are leaves
+	const bool leaf_s = su2_tree_node_is_leaf(s);
+	const bool leaf_t = su2_tree_node_is_leaf(t);
+	if (leaf_s != leaf_t) {
+		return false;
+	}
+	if (leaf_s) {
+		// both nodes are leaves
+		return true;
+	}
+
+	// test whether subtrees have the same topology
+	return su2_tree_equal_topology(s->c[0], t->c[0]) && su2_tree_equal_topology(s->c[1], t->c[1]);
 }
 
 
@@ -193,20 +302,176 @@ int su2_tree_num_nodes(const struct su2_tree_node* tree)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Fill the indicator for the axes indexed by the tree.
+/// \brief Fill the list of axis indices contained in the tree, and return the number of axes.
 ///
-void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator)
+int su2_tree_axes_list(const struct su2_tree_node* tree, int* list)
+{
+	if (tree == NULL) {
+		return 0;
+	}
+
+	// in-order traversal
+	int n0 = su2_tree_axes_list(tree->c[0], list);
+	list[n0] = tree->i_ax;
+	int n1 = su2_tree_axes_list(tree->c[1], list + n0 + 1);
+
+	return n0 + 1 + n1;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fill the indicator with the axes indexed by the tree.
+///
+void su2_tree_axes_indicator(const struct su2_tree_node* tree, bool* indicator)
 {
 	if (tree == NULL) {
 		return;
 	}
 
+	assert(tree->i_ax >= 0);
 	// must not be assigned yet
 	assert(!indicator[tree->i_ax]);
 	indicator[tree->i_ax] = true;
 
-	su2_tree_axes(tree->c[0], indicator);
-	su2_tree_axes(tree->c[1], indicator);
+	su2_tree_axes_indicator(tree->c[0], indicator);
+	su2_tree_axes_indicator(tree->c[1], indicator);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Update the axes indices using the provided map.
+///
+void su2_tree_update_axes_indices(struct su2_tree_node* tree, const int* axis_map)
+{
+	if (tree == NULL) {
+		return;
+	}
+
+	assert(tree->i_ax >= 0);
+	tree->i_ax = axis_map[tree->i_ax];
+
+	su2_tree_update_axes_indices(tree->c[0], axis_map);
+	su2_tree_update_axes_indices(tree->c[1], axis_map);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Temporary data structure for finding a subtree with leaf axis indices exactly matching a given list.
+///
+struct subtree_with_leaf_axes_data
+{
+	const struct su2_tree_node* subtree;  //!< pointer to found subtree, or NULL if not yet found
+	bool all_leaves_in_list;              //!< whether axis indices of all leaves are contained in provided list
+	int num_leaves;                       //!< number of leaves in current subtree (if 'all_leaves_in_list' is true)
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Internal recursive function for finding a subtree with leaf axis indices exactly matching the provided 'i_ax' list.
+///
+/// Entries in 'i_ax' must be pairwise different.
+///
+static struct subtree_with_leaf_axes_data su2_tree_search_subtree_with_leaf_axes(const struct su2_tree_node* tree, const int* i_ax, const int num_axes)
+{
+	assert(tree != NULL);
+
+	if (su2_tree_node_is_leaf(tree))
+	{
+		struct subtree_with_leaf_axes_data data = { 0 };
+
+		for (int i = 0; i < num_axes; i++) {
+			if (tree->i_ax == i_ax[i]) {
+				data.all_leaves_in_list = true;
+				break;
+			}
+		}
+
+		if (data.all_leaves_in_list) {
+			data.num_leaves = 1;
+			if (num_axes == 1) {
+				// searching for a single axis, which matches current leaf
+				data.subtree = tree;
+			}
+		}
+
+		return data;
+	}
+
+	struct subtree_with_leaf_axes_data data0 = su2_tree_search_subtree_with_leaf_axes(tree->c[0], i_ax, num_axes);
+	struct subtree_with_leaf_axes_data data1 = su2_tree_search_subtree_with_leaf_axes(tree->c[1], i_ax, num_axes);
+
+	// fast return if subtree has already been found
+	if (data0.subtree != NULL) {
+		return data0;
+	}
+	if (data1.subtree != NULL) {
+		return data1;
+	}
+
+	struct subtree_with_leaf_axes_data data = { 0 };
+
+	data.all_leaves_in_list = (data0.all_leaves_in_list && data1.all_leaves_in_list);
+	if (data.all_leaves_in_list)
+	{
+		data.num_leaves = data0.num_leaves + data1.num_leaves;
+		if (data.num_leaves == num_axes) {
+			// found subtree
+			data.subtree = tree;
+		}
+	}
+
+	return data;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Find the subtree with the specified leaf axis indices.
+///
+/// Ordering of axis indices is not relevant. Returns NULL if subtree does not exist.
+///
+const struct su2_tree_node* su2_subtree_with_leaf_axes(const struct su2_tree_node* tree, const int* i_ax, const int num_axes)
+{
+	return su2_tree_search_subtree_with_leaf_axes(tree, i_ax, num_axes).subtree;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Replace the proper subtree with axis index 'i_ax' by 'subtree', and return a pointer to the old subtree, or NULL if 'i_ax' cannot be found.
+///
+struct su2_tree_node* su2_tree_replace_subtree(struct su2_tree_node* tree, const int i_ax, struct su2_tree_node* subtree)
+{
+	if (tree == NULL) {
+		return NULL;
+	}
+	if (su2_tree_node_is_leaf(tree)) {
+		return NULL;
+	}
+
+	if (tree->c[0]->i_ax == i_ax) {
+		struct su2_tree_node* old = tree->c[0];
+		tree->c[0] = subtree;
+		return old;
+	}
+
+	if (tree->c[1]->i_ax == i_ax) {
+		struct su2_tree_node* old = tree->c[1];
+		tree->c[1] = subtree;
+		return old;
+	}
+
+	// search in left subtree
+	struct su2_tree_node* old = su2_tree_replace_subtree(tree->c[0], i_ax, subtree);
+	if (old != NULL) {
+		return old;
+	}
+	// search in right subtree
+	return su2_tree_replace_subtree(tree->c[1], i_ax, subtree);
 }
 
 
@@ -487,10 +752,15 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
 	}
 	const int i_ax_shared = tree->tree_fuse->i_ax;
 
+	// fusion and splitting trees cannot both be single leaves
+	if (su2_tree_node_is_leaf(tree->tree_fuse) && su2_tree_node_is_leaf(tree->tree_split)) {
+		return false;
+	}
+
 	bool* indicator_fuse  = ct_calloc(tree->ndim, sizeof(bool));
 	bool* indicator_split = ct_calloc(tree->ndim, sizeof(bool));
-	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
-	su2_tree_axes(tree->tree_split, indicator_split);
+	su2_tree_axes_indicator(tree->tree_fuse,  indicator_fuse);
+	su2_tree_axes_indicator(tree->tree_split, indicator_split);
 	for (int i = 0; i < tree->ndim; i++)
 	{
 		if (i == i_ax_shared) {
@@ -533,6 +803,29 @@ bool su2_fuse_split_tree_equal(const struct su2_fuse_split_tree* s, const struct
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Flip the fuse and split trees.
+///
+void su2_fuse_split_tree_flip(struct su2_fuse_split_tree* tree)
+{
+	struct su2_tree_node* tmp = tree->tree_fuse;
+	tree->tree_fuse  = tree->tree_split;
+	tree->tree_split = tmp;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Update the axes indices of a fuse and split tree using the provided map.
+///
+void su2_fuse_split_tree_update_axes_indices(struct su2_fuse_split_tree* tree, const int* axis_map)
+{
+	su2_tree_update_axes_indices(tree->tree_fuse,  axis_map);
+	su2_tree_update_axes_indices(tree->tree_split, axis_map);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Evaluate the fuse and split tree by contracting both subtrees, interpreting the nodes as Clebsch-Gordan coefficients.
 /// The 'j' quantum number configuration and the 'm' quantum numbers at the leaves are prescribed.
 ///
@@ -554,31 +847,6 @@ double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree*
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Comparison function used by 'qsort'.
-///
-static int compare_charge_sectors(const void* a, const void* b)
-{
-	const struct su2_irreducible_list* x = a;
-	const struct su2_irreducible_list* y = b;
-
-	assert(x->num == y->num);
-	for (int i = 0; i < x->num; i++)
-	{
-		if (x->jlist[i] < y->jlist[i]) {
-			return -1;
-		}
-		else if (x->jlist[i] > y->jlist[i]) {
-			return 1;
-		}
-	}
-
-	// lists are equal
-	return 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Enumerate all "charge sectors" ('j' quantum number configurations) for a given fuse and split tree layout.
 ///
 void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors)
@@ -589,8 +857,8 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 
 	bool* indicator_fuse  = ct_calloc(tree->ndim, sizeof(bool));
 	bool* indicator_split = ct_calloc(tree->ndim, sizeof(bool));
-	su2_tree_axes(tree->tree_fuse,  indicator_fuse);
-	su2_tree_axes(tree->tree_split, indicator_split);
+	su2_tree_axes_indicator(tree->tree_fuse,  indicator_fuse);
+	su2_tree_axes_indicator(tree->tree_split, indicator_split);
 	// consistency check
 	for (int i = 0; i < tree->ndim; i++) {
 		if (i == i_ax_shared) {
@@ -635,7 +903,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	}
 
 	// sort lexicographically
-	qsort(merged_sectors, c, sizeof(struct su2_irreducible_list), compare_charge_sectors);
+	qsort(merged_sectors, c, sizeof(struct su2_irreducible_list), compare_su2_irreducible_lists);
 
 	// copy data into output array
 	allocate_charge_sectors(c, tree->ndim, sectors);

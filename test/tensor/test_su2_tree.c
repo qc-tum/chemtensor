@@ -3,6 +3,9 @@
 #include "util.h"
 
 
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
 char* test_su2_tree_enumerate_charge_sectors()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_su2_tree_enumerate_charge_sectors.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -41,11 +44,11 @@ char* test_su2_tree_enumerate_charge_sectors()
 	qnumber j2list[] = { 3, 7 };
 	qnumber j4list[] = { 0, 4, 10 };
 	const struct su2_irreducible_list leaf_ranges[5] = {
-		{ .jlist = j0list, .num = sizeof(j0list) / sizeof(qnumber) },
-		{ .jlist = j1list, .num = sizeof(j1list) / sizeof(qnumber) },
-		{ .jlist = j2list, .num = sizeof(j2list) / sizeof(qnumber) },
-		{ .jlist = NULL,   .num = 0                                },  // not used
-		{ .jlist = j4list, .num = sizeof(j4list) / sizeof(qnumber) },
+		{ .jlist = j0list, .num = ARRLEN(j0list) },
+		{ .jlist = j1list, .num = ARRLEN(j1list) },
+		{ .jlist = j2list, .num = ARRLEN(j2list) },
+		{ .jlist = NULL,   .num = 0              },  // not used
+		{ .jlist = j4list, .num = ARRLEN(j4list) },
 	};
 
 	struct charge_sectors sectors;
@@ -140,13 +143,13 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors()
 	qnumber j5list[] = { 0, 2, 6 };
 	qnumber j6list[] = { 1, 5 };
 	const struct su2_irreducible_list leaf_ranges[7] = {
-		{ .jlist = j0list, .num = sizeof(j0list) / sizeof(qnumber) },
-		{ .jlist = j1list, .num = sizeof(j1list) / sizeof(qnumber) },
-		{ .jlist = j2list, .num = sizeof(j2list) / sizeof(qnumber) },
-		{ .jlist = j3list, .num = sizeof(j3list) / sizeof(qnumber) },
-		{ .jlist = j4list, .num = sizeof(j4list) / sizeof(qnumber) },
-		{ .jlist = j5list, .num = sizeof(j5list) / sizeof(qnumber) },
-		{ .jlist = j6list, .num = sizeof(j6list) / sizeof(qnumber) },
+		{ .jlist = j0list, .num = ARRLEN(j0list) },
+		{ .jlist = j1list, .num = ARRLEN(j1list) },
+		{ .jlist = j2list, .num = ARRLEN(j2list) },
+		{ .jlist = j3list, .num = ARRLEN(j3list) },
+		{ .jlist = j4list, .num = ARRLEN(j4list) },
+		{ .jlist = j5list, .num = ARRLEN(j5list) },
+		{ .jlist = j6list, .num = ARRLEN(j6list) },
 	};
 
 	struct charge_sectors sectors;

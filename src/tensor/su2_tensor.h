@@ -72,9 +72,28 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t);
 //________________________________________________________________________________________________________________________
 //
 
+// flip interal fusin-splitting tree
+
+static inline void su2_tensor_flip_trees(struct su2_tensor* t)
+{
+	su2_fuse_split_tree_flip(&t->tree);
+}
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // F-move
 
 void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struct su2_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// contraction
+
+void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* restrict i_ax_s, const struct su2_tensor* restrict t, const int* restrict i_ax_t, const int ndim_mult, struct su2_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

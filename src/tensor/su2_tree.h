@@ -23,6 +23,8 @@ void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su
 
 void delete_su2_irreducible_list(struct su2_irreducible_list* list);
 
+bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -39,6 +41,8 @@ void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sect
 
 void delete_charge_sectors(struct charge_sectors* sectors);
 
+long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -46,7 +50,7 @@ void delete_charge_sectors(struct charge_sectors* sectors);
 ///
 struct su2_tree_node
 {
-	int i_ax;                    //!< logical axis index (logical or auxiliary for leaf nodes, otherwise internal)
+	int i_ax;                    //!< tensor axis index (logical or auxiliary for leaf nodes, otherwise internal)
 	struct su2_tree_node* c[2];  //!< pointer to left and right child nodes; NULL for a leaf node
 };
 
@@ -74,7 +78,9 @@ static inline bool su2_tree_node_is_leaf(const struct su2_tree_node* node)
 	}
 }
 
-bool su2_tree_equal(const struct su2_tree_node* s, const struct su2_tree_node* t);
+bool su2_tree_equal(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t);
+
+bool su2_tree_equal_topology(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t);
 
 bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax);
 
@@ -82,7 +88,15 @@ const struct su2_tree_node* su2_tree_find_parent_node(const struct su2_tree_node
 
 int su2_tree_num_nodes(const struct su2_tree_node* tree);
 
-void su2_tree_axes(const struct su2_tree_node* tree, bool* indicator);
+int su2_tree_axes_list(const struct su2_tree_node* tree, int* list);
+
+void su2_tree_axes_indicator(const struct su2_tree_node* tree, bool* indicator);
+
+void su2_tree_update_axes_indices(struct su2_tree_node* tree, const int* axis_map);
+
+const struct su2_tree_node* su2_subtree_with_leaf_axes(const struct su2_tree_node* tree, const int* i_ax, const int num_axes);
+
+struct su2_tree_node* su2_tree_replace_subtree(struct su2_tree_node* tree, const int i_ax, struct su2_tree_node* subtree);
 
 void su2_tree_fmove_left(struct su2_tree_node* tree);
 
@@ -111,6 +125,10 @@ void delete_su2_fuse_split_tree(struct su2_fuse_split_tree* tree);
 bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree);
 
 bool su2_fuse_split_tree_equal(const struct su2_fuse_split_tree* s, const struct su2_fuse_split_tree* t);
+
+void su2_fuse_split_tree_flip(struct su2_fuse_split_tree* tree);
+
+void su2_fuse_split_tree_update_axes_indices(struct su2_fuse_split_tree* tree, const int* axis_map);
 
 double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* restrict jlist, const int* restrict im_leaves);
 
