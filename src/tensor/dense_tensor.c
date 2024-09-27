@@ -773,7 +773,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	assert(nelem == dense_tensor_num_elements(t));
 
 	long* index_t = ct_calloc(dp_eff.ndim,  sizeof(long));
-	long* index_r =  ct_malloc(dp_eff.ndim * sizeof(long));
+	long* index_r = ct_malloc(dp_eff.ndim * sizeof(long));
 
 	for (long ot = 0; ot < nelem; ot += dp_eff.dim[dp_eff.ndim - 1])
 	{
@@ -1667,6 +1667,170 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	}
 	reshape_dense_tensor(s->ndim, rdim, r);
 	ct_free(rdim);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Concatenate tensors along the specified axis. All other dimensions must respectively agree.
+///
+void dense_tensor_concatenate(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r)
+{
+	assert(num_tensors >= 1);
+
+	const int ndim = tlist[0].ndim;
+	assert(0 <= i_ax && i_ax < ndim);
+
+	for (int j = 0; j < num_tensors - 1; j++)
+	{
+		// data types must match
+		assert(tlist[j].dtype == tlist[j + 1].dtype);
+		// degrees must match
+		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		for (int i = 0; i < tlist[j].ndim; i++) {
+			if (i != i_ax) {
+				// other dimensions must match
+				assert(tlist[j].dim[i] == tlist[j + 1].dim[i]);
+			}
+		}
+	}
+
+	// dimensions of new tensor
+	long dim_concat = 0;
+	for (int j = 0; j < num_tensors; j++) {
+		dim_concat += tlist[j].dim[i_ax];
+	}
+	long* rdim = ct_malloc(ndim * sizeof(long));
+	for (int i = 0; i < ndim; i++)
+	{
+		if (i == i_ax) {
+			rdim[i] = dim_concat;
+		}
+		else {
+			rdim[i] = tlist[0].dim[i];
+		}
+	}
+	allocate_dense_tensor(tlist[0].dtype, ndim, rdim, r);
+	ct_free(rdim);
+
+	// leading dimensions
+	const long ld = integer_product(r->dim, i_ax);
+	// trailing dimensions times data type size
+	const long tdd = integer_product(&r->dim[i_ax + 1], ndim - (i_ax + 1)) * sizeof_numeric_type(r->dtype);
+
+	long offset = 0;
+	for (int j = 0; j < num_tensors; j++)
+	{
+		const long stride = tlist[j].dim[i_ax] * tdd;
+
+		for (long i = 0; i < ld; i++) {
+			memcpy((int8_t*)r->data + (i * r->dim[i_ax] + offset) * tdd,
+			       (int8_t*)tlist[j].data + i * stride, stride);
+		}
+
+		offset += tlist[j].dim[i_ax];
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compose tensors along the specified axes, creating a block-diagonal pattern. All other dimensions must respectively agree.
+///
+void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r)
+{
+	assert(num_tensors >= 1);
+
+	const int ndim = tlist[0].ndim;
+
+	assert(1 <= ndim_block && ndim_block <= ndim);
+	bool* i_ax_indicator = ct_calloc(ndim, sizeof(bool));
+	for (int i = 0; i < ndim_block; i++)
+	{
+		assert(0 <= i_ax[i] && i_ax[i] < ndim);
+		assert(!i_ax_indicator[i_ax[i]]);  // axis index can only appear once
+		i_ax_indicator[i_ax[i]] = true;
+	}
+
+	for (int j = 0; j < num_tensors - 1; j++)
+	{
+		// data types must match
+		assert(tlist[j].dtype == tlist[j + 1].dtype);
+		// degrees must match
+		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		for (int i = 0; i < tlist[j].ndim; i++) {
+			if (!i_ax_indicator[i]) {
+				// other dimensions must match
+				assert(tlist[j].dim[i] == tlist[j + 1].dim[i]);
+			}
+		}
+	}
+
+	// dimensions of new tensor
+	long* rdim = ct_malloc(ndim * sizeof(long));
+	for (int i = 0; i < ndim; i++)
+	{
+		if (i_ax_indicator[i]) {
+			long dsum = 0;
+			for (int j = 0; j < num_tensors; j++) {
+				dsum += tlist[j].dim[i];
+			}
+			rdim[i] = dsum;
+		}
+		else {
+			rdim[i] = tlist[0].dim[i];
+		}
+	}
+	allocate_dense_tensor(tlist[0].dtype, ndim, rdim, r);
+	ct_free(rdim);
+
+	// effective dimensions used for indexing tensor slices
+	int ndim_eff = 0;
+	for (int i = 0; i < ndim; i++) {
+		if (i_ax_indicator[i]) {
+			ndim_eff = i + 1;
+		}
+	}
+	assert(ndim_eff >= 1);
+
+	// trailing dimensions times data type size
+	const long tdd = integer_product(&r->dim[ndim_eff], ndim - ndim_eff) * sizeof_numeric_type(r->dtype);
+
+	long* offset = ct_calloc(ndim_eff, sizeof(long));
+
+	long* index_t = ct_calloc(ndim_eff, sizeof(long));
+	long* index_r = ct_calloc(ndim_eff, sizeof(long));
+
+	for (int j = 0; j < num_tensors; j++)
+	{
+		// leading dimensions
+		const long ld = integer_product(tlist[j].dim, ndim_eff - 1);
+
+		const long stride = tlist[j].dim[ndim_eff - 1] * tdd;
+
+		memset(index_t, 0, ndim_eff * sizeof(long));
+		for (long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, tlist[j].dim, index_t))
+		{
+			for (int i = 0; i < ndim_eff; i++) {
+				index_r[i] = offset[i] + index_t[i];
+				assert(index_r[i] < r->dim[i]);
+			}
+			const long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
+			memcpy((int8_t*)r->data + or * tdd,
+			       (int8_t*)tlist[j].data + ot * stride, stride);
+		}
+
+		for (int i = 0; i < ndim_eff; i++) {
+			if (i_ax_indicator[i]) {
+				offset[i] += tlist[j].dim[i];
+			}
+		}
+	}
+
+	ct_free(index_r);
+	ct_free(index_t);
+	ct_free(offset);
+	ct_free(i_ax_indicator);
 }
 
 

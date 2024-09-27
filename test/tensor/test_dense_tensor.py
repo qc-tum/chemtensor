@@ -179,6 +179,47 @@ def dense_tensor_kronecker_product_degree_zero_data():
         file["r"] = interleave_complex(r)
 
 
+def dense_tensor_concatenate_data():
+
+    # random number generator
+    rng = np.random.default_rng(201)
+
+    tlist = [
+        rng.standard_normal((5, 8, 7, 3)).astype(np.float32),
+        rng.standard_normal((5, 8, 9, 3)).astype(np.float32),
+        rng.standard_normal((5, 8, 2, 3)).astype(np.float32)]
+
+    r = np.concatenate(tlist, axis=2)
+
+    with h5py.File("data/test_dense_tensor_concatenate.hdf5", "w") as file:
+        file["t0"] = tlist[0]
+        file["t1"] = tlist[1]
+        file["t2"] = tlist[2]
+        file["r"] = r
+
+
+def dense_tensor_block_diag_data():
+
+    # random number generator
+    rng = np.random.default_rng(874)
+
+    tlist = [
+        rng.standard_normal((5, 8, 7, 3, 4)),
+        rng.standard_normal((8, 2, 7, 4, 4)),
+        rng.standard_normal((6, 1, 7, 9, 4))]
+
+    r = np.zeros((19, 11, 7, 16, 4))
+    r[  :5,    :8 , :,  :3, :] = tlist[0]
+    r[ 5:13,  8:10, :, 3:7, :] = tlist[1]
+    r[13:,   10:  , :, 7:,  :] = tlist[2]
+
+    with h5py.File("data/test_dense_tensor_block_diag.hdf5", "w") as file:
+        file["t0"] = tlist[0]
+        file["t1"] = tlist[1]
+        file["t2"] = tlist[2]
+        file["r"] = r
+
+
 def dense_tensor_qr_data():
 
     # random number generator
@@ -283,6 +324,8 @@ def main():
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()
     dense_tensor_kronecker_product_degree_zero_data()
+    dense_tensor_concatenate_data()
+    dense_tensor_block_diag_data()
     dense_tensor_qr_data()
     dense_tensor_rq_data()
     dense_tensor_svd_data()

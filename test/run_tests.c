@@ -21,6 +21,8 @@ char* test_dense_tensor_dot();
 char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
 char* test_dense_tensor_kronecker_product_degree_zero();
+char* test_dense_tensor_concatenate();
+char* test_dense_tensor_block_diag();
 char* test_dense_tensor_qr();
 char* test_dense_tensor_rq();
 char* test_dense_tensor_svd();
@@ -99,6 +101,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot_update),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product_degree_zero),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_concatenate),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_block_diag),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_svd),

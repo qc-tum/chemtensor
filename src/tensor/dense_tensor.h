@@ -174,6 +174,10 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 
 void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
 
+void dense_tensor_concatenate(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r);
+
+void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r);
+
 
 //________________________________________________________________________________________________________________________
 //
