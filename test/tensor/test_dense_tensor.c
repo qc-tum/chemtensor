@@ -622,19 +622,21 @@ char* test_dense_tensor_concatenate()
 		return "'H5Fopen' in test_dense_tensor_concatenate failed";
 	}
 
+	const int num_tensors = 3;
+
 	struct dense_tensor tlist[3];
 	const long dims[3][4] = {
 		{ 5, 8, 7, 3 },
 		{ 5, 8, 9, 3 },
 		{ 5, 8, 2, 3 },
 	};
-	for (int i = 0; i < 3; i++)
+	for (int j = 0; j < num_tensors; j++)
 	{
-		allocate_dense_tensor(CT_SINGLE_REAL, 4, dims[i], &tlist[i]);
+		allocate_dense_tensor(CT_SINGLE_REAL, 4, dims[j], &tlist[j]);
 		// read values from disk
 		char varname[1024];
-		sprintf(varname, "t%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, tlist[i].data) < 0) {
+		sprintf(varname, "t%i", j);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, tlist[j].data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 	}
@@ -659,8 +661,8 @@ char* test_dense_tensor_concatenate()
 
 	delete_dense_tensor(&r_ref);
 	delete_dense_tensor(&r);
-	for (int i = 0; i < 3; i++) {
-		delete_dense_tensor(&tlist[i]);
+	for (int j = 0; j < num_tensors; j++) {
+		delete_dense_tensor(&tlist[j]);
 	}
 
 	H5Fclose(file);
@@ -676,19 +678,21 @@ char* test_dense_tensor_block_diag()
 		return "'H5Fopen' in test_dense_tensor_block_diag failed";
 	}
 
+	const int num_tensors = 3;
+
 	struct dense_tensor tlist[3];
 	const long dims[3][5] = {
 		{ 5, 8, 7, 3, 4 },
 		{ 8, 2, 7, 4, 4 },
 		{ 6, 1, 7, 9, 4 },
 	};
-	for (int i = 0; i < 3; i++)
+	for (int j = 0; j < num_tensors; j++)
 	{
-		allocate_dense_tensor(CT_DOUBLE_REAL, 5, dims[i], &tlist[i]);
+		allocate_dense_tensor(CT_DOUBLE_REAL, 5, dims[j], &tlist[j]);
 		// read values from disk
 		char varname[1024];
-		sprintf(varname, "t%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, tlist[i].data) < 0) {
+		sprintf(varname, "t%i", j);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, tlist[j].data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 	}
@@ -713,8 +717,8 @@ char* test_dense_tensor_block_diag()
 
 	delete_dense_tensor(&r_ref);
 	delete_dense_tensor(&r);
-	for (int i = 0; i < 3; i++) {
-		delete_dense_tensor(&tlist[i]);
+	for (int j = 0; j < num_tensors; j++) {
+		delete_dense_tensor(&tlist[j]);
 	}
 
 	H5Fclose(file);

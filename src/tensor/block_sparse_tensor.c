@@ -1746,6 +1746,139 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Concatenate tensors along the specified axis. All other dimensions must respectively agree.
+///
+void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* restrict r)
+{
+	assert(num_tensors >= 1);
+
+	const int ndim = tlist[0].ndim;
+	assert(0 <= i_ax && i_ax < ndim);
+
+	for (int j = 0; j < num_tensors - 1; j++)
+	{
+		// data types must match
+		assert(tlist[j].dtype == tlist[j + 1].dtype);
+		// degrees must match
+		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		for (int i = 0; i < tlist[j].ndim; i++) {
+			// axis directions must match
+			assert(tlist[j].axis_dir[i] == tlist[j + 1].axis_dir[i]);
+			if (i != i_ax) {
+				// other dimensions must match
+				assert(tlist[j].dim_logical[i] == tlist[j + 1].dim_logical[i]);
+				// quantum numbers must match entrywise
+				assert(qnumber_all_equal(tlist[j].dim_logical[i], tlist[j].qnums_logical[i], tlist[j + 1].qnums_logical[i]));
+			}
+		}
+	}
+
+	// allocate new block-sparse tensor 'r'
+	{
+		// dimensions of new tensor
+		long dim_concat = 0;
+		for (int j = 0; j < num_tensors; j++) {
+			dim_concat += tlist[j].dim_logical[i_ax];
+		}
+		long* r_dim_logical = ct_malloc(ndim * sizeof(long));
+		for (int i = 0; i < ndim; i++)
+		{
+			if (i == i_ax) {
+				r_dim_logical[i] = dim_concat;
+			}
+			else {
+				r_dim_logical[i] = tlist[0].dim_logical[i];
+			}
+		}
+
+		// logical quantum numbers along each dimension
+		qnumber* r_qnums_logical_i_ax = ct_malloc(dim_concat * sizeof(qnumber));
+		long c = 0;
+		for (int j = 0; j < num_tensors; j++)
+		{
+			memcpy(&r_qnums_logical_i_ax[c], tlist[j].qnums_logical[i_ax], tlist[j].dim_logical[i_ax] * sizeof(qnumber));
+			c += tlist[j].dim_logical[i_ax];
+		}
+		const qnumber** r_qnums_logical = ct_malloc(ndim * sizeof(qnumber*));
+		for (int i = 0; i < ndim; i++)
+		{
+			if (i == i_ax) {
+				r_qnums_logical[i] = r_qnums_logical_i_ax;
+			}
+			else {
+				// simply copy the pointer
+				r_qnums_logical[i] = tlist[0].qnums_logical[i];
+			}
+		}
+
+		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].axis_dir, r_qnums_logical, r);
+
+		ct_free(r_qnums_logical);
+		ct_free(r_qnums_logical_i_ax);
+		ct_free(r_dim_logical);
+	}
+
+	struct dense_tensor* tlist_blocks = ct_malloc(num_tensors * sizeof(struct dense_tensor));
+
+	// for each dense block of 'r'...
+	const long nblocks = integer_product(r->dim_blocks, r->ndim);
+	long* index_block_t = ct_calloc(r->ndim, sizeof(long));
+	long* index_block_r = ct_calloc(r->ndim, sizeof(long));
+	for (long kr = 0; kr < nblocks; kr++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers in 'r' sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		struct dense_tensor* br = r->blocks[kr];
+		assert(br != NULL);
+
+		// collect the input tensors containing the current quantum number of axis 'i_ax'
+		const qnumber qnum_i_ax = r->qnums_blocks[i_ax][index_block_r[i_ax]];
+		// indices for other axes must be identical (since quantum numbers agree)
+		memcpy(index_block_t, index_block_r, r->ndim * sizeof(long));
+		int num_tlist_blocks = 0;
+		for (int j = 0; j < num_tensors; j++)
+		{
+			bool found = false;
+			for (long l = 0; l < tlist[j].dim_blocks[i_ax]; l++) {
+				if (tlist[j].qnums_blocks[i_ax][l] == qnum_i_ax) {
+					index_block_t[i_ax] = l;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				continue;
+			}
+
+			const long kt = tensor_index_to_offset(tlist[j].ndim, tlist[j].dim_blocks, index_block_t);
+			const struct dense_tensor* bt = tlist[j].blocks[kt];
+			assert(bt != NULL);
+
+			// copy pointers, not actual data
+			memcpy(&tlist_blocks[num_tlist_blocks], bt, sizeof(struct dense_tensor));
+			num_tlist_blocks++;
+		}
+		assert(1 <= num_tlist_blocks && num_tlist_blocks <= num_tensors);
+
+		dense_tensor_concatenate_fill(tlist_blocks, num_tlist_blocks, i_ax, br);
+	}
+
+	ct_free(index_block_r);
+	ct_free(index_block_t);
+	ct_free(tlist_blocks);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the logical QR decomposition of a block-sparse matrix.
 ///
 /// The logical quantum numbers of the axis connecting Q and R will be sorted.

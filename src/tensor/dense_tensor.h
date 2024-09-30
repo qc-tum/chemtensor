@@ -176,7 +176,11 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 
 void dense_tensor_concatenate(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r);
 
+void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r);
+
 void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r);
+
+void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

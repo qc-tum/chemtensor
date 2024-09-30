@@ -128,6 +128,8 @@ void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* restric
 
 void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* restrict r);
 
+void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* restrict r);
+
 
 //________________________________________________________________________________________________________________________
 //

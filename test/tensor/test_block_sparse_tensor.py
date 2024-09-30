@@ -411,6 +411,58 @@ def block_sparse_tensor_dot_data():
             file.attrs[f"qnums{i}"] = qn
 
 
+def block_sparse_tensor_concatenate_data():
+
+    # random number generator
+    rng = np.random.default_rng(943)
+
+    # number of dimensions (degree) of each tensor
+    ndim = 4
+    # to-be concatenated axis
+    i_ax = 1
+
+    # dimensions
+    tdims = [
+        (13, 17, 11, 7),
+        (13,  4, 11, 7),
+        (13, 12, 11, 7),
+        (13,  3, 11, 7),
+        (13, 19, 11, 7)]
+
+    dims_concat = [tdims[0][i] if i != i_ax else sum(dims[i_ax] for dims in tdims) for i in range(ndim)]
+    d_concat_ranges = np.cumsum([0] + [dims[i_ax] for dims in tdims])
+
+    # tensors
+    tlist = [rng.standard_normal(dims).astype(np.float32) for dims in tdims]
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d) for d in dims_concat]
+    t_qnums = [
+        [qnums[i] if i != i_ax else qnums[i_ax][d_concat_ranges[j]:d_concat_ranges[j+1]] for i in range(ndim)]
+        for j in range(len(tdims))]
+
+    # enforce sparsity pattern based on quantum numbers
+    for j, t in enumerate(tlist):
+        it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+        for x in it:
+            qsum = sum(axis_dir[i] * t_qnums[j][i][it.multi_index[i]] for i in range(ndim))
+            if qsum != 0:
+                x[...] = 0
+
+    r = np.concatenate(tlist, axis=i_ax)
+
+    with h5py.File("data/test_block_sparse_tensor_concatenate.hdf5", "w") as file:
+        file.attrs["axis_dir"] = axis_dir
+        for j, t in enumerate(tlist):
+            file[f"t{j}"] = t
+            for i, qn in enumerate(t_qnums[j]):
+                file.attrs[f"t{j}_qnums{i}"] = qn
+        file["r"] = r
+
+
 def block_sparse_tensor_qr_data():
 
     # random number generator
@@ -587,6 +639,7 @@ def main():
     block_sparse_tensor_multiply_pointwise_vector_data()
     block_sparse_tensor_multiply_axis_data()
     block_sparse_tensor_dot_data()
+    block_sparse_tensor_concatenate_data()
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
     block_sparse_tensor_svd_data()
