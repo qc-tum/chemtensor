@@ -339,6 +339,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 		}
 		if (index[i] == -1) {
 			// quantum number not found
+			ct_free(index);
 			return NULL;
 		}
 	}
@@ -1746,7 +1747,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Concatenate tensors along the specified axis. All other dimensions must respectively agree.
+/// \brief Concatenate tensors along the specified axis. All other dimensions and their quantum numbers must respectively agree.
 ///
 void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* restrict r)
 {
@@ -1761,7 +1762,8 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 		assert(tlist[j].dtype == tlist[j + 1].dtype);
 		// degrees must match
 		assert(tlist[j].ndim == tlist[j + 1].ndim);
-		for (int i = 0; i < tlist[j].ndim; i++) {
+		for (int i = 0; i < tlist[j].ndim; i++)
+		{
 			// axis directions must match
 			assert(tlist[j].axis_dir[i] == tlist[j + 1].axis_dir[i]);
 			if (i != i_ax) {
@@ -1874,6 +1876,263 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 	ct_free(index_block_r);
 	ct_free(index_block_t);
 	ct_free(tlist_blocks);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Count the number of occurrences of each unique quantum number.
+///
+static void count_quantum_numbers(const qnumber* qnums_logical, const long dim, const qnumber* unique_qnums, const long num_qnums, long* qnum_counts)
+{
+	memset(qnum_counts, 0, num_qnums * sizeof(long));
+
+	for (long i = 0; i < dim; i++) {
+		for (long j = 0; j < num_qnums; j++) {
+			if (qnums_logical[i] == unique_qnums[j]) {
+				qnum_counts[j]++;
+				break;
+			}
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Quantum number counter utility data structure for a block-sparse tensor.
+///
+struct block_sparse_tensor_qnumber_counter
+{
+	long** qnum_counts;  //!< number of occurrences of the quantum numbers along each axis
+	int ndim;            //!< number of dimensions (degree)
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Create and fill a block-sparse tensor quantum number counter.
+///
+static void create_block_sparse_tensor_qnumber_counter(const struct block_sparse_tensor* t, struct block_sparse_tensor_qnumber_counter* qcounter)
+{
+	qcounter->ndim = t->ndim;
+
+	qcounter->qnum_counts = ct_malloc(t->ndim * sizeof(long*));
+	for (int i = 0; i < t->ndim; i++)
+	{
+		qcounter->qnum_counts[i] = ct_malloc(t->dim_blocks[i] * sizeof(long));
+		count_quantum_numbers(
+			t->qnums_logical[i], t->dim_logical[i], t->qnums_blocks[i], t->dim_blocks[i],
+			qcounter->qnum_counts[i]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete a block-sparse tensor quantum number counter (free memory).
+///
+static void delete_block_sparse_tensor_qnumber_counter(struct block_sparse_tensor_qnumber_counter* qcounter)
+{
+	for (int i = 0; i < qcounter->ndim; i++)
+	{
+		ct_free(qcounter->qnum_counts[i]);
+	}
+	ct_free(qcounter->qnum_counts);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compose tensors along the specified axes, creating a block-diagonal pattern. All other dimensions and their quantum numbers must respectively agree.
+///
+void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct block_sparse_tensor* restrict r)
+{
+	assert(num_tensors >= 1);
+	const int ndim = tlist[0].ndim;
+	assert(1 <= ndim_block && ndim_block <= ndim);
+
+	bool* i_ax_indicator = ct_calloc(ndim, sizeof(bool));
+	for (int i = 0; i < ndim_block; i++)
+	{
+		assert(0 <= i_ax[i] && i_ax[i] < ndim);
+		assert(!i_ax_indicator[i_ax[i]]);  // axis index can only appear once
+		i_ax_indicator[i_ax[i]] = true;
+	}
+
+	for (int j = 0; j < num_tensors - 1; j++)
+	{
+		// data types must match
+		assert(tlist[j].dtype == tlist[j + 1].dtype);
+		// degrees must match
+		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		for (int i = 0; i < tlist[j].ndim; i++)
+		{
+			// axis directions must match
+			assert(tlist[j].axis_dir[i] == tlist[j + 1].axis_dir[i]);
+			if (!i_ax_indicator[i]) {
+				// other dimensions must match
+				assert(tlist[j].dim_logical[i] == tlist[j + 1].dim_logical[i]);
+				// quantum numbers must match entrywise
+				assert(qnumber_all_equal(tlist[j].dim_logical[i], tlist[j].qnums_logical[i], tlist[j + 1].qnums_logical[i]));
+			}
+		}
+	}
+
+	// allocate new block-sparse tensor 'r'
+	{
+		// dimensions of new tensor
+		long* r_dim_logical = ct_malloc(ndim * sizeof(long));
+		for (int i = 0; i < ndim; i++)
+		{
+			if (i_ax_indicator[i])
+			{
+				long dsum = 0;
+				for (int j = 0; j < num_tensors; j++) {
+					dsum += tlist[j].dim_logical[i];
+				}
+				r_dim_logical[i] = dsum;
+			}
+			else {
+				r_dim_logical[i] = tlist[0].dim_logical[i];
+			}
+		}
+
+		// logical quantum numbers along each dimension
+		qnumber** r_qnums_logical = ct_malloc(ndim * sizeof(qnumber*));
+		for (int i = 0; i < ndim; i++)
+		{
+			if (i_ax_indicator[i])
+			{
+				r_qnums_logical[i] = ct_malloc(r_dim_logical[i] * sizeof(qnumber));
+				long c = 0;
+				for (int j = 0; j < num_tensors; j++)
+				{
+					memcpy(&r_qnums_logical[i][c], tlist[j].qnums_logical[i], tlist[j].dim_logical[i] * sizeof(qnumber));
+					c += tlist[j].dim_logical[i];
+				}
+				assert(c == r_dim_logical[i]);
+			}
+			else {
+				// simply copy the pointer
+				r_qnums_logical[i] = tlist[0].qnums_logical[i];
+			}
+		}
+
+		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].axis_dir, (const qnumber**)r_qnums_logical, r);
+
+		for (int i = 0; i < ndim; i++) {
+			if (i_ax_indicator[i]) {
+				ct_free(r_qnums_logical[i]);
+			}
+		}
+		ct_free(r_qnums_logical);
+		ct_free(r_dim_logical);
+	}
+
+	struct block_sparse_tensor_qnumber_counter* qcounter = ct_malloc(num_tensors * sizeof(struct block_sparse_tensor_qnumber_counter));
+	for (int j = 0; j < num_tensors; j++) {
+		create_block_sparse_tensor_qnumber_counter(&tlist[j], &qcounter[j]);
+	}
+
+	struct dense_tensor* tlist_blocks = ct_malloc(num_tensors * sizeof(struct dense_tensor));
+	long* offset    = ct_malloc(r->ndim * sizeof(long));
+	long* zero_list = ct_calloc(r->ndim, sizeof(long));
+
+	// for each dense block of 'r'...
+	qnumber* qnums_block = ct_malloc(r->ndim * sizeof(qnumber));
+	const long nblocks   = integer_product(r->dim_blocks, r->ndim);
+	long* index_block_r  = ct_calloc(r->ndim, sizeof(long));
+	for (long kr = 0; kr < nblocks; kr++, next_tensor_index(r->ndim, r->dim_blocks, index_block_r))
+	{
+		// probe whether quantum numbers in 'r' sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < r->ndim; i++)
+		{
+			qsum += r->axis_dir[i] * r->qnums_blocks[i][index_block_r[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		struct dense_tensor* br = r->blocks[kr];
+		assert(br != NULL);
+
+		// block quantum numbers
+		for (int i = 0; i < r->ndim; i++) {
+			qnums_block[i] = r->qnums_blocks[i][index_block_r[i]];
+		}
+
+		memset(offset, 0, r->ndim * sizeof(long));
+
+		// collect the input tensors containing a dense block with the current quantum numbers
+		int num_tlist_blocks = 0;
+		for (int j = 0; j < num_tensors; j++)
+		{
+			const struct dense_tensor* bt = block_sparse_tensor_get_block(&tlist[j], qnums_block);
+			if (bt != NULL)
+			{
+				// use padding to take index offsets from preceding tensors into account
+				dense_tensor_pad_zeros(bt, offset, zero_list, &tlist_blocks[num_tlist_blocks]);
+				// reset offsets
+				memset(offset, 0, r->ndim * sizeof(long));
+				num_tlist_blocks++;
+			}
+			else
+			{
+				// 'tlist[j]' can contain current block quantum numbers along some of its axes
+				for (int i = 0; i < r->ndim; i++) {
+					if (i_ax_indicator[i]) {
+						for (long k = 0; k < tlist[j].dim_blocks[i]; k++) {
+							if (tlist[j].qnums_blocks[i][k] == qnums_block[i]) {
+								offset[i] += qcounter[j].qnum_counts[i][k];
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		assert(num_tlist_blocks <= num_tensors);
+
+		if (num_tlist_blocks == 0) {
+			continue;
+		}
+
+		// use padding to take remaining dimensions from trailing tensors into account
+		{
+			bool must_pad = false;
+			for (int i = 0; i < r->ndim; i++) {
+				if (offset[i] > 0) {
+					must_pad = true;
+					break;
+				}
+			}
+			if (must_pad) {
+				struct dense_tensor tmp;
+				dense_tensor_pad_zeros(&tlist_blocks[num_tlist_blocks - 1], zero_list, offset, &tmp);
+				delete_dense_tensor(&tlist_blocks[num_tlist_blocks - 1]);
+				move_dense_tensor_data(&tmp, &tlist_blocks[num_tlist_blocks - 1]);
+			}
+		}
+
+		dense_tensor_block_diag_fill(tlist_blocks, num_tlist_blocks, i_ax, ndim_block, br);
+
+		for (int j = 0; j < num_tlist_blocks; j++) {
+			delete_dense_tensor(&tlist_blocks[j]);
+		}
+	}
+
+	ct_free(index_block_r);
+	ct_free(qnums_block);
+	ct_free(zero_list);
+	ct_free(offset);
+	ct_free(tlist_blocks);
+	for (int j = 0; j < num_tensors; j++) {
+		delete_block_sparse_tensor_qnumber_counter(&qcounter[j]);
+	}
+	ct_free(qcounter);
+	ct_free(i_ax_indicator);
 }
 
 

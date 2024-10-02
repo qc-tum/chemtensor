@@ -929,6 +929,60 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Pad a tensor with zeros according to the specified leading and trailing padding width for each axis.
+///
+void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* restrict pad_before, const long* restrict pad_after, struct dense_tensor* restrict r)
+{
+	int ndim_eff = 0;
+	for (int i = 0; i < t->ndim; i++)
+	{
+		assert(pad_before[i] >= 0 && pad_after[i] >= 0);
+		if (pad_before[i] > 0 || pad_after[i] > 0) {
+			ndim_eff = i + 1;
+		}
+	}
+	if (ndim_eff == 0) {
+		// nothing to pad
+		copy_dense_tensor(t, r);
+		return;
+	}
+
+	// dimensions of new tensor
+	long* rdim = ct_malloc(t->ndim * sizeof(long));
+	for (int i = 0; i < t->ndim; i++) {
+		rdim[i] = pad_before[i] + t->dim[i] + pad_after[i];
+	}
+
+	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
+
+	ct_free(rdim);
+
+	// leading dimensions
+	const long ld = integer_product(t->dim, ndim_eff - 1);
+	// trailing dimensions times data type size
+	const long tdd = integer_product(&t->dim[ndim_eff], t->ndim - ndim_eff) * sizeof_numeric_type(t->dtype);
+
+	const long stride = t->dim[ndim_eff - 1] * tdd;
+
+	long* index_t = ct_calloc(ndim_eff, sizeof(long));
+	long* index_r = ct_calloc(ndim_eff, sizeof(long));
+	for (long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, t->dim, index_t))
+	{
+		for (int i = 0; i < ndim_eff; i++) {
+			index_r[i] = pad_before[i] + index_t[i];
+		}
+		const long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
+		memcpy((int8_t*)r->data + or * tdd,
+		       (int8_t*)t->data + ot * stride, stride);
+	}
+
+	ct_free(index_r);
+	ct_free(index_t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions and data types of s and t must agree,
 /// and alpha must be of the same data type as tensor entries.
 ///

@@ -463,6 +463,65 @@ def block_sparse_tensor_concatenate_data():
         file["r"] = r
 
 
+def block_sparse_tensor_block_diag_data():
+
+    # random number generator
+    rng = np.random.default_rng(247)
+
+    # number of dimensions (degree) of each tensor
+    ndim = 5
+    # axes used for blocking
+    i_ax = (1, 3, 4)
+
+    # dimensions
+    tdims = [
+        (4,  2,  5,  7,  1),
+        (4, 11,  5,  4,  3),
+        (4,  3,  5, 10,  5),
+        (4,  1,  5,  3,  8),
+        (4,  4,  5,  1,  4),
+        (4,  5,  5,  2,  7)]
+
+    dims_block_diag = [tdims[0][i] if i not in i_ax else sum(dims[i] for dims in tdims) for i in range(ndim)]
+    d_block_ranges  = { i: np.cumsum([0] + [dims[i] for dims in tdims]) for i in i_ax }
+
+    # tensors
+    tlist = [rng.standard_normal(dims).astype(np.float32) for dims in tdims]
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d) for d in dims_block_diag]
+    t_qnums = [
+        [qnums[i] if i not in i_ax else qnums[i][d_block_ranges[i][j]:d_block_ranges[i][j+1]] for i in range(ndim)]
+        for j in range(len(tdims))]
+
+    # enforce sparsity pattern based on quantum numbers
+    for j, t in enumerate(tlist):
+        it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
+        for x in it:
+            qsum = sum(axis_dir[i] * t_qnums[j][i][it.multi_index[i]] for i in range(ndim))
+            if qsum != 0:
+                x[...] = 0
+
+    r = np.zeros(dims_block_diag, dtype=np.float32)
+    for j in range(len(tlist)):
+        r[:,
+          d_block_ranges[1][j]:d_block_ranges[1][j+1],
+          :,
+          d_block_ranges[3][j]:d_block_ranges[3][j+1],
+          d_block_ranges[4][j]:d_block_ranges[4][j+1]] = tlist[j]
+
+    with h5py.File("data/test_block_sparse_tensor_block_diag.hdf5", "w") as file:
+        file.attrs["axis_dir"] = axis_dir
+        for j, t in enumerate(tlist):
+            file[f"t{j}"] = t
+            for i, qn in enumerate(t_qnums[j]):
+                file.attrs[f"t{j}_qnums{i}"] = qn
+        file["r"] = r
+
+
 def block_sparse_tensor_qr_data():
 
     # random number generator
@@ -640,6 +699,7 @@ def main():
     block_sparse_tensor_multiply_axis_data()
     block_sparse_tensor_dot_data()
     block_sparse_tensor_concatenate_data()
+    block_sparse_tensor_block_diag_data()
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
     block_sparse_tensor_svd_data()

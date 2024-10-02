@@ -34,10 +34,12 @@ char* test_block_sparse_tensor_norm2();
 char* test_block_sparse_tensor_transpose();
 char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_slice();
+char* test_dense_tensor_pad_zeros();
 char* test_block_sparse_tensor_multiply_pointwise_vector();
 char* test_block_sparse_tensor_multiply_axis();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_concatenate();
+char* test_block_sparse_tensor_block_diag();
 char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
@@ -96,6 +98,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_cyclic_partial_trace),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_slice),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_pad_zeros),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_pointwise),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_axis),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot),
@@ -119,6 +122,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_axis),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_concatenate),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_block_diag),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),

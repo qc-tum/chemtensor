@@ -72,6 +72,20 @@ def dense_tensor_slice_data():
         file.attrs["ind"] = ind
 
 
+def dense_tensor_pad_zeros_data():
+
+    # random number generator
+    rng = np.random.default_rng(592)
+
+    t = rng.standard_normal((2, 5, 1, 4)).astype(np.float32)
+
+    t_pad = np.pad(t, [(0, 1), (3, 0), (2, 7), (0, 0)])
+
+    with h5py.File("data/test_dense_tensor_pad_zeros.hdf5", "w") as file:
+        file["t"]     = t
+        file["t_pad"] = t_pad
+
+
 def dense_tensor_multiply_pointwise_data():
 
     # random number generator
@@ -318,6 +332,7 @@ def main():
     dense_tensor_cyclic_partial_trace_data()
     dense_tensor_transpose_data()
     dense_tensor_slice_data()
+    dense_tensor_pad_zeros_data()
     dense_tensor_multiply_pointwise_data()
     dense_tensor_multiply_axis_data()
     dense_tensor_dot_data()

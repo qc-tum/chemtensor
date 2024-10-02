@@ -186,6 +186,57 @@ char* test_dense_tensor_slice()
 }
 
 
+char* test_dense_tensor_pad_zeros()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_pad_zeros.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_pad_zeros failed";
+	}
+
+	// create tensor 't'
+	struct dense_tensor t;
+	const long tdim[4] = { 2, 5, 1, 4 };
+	allocate_dense_tensor(CT_SINGLE_REAL, 4, tdim,  &t);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	const long pad_before[4] = { 0, 3, 2, 0 };
+	const long pad_after[4]  = { 1, 0, 7, 0 };
+
+	struct dense_tensor t_pad;
+	dense_tensor_pad_zeros(&t, pad_before, pad_after, &t_pad);
+
+	// reference tensor
+	const long refdim[4] = {
+		pad_before[0] + tdim[0] + pad_after[0],
+		pad_before[1] + tdim[1] + pad_after[1],
+		pad_before[2] + tdim[2] + pad_after[2],
+		pad_before[3] + tdim[3] + pad_after[3],
+	};
+	struct dense_tensor t_pad_ref;
+	allocate_dense_tensor(CT_SINGLE_REAL, 4, refdim, &t_pad_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "t_pad", H5T_NATIVE_FLOAT, t_pad_ref.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	// compare
+	if (!dense_tensor_allclose(&t_pad, &t_pad_ref, 0.)) {
+		return "padded tensor does not match reference";
+	}
+
+	delete_dense_tensor(&t_pad_ref);
+	delete_dense_tensor(&t_pad);
+	delete_dense_tensor(&t);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_multiply_pointwise()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_pointwise.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -655,7 +706,7 @@ char* test_dense_tensor_concatenate()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r, &r_ref, 1e-13)) {
+	if (!dense_tensor_allclose(&r, &r_ref, 0.)) {
 		return "concatenated tensor does not match reference";
 	}
 
@@ -699,7 +750,7 @@ char* test_dense_tensor_block_diag()
 
 	struct dense_tensor r;
 	const int i_ax[3] = { 0, 1, 3 };
-	dense_tensor_block_diag(tlist, 3, i_ax, 3, &r);
+	dense_tensor_block_diag(tlist, num_tensors, i_ax, 3, &r);
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
@@ -711,7 +762,7 @@ char* test_dense_tensor_block_diag()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r, &r_ref, 1e-13)) {
+	if (!dense_tensor_allclose(&r, &r_ref, 0.)) {
 		return "block-diagonal tensor does not match reference";
 	}
 

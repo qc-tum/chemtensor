@@ -142,6 +142,14 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 
 //________________________________________________________________________________________________________________________
+//
+
+// padding
+
+void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* restrict pad_before, const long* restrict pad_after, struct dense_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
 ///
 /// \brief Tensor axis alignment, used to specify multiplication.
 ///

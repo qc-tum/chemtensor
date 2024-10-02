@@ -130,6 +130,8 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* restrict r);
 
+void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct block_sparse_tensor* restrict r);
+
 
 //________________________________________________________________________________________________________________________
 //
