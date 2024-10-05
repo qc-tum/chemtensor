@@ -21,6 +21,18 @@ cmake --build .
 Currently, this will compile the unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
 
 
+Coding style conventions
+------------------------
+- Generally, follow the current coding style of the project.
+- Naming: lower_case_with_underscores in general (variable, function, and struct names); exceptionally CAPITALIZATION for preprocessor and enum constants.
+- Tabs for indentation at the beginning of a line, otherwise whitespace. This ensures that vertical alignment (of, e.g., comments for struct members) is independent of tab size. Avoid trailing whitespace.
+- Comments: // for normal comments, /// for Doxygen documentation.
+- Put curly braces `{ }` after every `if` and `else` (to avoid pitfalls).
+- Left-align pointers throughout: `int* p` instead of `int *p`.
+- Keep the `struct` and `enum` keywords in variable types: `struct foo f;` instead of `typedef struct foo { ... } foo_t; foo_t f;`.
+- Use `const` for function arguments which are not modified by the function.
+
+
 References
 ----------
 - U. Schollwöck  
