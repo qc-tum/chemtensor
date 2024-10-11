@@ -44,17 +44,20 @@ struct ttno_graph_hyperedge
 ///
 /// \brief TTNO graph internal data structure for generating TTNO representations.
 ///
+/// Sites are enumerated as physical sites first, then branching sites.
+///
 struct ttno_graph
 {
-	struct abstract_graph topology;       //!< logical tree topology; nodes correspond to physical sites
-	struct ttno_graph_hyperedge** edges;  //!< list of hyperedges for each physical site
+	struct abstract_graph topology;       //!< logical tree topology; nodes correspond to physical and branching sites
+	struct ttno_graph_hyperedge** edges;  //!< list of hyperedges for each physical and branching site
 	struct ttno_graph_vertex** verts;     //!< list of vertices for each virtual bond, indexed by corresponding hyperedge site indices (i, j) with i < j
 	int* num_edges;                       //!< number of edges for each site
 	int* num_verts;                       //!< number of vertices for each virtual bond, i.e., virtual bond dimensions, indexed by corresponding hyperedge site indices (i, j) with i < j
-	int nsites;                           //!< number of sites
+	int nsites_physical;                  //!< number of physical sites
+	int nsites_branching;                 //!< number of branching sites
 };
 
-int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct ttno_graph* ttno_graph);
+int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites_physical, const struct abstract_graph* topology, struct ttno_graph* ttno_graph);
 
 void delete_ttno_graph(struct ttno_graph* graph);
 

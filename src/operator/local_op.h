@@ -12,7 +12,8 @@
 ///
 enum
 {
-	OID_IDENTITY = 0,  //!< index corresponding to identity operation
+	OID_NOP      = -1,  //!< index corresponding to no operation
+	OID_IDENTITY =  0,  //!< index corresponding to identity operation
 };
 
 
