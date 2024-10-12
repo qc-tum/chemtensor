@@ -642,3 +642,50 @@ char* test_mps_to_statevector()
 
 	return 0;
 }
+
+char* test_mps_add()
+{
+	struct mps chi, psi, res;
+	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
+	
+	const int nsites = 1;
+	const long d = 2, max_vdim = 16;
+	
+	struct rng_state rng_state;
+	seed_rng_state(42, &rng_state);
+
+	const qnumber q_pnum = 7;
+	const qnumber q_spin = 1;
+	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
+
+	qnumber *qsite = ct_malloc(d * sizeof(qnumber));
+	for (int i = 0; i < d; i++) {
+		qsite[i] = qnum_sector;
+	}
+	
+	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
+	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
+
+	mps_add(&chi, &psi, &res);
+
+	mps_to_statevector(&chi, &chi_vec);
+	mps_to_statevector(&psi, &psi_vec);
+	mps_to_statevector(&res, &res_vec);
+
+	double *chi_data = (double*)(chi_vec.blocks[0]->data);
+	double *psi_data = (double*)(psi_vec.blocks[0]->data);
+	double *res_data = (double*)(res_vec.blocks[0]->data);
+	for (int i = 0; i < chi_vec.blocks[0]->ndim; i++){
+		assert(chi_data[i] + psi_data[i] == res_data[i]);
+	}
+
+	delete_block_sparse_tensor(&res_vec);
+	delete_block_sparse_tensor(&psi_vec);
+	delete_block_sparse_tensor(&chi_vec);
+	ct_free(qsite);
+	delete_mps(&res);
+	delete_mps(&psi);
+	delete_mps(&chi);
+
+	return 0;
+}

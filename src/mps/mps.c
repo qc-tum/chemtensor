@@ -335,6 +335,10 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 	long d = chi->d;
 	int L = chi->nsites;
 	enum numeric_type dtype = chi->a[0].dtype;
+	qnumber *qsite = ct_malloc(d * sizeof(qnumber));
+	for (int i = 0; i < d; i++) {
+		qsite[i] = chi->qsite[i];
+	}
 
 	if (L == 1) {
 		const struct block_sparse_tensor* chi_a = &(chi->a[0]);
@@ -346,39 +350,31 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			qnumber_all_equal(
 				ndim, 
 				chi_a->qnums_logical[0], 
-				psi_a->qnums_logical[0]
-			)
-		); 
+				psi_a->qnums_logical[0])); 
 		assert(
 			qnumber_all_equal(
 				ndim,
 				chi_a->qnums_logical[1],
-				psi_a->qnums_logical[1]
-			)
-		); 
+				psi_a->qnums_logical[1])); 
 
 		// Add MPS tensors. 
-		const struct block_sparse_tensor* new_a;
-		copy_block_sparse_tensor(chi_a, new_a);
+		struct block_sparse_tensor *ret_a = ct_malloc(sizeof(struct block_sparse_tensor));
+		copy_block_sparse_tensor(chi_a, ret_a);
 
 		// Add individual dense_tensors.
-		for (int i = 0; i < new_a->ndim; i++) {
-			dense_tensor_scalar_multiply_add(
-				1,
-				psi_a->blocks[i],
-				new_a->blocks[i]
-			);
+		for (int i = 0; i < ret_a->ndim; i++) {
+			if (psi_a->blocks[i] != NULL && ret_a->blocks[i] != NULL) {
+				dense_tensor_scalar_multiply_add(
+					numeric_one(psi_a->dtype),
+					psi_a->blocks[i],
+					ret_a->blocks[i]);
+			}
 		}
 
 		// Allocate memory and set return value 'ret'.
-		struct mps ret_val = {
-			.a=new_a,
-			.d=d,
-			.nsites=L,
-			.qsite=chi->qsite
-		};
-		ret = ct_malloc(sizeof(struct mps));
-		memcpy((void*) &ret_val, (void*) ret, sizeof(ret));
+		// ret = ct_malloc(sizeof(struct mps));
+		struct mps VALUE = {.nsites=L, .d=d, .qsite=qsite, .a=ret_a};
+		memcpy((void*)ret, (void*)&VALUE, sizeof(struct mps));
 	} else {
 
 	}
