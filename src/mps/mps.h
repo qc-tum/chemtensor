@@ -49,9 +49,11 @@ static inline long mps_bond_dim(const struct mps* mps, const int i)
 //________________________________________________________________________________________________________________________
 //
 
-// inner product and norm
+// inner product, addition, and norm
 
 void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
+
+void mps_add(const struct mps* chi, const struct mps* psi, void* ret);
 
 double mps_norm(const struct mps* psi);
 

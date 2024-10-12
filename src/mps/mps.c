@@ -318,6 +318,75 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the addition of two MPS chi and psi.
+///
+void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
+{
+	// Number of lattice sites must agree.
+	assert(chi->nsites == psi->nsites);
+
+	// Number of lattice sites must be larger than 0.
+	assert(chi->nsites > 0);
+
+	// Physical quantum numbers must agree.
+	assert(chi->d == psi->d); 
+	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite)); 
+
+	long d = chi->d;
+	int L = chi->nsites;
+	enum numeric_type dtype = chi->a[0].dtype;
+
+	if (L == 1) {
+		const struct block_sparse_tensor* chi_a = &(chi->a[0]);
+		const struct block_sparse_tensor* psi_a = &(psi->a[0]);
+		const int ndim = chi_a->ndim;
+
+        // Dummy bond quantum numbers must agree.
+		assert(
+			qnumber_all_equal(
+				ndim, 
+				chi_a->qnums_logical[0], 
+				psi_a->qnums_logical[0]
+			)
+		); 
+		assert(
+			qnumber_all_equal(
+				ndim,
+				chi_a->qnums_logical[1],
+				psi_a->qnums_logical[1]
+			)
+		); 
+
+		// Add MPS tensors. 
+		const struct block_sparse_tensor* new_a;
+		copy_block_sparse_tensor(chi_a, new_a);
+
+		// Add individual dense_tensors.
+		for (int i = 0; i < new_a->ndim; i++) {
+			dense_tensor_scalar_multiply_add(
+				1,
+				psi_a->blocks[i],
+				new_a->blocks[i]
+			);
+		}
+
+		// Allocate memory and set return value 'ret'.
+		struct mps ret_val = {
+			.a=new_a,
+			.d=d,
+			.nsites=L,
+			.qsite=chi->qsite
+		};
+		ret = ct_malloc(sizeof(struct mps));
+		memcpy((void*) &ret_val, (void*) ret, sizeof(ret));
+	} else {
+
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the Euclidean norm of the MPS.
 ///
 /// Result is returned as double also for single-precision tensor entries.
