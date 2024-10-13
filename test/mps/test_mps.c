@@ -663,8 +663,8 @@ char* test_mps_add()
 		qsite[i] = qnum_sector;
 	}
 	
-	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
-	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
+	construct_random_mps(CT_SINGLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
+	construct_random_mps(CT_SINGLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
 
 	mps_add(&chi, &psi, &res);
 
@@ -672,11 +672,12 @@ char* test_mps_add()
 	mps_to_statevector(&psi, &psi_vec);
 	mps_to_statevector(&res, &res_vec);
 
-	double *chi_data = (double*)(chi_vec.blocks[0]->data);
-	double *psi_data = (double*)(psi_vec.blocks[0]->data);
-	double *res_data = (double*)(res_vec.blocks[0]->data);
+	float *chi_data = (float*)(chi_vec.blocks[0]->data);
+	float *psi_data = (float*)(psi_vec.blocks[0]->data);
+	float *res_data = (float*)(res_vec.blocks[0]->data);
+	
 	for (int i = 0; i < chi_vec.blocks[0]->ndim; i++){
-		assert(chi_data[i] + psi_data[i] == res_data[i]);
+		assert(fabsf(chi_data[i] + psi_data[i] - res_data[i]) < 1e-13);
 	}
 
 	delete_block_sparse_tensor(&res_vec);
