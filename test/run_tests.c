@@ -139,7 +139,7 @@ int main()
 		// TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		// TEST_FUNCTION_ENTRY(test_mps_compress),
 		// TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
-		// TEST_FUNCTION_ENTRY(test_mps_to_statevector),
+		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_mps_add),
 		// TEST_FUNCTION_ENTRY(test_queue),
 		// TEST_FUNCTION_ENTRY(test_linked_list),

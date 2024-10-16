@@ -315,6 +315,15 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 	delete_block_sparse_tensor(&r);
 }
 
+// TODO: Delete.
+void print_sparse(struct block_sparse_tensor r)
+{
+	printf("r: ndim=%d, lshape=(%ld, %ld, %ld), bshape=(%ld, %ld, %ld)\n", 
+		r.ndim, 
+		r.dim_logical[0], r.dim_logical[1], r.dim_logical[2],
+		r.dim_blocks[0], r.dim_blocks[1], r.dim_blocks[2]);
+}
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -335,48 +344,103 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 	long d = chi->d;
 	int L = chi->nsites;
 	enum numeric_type dtype = chi->a[0].dtype;
+	
+	// Copy physical quantum number array.
 	qnumber *qsite = ct_malloc(d * sizeof(qnumber));
 	for (int i = 0; i < d; i++) {
 		qsite[i] = chi->qsite[i];
 	}
 
+	// Initialize return mps.
+	struct mps VALUE;
+	VALUE.nsites = L;
+	VALUE.d = d;
+	VALUE.qsite = qsite;
+
 	if (L == 1) {
-		const struct block_sparse_tensor* chi_a = &(chi->a[0]);
-		const struct block_sparse_tensor* psi_a = &(psi->a[0]);
-		const int ndim = chi_a->ndim;
+		struct block_sparse_tensor chi_a, psi_a;
+
+		copy_block_sparse_tensor(&(chi->a[0]), &chi_a);
+		copy_block_sparse_tensor(&(psi->a[0]), &psi_a);
+
+		assert(chi_a.ndim == psi_a.ndim);
+
+		const int ndim = chi_a.ndim;
 
         // Dummy bond quantum numbers must agree.
-		assert(
-			qnumber_all_equal(
+		assert(qnumber_all_equal(
 				ndim, 
-				chi_a->qnums_logical[0], 
-				psi_a->qnums_logical[0])); 
-		assert(
-			qnumber_all_equal(
+				chi_a.qnums_blocks[0], 
+				psi_a.qnums_blocks[0])); 
+		assert(qnumber_all_equal(
 				ndim,
-				chi_a->qnums_logical[1],
-				psi_a->qnums_logical[1])); 
+				chi_a.qnums_blocks[2],
+				psi_a.qnums_blocks[2]));
 
-		// Add MPS tensors. 
-		struct block_sparse_tensor *ret_a = ct_malloc(sizeof(struct block_sparse_tensor));
-		copy_block_sparse_tensor(chi_a, ret_a);
-
-		// Add individual dense_tensors.
-		for (int i = 0; i < ret_a->ndim; i++) {
-			if (psi_a->blocks[i] != NULL && ret_a->blocks[i] != NULL) {
-				dense_tensor_scalar_multiply_add(
-					numeric_one(psi_a->dtype),
-					psi_a->blocks[i],
-					ret_a->blocks[i]);
+		// Add individual dense_tensors (chi = psi + chi).
+		const long nblocks = integer_product(chi_a.dim_blocks, ndim);
+		for (long k = 0; k < nblocks; k++)
+		{
+			struct dense_tensor* a = psi_a.blocks[k];
+			struct dense_tensor* b = chi_a.blocks[k];
+			if (a != NULL && b != NULL) {
+				dense_tensor_scalar_multiply_add(numeric_one(dtype), a, b);
 			}
 		}
 
-		// Allocate memory and set return value 'ret'.
-		// ret = ct_malloc(sizeof(struct mps));
-		struct mps VALUE = {.nsites=L, .d=d, .qsite=qsite, .a=ret_a};
+		delete_block_sparse_tensor(&psi_a);
+
+		// Construct "return value".		
+		VALUE.a = ct_malloc(sizeof(struct block_sparse_tensor));
+		copy_block_sparse_tensor(&chi_a, &VALUE.a[0]);
 		memcpy((void*)ret, (void*)&VALUE, sizeof(struct mps));
 	} else {
+		// TODO: Leading and trailing (dummy) bond quantum numbers must agree.
+		// ...
+		
+		struct block_sparse_tensor *ret_a = ct_malloc(L * sizeof(struct block_sparse_tensor));
+		struct block_sparse_tensor tlist[2];
+		
+		// Left-most tensor.
+		{
+			const int i_ax[1] = { 2 };
+			tlist[0] = chi->a[0];
+			tlist[1] = psi->a[0];
 
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret_a[0]);
+		}
+
+		// Intermediate tensors.
+		for (int i = 1; i < L - 1; i++) {
+			const int i_ax[1] = { 2 };
+			const int i_ax2[1] = { 0 };
+			struct block_sparse_tensor rt, rb;
+			
+			tlist[0] = chi->a[i];
+			allocate_block_sparse_tensor_like(&chi->a[i], &tlist[1]);
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &rt);
+
+			allocate_block_sparse_tensor_like(&chi->a[i], &tlist[0]);
+			tlist[1] = psi->a[i];
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &rb);
+
+			tlist[0] = rt;
+			tlist[1] = rb;
+			block_sparse_tensor_block_diag(tlist, 2, i_ax2, 1, &ret_a[i]);
+		}
+
+		// Right-most tensor.
+		{
+			const int i_ax[1] = { 0 };
+			tlist[0] = chi->a[L - 1];
+			tlist[1] = psi->a[L - 1];
+			
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret_a[L - 1]);
+		}
+
+		// Construct "return value".		
+		VALUE.a = ret_a;
+		memcpy((void*)ret, (void*)&VALUE, sizeof(struct mps));
 	}
 }
 

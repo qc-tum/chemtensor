@@ -645,48 +645,60 @@ char* test_mps_to_statevector()
 
 char* test_mps_add()
 {
-	struct mps chi, psi, res;
-	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
+	const long D = 2, MAX_VDIM = 128, SITE_ARRAY_LEN = 6;
+	const int SITE_ARRAY[SITE_ARRAY_LEN] = {1, 3, 5, 8, 12, 16};
 	
-	const int nsites = 1;
-	const long d = 2, max_vdim = 16;
-	
-	struct rng_state rng_state;
-	seed_rng_state(42, &rng_state);
-
 	const qnumber q_pnum = 7;
 	const qnumber q_spin = 1;
 	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
-	qnumber *qsite = ct_malloc(d * sizeof(qnumber));
-	for (int i = 0; i < d; i++) {
-		qsite[i] = qnum_sector;
-	}
+	const qnumber QSITE_CHI[D] = {1, 2};
+	const qnumber QSITE_PSI[D] = {1, 2};
+
+	struct mps chi, psi, res;
+	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
+	struct dense_tensor chi_vec_dns, psi_vec_dns, res_vec_dns;
 	
-	construct_random_mps(CT_SINGLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
-	construct_random_mps(CT_SINGLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
-
-	mps_add(&chi, &psi, &res);
-
-	mps_to_statevector(&chi, &chi_vec);
-	mps_to_statevector(&psi, &psi_vec);
-	mps_to_statevector(&res, &res_vec);
-
-	float *chi_data = (float*)(chi_vec.blocks[0]->data);
-	float *psi_data = (float*)(psi_vec.blocks[0]->data);
-	float *res_data = (float*)(res_vec.blocks[0]->data);
+	struct rng_state rng_state;
+	seed_rng_state(42, &rng_state);
 	
-	for (int i = 0; i < chi_vec.blocks[0]->ndim; i++){
-		assert(fabsf(chi_data[i] + psi_data[i] - res_data[i]) < 1e-13);
-	}
+	int nsites;
+	for (int i = 0; i < SITE_ARRAY_LEN; i++) {
+		nsites = SITE_ARRAY[i];
 
-	delete_block_sparse_tensor(&res_vec);
-	delete_block_sparse_tensor(&psi_vec);
-	delete_block_sparse_tensor(&chi_vec);
-	ct_free(qsite);
-	delete_mps(&res);
-	delete_mps(&psi);
-	delete_mps(&chi);
+		construct_random_mps(CT_SINGLE_REAL, nsites, D, QSITE_CHI, qnum_sector, MAX_VDIM, &rng_state, &chi);
+		construct_random_mps(CT_SINGLE_REAL, nsites, D, QSITE_PSI, qnum_sector, MAX_VDIM, &rng_state, &psi);
+
+		mps_add(&chi, &psi, &res);
+
+		mps_to_statevector(&chi, &chi_vec);
+		mps_to_statevector(&psi, &psi_vec);
+		mps_to_statevector(&res, &res_vec);
+
+		block_sparse_to_dense_tensor(&chi_vec, &chi_vec_dns);
+		block_sparse_to_dense_tensor(&psi_vec, &psi_vec_dns);
+		block_sparse_to_dense_tensor(&res_vec, &res_vec_dns);
+
+		dense_tensor_scalar_multiply_add(numeric_one(chi_vec.dtype), &psi_vec_dns, &chi_vec_dns);
+
+		// Compare dense tensors.
+		if (!dense_tensor_allclose(&res_vec_dns, &chi_vec_dns, 1e-13)) {
+			return "addition of mps does not match reference";
+		}
+
+		// Free memory.
+		delete_dense_tensor(&res_vec_dns);
+		delete_dense_tensor(&psi_vec_dns);
+		delete_dense_tensor(&chi_vec_dns);
+
+		delete_block_sparse_tensor(&res_vec);
+		delete_block_sparse_tensor(&psi_vec);
+		delete_block_sparse_tensor(&chi_vec);
+		
+		delete_mps(&res);
+		delete_mps(&psi);
+		delete_mps(&chi);
+	}
 
 	return 0;
 }
