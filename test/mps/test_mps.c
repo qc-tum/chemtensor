@@ -645,15 +645,15 @@ char* test_mps_to_statevector()
 
 char* test_mps_add()
 {
-	const long D = 2, MAX_VDIM = 128, SITE_ARRAY_LEN = 6;
-	const int SITE_ARRAY[SITE_ARRAY_LEN] = {1, 3, 5, 8, 12, 16};
+	const long d = 2, max_vdim = 16, site_array_len = 6;
+	const int site_array[site_array_len] = {1, 3, 5, 8, 12, 16};
 	
 	const qnumber q_pnum = 7;
 	const qnumber q_spin = 1;
 	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
-	const qnumber QSITE_CHI[D] = {1, 2};
-	const qnumber QSITE_PSI[D] = {1, 2};
+	const qnumber qsite_chi[d] = {1, 2};
+	const qnumber qsite_psi[d] = {1, 2};
 
 	struct mps chi, psi, res;
 	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
@@ -663,11 +663,11 @@ char* test_mps_add()
 	seed_rng_state(42, &rng_state);
 	
 	int nsites;
-	for (int i = 0; i < SITE_ARRAY_LEN; i++) {
-		nsites = SITE_ARRAY[i];
+	for (int i = 0; i < site_array_len; i++) {
+		nsites = site_array[i];
 
-		construct_random_mps(CT_SINGLE_REAL, nsites, D, QSITE_CHI, qnum_sector, MAX_VDIM, &rng_state, &chi);
-		construct_random_mps(CT_SINGLE_REAL, nsites, D, QSITE_PSI, qnum_sector, MAX_VDIM, &rng_state, &psi);
+		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite_chi, qnum_sector, max_vdim, &rng_state, &chi);
+		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite_psi, qnum_sector, max_vdim, &rng_state, &psi);
 
 		mps_add(&chi, &psi, &res);
 
