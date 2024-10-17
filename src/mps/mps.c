@@ -322,13 +322,13 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 ///
 void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 {
-	// Number of lattice sites must agree.
+	// number of lattice sites must agree
 	assert(chi->nsites == psi->nsites);
 
-	// Number of lattice sites must be larger than 0.
+	// number of lattice sites must be larger than 0
 	assert(chi->nsites > 0);
 
-	// Physical quantum numbers must agree.
+	// physical quantum numbers must agree
 	assert(chi->d == psi->d); 
 	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite)); 
 
@@ -336,13 +336,13 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 	const int L = chi->nsites;
 	const enum numeric_type dtype = chi->a[0].dtype;
 	
-	// Copy physical quantum number array.
+	// copy physical quantum number array
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	for (int i = 0; i < d; i++) {
 		qsite[i] = chi->qsite[i];
 	}
 
-	// Initialize return mps.
+	// initialize return mps
 	struct mps res;
 	res.nsites = L;
 	res.d = d;
@@ -355,7 +355,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 
 		assert(chi_a.ndim == psi_a.ndim);
 
-        // Dummy bond quantum numbers must agree.
+		// dummy bond quantum numbers must agree
 		assert(qnumber_all_equal(
 				ndim, 
 				chi_a.qnums_blocks[0], 
@@ -365,11 +365,11 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 				chi_a.qnums_blocks[2],
 				psi_a.qnums_blocks[2]));
 
-		// Allocate memory and copy sparse tensor into resulting tensor.
+		// allocate memory and copy sparse tensor into resulting tensor
 		res.a = ct_malloc(sizeof(struct block_sparse_tensor));
 		copy_block_sparse_tensor(&chi_a, &res.a[0]);
 
-		// Add individual dense_tensors.
+		// add individual dense_tensors
 		const long nblocks = integer_product(res.a->dim_blocks, ndim);
 		for (long k = 0; k < nblocks; k++)
 		{
@@ -380,7 +380,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			}
 		}
 	} else {
-		// Leading and trailing (dummy) bond quantum numbers must agree.
+		// leading and trailing (dummy) bond quantum numbers must agree
 		assert(qnumber_all_equal(
 				chi->a[0].ndim, 
 				chi->a[0].qnums_blocks[0], 
@@ -393,7 +393,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 		res.a = ct_malloc(L * sizeof(struct block_sparse_tensor));
 		struct block_sparse_tensor tlist[2];
 		
-		// Left-most tensor.
+		// left-most tensor
 		{
 			const int i_ax[1] = { 2 };
 			tlist[0] = chi->a[0];
@@ -402,7 +402,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &res.a[0]);
 		}
 
-		// Intermediate tensors.
+		// intermediate tensors
 		for (int i = 1; i < L - 1; i++) {
 			const int i_ax[2] = { 0, 2 };
 			tlist[0] = chi->a[i];
@@ -411,7 +411,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			block_sparse_tensor_block_diag(tlist, 2, i_ax, 2, &res.a[i]);
 		}
 
-		// Right-most tensor.
+		// right-most tensor
 		{
 			const int i_ax[1] = { 0 };
 			tlist[0] = chi->a[L - 1];

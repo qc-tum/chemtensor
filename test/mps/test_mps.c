@@ -643,6 +643,7 @@ char* test_mps_to_statevector()
 	return 0;
 }
 
+
 char* test_mps_add()
 {
 	const long d = 2, max_vdim = 16, site_array_len = 6;
@@ -681,12 +682,12 @@ char* test_mps_add()
 
 		dense_tensor_scalar_multiply_add(numeric_one(chi_vec.dtype), &psi_vec_dns, &chi_vec_dns);
 
-		// Compare dense tensors.
+		// compare dense tensors
 		if (!dense_tensor_allclose(&res_vec_dns, &chi_vec_dns, 1e-13)) {
 			return "addition of mps does not match reference";
 		}
 
-		// Free memory.
+		// free memory
 		delete_dense_tensor(&res_vec_dns);
 		delete_dense_tensor(&psi_vec_dns);
 		delete_dense_tensor(&chi_vec_dns);
