@@ -15,8 +15,8 @@ def ttno_graph_from_opchains_data():
     qd = np.array([0, -1, 1])
     # local physical dimension
     d = len(qd)
-    # number of sites
-    nsites = 8
+    # number of physical sites
+    nsites_physical = 5
 
     # identity operator ID
     oid_identity = 0
@@ -26,21 +26,21 @@ def ttno_graph_from_opchains_data():
     coeffmap = np.concatenate((np.array([0., 1.]), ptn.crandn(7, rng)))
 
     cids = [5, 8, 7, 4, 3, 2, 3, 6, 4]
-    chains = [  #     0   1   2   3   4   5   6   7       0   1   2   3   4   5   6   7
-        ptn.OpChain([         6,  9,  5, 15        ], [         0, -1, -1,  1,  0        ], coeffmap[cids[0]], 2),
-        ptn.OpChain([ 8, 16,  2, 11,  3            ], [ 0, -1,  1,  2,  1,  0            ], coeffmap[cids[1]], 0),
-        ptn.OpChain([        10,  1,  9            ], [         0,  1,  0,  0            ], coeffmap[cids[2]], 2),
-        ptn.OpChain([             9,  7, 13, 12,  1], [             0,  0, -1, -1,  1,  0], coeffmap[cids[3]], 3),
-        ptn.OpChain([     0, 17,  4,  7            ], [     0,  0,  1,  1,  0            ], coeffmap[cids[4]], 1),
-        ptn.OpChain([15, 14                        ], [ 0, -1,  0                        ], coeffmap[cids[5]], 0),
-        ptn.OpChain([     9,  2,  1                ], [     0,  0,  1,  0                ], coeffmap[cids[6]], 1),
-        ptn.OpChain([ 7,  0,  0,  0, 14,  0,  9    ], [ 0, -1, -1, -1, -1,  0,  0,  0    ], coeffmap[cids[7]], 0),
-        ptn.OpChain([                10,  0,  7    ], [                 0,  1,  1,  0    ], coeffmap[cids[8]], 4),
+    chains = [  #     0   1   2   3   4       0   1   2   3   4
+        ptn.OpChain([     6,  9,  5, 15], [     0, -1, -1,  1,  0], coeffmap[cids[0]], 1),
+        ptn.OpChain([ 8, 16,  2, 11,  3], [ 0, -1,  1,  2,  1,  0], coeffmap[cids[1]], 0),
+        ptn.OpChain([        10,  1    ], [         0,  1,  0    ], coeffmap[cids[2]], 2),
+        ptn.OpChain([ 9,  7, 13, 12,  1], [ 0,  0, -1, -1,  1,  0], coeffmap[cids[3]], 0),
+        ptn.OpChain([     0, 17,  4,  7], [     0,  0,  1,  1,  0], coeffmap[cids[4]], 1),
+        ptn.OpChain([            15, 14], [             0, -1,  0], coeffmap[cids[5]], 3),
+        ptn.OpChain([     9,  2,  1    ], [     0,  0,  1,  0    ], coeffmap[cids[6]], 1),
+        ptn.OpChain([ 7,  0,  0, 14,  9], [ 0, -1, -1, -1,  0,  0], coeffmap[cids[7]], 0),
+        ptn.OpChain([        10,  0,  7], [         0,  1,  1,  0], coeffmap[cids[8]], 2),
     ]
 
-    graph = ptn.OpGraph.from_opchains(chains, nsites, oid_identity)
+    graph = ptn.OpGraph.from_opchains(chains, nsites_physical, oid_identity)
     assert graph.is_consistent()
-    assert graph.length == nsites
+    assert graph.length == nsites_physical
 
     # random local operators
     opmap = [np.identity(len(qd), dtype=complex) if opid == oid_identity else ptn.crandn((d, d), rng)
@@ -62,16 +62,16 @@ def ttno_graph_from_opchains_data():
         mat_ref = mat_ref + np.kron(np.kron(
             np.identity(len(qd)**chain.istart),
             chain.as_matrix(opmap)),
-            np.identity(len(qd)**(nsites - (chain.istart + chain.length))))
+            np.identity(len(qd)**(nsites_physical - (chain.istart + chain.length))))
 
-    # group sites (0, 4, 6) and (1, 2, 3, 5, 7)
-    rank_046_12357 = _operator_partition_rank(mat_ref, d, (0, 4, 6), (1, 2, 3, 5, 7))
-    # group sites (1, 7) and (0, 2, 3, 4, 5, 6)
-    rank_17_023456 = _operator_partition_rank(mat_ref, d, (1, 7), (0, 2, 3, 4, 5, 6))
-    # group sites (2) and (0, 1, 3, 4, 5, 6, 7)
-    rank_2_0134567 = _operator_partition_rank(mat_ref, d, (2,), (0, 1, 3, 4, 5, 6, 7))
-    # group sites (6) and (0, 1, 2, 3, 4, 5, 7)
-    rank_6_0123457 = _operator_partition_rank(mat_ref, d, (6,), (0, 1, 2, 3, 4, 5, 7))
+    # group sites (0, 4) and (1, 2, 3)
+    rank_04_123 = _operator_partition_rank(mat_ref, d, (0, 4), (1, 2, 3))
+    # group sites (1,) and (0, 2, 3, 4)
+    rank_1_0234 = _operator_partition_rank(mat_ref, d, (1,), (0, 2, 3, 4))
+    # group sites (2) and (0, 1, 3, 4)
+    rank_2_0134 = _operator_partition_rank(mat_ref, d, (2,), (0, 1, 3, 4))
+    # group sites (4) and (0, 1, 2, 3)
+    rank_4_0123 = _operator_partition_rank(mat_ref, d, (4,), (0, 1, 2, 3))
 
     with h5py.File("data/test_ttno_graph_from_opchains.hdf5", "w") as file:
         for i, chain in enumerate(chains):
@@ -82,13 +82,12 @@ def ttno_graph_from_opchains_data():
             file.attrs[f"/chain{i}/istart"] = chain.istart
         file["opmap"]    = interleave_complex(np.array(opmap))
         file["coeffmap"] = interleave_complex(coeffmap)
-        file.attrs["rank_046_12357"] = rank_046_12357
-        file.attrs["rank_17_023456"] = rank_17_023456
-        # note: local operators opmap[2], opmap[10], opmap[17] acting on site 2
-        # span a two-dimensional subspace,
-        # hence numerically determined rank is one below general abstract case
-        file.attrs["rank_2_0134567"] = rank_2_0134567 + 1
-        file.attrs["rank_6_0123457"] = rank_6_0123457
+        file.attrs["rank_04_123"] = rank_04_123
+        file.attrs["rank_1_0234"] = rank_1_0234
+        # note: local operators acting on sites 2 and 4 span a 5-dimensional subspace,
+        # hence numerically determined rank is smaller than general abstract case
+        file.attrs["rank_2_0134"] = rank_2_0134 + 1
+        file.attrs["rank_4_0123"] = rank_4_0123 + 2
 
 
 def _operator_partition_rank(u, d: int, sites_a, sites_b):

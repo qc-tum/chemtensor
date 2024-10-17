@@ -31,10 +31,11 @@ struct ttno_assembly
 struct ttno
 {
 	struct block_sparse_tensor* a;   //!< tensors associated with sites, with interleaved physical and virtual bond dimensions (ordered by site indices)
-	struct abstract_graph topology;  //!< logical tree topology; nodes correspond to physical sites
+	struct abstract_graph topology;  //!< logical tree topology; nodes correspond to physical and branching sites
 	qnumber* qsite;                  //!< physical quantum numbers at each site
 	long d;                          //!< local physical dimension of each site
-	int nsites;                      //!< number of sites
+	int nsites_physical;             //!< number of physical sites
+	int nsites_branching;            //!< number of branching sites
 };
 
 

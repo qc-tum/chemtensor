@@ -13,33 +13,35 @@ char* test_ttno_graph_from_opchains()
 		return "'H5Fopen' in test_ttno_graph_from_opchains failed";
 	}
 
-	// number of lattice sites
-	const int nsites = 8;
+	// number of physical and branching lattice sites
+	const int nsites_physical  = 5;
+	const int nsites_branching = 3;
+	const int nsites = nsites_physical + nsites_branching;
 	// local physical dimension
 	const long d = 3;
 
-	const long dim_full = ipow(d, nsites);
+	const long dim_full_physical = ipow(d, nsites_physical);
 
 	// tree topology:
 	//
-	//  4           6
+	//  4           0
 	//    \       /
 	//      \   /
-	//        0
+	//        6
 	//        |
 	//        |
-	//  2 --- 3 --- 1 --- 7
+	//  2 --- 5 --- 1 --- 7
 	//        |
 	//        |
-	//        5
+	//        3
 	//
-	int neigh0[] = { 3, 4, 6 };
-	int neigh1[] = { 3, 7 };
-	int neigh2[] = { 3 };
-	int neigh3[] = { 0, 1, 2, 5 };
-	int neigh4[] = { 0 };
-	int neigh5[] = { 3 };
-	int neigh6[] = { 0 };
+	int neigh0[] = { 6 };
+	int neigh1[] = { 5, 7 };
+	int neigh2[] = { 5 };
+	int neigh3[] = { 5 };
+	int neigh4[] = { 6 };
+	int neigh5[] = { 1, 2, 3, 6 };
+	int neigh6[] = { 0, 4, 5 };
 	int neigh7[] = { 1 };
 	int* neighbor_map[8] = {
 		neigh0, neigh1, neigh2, neigh3, neigh4, neigh5, neigh6, neigh7,
@@ -85,7 +87,7 @@ char* test_ttno_graph_from_opchains()
 	}
 
 	struct ttno_graph graph;
-	if (ttno_graph_from_opchains(chains, nchains, &topology, &graph) < 0) {
+	if (ttno_graph_from_opchains(chains, nchains, nsites_physical, &topology, &graph) < 0) {
 		return "'ttno_graph_from_opchains' failed internally";
 	}
 	if (!ttno_graph_is_consistent(&graph)) {
@@ -93,33 +95,33 @@ char* test_ttno_graph_from_opchains()
 	}
 
 	// bond dimensions
-	int rank_046_12357;
-	if (read_hdf5_attribute(file, "rank_046_12357", H5T_NATIVE_INT, &rank_046_12357) < 0) {
+	int rank_04_123;
+	if (read_hdf5_attribute(file, "rank_04_123", H5T_NATIVE_INT, &rank_04_123) < 0) {
 		return "reading operator partitioning rank from disk failed";
 	}
-	int rank_17_023456;
-	if (read_hdf5_attribute(file, "rank_17_023456", H5T_NATIVE_INT, &rank_17_023456) < 0) {
+	int rank_1_0234;
+	if (read_hdf5_attribute(file, "rank_1_0234", H5T_NATIVE_INT, &rank_1_0234) < 0) {
 		return "reading operator partitioning rank from disk failed";
 	}
-	int rank_2_0134567;
-	if (read_hdf5_attribute(file, "rank_2_0134567", H5T_NATIVE_INT, &rank_2_0134567) < 0) {
+	int rank_2_0134;
+	if (read_hdf5_attribute(file, "rank_2_0134", H5T_NATIVE_INT, &rank_2_0134) < 0) {
 		return "reading operator partitioning rank from disk failed";
 	}
-	int rank_6_0123457;
-	if (read_hdf5_attribute(file, "rank_6_0123457", H5T_NATIVE_INT, &rank_6_0123457) < 0) {
+	int rank_4_0123;
+	if (read_hdf5_attribute(file, "rank_4_0123", H5T_NATIVE_INT, &rank_4_0123) < 0) {
 		return "reading operator partitioning rank from disk failed";
 	}
 
-	if (graph.num_verts[0*nsites + 3] != rank_046_12357) {
+	if (graph.num_verts[5*nsites + 6] != rank_04_123) {
 		return "virtual bond dimension does not match expected partitioning matrix rank";
 	}
-	if (graph.num_verts[1*nsites + 3] != rank_17_023456) {
+	if (graph.num_verts[1*nsites + 5] != rank_1_0234) {
 		return "virtual bond dimension does not match expected partitioning matrix rank";
 	}
-	if (graph.num_verts[2*nsites + 3] != rank_2_0134567) {
+	if (graph.num_verts[2*nsites + 5] != rank_2_0134) {
 		return "virtual bond dimension does not match expected partitioning matrix rank";
 	}
-	if (graph.num_verts[0*nsites + 6] != rank_6_0123457) {
+	if (graph.num_verts[4*nsites + 6] != rank_4_0123) {
 		return "virtual bond dimension does not match expected partitioning matrix rank";
 	}
 
@@ -155,12 +157,12 @@ char* test_ttno_graph_from_opchains()
 
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor mat_ref;
-	const long dim_mat_ref[2] = { dim_full, dim_full };
+	const long dim_mat_ref[2] = { dim_full_physical, dim_full_physical };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
-		op_chain_to_matrix(&chains[i], d, nsites, opmap, coeffmap, CT_DOUBLE_COMPLEX, &c);
+		op_chain_to_matrix(&chains[i], d, nsites_physical, opmap, coeffmap, CT_DOUBLE_COMPLEX, &c);
 		dense_tensor_scalar_multiply_add(numeric_one(CT_DOUBLE_COMPLEX), &c, &mat_ref);
 		delete_dense_tensor(&c);
 	}

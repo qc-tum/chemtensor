@@ -312,10 +312,12 @@ static int construct_vid_index_map(const struct abstract_graph* topology, const 
 ///
 /// \brief Construct an operator cluster assembly from a list of operator chains.
 ///
-static int cluster_assembly_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct op_cluster_assembly* assembly, int* restrict cids)
+static int cluster_assembly_from_opchains(const struct op_chain* chains, const int nchains, const int nsites_physical, const struct abstract_graph* topology, struct op_cluster_assembly* assembly, int* restrict cids)
 {
 	// need at least one site
 	assert(topology->num_nodes >= 1);
+	// number of physical sites must be smaller or equal to overall number of sites
+	assert(nsites_physical <= topology->num_nodes);
 	// expecting a tree
 	assert(abstract_graph_is_connected_tree(topology));
 	// list of operator chains cannot be empty
@@ -370,9 +372,15 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 			continue;
 		}
 
-		// pad identities
+		assert(chains[k].length <= nsites_physical);
+
+		// pad identities and no-ops
 		struct op_chain pad_chain;
 		op_chain_pad_identities(&chains[k], nsites, &pad_chain);
+		for (int l = nsites_physical; l < nsites; l++) {
+			assert(pad_chain.qnums[l] == 0);
+			pad_chain.oids[l] = OID_NOP;
+		}
 		assert(pad_chain.length == nsites);
 		// require zero leading and trailing quantum numbers
 		assert(pad_chain.qnums[0] == 0 && pad_chain.qnums[nsites] == 0);
@@ -822,10 +830,11 @@ static void enumerate_site_distance_tuples(const struct abstract_graph* topology
 ///
 /// \brief Construct a TTNO operator graph from a list of operator chains.
 ///
-int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const struct abstract_graph* topology, struct ttno_graph* ttno_graph)
+int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites_physical, const struct abstract_graph* topology, struct ttno_graph* ttno_graph)
 {
 	// need at least one site
 	assert(topology->num_nodes > 0);
+	assert(nsites_physical > 0 && nsites_physical <= topology->num_nodes);
 	// expecting a tree
 	assert(abstract_graph_is_connected_tree(topology));
 	// list of operator chains cannot be empty
@@ -836,7 +845,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	// initial operator cluster assembly
 	struct op_cluster_assembly assembly;
 	int* cids_next = ct_malloc(nchains * sizeof(int));
-	if (cluster_assembly_from_opchains(chains, nchains, topology, &assembly, cids_next) < 0) {
+	if (cluster_assembly_from_opchains(chains, nchains, nsites_physical, topology, &assembly, cids_next) < 0) {
 		return -1;
 	}
 
@@ -859,7 +868,8 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	ttno_graph->verts     = ct_calloc(nsites*nsites, sizeof(struct ttno_graph_vertex*));
 	ttno_graph->num_edges = ct_calloc(nsites,        sizeof(int));
 	ttno_graph->num_verts = ct_calloc(nsites*nsites, sizeof(int));
-	ttno_graph->nsites = nsites;
+	ttno_graph->nsites_physical  = nsites_physical;
+	ttno_graph->nsites_branching = nsites - nsites_physical;
 
 	// select site with maximum number of neighbors as root
 	int i_root = 0;
@@ -1137,8 +1147,10 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 ///
 void delete_ttno_graph(struct ttno_graph* graph)
 {
+	const int nsites = graph->nsites_physical + graph->nsites_branching;
+
 	// edges
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < nsites; l++)
 	{
 		for (int i = 0; i < graph->num_edges[l]; i++)
 		{
@@ -1150,7 +1162,7 @@ void delete_ttno_graph(struct ttno_graph* graph)
 	ct_free(graph->num_edges);
 
 	// vertices
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < nsites; l++)
 	{
 		for (int n = 0; n < graph->topology.num_neighbors[l]; n++)
 		{
@@ -1158,7 +1170,7 @@ void delete_ttno_graph(struct ttno_graph* graph)
 			if (k > l) {
 				continue;
 			}
-			const int iv = edge_to_vertex_index(graph->nsites, k, l);
+			const int iv = edge_to_vertex_index(nsites, k, l);
 			for (int i = 0; i < graph->num_verts[iv]; i++) {
 				delete_ttno_graph_vertex(&graph->verts[iv][i]);
 			}
@@ -1178,12 +1190,17 @@ void delete_ttno_graph(struct ttno_graph* graph)
 ///
 bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 {
-	if (graph->nsites <= 0) {
+	if (graph->nsites_physical <= 0) {
 		return false;
 	}
+	if (graph->nsites_branching < 0) {
+		return false;
+	}
+	// overall number of sites
+	const int nsites = graph->nsites_physical + graph->nsites_branching;
 
 	// topology
-	if (graph->topology.num_nodes != graph->nsites) {
+	if (graph->topology.num_nodes != nsites) {
 		return false;
 	}
 	if (!abstract_graph_is_consistent(&graph->topology)) {
@@ -1195,11 +1212,11 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 	}
 
 	// compatibility of vertex numbers with tree topology
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < nsites; l++)
 	{
 		// entries in 'num_verts' must be zero for k >= l
-		for (int k = l; k < graph->nsites; k++) {
-			if (graph->num_verts[k*graph->nsites + l] != 0) {
+		for (int k = l; k < nsites; k++) {
+			if (graph->num_verts[k*nsites + l] != 0) {
 				return false;
 			}
 		}
@@ -1213,7 +1230,7 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 					break;
 				}
 			}
-			const int iv = edge_to_vertex_index(graph->nsites, k, l);
+			const int iv = edge_to_vertex_index(nsites, k, l);
 			if (is_neighbor) {
 				if (graph->num_verts[iv] <= 0) {
 					return false;
@@ -1228,7 +1245,7 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 	}
 
 	// edges indexed by a vertex must point back to same vertex
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < nsites; l++)
 	{
 		for (int n = 0; n < graph->topology.num_neighbors[l]; n++)
 		{
@@ -1244,7 +1261,7 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 			}
 			assert(m < graph->topology.num_neighbors[k]);
 
-			const int iv = edge_to_vertex_index(graph->nsites, k, l);
+			const int iv = edge_to_vertex_index(nsites, k, l);
 
 			for (int i = 0; i < graph->num_verts[iv]; i++)
 			{
@@ -1274,7 +1291,7 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 	}
 
 	// vertices indexed by an edge must point back to same edge
-	for (int l = 0; l < graph->nsites; l++)
+	for (int l = 0; l < nsites; l++)
 	{
 		for (int j = 0; j < graph->num_edges[l]; j++)
 		{
@@ -1285,7 +1302,7 @@ bool ttno_graph_is_consistent(const struct ttno_graph* graph)
 			for (int n = 0; n < edge->order; n++)
 			{
 				int k = graph->topology.neighbor_map[l][n];
-				int iv = edge_to_vertex_index(graph->nsites, k, l);
+				int iv = edge_to_vertex_index(nsites, k, l);
 				const struct ttno_graph_vertex* vertex = &graph->verts[iv][edge->vids[n]];
 				bool edge_ref = false;
 				for (int i = 0; i < vertex->num_edges[l < k ? 0 : 1]; i++) {
@@ -1370,6 +1387,7 @@ static int compare_indexed_site_index(const void* a, const void* b)
 static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const int i_site, const int i_parent, const struct dense_tensor* opmap, const void* coeffmap, struct ttno_graph_contracted_subtree* contracted)
 {
 	assert(i_site != i_parent);
+	assert(graph->topology.num_nodes == graph->nsites_physical + graph->nsites_branching);
 
 	// local dimension
 	const long d = opmap[0].dim[0];
@@ -1424,7 +1442,8 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			struct dense_tensor op;
 			construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 			assert(op.ndim == 2);
-			assert(op.dim[0] == d && op.dim[1] == d);
+			assert(op.dim[0] == op.dim[1]);
+			assert(op.dim[0] == (i_site < graph->nsites_physical ? d : 1));
 
 			// compute Kronecker products with child blocks indexed by current edge
 			for (int n = 0; n < graph->topology.num_neighbors[i_site]; n++)
@@ -1454,7 +1473,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	}
 	else  // not root node
 	{
-		const int iv = edge_to_vertex_index(graph->nsites, i_site, i_parent);
+		const int iv = edge_to_vertex_index(graph->topology.num_nodes, i_site, i_parent);
 		assert(graph->verts[iv] != NULL);
 
 		contracted->nblocks = graph->num_verts[iv];
@@ -1476,7 +1495,8 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 				struct dense_tensor op;
 				construct_local_operator(edge->opics, edge->nopics, opmap, coeffmap, &op);
 				assert(op.ndim == 2);
-				assert(op.dim[0] == d && op.dim[1] == d);
+				assert(op.dim[0] == op.dim[1]);
+				assert(op.dim[0] == (i_site < graph->nsites_physical ? d : 1));
 
 				// compute Kronecker products with child blocks indexed by current edge
 				for (int n = 0; n < graph->topology.num_neighbors[i_site]; n++)
@@ -1528,12 +1548,9 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	}
 	qsort(indexed_sites, contracted->nsites, sizeof(struct indexed_site_index), compare_indexed_site_index);
 	int* perm = ct_malloc(2 * contracted->nsites * sizeof(int));
-	for (int j = 0; j < contracted->nsites; j++)
-	{
-		contracted->i_sites[j] = indexed_sites[j].i_site;
+	for (int j = 0; j < contracted->nsites; j++) {
 		perm[j] = indexed_sites[j].index;
 	}
-	ct_free(indexed_sites);
 	// skip permutation operations in case of an identity permutation
 	bool is_identity_perm = true;
 	for (int j = 0; j < contracted->nsites; j++) {
@@ -1549,8 +1566,9 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			perm[contracted->nsites + j] = contracted->nsites + perm[j];
 		}
 		long* dim = ct_malloc(2 * contracted->nsites * sizeof(long));
-		for (int j = 0; j < 2 * contracted->nsites; j++) {
-			dim[j] = d;
+		for (int j = 0; j < contracted->nsites; j++) {
+			dim[j] = (contracted->i_sites[j] < graph->nsites_physical ? d : 1);
+			dim[contracted->nsites + j] = dim[j];
 		}
 		for (int i = 0; i < contracted->nblocks; i++)
 		{
@@ -1569,6 +1587,11 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		ct_free(dim);
 	}
 	ct_free(perm);
+	// updated site enumeration after permutation
+	for (int j = 0; j < contracted->nsites; j++) {
+		contracted->i_sites[j] = indexed_sites[j].i_site;
+	}
+	ct_free(indexed_sites);
 }
 
 
@@ -1578,12 +1601,16 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 ///
 void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_tensor* opmap, const void* coeffmap, struct dense_tensor* mat)
 {
-	assert(graph->nsites >= 1);
+	assert(graph->nsites_physical >= 1);
 	assert(coefficient_map_is_valid(opmap[0].dtype, coeffmap));
+
+	// overall number of sites
+	const int nsites = graph->nsites_physical + graph->nsites_branching;
+	assert(graph->topology.num_nodes == nsites);
 
 	// select site with maximum number of neighbors as root for contraction
 	int i_root = 0;
-	for (int l = 1; l < graph->nsites; l++) {
+	for (int l = 1; l < nsites; l++) {
 		if (graph->topology.num_neighbors[l] > graph->topology.num_neighbors[i_root]) {
 			i_root = l;
 		}
@@ -1593,7 +1620,7 @@ void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_ten
 	// set parent index to -1 for root node
 	struct ttno_graph_contracted_subtree contracted;
 	ttno_graph_contract_subtree(graph, i_root, -1, opmap, coeffmap, &contracted);
-	assert(contracted.nsites == graph->nsites);
+	assert(contracted.nsites == nsites);
 	assert(contracted.nblocks == 1);
 	for (int l = 0; l < contracted.nsites; l++) {
 		assert(contracted.i_sites[l] == l);
