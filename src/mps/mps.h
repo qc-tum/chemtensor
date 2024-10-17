@@ -53,7 +53,7 @@ static inline long mps_bond_dim(const struct mps* mps, const int i)
 
 void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
 
-void mps_add(const struct mps* chi, const struct mps* psi, void* ret);
+void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret);
 
 double mps_norm(const struct mps* psi);
 

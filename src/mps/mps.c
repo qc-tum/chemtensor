@@ -320,7 +320,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 ///
 /// \brief Compute the addition of two MPS chi and psi.
 ///
-void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
+void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 {
 	// number of lattice sites must agree
 	assert(chi->nsites == psi->nsites);
@@ -343,10 +343,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 	}
 
 	// initialize return mps
-	struct mps res;
-	res.nsites = L;
-	res.d = d;
-	res.qsite = qsite;
+	allocate_empty_mps(L, d, qsite, ret);
 
 	if (L == 1) {		
 		const struct block_sparse_tensor chi_a = chi->a[0];
@@ -365,16 +362,15 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 				chi_a.qnums_blocks[2],
 				psi_a.qnums_blocks[2]));
 
-		// allocate memory and copy sparse tensor into resulting tensor
-		res.a = ct_malloc(sizeof(struct block_sparse_tensor));
-		copy_block_sparse_tensor(&chi_a, &res.a[0]);
+		// copy sparse tensor into resulting tensor
+		copy_block_sparse_tensor(&chi_a, &ret->a[0]);
 
 		// add individual dense_tensors
-		const long nblocks = integer_product(res.a->dim_blocks, ndim);
+		const long nblocks = integer_product(ret->a->dim_blocks, ndim);
 		for (long k = 0; k < nblocks; k++)
 		{
 			struct dense_tensor* a = psi_a.blocks[k];
-			struct dense_tensor* b = res.a->blocks[k];
+			struct dense_tensor* b = ret->a->blocks[k];
 			if (a != NULL && b != NULL) {
 				dense_tensor_scalar_multiply_add(numeric_one(dtype), a, b);
 			}
@@ -390,7 +386,6 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 				chi->a[chi->nsites - 1].qnums_blocks[2], 
 				psi->a[chi->nsites - 1].qnums_blocks[2])); 
 		
-		res.a = ct_malloc(L * sizeof(struct block_sparse_tensor));
 		struct block_sparse_tensor tlist[2];
 		
 		// left-most tensor
@@ -399,7 +394,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			tlist[0] = chi->a[0];
 			tlist[1] = psi->a[0];
 
-			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &res.a[0]);
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[0]);
 		}
 
 		// intermediate tensors
@@ -408,7 +403,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			tlist[0] = chi->a[i];
 			tlist[1] = psi->a[i];
 
-			block_sparse_tensor_block_diag(tlist, 2, i_ax, 2, &res.a[i]);
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 2, &ret->a[i]);
 		}
 
 		// right-most tensor
@@ -417,11 +412,9 @@ void mps_add(const struct mps* chi, const struct mps* psi, void* ret)
 			tlist[0] = chi->a[L - 1];
 			tlist[1] = psi->a[L - 1];
 			
-			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &res.a[L - 1]);
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[L - 1]);
 		}
 	}
-
-	memcpy((void*)ret, (void*)&res, sizeof(struct mps));
 }
 
 
