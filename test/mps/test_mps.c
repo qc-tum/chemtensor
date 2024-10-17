@@ -646,8 +646,8 @@ char* test_mps_to_statevector()
 
 char* test_mps_add()
 {
-	const long d = 2, max_vdim = 16, site_array_len = 6;
-	const int site_array[site_array_len] = {1, 3, 5, 8, 12, 16};
+	const long d = 2, max_vdim = 16;
+	const int site_array[6] = {1, 3, 5, 8, 12, 16};
 	
 	const qnumber q_pnum = 7;
 	const qnumber q_spin = 1;
@@ -664,7 +664,7 @@ char* test_mps_add()
 	seed_rng_state(42, &rng_state);
 	
 	int nsites;
-	for (int i = 0; i < site_array_len; i++) {
+	for (int i = 0; i < 6; i++) {
 		nsites = site_array[i];
 
 		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite_chi, qnum_sector, max_vdim, &rng_state, &chi);
