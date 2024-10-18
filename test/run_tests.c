@@ -52,6 +52,7 @@ char* test_su2_tensor_fmove();
 char* test_su2_tensor_contract_simple();
 char* test_su2_to_dense_tensor();
 char* test_mps_vdot();
+char* test_mps_add();
 char* test_mps_orthonormalize_qr();
 char* test_mps_compress();
 char* test_mps_split_tensor_svd();
@@ -135,6 +136,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
+		TEST_FUNCTION_ENTRY(test_mps_add),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_compress),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),

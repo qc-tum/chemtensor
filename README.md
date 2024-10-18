@@ -9,14 +9,16 @@ Tensor network algorithms for chemical systems.
 
 Building
 --------
-The code requires the BLAS, LAPACKE, HDF5 and Python 3 development libraries with NumPy. These can be installed via `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux) or similar.
+The code requires the BLAS, LAPACKE, HDF5 and Python 3 development libraries with NumPy. These can be installed via 
+- `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux)
+- `brew install openblas lapack hdf5 python3 numpy` (on MacOS)
 
 From the project directory, use `cmake` to build the project:
-```
+```bash
 mkdir build && cd build
 cmake ../
 cmake --build .
-````
+```
 
 Currently, this will compile the unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
 

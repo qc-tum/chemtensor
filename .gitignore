@@ -39,8 +39,9 @@
 *.idb
 *.pdb
 
-# Visual Studio folders
+# Visual Studio and Visual Code folders
 .vs/
+.vscode/
 
 # Python
 __pycache__
