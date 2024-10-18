@@ -136,8 +136,8 @@ char* test_mps_add()
 	const qnumber q_spin = 1;
 	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
-	const qnumber qsite_chi[d] = {1, 2};
-	const qnumber qsite_psi[d] = {1, 2};
+	const qnumber qsite_chi[2] = {1, 2};
+	const qnumber qsite_psi[2] = {1, 2};
 
 	struct mps chi, psi, res;
 	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
