@@ -336,14 +336,8 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 	const int L = chi->nsites;
 	const enum numeric_type dtype = chi->a[0].dtype;
 	
-	// copy physical quantum number array
-	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
-	for (int i = 0; i < d; i++) {
-		qsite[i] = chi->qsite[i];
-	}
-
 	// initialize return mps
-	allocate_empty_mps(L, d, qsite, ret);
+	allocate_empty_mps(L, d, chi->qsite, ret);
 
 	if (L == 1) {		
 		const struct block_sparse_tensor chi_a = chi->a[0];
