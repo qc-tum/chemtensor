@@ -132,10 +132,7 @@ char* test_mps_add()
 	const long d = 2, max_vdim = 16;
 	const int site_array[6] = {1, 3, 5, 8, 12, 16};
 	
-	const qnumber q_pnum = 7;
-	const qnumber q_spin = 1;
-	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
-
+	const qnumber qnum_sector = 8;
 	const qnumber qsite_chi[2] = {1, 2};
 	const qnumber qsite_psi[2] = {1, 2};
 
