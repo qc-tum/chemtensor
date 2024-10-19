@@ -348,11 +348,11 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 
 		// dummy bond quantum numbers must agree
 		assert(qnumber_all_equal(
-				ndim, 
+				chi_a.dim_logical[0], 
 				chi_a.qnums_blocks[0], 
 				psi_a.qnums_blocks[0])); 
 		assert(qnumber_all_equal(
-				ndim,
+				chi_a.dim_logical[2],
 				chi_a.qnums_blocks[2],
 				psi_a.qnums_blocks[2]));
 
@@ -372,11 +372,11 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 	} else {
 		// leading and trailing (dummy) bond quantum numbers must agree
 		assert(qnumber_all_equal(
-				chi->a[0].ndim, 
+				chi->a[0].dim_logical[0], 
 				chi->a[0].qnums_blocks[0], 
-				psi->a[0].qnums_blocks[0])); 
+				psi->a[0].qnums_blocks[0]));
 		assert(qnumber_all_equal(
-				chi->a[chi->nsites - 1].ndim, 
+				chi->a[chi->nsites - 1].dim_logical[2], 
 				chi->a[chi->nsites - 1].qnums_blocks[2], 
 				psi->a[chi->nsites - 1].qnums_blocks[2])); 
 		
