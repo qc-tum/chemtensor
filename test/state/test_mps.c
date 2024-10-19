@@ -4,9 +4,12 @@
 #include "aligned_memory.h"
 
 
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
 char* test_mps_vdot()
 {
-	hid_t file = H5Fopen("../test/mps/data/test_mps_vdot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/state/data/test_mps_vdot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_vdot failed";
 	}
@@ -129,33 +132,34 @@ char* test_mps_vdot()
 
 char* test_mps_add()
 {
-	const long d = 2, max_vdim = 16;
-	const int site_array[6] = {1, 3, 5, 8, 12, 16};
-	
-	const qnumber qnum_sector = 8;
-	const qnumber qsite_chi[2] = {1, 2};
-	const qnumber qsite_psi[2] = {1, 2};
+	const long d = 3;
+	const qnumber qsite[3] = { 1, 0, -2 };
 
-	struct mps chi, psi, res;
-	struct block_sparse_tensor chi_vec, psi_vec, res_vec;
-	struct dense_tensor chi_vec_dns, psi_vec_dns, res_vec_dns;
-	
+	const int nsites_list[] = { 1, 3, 5, 8, 12 };
+
 	struct rng_state rng_state;
 	seed_rng_state(42, &rng_state);
-	
-	int nsites;
-	for (int i = 0; i < 6; i++) {
-		nsites = site_array[i];
 
-		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite_chi, qnum_sector, max_vdim, &rng_state, &chi);
-		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite_psi, qnum_sector, max_vdim, &rng_state, &psi);
+	for (int i = 0; i < (int)ARRLEN(nsites_list); i++)
+	{
+		const int nsites = nsites_list[i];
 
+		struct mps chi, psi;
+		const qnumber qnum_sector = (i % 4);
+		const long max_vdim = 16;
+		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
+		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
+
+		// perform logical addition
+		struct mps res;
 		mps_add(&chi, &psi, &res);
 
+		struct block_sparse_tensor chi_vec, psi_vec, res_vec;
 		mps_to_statevector(&chi, &chi_vec);
 		mps_to_statevector(&psi, &psi_vec);
 		mps_to_statevector(&res, &res_vec);
 
+		struct dense_tensor chi_vec_dns, psi_vec_dns, res_vec_dns;
 		block_sparse_to_dense_tensor(&chi_vec, &chi_vec_dns);
 		block_sparse_to_dense_tensor(&psi_vec, &psi_vec_dns);
 		block_sparse_to_dense_tensor(&res_vec, &res_vec_dns);
@@ -164,7 +168,7 @@ char* test_mps_add()
 
 		// compare dense tensors
 		if (!dense_tensor_allclose(&res_vec_dns, &chi_vec_dns, 1e-13)) {
-			return "addition of mps does not match reference";
+			return "logical addition of two MPS does not match reference";
 		}
 
 		// free memory
@@ -187,7 +191,7 @@ char* test_mps_add()
 
 char* test_mps_orthonormalize_qr()
 {
-	hid_t file = H5Fopen("../test/mps/data/test_mps_orthonormalize_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/state/data/test_mps_orthonormalize_qr.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_orthonormalize_qr failed";
 	}
@@ -321,7 +325,7 @@ char* test_mps_orthonormalize_qr()
 
 char* test_mps_compress()
 {
-	hid_t file = H5Fopen("../test/mps/data/test_mps_compress.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/state/data/test_mps_compress.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_compress failed";
 	}
@@ -472,7 +476,7 @@ char* test_mps_compress()
 
 char* test_mps_split_tensor_svd()
 {
-	hid_t file = H5Fopen("../test/mps/data/test_mps_split_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/state/data/test_mps_split_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_split_tensor_svd failed";
 	}
@@ -605,7 +609,7 @@ char* test_mps_split_tensor_svd()
 
 char* test_mps_to_statevector()
 {
-	hid_t file = H5Fopen("../test/mps/data/test_mps_to_statevector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/state/data/test_mps_to_statevector.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
 		return "'H5Fopen' in test_mps_to_statevector failed";
 	}

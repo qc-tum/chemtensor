@@ -2693,7 +2693,7 @@ static void spin_molecular_mpo_graph_add_term(const struct spin_molecular_mpo_gr
 /// \brief Construct a molecular Hamiltonian as MPO assembly, assuming a spin orbital basis and
 /// using physicists' convention for the interaction term (note ordering of k and l):
 /// \f[
-/// H = \sum_{i,j,\sigma} t_{i,j} a^{\dagger}_{i,\sigma} a_{j,\sigma} + \\frac{1}{2} \sum_{i,j,k,\ell,\sigma,\tau} v_{i,j,k,\ell} a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau} a_{\ell,\tau} a_{k,\sigma}
+/// H = \sum_{i,j,\sigma} t_{i,j} a^{\dagger}_{i,\sigma} a_{j,\sigma} + \frac{1}{2} \sum_{i,j,k,\ell,\sigma,\tau} v_{i,j,k,\ell} a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau} a_{\ell,\tau} a_{k,\sigma}
 /// \f]
 ///
 /// If 'optimize == true', optimize the virtual bond dimensions via the automatic construction starting from operator chains.

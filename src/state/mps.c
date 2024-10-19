@@ -318,95 +318,85 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the addition of two MPS chi and psi.
+/// \brief Compute the logical addition of two MPS `chi` and `psi` (summing their virtual bond dimensions).
 ///
 void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 {
 	// number of lattice sites must agree
 	assert(chi->nsites == psi->nsites);
-
 	// number of lattice sites must be larger than 0
 	assert(chi->nsites > 0);
 
+	const int nsites = chi->nsites;
+
 	// physical quantum numbers must agree
-	assert(chi->d == psi->d); 
-	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite)); 
+	assert(chi->d == psi->d);
+	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite));
 
-	const long d = chi->d;
-	const int L = chi->nsites;
-	const enum numeric_type dtype = chi->a[0].dtype;
-	
-	// initialize return mps
-	allocate_empty_mps(L, d, chi->qsite, ret);
+	// leading and trailing (dummy) bond quantum numbers must agree
+	assert(chi->a[0].dim_logical[0] ==
+	       psi->a[0].dim_logical[0]);
+	assert(qnumber_all_equal(
+			chi->a[0].dim_logical[0],
+			chi->a[0].qnums_blocks[0],
+			psi->a[0].qnums_blocks[0]));
+	assert(chi->a[nsites - 1].dim_logical[2] ==
+	       psi->a[nsites - 1].dim_logical[2]);
+	assert(qnumber_all_equal(
+			chi->a[nsites - 1].dim_logical[2],
+			chi->a[nsites - 1].qnums_blocks[2],
+			psi->a[nsites - 1].qnums_blocks[2]));
 
-	if (L == 1) {		
-		const struct block_sparse_tensor chi_a = chi->a[0];
-		const struct block_sparse_tensor psi_a = psi->a[0];
-		const int ndim = chi_a.ndim;
+	// initialize return MPS
+	allocate_empty_mps(nsites, chi->d, chi->qsite, ret);
 
-		assert(chi_a.ndim == psi_a.ndim);
-
-		// dummy bond quantum numbers must agree
-		assert(qnumber_all_equal(
-				chi_a.dim_logical[0], 
-				chi_a.qnums_blocks[0], 
-				psi_a.qnums_blocks[0])); 
-		assert(qnumber_all_equal(
-				chi_a.dim_logical[2],
-				chi_a.qnums_blocks[2],
-				psi_a.qnums_blocks[2]));
-
+	if (nsites == 1)
+	{
 		// copy sparse tensor into resulting tensor
-		copy_block_sparse_tensor(&chi_a, &ret->a[0]);
+		copy_block_sparse_tensor(&chi->a[0], &ret->a[0]);
 
-		// add individual dense_tensors
-		const long nblocks = integer_product(ret->a->dim_blocks, ndim);
+		// add individual dense tensors
+		const long nblocks = integer_product(ret->a[0].dim_blocks, ret->a[0].ndim);
 		for (long k = 0; k < nblocks; k++)
 		{
-			struct dense_tensor* a = psi_a.blocks[k];
-			struct dense_tensor* b = ret->a->blocks[k];
-			if (a != NULL && b != NULL) {
-				dense_tensor_scalar_multiply_add(numeric_one(dtype), a, b);
+			struct dense_tensor* a = psi->a[0].blocks[k];
+			struct dense_tensor* b = ret->a[0].blocks[k];
+			if (a != NULL) {
+				assert(b != NULL);
+				dense_tensor_scalar_multiply_add(numeric_one(a->dtype), a, b);
 			}
 		}
-	} else {
-		// leading and trailing (dummy) bond quantum numbers must agree
-		assert(qnumber_all_equal(
-				chi->a[0].dim_logical[0], 
-				chi->a[0].qnums_blocks[0], 
-				psi->a[0].qnums_blocks[0]));
-		assert(qnumber_all_equal(
-				chi->a[chi->nsites - 1].dim_logical[2], 
-				chi->a[chi->nsites - 1].qnums_blocks[2], 
-				psi->a[chi->nsites - 1].qnums_blocks[2])); 
-		
-		struct block_sparse_tensor tlist[2];
-		
+	}
+	else  // nsites > 1
+	{
 		// left-most tensor
 		{
 			const int i_ax[1] = { 2 };
-			tlist[0] = chi->a[0];
-			tlist[1] = psi->a[0];
-
+			struct block_sparse_tensor tlist[2] = {
+				chi->a[0],
+				psi->a[0],
+			};
 			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[0]);
 		}
 
 		// intermediate tensors
-		for (int i = 1; i < L - 1; i++) {
+		for (int i = 1; i < nsites - 1; i++) {
 			const int i_ax[2] = { 0, 2 };
-			tlist[0] = chi->a[i];
-			tlist[1] = psi->a[i];
-
+			struct block_sparse_tensor tlist[2] = {
+				chi->a[i],
+				psi->a[i],
+			};
 			block_sparse_tensor_block_diag(tlist, 2, i_ax, 2, &ret->a[i]);
 		}
 
 		// right-most tensor
 		{
 			const int i_ax[1] = { 0 };
-			tlist[0] = chi->a[L - 1];
-			tlist[1] = psi->a[L - 1];
-			
-			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[L - 1]);
+			struct block_sparse_tensor tlist[2] = {
+				chi->a[nsites - 1],
+				psi->a[nsites - 1],
+			};
+			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[nsites - 1]);
 		}
 	}
 }
