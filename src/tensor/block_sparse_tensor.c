@@ -1623,6 +1623,47 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		assert(qnumber_all_equal(t->dim_blocks [shift_t + i], s->qnums_blocks [shift_s + i], t->qnums_blocks [shift_t + i]));
 	}
 
+	const void* one = numeric_one(s->dtype);
+
+	if (s->ndim + t->ndim == 2*ndim_mult)
+	{
+		// special case: resulting tensor has degree 0
+
+		assert(s->ndim == ndim_mult && t->ndim == ndim_mult);
+
+		allocate_block_sparse_tensor(s->dtype, 0, NULL, NULL, NULL, r);
+		assert(r->blocks[0] != NULL);
+
+		// for each quantum number combination of the to-be contracted axes...
+		const long ncontract = integer_product(s->dim_blocks, ndim_mult);
+		long* index_contract = ct_calloc(ndim_mult, sizeof(long));
+		for (long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, s->dim_blocks, index_contract))
+		{
+			// probe whether quantum numbers in 's' sum to zero
+			qnumber qsum = 0;
+			for (int i = 0; i < s->ndim; i++)
+			{
+				qsum += s->axis_dir[i] * s->qnums_blocks[i][index_contract[i]];
+			}
+			if (qsum != 0) {
+				continue;
+			}
+
+			const long ib = tensor_index_to_offset(s->ndim, s->dim_blocks, index_contract);
+			const struct dense_tensor* bs = s->blocks[ib];
+			const struct dense_tensor* bt = t->blocks[ib];
+			assert(bs != NULL);
+			assert(bt != NULL);
+
+			// actually multiply dense tensor blocks and add result to block in 'r'
+			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, one, r->blocks[0]);
+		}
+
+		ct_free(index_contract);
+
+		return;
+	}
+
 	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 
@@ -1668,8 +1709,6 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		ct_free(r_axis_dir);
 		ct_free(r_dim_logical);
 	}
-
-	const void* one = numeric_one(s->dtype);
 
 	// for each dense block of 'r'...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);

@@ -1,6 +1,8 @@
 /// \file abstract_graph.c
 /// \brief Abstract (symbolic) graph data structure and utility functions.
 
+#include <stdlib.h>
+#include <assert.h>
 #include "abstract_graph.h"
 #include "aligned_memory.h"
 
@@ -96,6 +98,39 @@ bool abstract_graph_is_consistent(const struct abstract_graph* graph)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether two graphs are logically identical.
+///
+bool abstract_graph_equal(const struct abstract_graph* restrict graph0, const struct abstract_graph* restrict graph1)
+{
+	if (graph0->num_nodes != graph1->num_nodes) {
+		return false;
+	}
+
+	for (int i = 0; i < graph0->num_nodes; i++)
+	{
+		if (graph0->num_neighbors[i] != graph1->num_neighbors[i]) {
+			return false;
+		}
+
+		for (int j = 0; j < graph0->num_neighbors[i]; j++)
+		{
+			if (j > 0) {
+				// neighbor maps are assumed to be sorted
+				assert(graph0->neighbor_map[i][j - 1] < graph0->neighbor_map[i][j]);
+				assert(graph1->neighbor_map[i][j - 1] < graph1->neighbor_map[i][j]);
+			}
+			if (graph0->neighbor_map[i][j] != graph1->neighbor_map[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Depth-first traversal of an abstract graph, marking visited nodes and returning false when encountering a loop.
 ///
 static bool traverse_abstract_graph(const struct abstract_graph* graph, const int i_start, const int i_parent, bool* visited)
@@ -153,4 +188,75 @@ bool abstract_graph_is_connected_tree(const struct abstract_graph* graph)
 	ct_free(visited);
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Enumerate node-distance tuples by a recursive (sub-)tree traversal.
+///
+static void enumerate_subtree_node_distance_tuples(const struct abstract_graph* graph, const int i_node, const int i_parent, const int distance, struct graph_node_distance_tuple* tuples)
+{
+	// current tuple
+	tuples[i_node].i_node   = i_node;
+	tuples[i_node].i_parent = i_parent;
+	tuples[i_node].distance = distance;
+
+	for (int n = 0; n < graph->num_neighbors[i_node]; n++)
+	{
+		const int k = graph->neighbor_map[i_node][n];
+		if (k == i_parent) {
+			continue;
+		}
+
+		// recurse function call with parent 'i_node'
+		enumerate_subtree_node_distance_tuples(graph, k, i_node, distance + 1, tuples);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function for sorting.
+///
+static int compare_graph_node_distance_tuples(const void* a, const void* b)
+{
+	const struct graph_node_distance_tuple* x = a;
+	const struct graph_node_distance_tuple* y = b;
+
+	// sort by distance in ascending order
+	if (x->distance < y->distance) {
+		return -1;
+	}
+	if (x->distance > y->distance) {
+		return 1;
+	}
+	// distances are equal; sort by node index
+	if (x->i_node < y->i_node) {
+		return -1;
+	}
+	if (x->i_node > y->i_node) {
+		return 1;
+	}
+	// node indices are equal
+	// parent node indices should also agree
+	assert(x->i_parent == y->i_parent);
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Enumerate node-distance tuples by a recursive tree traversal.
+///
+void enumerate_graph_node_distance_tuples(const struct abstract_graph* graph, const int i_root, struct graph_node_distance_tuple* tuples)
+{
+	assert(0 <= i_root && i_root < graph->num_nodes);
+
+	// use dummy parent node index -1
+	enumerate_subtree_node_distance_tuples(graph, i_root, -1, 0, tuples);
+
+	// sort by distance from root in ascending order
+	qsort(tuples, graph->num_nodes, sizeof(struct graph_node_distance_tuple), compare_graph_node_distance_tuples);
+	assert(tuples[0].i_node == i_root);
 }

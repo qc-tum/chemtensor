@@ -35,6 +35,14 @@ uint64_t rand_interval(const uint64_t bound, struct rng_state* state);
 //________________________________________________________________________________________________________________________
 //
 
+// random choice without replacement
+
+void rand_choice(const uint64_t bound, const uint64_t num_samples, struct rng_state* state, uint64_t* ret);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // uniformly distributed random numbers from the interval [0, 1)
 
 double randu(struct rng_state* state);

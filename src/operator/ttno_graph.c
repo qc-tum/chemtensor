@@ -765,69 +765,6 @@ static int compare_hashes(const void* a, const void* b)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Temporary data structure for sorting sites by distance from (temporary) root.
-///
-struct site_distance_tuple
-{
-	int i_site;    //!< site index
-	int i_parent;  //!< parent site index
-	int distance;  //!< distance from root
-};
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Comparison function for sorting.
-///
-static int compare_site_distance_tuples(const void* a, const void* b)
-{
-	const struct site_distance_tuple* x = (const struct site_distance_tuple*)a;
-	const struct site_distance_tuple* y = (const struct site_distance_tuple*)b;
-
-	// sort by distance in descending order
-	if (x->distance > y->distance) {
-		return -1;
-	}
-	if (x->distance < y->distance) {
-		return 1;
-	}
-	// distances are equal; sort by site index
-	if (x->i_site < y->i_site) {
-		return -1;
-	}
-	if (x->i_site > y->i_site) {
-		return 1;
-	}
-	return 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Enumerate site-distance tuples by a recursive tree traversal.
-///
-static void enumerate_site_distance_tuples(const struct abstract_graph* topology, const int i_site, const int i_parent, const int distance, struct site_distance_tuple* tuples)
-{
-	// current tuple
-	tuples[i_site].i_site   = i_site;
-	tuples[i_site].i_parent = i_parent;
-	tuples[i_site].distance = distance;
-
-	for (int n = 0; n < topology->num_neighbors[i_site]; n++)
-	{
-		const int k = topology->neighbor_map[i_site][n];
-		if (k == i_parent) {
-			continue;
-		}
-
-		// recurse function call with parent 'i_site'
-		enumerate_site_distance_tuples(topology, k, i_site, distance + 1, tuples);
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Construct a TTNO operator graph from a list of operator chains.
 ///
 int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, const int nsites_physical, const struct abstract_graph* topology, struct ttno_graph* ttno_graph)
@@ -878,16 +815,14 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			i_root = l;
 		}
 	}
-	struct site_distance_tuple* sd = ct_malloc(nsites * sizeof(struct site_distance_tuple));
-	enumerate_site_distance_tuples(topology, i_root, -1, 0, sd);
-	// sort by distance from root in descending order
-	qsort(sd, nsites, sizeof(struct site_distance_tuple), compare_site_distance_tuples);
-	assert(sd[nsites - 1].i_site == i_root);
+	struct graph_node_distance_tuple* sd = ct_malloc(nsites * sizeof(struct graph_node_distance_tuple));
+	enumerate_graph_node_distance_tuples(topology, i_root, sd);
+	assert(sd[0].i_node == i_root);
 
 	// iterate over sites by decreasing distance from root
-	for (int l = 0; l < nsites - 1; l++)
+	for (int l = nsites - 1; l > 0; l--)
 	{
-		const int i_site   = sd[l].i_site;
+		const int i_site   = sd[l].i_node;
 		const int i_parent = sd[l].i_parent;
 
 		struct site_cluster_partition partition;

@@ -56,3 +56,6 @@ enum tensor_axis_direction
 	TENSOR_AXIS_IN  = -1,
 	TENSOR_AXIS_OUT =  1,
 };
+
+
+void qnumber_outer_sum(const int sign0, const qnumber* restrict qnums0, const long n0, const int sign1, const qnumber* restrict qnums1, const long n1, qnumber* restrict ret);

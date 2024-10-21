@@ -91,11 +91,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of left bond quantum numbers and local physical quantum numbers
 		const long dim_full = dim_bonds[l - 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		for (long i = 0; i < dim_bonds[l - 1]; i++) {
-			for (long j = 0; j < d; j++) {
-				qnums_full[i*d + j] = qbonds[l - 1][i] + qsite[j];
-			}
-		}
+		qnumber_outer_sum(1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -103,9 +99,12 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		}
 		else {
 			// randomly select quantum numbers
-			for (long i = 0; i < dim_bonds[l]; i++) {
-				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
+			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
+			rand_choice(dim_full, max_vdim, rng_state, idx);
+			for (long i = 0; i < max_vdim; i++) {
+				qbonds[l][i] = qnums_full[idx[i]];
 			}
+			ct_free(idx);
 		}
 		ct_free(qnums_full);
 	}
@@ -115,11 +114,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of right bond quantum numbers and local physical quantum numbers
 		const long dim_full = dim_bonds[l + 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		for (long i = 0; i < dim_bonds[l + 1]; i++) {
-			for (long j = 0; j < d; j++) {
-				qnums_full[i*d + j] = qbonds[l + 1][i] - qsite[j];
-			}
-		}
+		qnumber_outer_sum(1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -127,9 +122,12 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		}
 		else {
 			// randomly select quantum numbers
-			for (long i = 0; i < dim_bonds[l]; i++) {
-				qbonds[l][i] = qnums_full[rand_interval(dim_full, rng_state)];
+			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
+			rand_choice(dim_full, max_vdim, rng_state, idx);
+			for (long i = 0; i < max_vdim; i++) {
+				qbonds[l][i] = qnums_full[idx[i]];
 			}
+			ct_free(idx);
 		}
 		ct_free(qnums_full);
 	}
@@ -318,6 +316,60 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the Euclidean norm of the MPS.
+///
+/// Result is returned as double also for single-precision tensor entries.
+///
+double mps_norm(const struct mps* psi)
+{
+	if (psi->nsites == 0) {
+		return 0;
+	}
+
+	switch (psi->a[0].dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			float nrm2;
+			mps_vdot(psi, psi, &nrm2);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case CT_DOUBLE_REAL:
+		{
+			double nrm2;
+			mps_vdot(psi, psi, &nrm2);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			scomplex vdot;
+			mps_vdot(psi, psi, &vdot);
+			float nrm2 = crealf(vdot);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			dcomplex vdot;
+			mps_vdot(psi, psi, &vdot);
+			double nrm2 = creal(vdot);
+			assert(nrm2 >= 0);
+			return sqrt(nrm2);
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the logical addition of two MPS `chi` and `psi` (summing their virtual bond dimensions).
 ///
 void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
@@ -397,60 +449,6 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 				psi->a[nsites - 1],
 			};
 			block_sparse_tensor_block_diag(tlist, 2, i_ax, 1, &ret->a[nsites - 1]);
-		}
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Compute the Euclidean norm of the MPS.
-///
-/// Result is returned as double also for single-precision tensor entries.
-///
-double mps_norm(const struct mps* psi)
-{
-	if (psi->nsites == 0) {
-		return 0;
-	}
-
-	switch (psi->a[0].dtype)
-	{
-		case CT_SINGLE_REAL:
-		{
-			float nrm2;
-			mps_vdot(psi, psi, &nrm2);
-			assert(nrm2 >= 0);
-			return sqrt(nrm2);
-		}
-		case CT_DOUBLE_REAL:
-		{
-			double nrm2;
-			mps_vdot(psi, psi, &nrm2);
-			assert(nrm2 >= 0);
-			return sqrt(nrm2);
-		}
-		case CT_SINGLE_COMPLEX:
-		{
-			scomplex vdot;
-			mps_vdot(psi, psi, &vdot);
-			float nrm2 = crealf(vdot);
-			assert(nrm2 >= 0);
-			return sqrt(nrm2);
-		}
-		case CT_DOUBLE_COMPLEX:
-		{
-			dcomplex vdot;
-			mps_vdot(psi, psi, &vdot);
-			double nrm2 = creal(vdot);
-			assert(nrm2 >= 0);
-			return sqrt(nrm2);
-		}
-		default:
-		{
-			// unknown data type
-			assert(false);
-			return 0;
 		}
 	}
 }

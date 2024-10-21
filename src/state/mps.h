@@ -49,13 +49,19 @@ static inline long mps_bond_dim(const struct mps* mps, const int i)
 //________________________________________________________________________________________________________________________
 //
 
-// inner product, addition, and norm
+// inner product and norm
 
 void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret);
 
-void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret);
-
 double mps_norm(const struct mps* psi);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// logical addition
+
+void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret);
 
 
 //________________________________________________________________________________________________________________________
@@ -105,4 +111,4 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 // conversion to a statevector (intended for testing)
 
-void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* a);
+void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec);

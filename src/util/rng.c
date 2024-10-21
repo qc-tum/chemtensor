@@ -2,6 +2,8 @@
 /// \brief Pseudo-random number generation.
 
 #include <math.h>
+#include <stdbool.h>
+#include <assert.h>
 #include "rng.h"
 
 
@@ -52,6 +54,33 @@ uint64_t rand_uint64(struct rng_state* state)
 uint64_t rand_interval(const uint64_t bound, struct rng_state* state)
 {
 	return pcg32x2_boundedrand_r(bound, &state->pcgstate);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Draw 'num_samples' random numbers from the interval [0, bound) without replacement.
+///
+void rand_choice(const uint64_t bound, const uint64_t num_samples, struct rng_state* state, uint64_t* ret)
+{
+	assert(num_samples <= bound);
+
+	// Floyd's algorithm
+	for (uint64_t i = 0; i < num_samples; i++)
+	{
+		const uint64_t j = bound - num_samples + 1 + i;
+		uint64_t t = rand_interval(j, state);
+		// test whether 't' has already been drawn
+		bool drawn = false;
+		// TODO: faster search using a hash table or tree
+		for (uint16_t k = 0; k < i; k++) {
+			if (ret[k] == t) {
+				drawn = true;
+				break;
+			}
+		}
+		ret[i] = (drawn ? j - 1 : t);
+	}
 }
 
 
