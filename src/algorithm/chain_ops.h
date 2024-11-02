@@ -1,5 +1,5 @@
-/// \file operation.h
-/// \brief Higher-level tensor network operations.
+/// \file chain_ops.h
+/// \brief Higher-level tensor network operations on a chain topology.
 
 #pragma once
 
@@ -23,7 +23,7 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 void compute_right_operator_blocks(const struct mps* restrict psi, const struct mps* restrict chi, const struct mpo* op, struct block_sparse_tensor* r_list);
 
 
-void operator_inner_product(const struct mps* chi, const struct mpo* op, const struct mps* psi, void* ret);
+void mpo_inner_product(const struct mps* chi, const struct mpo* op, const struct mps* psi, void* ret);
 
 //________________________________________________________________________________________________________________________
 //
@@ -37,4 +37,4 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 //________________________________________________________________________________________________________________________
 //
 
-void apply_operator(const struct mpo* op, const struct mps* psi, struct mps* op_psi);
+void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi);

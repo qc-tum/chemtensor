@@ -2,7 +2,7 @@
 /// \brief DMRG algorithm.
 
 #include "dmrg.h"
-#include "operation.h"
+#include "chain_ops.h"
 #include "krylov.h"
 #include "aligned_memory.h"
 

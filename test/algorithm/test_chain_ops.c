@@ -1,13 +1,13 @@
 #include <complex.h>
-#include "operation.h"
+#include "chain_ops.h"
 #include "aligned_memory.h"
 
 
-char* test_operator_inner_product()
+char* test_mpo_inner_product()
 {
-	hid_t file = H5Fopen("../test/algorithm/data/test_operator_inner_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_mpo_inner_product.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_operator_inner_product failed";
+		return "'H5Fopen' in test_mpo_inner_product failed";
 	}
 
 	// number of lattice sites
@@ -134,7 +134,7 @@ char* test_operator_inner_product()
 
 	// compute operator inner product
 	scomplex s;
-	operator_inner_product(&chi, &op, &psi, &s);
+	mpo_inner_product(&chi, &op, &psi, &s);
 
 	scomplex s_ref;
 	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, &s_ref) < 0) {
@@ -166,11 +166,11 @@ char* test_operator_inner_product()
 }
 
 
-char* test_apply_operator()
+char* test_apply_mpo()
 {
-	hid_t file = H5Fopen("../test/algorithm/data/test_apply_operator.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_apply_mpo.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_apply_operator failed";
+		return "'H5Fopen' in test_apply_mpo failed";
 	}
 
 	// number of lattice sites
@@ -260,7 +260,7 @@ char* test_apply_operator()
 
 	// apply operator
 	struct mps op_psi;
-	apply_operator(&op, &psi, &op_psi);
+	apply_mpo(&op, &psi, &op_psi);
 
 	if (!mps_is_consistent(&op_psi)) {
 		return "internal MPS consistency check failed";

@@ -1,9 +1,9 @@
-/// \file operation.c
-/// \brief Higher-level tensor network operations.
+/// \file chain_ops.c
+/// \brief Higher-level tensor network operations on a chain topology.
 
 #include <memory.h>
 #include <assert.h>
-#include "operation.h"
+#include "chain_ops.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -248,7 +248,7 @@ void compute_right_operator_blocks(const struct mps* restrict psi, const struct 
 ///
 /// \brief Compute the inner product between an MPO and two MPS, `<chi | op | psi>`.
 ///
-void operator_inner_product(const struct mps* chi, const struct mpo* op, const struct mps* psi, void* ret)
+void mpo_inner_product(const struct mps* chi, const struct mpo* op, const struct mps* psi, void* ret)
 {
 	const int nsites = op->nsites;
 	assert(chi->nsites == nsites);
@@ -437,7 +437,7 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 ///
 /// \brief Apply an operator represented as MPO to a state in MPS form.
 ///
-void apply_operator(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
+void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
 {
 	// quantum numbers on physical sites must match
 	assert(psi->d == op->d);

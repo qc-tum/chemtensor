@@ -1,7 +1,7 @@
 #include <math.h>
 #include <complex.h>
 #include "dmrg.h"
-#include "operation.h"
+#include "chain_ops.h"
 #include "aligned_memory.h"
 
 

@@ -6,7 +6,7 @@ sys.path.append("../")
 from util import interleave_complex
 
 
-def operator_inner_product_data():
+def mpo_inner_product_data():
 
     rng = np.random.default_rng(243)
 
@@ -42,7 +42,7 @@ def operator_inner_product_data():
     # calculate inner product <chi | op | psi>
     s = ptn.operator_inner_product(chi, op, psi)
 
-    with h5py.File("data/test_operator_inner_product.hdf5", "w") as file:
+    with h5py.File("data/test_mpo_inner_product.hdf5", "w") as file:
         file.attrs["qsite"] = qd
         for i, qbond in enumerate(qD_psi):
             file.attrs[f"qbond_psi_{i}"] = qbond
@@ -62,7 +62,7 @@ def operator_inner_product_data():
         file["s"] = interleave_complex(s)
 
 
-def apply_operator_data():
+def apply_mpo_data():
 
     rng = np.random.default_rng(975)
 
@@ -85,7 +85,7 @@ def apply_operator_data():
     for i in range(op.nsites):
         op.A[i] *= 5
 
-    with h5py.File("data/test_apply_operator.hdf5", "w") as file:
+    with h5py.File("data/test_apply_mpo.hdf5", "w") as file:
         file.attrs["qsite"] = qd
         for i, qbond in enumerate(qD_psi):
             file.attrs[f"qbond_psi_{i}"] = qbond
@@ -100,8 +100,8 @@ def apply_operator_data():
 
 
 def main():
-    operator_inner_product_data()
-    apply_operator_data()
+    mpo_inner_product_data()
+    apply_mpo_data()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 #include <complex.h>
-#include "operation.h"
+#include "chain_ops.h"
 #include "gradient.h"
 #include "mpo.h"
 #include "aligned_memory.h"
@@ -19,8 +19,8 @@ struct operator_inner_product_params
 	int num_coeffs;
 };
 
-// wrapper of 'operator_inner_product' as a function of the operator coefficients
-static void operator_inner_product_wrapper(const scomplex* restrict x, void* p, scomplex* restrict y)
+// wrapper of 'mpo_inner_product' as a function of the operator coefficients
+static void mpo_inner_product_wrapper(const scomplex* restrict x, void* p, scomplex* restrict y)
 {
 	const struct operator_inner_product_params* params = p;
 
@@ -47,7 +47,7 @@ static void operator_inner_product_wrapper(const scomplex* restrict x, void* p, 
 	struct mpo mpo;
 	mpo_from_assembly(&assembly, &mpo);
 
-	operator_inner_product(params->chi, &mpo, params->psi, y);
+	mpo_inner_product(params->chi, &mpo, params->psi, y);
 
 	delete_mpo(&mpo);
 	ct_free(coeffmap);
@@ -285,11 +285,11 @@ char* test_operator_average_coefficient_gradient()
 	};
 	scomplex* dcoeff_ref = ct_malloc((num_coeffs - 2) * sizeof(scomplex));
 	scomplex dy = 1;
-	numerical_gradient_backward_c(operator_inner_product_wrapper, &params, num_coeffs - 2, coeffmap + 2, 1, &dy, h, dcoeff_ref);
+	numerical_gradient_backward_c(mpo_inner_product_wrapper, &params, num_coeffs - 2, coeffmap + 2, 1, &dy, h, dcoeff_ref);
 
 	// compare average value
 	if (cabsf(avr - avr_ref) / cabsf(avr_ref) > 1e-6) {
-		return "operator inner product does not match reference value";
+		return "MPO inner product does not match reference value";
 	}
 
 	// compare gradient (except for first two coefficients, which must be kept fixed at 0 and 1)

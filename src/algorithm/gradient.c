@@ -4,7 +4,7 @@
 #include <memory.h>
 #include <assert.h>
 #include "gradient.h"
-#include "operation.h"
+#include "chain_ops.h"
 #include "aligned_memory.h"
 
 
