@@ -38,6 +38,21 @@ void delete_op_chain(struct op_chain* chain)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Copy an operator chain, allocating memory for the copy.
+///
+void copy_op_chain(const struct op_chain* restrict src, struct op_chain* restrict dst)
+{
+	allocate_op_chain(src->length, dst);
+
+	memcpy(dst->oids,  src->oids,   src->length      * sizeof(int));
+	memcpy(dst->qnums, src->qnums, (src->length + 1) * sizeof(qnumber));
+	dst->cid    = src->cid;
+	dst->istart = src->istart;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Construct a new operator chain with identities padded on the left and right.
 ///
 void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, struct op_chain* restrict pad_chain)

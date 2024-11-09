@@ -286,6 +286,269 @@ static PyTypeObject PyMPSType = {
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Python operator chain object.
+///
+typedef struct
+{
+	PyObject_HEAD
+	struct op_chain chain;
+}
+PyOpChainObject;
+
+
+static PyObject* PyOpChain_new(PyTypeObject* type, PyObject* Py_UNUSED(args), PyObject* Py_UNUSED(kwds))
+{
+	PyOpChainObject* self = (PyOpChainObject*)type->tp_alloc(type, 0);
+	if (self != NULL) {
+		memset(&self->chain, 0, sizeof(self->chain));
+	}
+	return (PyObject*)self;
+}
+
+
+static int PyOpChain_init(PyOpChainObject* self, PyObject* args, PyObject* kwargs)
+{
+	// list of local operator IDs
+	PyObject* py_obj_oids;
+	// interleaved bond quantum numbers, including a leading and trailing quantum number
+	PyObject* py_obj_qnums;
+	// coefficient index
+	int cid;
+	// first lattice site the operator chain acts on
+	int istart = 0;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "", "istart", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi|i", kwlist,
+			&py_obj_oids,
+			&py_obj_qnums,
+			&cid,
+			&istart)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: OpChain(oids, qnums, cid, istart=0)");
+		return -1;
+	}
+
+	if (!PySequence_Check(py_obj_oids)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'oids' as sequence; syntax: OpChain(oids, qnums, cid, istart=0)");
+		return -1;
+	}
+	if (!PySequence_Check(py_obj_qnums)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'qnums' as sequence; syntax: OpChain(oids, qnums, cid, istart=0)");
+		return -1;
+	}
+
+	const int length = (int)PySequence_Length(py_obj_oids);
+	if (length == 0) {
+		PyErr_SetString(PyExc_ValueError, "'oids' cannot be an empty sequence; syntax: OpChain(oids, qnums, cid, istart=0)");
+		return -1;
+	}
+	if (PySequence_Length(py_obj_qnums) != length + 1) {
+		PyErr_SetString(PyExc_ValueError, "'qnums' must contain one more entry than 'oids' (due to leading and trailing quantum numbers)");
+		return -1;
+	}
+
+	if (cid < 0) {
+		PyErr_SetString(PyExc_ValueError, "'cid' cannot be negative");
+		return -1;
+	}
+
+	if (istart < 0) {
+		PyErr_SetString(PyExc_ValueError, "'istart' cannot be negative");
+		return -1;
+	}
+
+	allocate_op_chain(length, &self->chain);
+
+	self->chain.cid = cid;
+	self->chain.istart = istart;
+
+	for (int i = 0; i < length; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_oids, i);
+
+		self->chain.oids[i] = (int)PyLong_AsLong(item);
+		if (PyErr_Occurred()) {
+			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'oids' as an integer");
+			Py_DECREF(item);
+			return -1;
+		}
+
+		Py_DECREF(item);
+	}
+
+	for (int i = 0; i < length + 1; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_qnums, i);
+
+		self->chain.qnums[i] = (int)PyLong_AsLong(item);
+		if (PyErr_Occurred()) {
+			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'qnums' as an integer");
+			Py_DECREF(item);
+			return -1;
+		}
+
+		Py_DECREF(item);
+	}
+
+	return 0;
+}
+
+
+static void PyOpChain_dealloc(PyOpChainObject* self)
+{
+	if (self->chain.length > 0) {
+		// assuming that the op_chain has been initialized
+		delete_op_chain(&self->chain);
+	}
+	Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+
+static PyMethodDef PyOpChain_methods[] = {
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyObject* PyOpChain_oids(PyOpChainObject* self, void* Py_UNUSED(closure))
+{
+	if (self->chain.length == 0) {
+		PyErr_SetString(PyExc_ValueError, "OpChain has not been initialized yet");
+		return NULL;
+	}
+
+	PyObject* list = PyList_New(self->chain.length);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (int i = 0; i < self->chain.length; i++) {
+		if (PyList_SetItem(list, i, PyLong_FromLong(self->chain.oids[i])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+	return list;
+}
+
+
+static PyObject* PyOpChain_qnums(PyOpChainObject* self, void* Py_UNUSED(closure))
+{
+	if (self->chain.length == 0) {
+		PyErr_SetString(PyExc_ValueError, "OpChain has not been initialized yet");
+		return NULL;
+	}
+
+	PyObject* list = PyList_New(self->chain.length + 1);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (int i = 0; i < self->chain.length + 1; i++) {
+		if (PyList_SetItem(list, i, PyLong_FromLong(self->chain.qnums[i])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+	return list;
+}
+
+
+static PyObject* PyOpChain_cid(PyOpChainObject* self, void* Py_UNUSED(closure))
+{
+	if (self->chain.length == 0) {
+		PyErr_SetString(PyExc_ValueError, "OpChain has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->chain.cid);
+}
+
+
+static PyObject* PyOpChain_length(PyOpChainObject* self, void* Py_UNUSED(closure))
+{
+	if (self->chain.length == 0) {
+		PyErr_SetString(PyExc_ValueError, "OpChain has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->chain.length);
+}
+
+
+static PyObject* PyOpChain_istart(PyOpChainObject* self, void* Py_UNUSED(closure))
+{
+	if (self->chain.length == 0) {
+		PyErr_SetString(PyExc_ValueError, "OpChain has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->chain.istart);
+}
+
+
+static struct PyGetSetDef PyOpChain_getset[] = {
+	{
+		.name    = "oids",
+		.get     = (getter)PyOpChain_oids,
+		.set     = NULL,
+		.doc     = "list of local operator IDs",
+		.closure = NULL,
+	},
+	{
+		.name    = "qnums",
+		.get     = (getter)PyOpChain_qnums,
+		.set     = NULL,
+		.doc     = "interleaved bond quantum numbers, including a leading and trailing quantum number",
+		.closure = NULL,
+	},
+	{
+		.name    = "cid",
+		.get     = (getter)PyOpChain_cid,
+		.set     = NULL,
+		.doc     = "coefficient index",
+		.closure = NULL,
+	},
+	{
+		.name    = "length",
+		.get     = (getter)PyOpChain_length,
+		.set     = NULL,
+		.doc     = "length of the operator chain (number of local operators)",
+		.closure = NULL,
+	},
+	{
+		.name    = "istart",
+		.get     = (getter)PyOpChain_istart,
+		.set     = NULL,
+		.doc     = "first lattice site the operator chain acts on",
+		.closure = NULL,
+	},
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyTypeObject PyOpChainType = {
+	.ob_base      = PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name      = "chemtensor.OpChain",
+	.tp_doc       = PyDoc_STR("OpChain object"),
+	.tp_basicsize = sizeof(PyOpChainObject),
+	.tp_itemsize  = 0,
+	.tp_flags     = Py_TPFLAGS_DEFAULT,
+	.tp_new       = PyOpChain_new,
+	.tp_init      = PyOpChain_init,
+	.tp_dealloc   = (destructor)PyOpChain_dealloc,
+	.tp_methods   = PyOpChain_methods,
+	.tp_getset    = PyOpChain_getset,
+};
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Python MPO object.
 ///
 typedef struct
@@ -1175,6 +1438,242 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 }
 
 
+static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	// data type
+	const char* dtype_string;
+	// number of lattice sites
+	int nsites;
+	PyObject* py_obj_chains;
+	// local operator map (look-up table)
+	PyObject* py_obj_opmap;
+	// coefficient map (look-up table)
+	PyObject* py_obj_coeffmap;
+	// physical quantum numbers at each site
+	PyObject* py_obj_qsite;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "siOOOO",
+			&dtype_string,
+			&nsites,
+			&py_obj_chains,
+			&py_obj_opmap,
+			&py_obj_coeffmap,
+			&py_obj_qsite)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_mpo_from_opchains(dtype: str, nsites: int, chains, opmap, coeffmap, qsite)");
+		return NULL;
+	}
+
+	// data type
+	enum numeric_type dtype;
+	if ((strcmp(dtype_string, "float32") == 0)
+	 || (strcmp(dtype_string, "float") == 0)) {
+		dtype = CT_SINGLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "float64") == 0)
+	      || (strcmp(dtype_string, "double") == 0)) {
+		dtype = CT_DOUBLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "complex64") == 0) ||
+	         (strcmp(dtype_string, "float complex") == 0)) {
+		dtype = CT_SINGLE_COMPLEX;
+	}
+	else if ((strcmp(dtype_string, "complex128") == 0)
+	      || (strcmp(dtype_string, "double complex") == 0)) {
+		dtype = CT_DOUBLE_COMPLEX;
+	}
+	else {
+		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+		return NULL;
+	}
+
+	// number of lattice sites
+	if (nsites <= 0) {
+		char msg[1024];
+		sprintf(msg, "'nsites' must be a positive integer, received %i", nsites);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// local physical dimension and quantum numbers
+	long d;
+	qnumber* qsite;
+	{
+		// convert 'py_obj_qsite' to a NumPy array
+		PyArrayObject* py_qsite = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_qsite, NPY_INT, 1, 1);
+		if (py_qsite == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'qsite' input argument to a NumPy array with integer entries failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_qsite) != 1) {
+			PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array for 'qsite'");
+			Py_DECREF(py_qsite);
+			return NULL;
+		}
+
+		d = PyArray_DIM(py_qsite, 0);
+		if (d == 0) {
+			PyErr_SetString(PyExc_ValueError, "'qsite' cannot be an empty list");
+			Py_DECREF(py_qsite);
+			return NULL;
+		}
+
+		qsite = ct_malloc(d * sizeof(qnumber));
+		memcpy(qsite, PyArray_DATA(py_qsite), d * sizeof(qnumber));
+
+		Py_DECREF(py_qsite);
+	}
+
+	// retrieve operator map
+	int num_local_ops = (int)PySequence_Length(py_obj_opmap);
+	if (num_local_ops == 0) {
+		PyErr_SetString(PyExc_ValueError, "'opmap' cannot be an empty sequence");
+		return NULL;
+	}
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < num_local_ops; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_opmap, i);
+
+		// convert 'item' to a NumPy array
+		PyArrayObject* py_op = (PyArrayObject*)PyArray_ContiguousFromObject(item, numeric_to_numpy_type(dtype), 2, 2);
+		if (py_op == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'opmap' entry to a NumPy array failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_op) != 2) {
+			PyErr_SetString(PyExc_ValueError, "expecting a two-dimensional NumPy array for each 'opmap' entry");
+			Py_DECREF(py_op);
+			return NULL;
+		}
+		if (PyArray_DIM(py_op, 0) != d || PyArray_DIM(py_op, 1) != d) {
+			PyErr_SetString(PyExc_ValueError, "expecting a NumPy array of dimension 'd x d' for each 'opmap' entry, with 'd' the local physical dimension");
+			Py_DECREF(py_op);
+			return NULL;
+		}
+
+		const long dim[2] = { d, d };
+		allocate_dense_tensor(dtype, 2, dim, &opmap[i]);
+		memcpy(opmap[i].data, PyArray_DATA(py_op), d * d * sizeof_numeric_type(dtype));
+
+		Py_DECREF(py_op);
+		Py_DECREF(item);
+	}
+	if (!dense_tensor_is_identity(&opmap[OID_IDENTITY], 0.)) {
+		PyErr_SetString(PyExc_ValueError, "'opmap[0]' must be the identity");
+		return NULL;
+	}
+
+	// retrieve coefficient map
+	int num_coeffs = 0;
+	void* coeffmap;
+	{
+		PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_coeffmap, numeric_to_numpy_type(dtype), 1, 1);
+		if (py_coeffmap == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'coeffmap' to a NumPy array failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_coeffmap) != 1) {
+			PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array for 'coeffmap'");
+			Py_DECREF(py_coeffmap);
+			return NULL;
+		}
+		num_coeffs = (int)PyArray_DIM(py_coeffmap, 0);
+		if (num_coeffs < 2) {
+			PyErr_SetString(PyExc_ValueError, "'coeffmap' must have at least two entries");
+			Py_DECREF(py_coeffmap);
+			return NULL;
+		}
+
+		coeffmap = ct_malloc(num_coeffs * sizeof_numeric_type(dtype));
+		memcpy(coeffmap, PyArray_DATA(py_coeffmap), num_coeffs * sizeof_numeric_type(dtype));
+		Py_DECREF(py_coeffmap);
+
+		if (!coefficient_map_is_valid(dtype, coeffmap)) {
+			PyErr_SetString(PyExc_ValueError, "'coeffmap' is invalid; first two entries must be 0 and 1, respectively");
+			return NULL;
+		}
+	}
+
+	// retrieve operator chains
+	if (!PySequence_Check(py_obj_chains)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'chains' as a sequence");
+		return NULL;
+	}
+	const int nchains = (int)PySequence_Length(py_obj_chains);
+	if (nchains == 0) {
+		PyErr_SetString(PyExc_ValueError, "'chains' cannot be an empty sequence");
+		return NULL;
+	}
+	struct op_chain* chains = ct_malloc(nchains * sizeof(struct op_chain));
+	for (int i = 0; i < nchains; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_chains, i);
+		if (!Py_IS_TYPE(item, &PyOpChainType)) {
+			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'chains' as OpChain");
+			Py_DECREF(item);
+			return NULL;
+		}
+		copy_op_chain(&((PyOpChainObject*)item)->chain, &chains[i]);
+		Py_DECREF(item);
+
+		// consistency checks
+		if (chains[i].istart < 0 || chains[i].istart + chains[i].length > nsites) {
+			char msg[1024];
+			sprintf(msg, "chain %i has an invalid overall extent for a system with %i sites", i, nsites);
+			PyErr_SetString(PyExc_ValueError, msg);
+			return NULL;
+		}
+		if (chains[i].cid < 0 || chains[i].cid >= num_coeffs) {
+			char msg[1024];
+			sprintf(msg, "in chain %i, coefficient ID '%i' is out of range", i, chains[i].cid);
+			PyErr_SetString(PyExc_ValueError, msg);
+			return NULL;
+		}
+		for (int l = 0; l < chains[i].length; l++) {
+			if (chains[i].oids[l] < OID_NOP || chains[i].oids[l] >= num_local_ops) {
+				char msg[1024];
+				sprintf(msg, "in chain %i, operator ID '%i' is out of range", i, chains[i].oids[l]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				return NULL;
+			}
+		}
+	}
+
+	PyMPOObject* py_mpo = (PyMPOObject*)PyMPO_new(&PyMPOType, NULL, NULL);
+	if (py_mpo == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyMPO object");
+		return NULL;
+	}
+
+	// create and fill MPO assembly
+	if (mpo_graph_from_opchains(chains, nchains, nsites, &py_mpo->assembly.graph) < 0) {
+		PyErr_SetString(PyExc_RuntimeError, "'mpo_graph_from_opchains' failed internally");
+		Py_DECREF(py_mpo);
+		return NULL;
+	}
+	py_mpo->assembly.opmap         = opmap;
+	py_mpo->assembly.coeffmap      = coeffmap;
+	py_mpo->assembly.qsite         = qsite;
+	py_mpo->assembly.d             = d;
+	py_mpo->assembly.dtype         = dtype;
+	py_mpo->assembly.num_local_ops = num_local_ops;
+	py_mpo->assembly.num_coeffs    = num_coeffs;
+
+	// construct the MPO corresponding to the assembly
+	mpo_from_assembly(&py_mpo->assembly, &py_mpo->mpo);
+
+	// need to keep assembly data in memory
+
+	for (int i = 0; i < nchains; i++) {
+		delete_op_chain(&chains[i]);
+	}
+	ct_free(chains);
+
+	return (PyObject*)py_mpo;
+}
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Two-site DMRG algorithm.
@@ -1445,6 +1944,12 @@ static PyMethodDef methods[] = {
 		.ml_doc   = "Construct a molecular Hamiltonian as MPO assuming a spin orbital basis, using physicists' convention for the interaction term:\nH = sum_{i,j,sigma} t_{i,j} ad_{i,sigma} a_{j,sigma} + 1/2 sum_{i,j,k,l,sigma,tau} v_{i,j,k,l} ad_{i,sigma} ad_{j,tau} a_{l,tau} a_{k,sigma}\nSyntax: construct_spin_molecular_hamiltonian_mpo(tkin, vint, optimize=False)",
 	},
 	{
+		.ml_name  = "construct_mpo_from_opchains",
+		.ml_meth  = (PyCFunction)Py_construct_mpo_from_opchains,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Construct an MPO from a list of operator chains.\nSyntax: construct_mpo_from_opchains(dtype: str, nsites: int, chains, opmap, coeffmap, qsite)",
+	},
+	{
 		.ml_name  = "dmrg",
 		.ml_meth  = (PyCFunction)Py_dmrg,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -1483,6 +1988,9 @@ PyMODINIT_FUNC PyInit_chemtensor(void)
 	if (PyType_Ready(&PyMPSType) < 0) {
 		return NULL;
 	}
+	if (PyType_Ready(&PyOpChainType) < 0) {
+		return NULL;
+	}
 	if (PyType_Ready(&PyMPOType) < 0) {
 		return NULL;
 	}
@@ -1496,6 +2004,14 @@ PyMODINIT_FUNC PyInit_chemtensor(void)
 	Py_INCREF(&PyMPSType);
 	if (PyModule_AddObject(m, "MPS", (PyObject*)&PyMPSType) < 0) {
 		Py_DECREF(&PyMPSType);
+		Py_DECREF(m);
+		return NULL;
+	}
+
+	// register OpChain type
+	Py_INCREF(&PyOpChainType);
+	if (PyModule_AddObject(m, "OpChain", (PyObject*)&PyOpChainType) < 0) {
+		Py_DECREF(&PyOpChainType);
 		Py_DECREF(m);
 		return NULL;
 	}
