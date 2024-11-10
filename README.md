@@ -6,6 +6,25 @@ ChemTensor
 
 Tensor network algorithms for chemical systems.
 
+This library is written in C and offers a Python 3 interface for simpler accessibility.
+
+
+Examples
+--------
+The [examples](examples/) folder contains several demonstrations of the functionalities. Most examples use Jupyter notebooks and the Python interface.
+
+
+Features
+--------
+- Matrix product state and operator structures
+- Represent common Hamiltonians as MPOs, including molecular Hamiltonians
+- General MPO construction with optimized bond dimensions from a list of operator chains
+- Block-sparse tensors based on additive quantum number conservation to implement abelian symmetries
+- Single- and two-site DMRG algorithm
+- Gradient computation with respect to MPO parameters
+- Tree tensor network topologies (work in progress )
+- Non-abelian symmetries (work in progress)
+
 
 Building
 --------
