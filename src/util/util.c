@@ -50,6 +50,21 @@ long ipow(long base, int exp)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether a permutation is the identity permutation.
+///
+bool is_identity_permutation(const int* perm, const int n)
+{
+	for (int i = 0; i < n; i++) {
+		if (perm[i] != i) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Uniform distance (infinity norm) between 'x' and 'y'.
 ///
 /// The result is cast to double format (even if the actual entries are of single precision).

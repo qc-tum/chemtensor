@@ -85,6 +85,7 @@ char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
 char* test_mpo_inner_product();
 char* test_apply_mpo();
+char* test_ttno_inner_product();
 char* test_dmrg_singlesite();
 char* test_dmrg_twosite();
 char* test_operator_average_coefficient_gradient();
@@ -170,6 +171,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
 		TEST_FUNCTION_ENTRY(test_mpo_inner_product),
 		TEST_FUNCTION_ENTRY(test_apply_mpo),
+		TEST_FUNCTION_ENTRY(test_ttno_inner_product),
 		TEST_FUNCTION_ENTRY(test_dmrg_singlesite),
 		TEST_FUNCTION_ENTRY(test_dmrg_twosite),
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),

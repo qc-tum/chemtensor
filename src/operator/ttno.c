@@ -1,9 +1,94 @@
 /// \file ttno.c
 /// \brief Tree tensor network operator (TTNO) data structure and functions.
 
+#include <math.h>
 #include "ttno.h"
 #include "abstract_graph.h"
 #include "aligned_memory.h"
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Allocate memory for a tree tensor network operator. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
+///
+void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct ttno* ttno)
+{
+	assert(nsites_physical >= 1);
+	assert(nsites_physical <= topology->num_nodes);
+	const int nsites = topology->num_nodes;
+	ttno->nsites_physical  = nsites_physical;
+	ttno->nsites_branching = nsites - nsites_physical;
+
+	assert(d >= 1);
+	ttno->d = d;
+	ttno->qsite = ct_malloc(d * sizeof(qnumber));
+	memcpy(ttno->qsite, qsite, d * sizeof(qnumber));
+
+	// tree topology
+	copy_abstract_graph(topology, &ttno->topology);
+
+	// allocate tensors at each site
+	ttno->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
+	for (int l = 0; l < nsites; l++)
+	{
+		const int offset_phys = (l < ttno->nsites_physical ? 2 : 0);
+		const int ndim = ttno->topology.num_neighbors[l] + offset_phys;
+
+		long* dim = ct_calloc(ndim, sizeof(long));
+		enum tensor_axis_direction* axis_dir = ct_calloc(ndim, sizeof(enum tensor_axis_direction));
+		const qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*));
+
+		// virtual bonds
+		for (int i = 0; i < ttno->topology.num_neighbors[l]; i++)
+		{
+			if (i > 0) {
+				assert(ttno->topology.neighbor_map[l][i - 1] < ttno->topology.neighbor_map[l][i]);
+			}
+			int k = ttno->topology.neighbor_map[l][i];
+			assert(k != l);
+			if (k < l)
+			{
+				assert(dim_bonds[k*nsites + l] > 0);
+				dim[i]      = dim_bonds[k*nsites + l];
+				axis_dir[i] = TENSOR_AXIS_OUT;
+				qnums[i]    = qbonds[k*nsites + l];  // copy the pointer
+			}
+			else  // l < k
+			{
+				assert(dim_bonds[l*nsites + k] > 0);
+				dim[i + offset_phys]      = dim_bonds[l*nsites + k];
+				axis_dir[i + offset_phys] = TENSOR_AXIS_IN;
+				qnums[i + offset_phys]    = qbonds[l*nsites + k];  // copy the pointer
+			}
+		}
+		// physical axes
+		if (l < ttno->nsites_physical)
+		{
+			bool site_info_set = false;
+			for (int i = 0; i < ndim; i++)
+			{
+				if (dim[i] == 0) {
+					assert(dim[i + 1] == 0);
+					dim[i]     = d;
+					dim[i + 1] = d;
+					qnums[i]     = qsite;
+					qnums[i + 1] = qsite;
+					axis_dir[i]     = TENSOR_AXIS_OUT;
+					axis_dir[i + 1] = TENSOR_AXIS_IN;
+					site_info_set = true;
+					break;
+				}
+			}
+			assert(site_info_set);
+		}
+
+		allocate_block_sparse_tensor(dtype, ndim, dim, axis_dir, qnums, &ttno->a[l]);
+
+		ct_free(qnums);
+		ct_free(axis_dir);
+		ct_free(dim);
+	}
+}
 
 
 //________________________________________________________________________________________________________________________
@@ -45,7 +130,8 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		}
 		long stride_trail = 1;
 		// overwrite with actual virtual bond dimensions
-		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++) {
+		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
+		{
 			int k = assembly->graph.topology.neighbor_map[l][i];
 			assert(k != l);
 			if (i > 0) {
@@ -200,6 +286,133 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		#endif
 
 		delete_dense_tensor(&a_loc);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Convert an edge tuple index (i, j) to a linear virtual bond array index.
+///
+static inline int edge_to_bond_index(const int nsites, const int i, const int j)
+{
+	assert(i != j);
+	return i < j ? (i*nsites + j) : (j*nsites + i);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct a tree tensor network operator with random normal tensor entries, given a maximum virtual bond dimension.
+///
+void construct_random_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const long max_vdim, struct rng_state* rng_state, struct ttno* ttno)
+{
+	assert(nsites_physical >= 1);
+	assert(nsites_physical <= topology->num_nodes);
+	const int nsites = topology->num_nodes;
+	assert(d >= 1);
+
+	// select site with maximum number of neighbors as root
+	int i_root = 0;
+	for (int l = 1; l < topology->num_nodes; l++) {
+		if (topology->num_neighbors[l] > topology->num_neighbors[i_root]) {
+			i_root = l;
+		}
+	}
+	struct graph_node_distance_tuple* sd = ct_malloc(nsites * sizeof(struct graph_node_distance_tuple));
+	enumerate_graph_node_distance_tuples(topology, i_root, sd);
+	assert(sd[0].i_node == i_root);
+
+	// virtual bond dimensions and quantum numbers
+	long* dim_bonds  = ct_calloc(nsites * nsites, sizeof(long));
+	qnumber** qbonds = ct_calloc(nsites * nsites, sizeof(qnumber*));
+
+	// iterate over sites by decreasing distance from root (omitting the root node itself)
+	for (int l = nsites - 1; l > 0; l--)
+	{
+		assert(sd[l - 1].distance <= sd[l].distance);
+
+		const int i_site   = sd[l].i_node;
+		const int i_parent = sd[l].i_parent;
+
+		// enumerate all combinations of bond quantum numbers to more distant nodes and local physical quantum numbers
+		long dim_full = (i_site < nsites_physical ? d*d : 1);
+		qnumber* qnums_full = ct_calloc(dim_full, sizeof(qnumber));
+		if (i_site < nsites_physical) {
+			qnumber_outer_sum(TENSOR_AXIS_OUT, qsite, d, TENSOR_AXIS_IN, qsite, d, qnums_full);
+		}
+		for (int n = 0; n < topology->num_neighbors[i_site]; n++)
+		{
+			const int k = topology->neighbor_map[i_site][n];
+			if (k == i_parent) {
+				continue;
+			}
+
+			const int ib = edge_to_bond_index(nsites, i_site, k);
+			assert(dim_bonds[ib] > 0);
+			assert(qbonds[ib] != NULL);
+			qnumber* qnums_full_next = ct_malloc(dim_full * dim_bonds[ib] * sizeof(qnumber));
+			// outer sum
+			qnumber_outer_sum(1, qnums_full, dim_full, k < i_site ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN, qbonds[ib], dim_bonds[ib], qnums_full_next);
+			ct_free(qnums_full);
+			qnums_full = qnums_full_next;
+			dim_full *= dim_bonds[ib];
+			if (dim_full > max_vdim)
+			{
+				// randomly select quantum numbers
+				qnumber* qnums_select = ct_malloc(max_vdim * sizeof(qnumber));
+				uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
+				rand_choice(dim_full, max_vdim, rng_state, idx);
+				for (long i = 0; i < max_vdim; i++) {
+					qnums_select[i] = qnums_full[idx[i]];
+				}
+				ct_free(idx);
+				ct_free(qnums_full);
+				qnums_full = qnums_select;
+				dim_full = max_vdim;
+			}
+		}
+
+		// define virtual bond quantum numbers on bond connected to parent node
+		const int ib = edge_to_bond_index(nsites, i_site, i_parent);
+		assert(dim_bonds[ib] == 0);
+		assert(qbonds[ib] == NULL);
+		if (i_parent < i_site) {
+			// tensor axis direction points outwards -> flip sign
+			for (long i = 0; i < dim_full; i++) {
+				qnums_full[i] *= -1;
+			}
+		}
+		qbonds[ib] = qnums_full;
+		dim_bonds[ib] = dim_full;
+	}
+
+	ct_free(sd);
+
+	allocate_ttno(dtype, nsites_physical, topology, d, qsite, dim_bonds, (const qnumber**)qbonds, ttno);
+
+	for (int l = 0; l < nsites * nsites; l++) {
+		if (qbonds[l] != NULL) {
+			assert(dim_bonds[l] > 0);
+			ct_free(qbonds[l]);
+		}
+		else {
+			assert(dim_bonds[l] == 0);
+		}
+	}
+	ct_free(qbonds);
+	ct_free(dim_bonds);
+
+	// fill TTNS tensor entries with pseudo-random numbers, scaled by 1 / sqrt("number of entries")
+	for (int l = 0; l < nsites; l++)
+	{
+		// logical number of entries in TTNS tensor
+		const long nelem = integer_product(ttno->a[l].dim_logical, ttno->a[l].ndim);
+		// ensure that 'alpha' is large enough to store any numeric type
+		dcomplex alpha;
+		assert(ttno->a[l].dtype == dtype);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
+		block_sparse_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &ttno->a[l]);
 	}
 }
 
@@ -582,14 +795,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 		}
 		ct_free(indexed_axis_desc);
 		// skip permutation operations in case of an identity permutation
-		bool is_identity_perm = true;
-		for (int j = 0; j < contracted->tensor.ndim; j++) {
-			if (perm[j] != j) {
-				is_identity_perm = false;
-				break;
-			}
-		}
-		if (!is_identity_perm) {
+		if (!is_identity_permutation(perm, contracted->tensor.ndim)) {
 			transpose_ttno_contracted_subtree(perm, contracted);
 		}
 		ct_free(perm);

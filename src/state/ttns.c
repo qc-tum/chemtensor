@@ -461,7 +461,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 
 			struct block_sparse_tensor tmp;
 			const int i_ax = (k < i_site ? n : n + offset_phys_aux);
-			block_sparse_tensor_multiply_axis(&psi_a_bonds, i_ax, r_bonds[ib], TENSOR_AXIS_RANGE_TRAILING, &tmp);
+			block_sparse_tensor_multiply_axis(&psi_a_bonds, i_ax, r_bonds[ib], TENSOR_AXIS_RANGE_LEADING, &tmp);
 			delete_block_sparse_tensor(&psi_a_bonds);
 			move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
 		}
@@ -558,7 +558,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 
 			// contract all other axes
 			r_bonds[ib] = ct_malloc(sizeof(struct block_sparse_tensor));
-			block_sparse_tensor_dot(&chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, &psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, psi_a_bonds.ndim - 1, r_bonds[ib]);
+			block_sparse_tensor_dot(&psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, &chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, psi_a_bonds.ndim - 1, r_bonds[ib]);
 		}
 
 		delete_block_sparse_tensor(&chi_a_conj);
@@ -853,14 +853,7 @@ static void ttns_contract_subtree(const struct ttns* ttns, const int i_site, con
 		}
 		ct_free(indexed_axis_desc);
 		// skip permutation operations in case of an identity permutation
-		bool is_identity_perm = true;
-		for (int j = 0; j < contracted->tensor.ndim; j++) {
-			if (perm[j] != j) {
-				is_identity_perm = false;
-				break;
-			}
-		}
-		if (!is_identity_perm) {
+		if (!is_identity_permutation(perm, contracted->tensor.ndim)) {
 			transpose_ttns_contracted_subtree(perm, contracted);
 		}
 		ct_free(perm);

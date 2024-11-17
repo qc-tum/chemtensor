@@ -73,6 +73,13 @@ long ipow(long base, int exp);
 //
 
 
+bool is_identity_permutation(const int* perm, const int n);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+
 double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y);
 
 

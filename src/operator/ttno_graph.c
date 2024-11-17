@@ -1487,14 +1487,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		perm[j] = indexed_sites[j].index;
 	}
 	// skip permutation operations in case of an identity permutation
-	bool is_identity_perm = true;
-	for (int j = 0; j < contracted->nsites; j++) {
-		if (perm[j] != j) {
-			is_identity_perm = false;
-			break;
-		}
-	}
-	if (!is_identity_perm)
+	if (!is_identity_permutation(perm, contracted->nsites))
 	{
 		// permute global row and column dimensions simultaneously
 		for (int j = 0; j < contracted->nsites; j++) {
