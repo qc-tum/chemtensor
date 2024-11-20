@@ -2,6 +2,7 @@
 #include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
+#include "ttno.h"
 #include "hamiltonian.h"
 #include "dmrg.h"
 #include "gradient.h"
@@ -931,6 +932,466 @@ static PyTypeObject PyMPOType = {
 
 
 //________________________________________________________________________________________________________________________
+///
+/// \brief Python TTNO object.
+///
+typedef struct
+{
+	PyObject_HEAD
+	// storing both a TTNO assembly and the corresponding TTNO
+	struct ttno_assembly assembly;
+	struct ttno ttno;
+}
+PyTTNOObject;
+
+
+static PyObject* PyTTNO_new(PyTypeObject* type, PyObject* Py_UNUSED(args), PyObject* Py_UNUSED(kwds))
+{
+	PyTTNOObject* self = (PyTTNOObject*)type->tp_alloc(type, 0);
+	if (self != NULL) {
+		memset(&self->assembly, 0, sizeof(self->assembly));
+		memset(&self->ttno,     0, sizeof(self->ttno));
+	}
+	return (PyObject*)self;
+}
+
+
+static void PyTTNO_dealloc(PyTTNOObject* self)
+{
+	if (self->ttno.a != NULL) {
+		// assuming that the TTNO has been initialized
+		delete_ttno(&self->ttno);
+	}
+	if (self->assembly.d != 0) {
+		// assuming that the TTNO assembly has been initialized
+		delete_ttno_assembly(&self->assembly);
+	}
+	Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+
+static PyObject* PyTTNO_bond_dim(PyTTNOObject* self, PyObject* args)
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttno.topology.num_nodes;
+
+	int i, j;
+	if (!PyArg_ParseTuple(args, "ii", &i, &j)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_dim(i: int, j: int)");
+		return NULL;
+	}
+	if (i == j) {
+		PyErr_SetString(PyExc_ValueError, "site indices cannot be equal");
+		return NULL;
+	}
+	if (i < 0 || i >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'i' is out of range");
+		return NULL;
+	}
+	if (j < 0 || j >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'j' is out of range");
+		return NULL;
+	}
+	bool is_neighbor = false;
+	for (int n = 0; n < self->ttno.topology.num_neighbors[i]; n++) {
+		if (self->ttno.topology.neighbor_map[i][n] == j) {
+			is_neighbor = true;
+			break;
+		}
+	}
+	if (!is_neighbor) {
+		char msg[1024];
+		sprintf(msg, "sites '%i' and '%i' are not neighbors in the tree topology", i, j);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// bond index
+	const int iv = (i < j ? (i*nsites + j) : (j*nsites + i));
+
+	return PyLong_FromLong(self->assembly.graph.num_verts[iv]);
+}
+
+
+static PyObject* PyTTNO_bond_quantum_numbers(PyTTNOObject* self, PyObject* args)
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttno.topology.num_nodes;
+
+	int i, j;
+	if (!PyArg_ParseTuple(args, "ii", &i, &j)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_quantum_numbers(i: int, j: int)");
+		return NULL;
+	}
+	if (i == j) {
+		PyErr_SetString(PyExc_ValueError, "site indices cannot be equal");
+		return NULL;
+	}
+	if (i < 0 || i >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'i' is out of range");
+		return NULL;
+	}
+	if (j < 0 || j >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'j' is out of range");
+		return NULL;
+	}
+	bool is_neighbor = false;
+	for (int n = 0; n < self->ttno.topology.num_neighbors[i]; n++) {
+		if (self->ttno.topology.neighbor_map[i][n] == j) {
+			is_neighbor = true;
+			break;
+		}
+	}
+	if (!is_neighbor) {
+		char msg[1024];
+		sprintf(msg, "sites '%i' and '%i' are not neighbors in the tree topology", i, j);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// bond index
+	const int iv = (i < j ? (i*nsites + j) : (j*nsites + i));
+
+	PyObject* list = PyList_New(self->assembly.graph.num_verts[iv]);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (int n = 0; n < self->assembly.graph.num_verts[iv]; n++) {
+		if (PyList_SetItem(list, n, PyLong_FromLong(self->assembly.graph.verts[iv][n].qnum)) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
+static PyObject* PyTTNO_to_matrix(PyTTNOObject* self, PyObject* Py_UNUSED(args))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	// return matrix representation of TTNO as dense NumPy array (not using sparsity structure for simplicity)
+	struct block_sparse_tensor msparse;
+	ttno_to_matrix(&self->ttno, &msparse);
+	// convert to dense tensor
+	struct dense_tensor mat;
+	block_sparse_to_dense_tensor(&msparse, &mat);
+	delete_block_sparse_tensor(&msparse);
+
+	npy_intp* dims = ct_malloc(mat.ndim * sizeof(npy_intp));
+	for (int i = 0; i < mat.ndim; i++) {
+		dims[i] = mat.dim[i];  // not using memcpy here since integer sizes can be different
+	}
+	PyArrayObject* py_mat = (PyArrayObject*)PyArray_SimpleNew(mat.ndim, dims, numeric_to_numpy_type(mat.dtype));
+	if (py_mat == NULL) {
+		delete_dense_tensor(&mat);
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy matrix");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_mat), mat.data, dense_tensor_num_elements(&mat) * sizeof_numeric_type(mat.dtype));
+
+	ct_free(dims);
+	delete_dense_tensor(&mat);
+
+	return (PyObject*)py_mat;
+}
+
+
+static PyMethodDef PyTTNO_methods[] = {
+	{
+		.ml_name  = "bond_dim",
+		.ml_meth  = (PyCFunction)PyTTNO_bond_dim,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the dimension of the virtual bond between two neighboring sites."
+	},
+	{
+		.ml_name  = "bond_quantum_numbers",
+		.ml_meth  = (PyCFunction)PyTTNO_bond_quantum_numbers,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the quantum numbers of the virtual bond between two neighboring sites."
+	},
+	{
+		.ml_name  = "to_matrix",
+		.ml_meth  = (PyCFunction)PyTTNO_to_matrix,
+		.ml_flags = METH_NOARGS,
+		.ml_doc   = "Construct the (dense) matrix representation of the matrix product operator on the full Hilbert space."
+	},
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyObject* PyTTNO_d(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttno.d);
+}
+
+
+static PyObject* PyTTNO_qsite(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	PyObject* list = PyList_New(self->ttno.d);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	for (long i = 0; i < self->ttno.d; i++) {
+		if (PyList_SetItem(list, i, PyLong_FromLong(self->ttno.qsite[i])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
+static PyObject* PyTTNO_nsites(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttno.topology.num_nodes);
+}
+
+
+static PyObject* PyTTNO_nsites_physical(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttno.nsites_physical);
+}
+
+
+static PyObject* PyTTNO_nsites_branching(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttno.nsites_branching);
+}
+
+
+static PyObject* PyTTNO_coeffmap(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->assembly.d == 0) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+	if ((self->assembly.num_coeffs < 2) || (self->assembly.coeffmap == NULL)) {
+		PyErr_SetString(PyExc_RuntimeError, "PyTTNO object is internally inconsistent");
+		return NULL;
+	}
+
+	npy_intp dims[1] = { self->assembly.num_coeffs };
+	PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_SimpleNew(1, dims, numeric_to_numpy_type(self->assembly.dtype));
+	if (py_coeffmap == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy vector");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_coeffmap), self->assembly.coeffmap, self->assembly.num_coeffs * sizeof_numeric_type(self->assembly.dtype));
+
+	return (PyObject*)py_coeffmap;
+}
+
+
+static int PyTTNO_set_coeffmap(PyTTNOObject* self, PyObject* arg, void* Py_UNUSED(closure))
+{
+	if (self->assembly.d == 0) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return -1;
+	}
+	if ((self->assembly.num_coeffs < 2) || (self->assembly.coeffmap == NULL)) {
+		PyErr_SetString(PyExc_RuntimeError, "PyTTNO object is internally inconsistent");
+		return -1;
+	}
+
+	// convert input argument to NumPy array
+	PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_ContiguousFromObject(arg, numeric_to_numpy_type(self->assembly.dtype), 1, 1);
+	if (py_coeffmap == NULL) {
+		PyErr_SetString(PyExc_ValueError, "converting input argument to a NumPy array with appropriate data type failed");
+		return -1;
+	}
+	if (PyArray_NDIM(py_coeffmap) != 1) {
+		PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array");
+		Py_DECREF(py_coeffmap);
+		return -1;
+	}
+	if (PyArray_DIM(py_coeffmap, 0) != self->assembly.num_coeffs) {
+		char msg[1024];
+		sprintf(msg, "number of coefficients cannot change: expecting %i coefficients, received %li", self->assembly.num_coeffs, PyArray_DIM(py_coeffmap, 0));
+		PyErr_SetString(PyExc_ValueError, msg);
+		Py_DECREF(py_coeffmap);
+		return -1;
+	}
+
+	// first two entries must always be 0 and 1
+	switch (self->assembly.dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* data = (float*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g and %g", data[0], data[1]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* data = (double*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g and %g", data[0], data[1]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* data = (scomplex*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g%+gi and %g%+gi", crealf(data[0]), cimagf(data[0]), crealf(data[1]), cimagf(data[1]));
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* data = (dcomplex*)PyArray_DATA(py_coeffmap);
+			if ((data[0] != 0) || (data[1] != 1)) {
+				char msg[1024];
+				sprintf(msg, "first two coefficients must always be 0 and 1, received %g%+gi and %g%+gi", creal(data[0]), cimag(data[0]), creal(data[1]), cimag(data[1]));
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_coeffmap);
+				return -1;
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			PyErr_SetString(PyExc_RuntimeError, "PyTTNO object has an unknown internal data type");
+			return -1;
+		}
+	}
+
+	// actually copy the new coefficients
+	memcpy(self->assembly.coeffmap, PyArray_DATA(py_coeffmap), self->assembly.num_coeffs * sizeof_numeric_type(self->assembly.dtype));
+	// regenerate the TTNO
+	ttno_from_assembly(&self->assembly, &self->ttno);
+
+	Py_DECREF(py_coeffmap);
+
+	return 0;
+}
+
+
+static struct PyGetSetDef PyTTNO_getset[] = {
+	{
+		.name    = "d",
+		.get     = (getter)PyTTNO_d,
+		.set     = NULL,
+		.doc     = "local physical dimension of each site",
+		.closure = NULL,
+	},
+	{
+		.name    = "qsite",
+		.get     = (getter)PyTTNO_qsite,
+		.set     = NULL,
+		.doc     = "physical quantum numbers at each site",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites",
+		.get     = (getter)PyTTNO_nsites,
+		.set     = NULL,
+		.doc     = "number of sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites_physical",
+		.get     = (getter)PyTTNO_nsites_physical,
+		.set     = NULL,
+		.doc     = "number of physical sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites_branching",
+		.get     = (getter)PyTTNO_nsites_branching,
+		.set     = NULL,
+		.doc     = "number of branching sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "coeffmap",
+		.get     = (getter)PyTTNO_coeffmap,
+		.set     = (setter)PyTTNO_set_coeffmap,
+		.doc     = "internal coefficient map of the TTNO",
+		.closure = NULL,
+	},
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyTypeObject PyTTNOType = {
+	.ob_base      = PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name      = "chemtensor.TTNO",
+	.tp_doc       = PyDoc_STR("TTNO object"),
+	.tp_basicsize = sizeof(PyTTNOObject),
+	.tp_itemsize  = 0,
+	.tp_flags     = Py_TPFLAGS_DEFAULT,
+	.tp_new       = PyTTNO_new,
+	.tp_init      = NULL,
+	.tp_dealloc   = (destructor)PyTTNO_dealloc,
+	.tp_methods   = PyTTNO_methods,
+	.tp_getset    = PyTTNO_getset,
+};
+
+
+//________________________________________________________________________________________________________________________
 //
 
 
@@ -1438,7 +1899,7 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 }
 
 
-static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObject* args)
 {
 	// data type
 	const char* dtype_string;
@@ -1671,6 +2132,294 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	ct_free(chains);
 
 	return (PyObject*)py_mpo;
+}
+
+
+static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyObject* args)
+{
+	// data type
+	const char* dtype_string;
+	// number of physical lattice sites
+	int nsites_physical;
+	PyObject* py_obj_chains;
+	// neighbor map for tree topology
+	PyObject* py_obj_tree_neighbors;
+	// local operator map (look-up table)
+	PyObject* py_obj_opmap;
+	// coefficient map (look-up table)
+	PyObject* py_obj_coeffmap;
+	// physical quantum numbers at each site
+	PyObject* py_obj_qsite;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "siOOOOO",
+			&dtype_string,
+			&nsites_physical,
+			&py_obj_tree_neighbors,
+			&py_obj_chains,
+			&py_obj_opmap,
+			&py_obj_coeffmap,
+			&py_obj_qsite)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, chains, opmap, coeffmap, qsite)");
+		return NULL;
+	}
+
+	// data type
+	enum numeric_type dtype;
+	if ((strcmp(dtype_string, "float32") == 0)
+	 || (strcmp(dtype_string, "float") == 0)) {
+		dtype = CT_SINGLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "float64") == 0)
+	      || (strcmp(dtype_string, "double") == 0)) {
+		dtype = CT_DOUBLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "complex64") == 0) ||
+	         (strcmp(dtype_string, "float complex") == 0)) {
+		dtype = CT_SINGLE_COMPLEX;
+	}
+	else if ((strcmp(dtype_string, "complex128") == 0)
+	      || (strcmp(dtype_string, "double complex") == 0)) {
+		dtype = CT_DOUBLE_COMPLEX;
+	}
+	else {
+		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+		return NULL;
+	}
+
+	// number of physical lattice sites
+	if (nsites_physical <= 0) {
+		char msg[1024];
+		sprintf(msg, "'nsites_physical' must be a positive integer, received %i", nsites_physical);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// retrieve topology
+	struct abstract_graph topology;
+	if (!PySequence_Check(py_obj_tree_neighbors)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'tree_neighbors' as a sequence");
+		return NULL;
+	}
+	topology.num_nodes = (int)PySequence_Length(py_obj_tree_neighbors);
+	if (topology.num_nodes < nsites_physical) {
+		PyErr_SetString(PyExc_ValueError, "length of 'tree_neighbors' must be the overall number of sites (physical and branching)");
+		return NULL;
+	}
+	topology.neighbor_map  = ct_malloc(topology.num_nodes * sizeof(int*));
+	topology.num_neighbors = ct_malloc(topology.num_nodes * sizeof(int));
+	for (int l = 0; l < topology.num_nodes; l++)
+	{
+		PyObject* py_neighbors = PySequence_GetItem(py_obj_tree_neighbors, l);
+		if (!PySequence_Check(py_neighbors)) {
+			PyErr_SetString(PyExc_SyntaxError, "cannot interpret entry of 'tree_neighbors' as a sequence");
+			return NULL;
+		}
+
+		topology.num_neighbors[l] = (int)PySequence_Length(py_neighbors);
+		topology.neighbor_map[l]  = ct_malloc(topology.num_neighbors[l] * sizeof(int));
+
+		for (int i = 0; i < topology.num_neighbors[l]; i++)
+		{
+			PyObject* py_neigh = PySequence_GetItem(py_neighbors, i);
+			if (!PyLong_Check(py_neigh)) {
+				PyErr_SetString(PyExc_SyntaxError, "cannot interpret item in neighbor list inside 'tree_neighbors' as an integer");
+				return NULL;
+			}
+			topology.neighbor_map[l][i] = (int)PyLong_AsLong(py_neigh);
+
+			Py_DECREF(py_neigh);
+		}
+
+		Py_DECREF(py_neighbors);
+	}
+	if (!abstract_graph_is_consistent(&topology)) {
+		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a consistent graph; note that list of neighbors must be sorted");
+		return NULL;
+	}
+	if (!abstract_graph_is_connected_tree(&topology)) {
+		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a connected tree");
+		return NULL;
+	}
+
+	// local physical dimension and quantum numbers
+	long d;
+	qnumber* qsite;
+	{
+		// convert 'py_obj_qsite' to a NumPy array
+		PyArrayObject* py_qsite = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_qsite, NPY_INT, 1, 1);
+		if (py_qsite == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'qsite' input argument to a NumPy array with integer entries failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_qsite) != 1) {
+			PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array for 'qsite'");
+			Py_DECREF(py_qsite);
+			return NULL;
+		}
+
+		d = PyArray_DIM(py_qsite, 0);
+		if (d == 0) {
+			PyErr_SetString(PyExc_ValueError, "'qsite' cannot be an empty list");
+			Py_DECREF(py_qsite);
+			return NULL;
+		}
+
+		qsite = ct_malloc(d * sizeof(qnumber));
+		memcpy(qsite, PyArray_DATA(py_qsite), d * sizeof(qnumber));
+
+		Py_DECREF(py_qsite);
+	}
+
+	// retrieve operator map
+	int num_local_ops = (int)PySequence_Length(py_obj_opmap);
+	if (num_local_ops == 0) {
+		PyErr_SetString(PyExc_ValueError, "'opmap' cannot be an empty sequence");
+		return NULL;
+	}
+	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
+	for (int i = 0; i < num_local_ops; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_opmap, i);
+
+		// convert 'item' to a NumPy array
+		PyArrayObject* py_op = (PyArrayObject*)PyArray_ContiguousFromObject(item, numeric_to_numpy_type(dtype), 2, 2);
+		if (py_op == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'opmap' entry to a NumPy array failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_op) != 2) {
+			PyErr_SetString(PyExc_ValueError, "expecting a two-dimensional NumPy array for each 'opmap' entry");
+			Py_DECREF(py_op);
+			return NULL;
+		}
+		if (PyArray_DIM(py_op, 0) != d || PyArray_DIM(py_op, 1) != d) {
+			PyErr_SetString(PyExc_ValueError, "expecting a NumPy array of dimension 'd x d' for each 'opmap' entry, with 'd' the local physical dimension");
+			Py_DECREF(py_op);
+			return NULL;
+		}
+
+		const long dim[2] = { d, d };
+		allocate_dense_tensor(dtype, 2, dim, &opmap[i]);
+		memcpy(opmap[i].data, PyArray_DATA(py_op), d * d * sizeof_numeric_type(dtype));
+
+		Py_DECREF(py_op);
+		Py_DECREF(item);
+	}
+	if (!dense_tensor_is_identity(&opmap[OID_IDENTITY], 0.)) {
+		PyErr_SetString(PyExc_ValueError, "'opmap[0]' must be the identity");
+		return NULL;
+	}
+
+	// retrieve coefficient map
+	int num_coeffs = 0;
+	void* coeffmap;
+	{
+		PyArrayObject* py_coeffmap = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_coeffmap, numeric_to_numpy_type(dtype), 1, 1);
+		if (py_coeffmap == NULL) {
+			PyErr_SetString(PyExc_ValueError, "converting 'coeffmap' to a NumPy array failed");
+			return NULL;
+		}
+		if (PyArray_NDIM(py_coeffmap) != 1) {
+			PyErr_SetString(PyExc_ValueError, "expecting a one-dimensional NumPy array for 'coeffmap'");
+			Py_DECREF(py_coeffmap);
+			return NULL;
+		}
+		num_coeffs = (int)PyArray_DIM(py_coeffmap, 0);
+		if (num_coeffs < 2) {
+			PyErr_SetString(PyExc_ValueError, "'coeffmap' must have at least two entries");
+			Py_DECREF(py_coeffmap);
+			return NULL;
+		}
+
+		coeffmap = ct_malloc(num_coeffs * sizeof_numeric_type(dtype));
+		memcpy(coeffmap, PyArray_DATA(py_coeffmap), num_coeffs * sizeof_numeric_type(dtype));
+		Py_DECREF(py_coeffmap);
+
+		if (!coefficient_map_is_valid(dtype, coeffmap)) {
+			PyErr_SetString(PyExc_ValueError, "'coeffmap' is invalid; first two entries must be 0 and 1, respectively");
+			return NULL;
+		}
+	}
+
+	// retrieve operator chains
+	if (!PySequence_Check(py_obj_chains)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'chains' as a sequence");
+		return NULL;
+	}
+	const int nchains = (int)PySequence_Length(py_obj_chains);
+	if (nchains == 0) {
+		PyErr_SetString(PyExc_ValueError, "'chains' cannot be an empty sequence");
+		return NULL;
+	}
+	struct op_chain* chains = ct_malloc(nchains * sizeof(struct op_chain));
+	for (int i = 0; i < nchains; i++)
+	{
+		PyObject* item = PySequence_GetItem(py_obj_chains, i);
+		if (!Py_IS_TYPE(item, &PyOpChainType)) {
+			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'chains' as OpChain");
+			Py_DECREF(item);
+			return NULL;
+		}
+		copy_op_chain(&((PyOpChainObject*)item)->chain, &chains[i]);
+		Py_DECREF(item);
+
+		// consistency checks
+		if (chains[i].istart < 0 || chains[i].istart + chains[i].length > nsites_physical) {
+			char msg[1024];
+			sprintf(msg, "chain %i has an invalid overall extent for a system with %i physical sites", i, nsites_physical);
+			PyErr_SetString(PyExc_ValueError, msg);
+			return NULL;
+		}
+		if (chains[i].cid < 0 || chains[i].cid >= num_coeffs) {
+			char msg[1024];
+			sprintf(msg, "in chain %i, coefficient ID '%i' is out of range", i, chains[i].cid);
+			PyErr_SetString(PyExc_ValueError, msg);
+			return NULL;
+		}
+		for (int l = 0; l < chains[i].length; l++) {
+			if (chains[i].oids[l] < OID_NOP || chains[i].oids[l] >= num_local_ops) {
+				char msg[1024];
+				sprintf(msg, "in chain %i, operator ID '%i' is out of range", i, chains[i].oids[l]);
+				PyErr_SetString(PyExc_ValueError, msg);
+				return NULL;
+			}
+		}
+	}
+
+	PyTTNOObject* py_ttno = (PyTTNOObject*)PyTTNO_new(&PyTTNOType, NULL, NULL);
+	if (py_ttno == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyTTNO object");
+		return NULL;
+	}
+
+	// create and fill TTNO assembly
+	if (ttno_graph_from_opchains(chains, nchains, nsites_physical, &topology, &py_ttno->assembly.graph) < 0) {
+		PyErr_SetString(PyExc_RuntimeError, "'ttno_graph_from_opchains' failed internally");
+		Py_DECREF(py_ttno);
+		return NULL;
+	}
+	py_ttno->assembly.opmap         = opmap;
+	py_ttno->assembly.coeffmap      = coeffmap;
+	py_ttno->assembly.qsite         = qsite;
+	py_ttno->assembly.d             = d;
+	py_ttno->assembly.dtype         = dtype;
+	py_ttno->assembly.num_local_ops = num_local_ops;
+	py_ttno->assembly.num_coeffs    = num_coeffs;
+
+	// construct the TTNO corresponding to the assembly
+	ttno_from_assembly(&py_ttno->assembly, &py_ttno->ttno);
+
+	// need to keep assembly data in memory
+
+	delete_abstract_graph(&topology);
+
+	for (int i = 0; i < nchains; i++) {
+		delete_op_chain(&chains[i]);
+	}
+	ct_free(chains);
+
+	return (PyObject*)py_ttno;
 }
 
 
@@ -1950,6 +2699,12 @@ static PyMethodDef methods[] = {
 		.ml_doc   = "Construct an MPO from a list of operator chains.\nSyntax: construct_mpo_from_opchains(dtype: str, nsites: int, chains, opmap, coeffmap, qsite)",
 	},
 	{
+		.ml_name  = "construct_ttno_from_opchains",
+		.ml_meth  = (PyCFunction)Py_construct_ttno_from_opchains,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Construct a TTNO from a list of operator chains.\nSyntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, chains, opmap, coeffmap, qsite)",
+	},
+	{
 		.ml_name  = "dmrg",
 		.ml_meth  = (PyCFunction)Py_dmrg,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -1994,6 +2749,9 @@ PyMODINIT_FUNC PyInit_chemtensor(void)
 	if (PyType_Ready(&PyMPOType) < 0) {
 		return NULL;
 	}
+	if (PyType_Ready(&PyTTNOType) < 0) {
+		return NULL;
+	}
 
 	PyObject* m = PyModule_Create(&module);
 	if (m == NULL) {
@@ -2020,6 +2778,14 @@ PyMODINIT_FUNC PyInit_chemtensor(void)
 	Py_INCREF(&PyMPOType);
 	if (PyModule_AddObject(m, "MPO", (PyObject*)&PyMPOType) < 0) {
 		Py_DECREF(&PyMPOType);
+		Py_DECREF(m);
+		return NULL;
+	}
+
+	// register TTNO type
+	Py_INCREF(&PyTTNOType);
+	if (PyModule_AddObject(m, "TTNO", (PyObject*)&PyTTNOType) < 0) {
+		Py_DECREF(&PyTTNOType);
 		Py_DECREF(m);
 		return NULL;
 	}

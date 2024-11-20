@@ -9,6 +9,26 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Delete a tensor network operator assembly (free memory).
+///
+void delete_ttno_assembly(struct ttno_assembly* assembly)
+{
+	delete_ttno_graph(&assembly->graph);
+	for (int i = 0; i < assembly->num_local_ops; i++) {
+		delete_dense_tensor(&assembly->opmap[i]);
+	}
+	ct_free(assembly->opmap);
+	ct_free(assembly->coeffmap);
+	ct_free(assembly->qsite);
+
+	assembly->opmap    = NULL;
+	assembly->coeffmap = NULL;
+	assembly->qsite    = NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Allocate memory for a tree tensor network operator. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
 ///
 void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct ttno* ttno)

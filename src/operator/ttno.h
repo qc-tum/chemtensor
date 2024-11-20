@@ -24,6 +24,9 @@ struct ttno_assembly
 };
 
 
+void delete_ttno_assembly(struct ttno_assembly* assembly);
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Tree tensor network operator (TTNO) data structure.
