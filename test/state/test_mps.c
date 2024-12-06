@@ -727,8 +727,8 @@ char* test_mps_deep_copy() {
 	struct mps copy;
 	mps_deep_copy(&orig, &copy);
 
-	struct block_sparse_tensor psi_vec;
-	mps_to_statevector(&orig, &psi_vec);
+	struct block_sparse_tensor orig_vec;
+	mps_to_statevector(&orig, &orig_vec);
 
 	struct block_sparse_tensor copy_vec;
 	mps_to_statevector(&copy, &copy_vec);
@@ -745,12 +745,12 @@ char* test_mps_deep_copy() {
 		return "qnumbers of the copies are not identical";
 	}
 
-	if (!block_sparse_tensor_allclose(&psi_vec, &copy_vec, 1e-13)) {
+	if (!block_sparse_tensor_allclose(&orig_vec, &copy_vec, 1e-13)) {
 		return "statevectors of the copies are not identical";
 	}
 
 	delete_block_sparse_tensor(&copy_vec);
-	delete_block_sparse_tensor(&psi_vec);
+	delete_block_sparse_tensor(&orig_vec);
 	delete_mps(&copy);
 	delete_mps(&orig);
 

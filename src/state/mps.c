@@ -64,6 +64,7 @@ void delete_mps(struct mps* mps)
 	mps->d = 0;
 }
 
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Copy a matrix product state and its block sparse tensors.
@@ -74,8 +75,7 @@ void mps_deep_copy(const struct mps *mps, struct mps *ret)
     ret->nsites = mps->nsites;
     ret->qsite = ct_malloc(mps->nsites * sizeof(qnumber));
     ret->a = ct_malloc(mps->nsites * sizeof(struct block_sparse_tensor));
-    for (size_t i = 0; i < mps->nsites; i++)
-    {
+    for (size_t i = 0; i < mps->nsites; i++) {
         ret->qsite[i] = mps->qsite[i];
         copy_block_sparse_tensor(&mps->a[i], &ret->a[i]);
     }
