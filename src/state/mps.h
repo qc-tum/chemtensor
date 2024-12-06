@@ -35,6 +35,8 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 
 bool mps_is_consistent(const struct mps* mps);
 
+void mps_deep_copy(const struct mps *mps, struct mps *ret);
+
 
 //________________________________________________________________________________________________________________________
 ///
