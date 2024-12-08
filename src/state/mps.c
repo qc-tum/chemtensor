@@ -69,7 +69,7 @@ void delete_mps(struct mps* mps)
 ///
 /// \brief Copy a matrix product state and its block sparse tensors.
 ///
-void copy_mps(const struct mps *mps, struct mps *ret)
+void copy_mps(const struct mps* mps, struct mps* ret)
 {
 	ret->d = mps->d;
 	ret->nsites = mps->nsites;
