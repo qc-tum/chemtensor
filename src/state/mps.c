@@ -72,15 +72,15 @@ void delete_mps(struct mps* mps)
 void copy_mps(const struct mps *mps, struct mps *ret)
 {
 	ret->d = mps->d;
-    ret->nsites = mps->nsites;
-    ret->a = ct_malloc(mps->nsites * sizeof(struct block_sparse_tensor));
+	ret->nsites = mps->nsites;
+	ret->a = ct_malloc(mps->nsites * sizeof(struct block_sparse_tensor));
 	
-    ret->qsite = ct_malloc(mps->d * sizeof(qnumber));
+	ret->qsite = ct_malloc(mps->d * sizeof(qnumber));
 	memcpy(ret->qsite, mps->qsite, mps->d * sizeof(qnumber));
 
-    for (size_t i = 0; i < mps->nsites; i++) {
-        copy_block_sparse_tensor(&mps->a[i], &ret->a[i]);
-    }
+	for (size_t i = 0; i < mps->nsites; i++) {
+		copy_block_sparse_tensor(&mps->a[i], &ret->a[i]);
+	}
 }
 
 
