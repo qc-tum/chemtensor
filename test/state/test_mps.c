@@ -706,16 +706,17 @@ char* test_mps_to_statevector()
 }
 
 
-char* test_mps_deep_copy() {
+char* test_copy_mps()
+{
 	const long d = 4;
 	const long nsites = 7;
     
 	const qnumber qsite[] = {
-        encode_quantum_number_pair(0, 0),
-        encode_quantum_number_pair(1, -1),
-        encode_quantum_number_pair(1, 1),
-        encode_quantum_number_pair(2, 0),
-    };
+		encode_quantum_number_pair(0, 0),
+		encode_quantum_number_pair(1, -1),
+		encode_quantum_number_pair(1, 1),
+		encode_quantum_number_pair(2, 0),
+	};
 
 	struct rng_state rng_state;
 	seed_rng_state(42, &rng_state);
@@ -725,7 +726,7 @@ char* test_mps_deep_copy() {
 	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, nsites % 4, max_vdim, &rng_state, &orig);
 
 	struct mps copy;
-	mps_deep_copy(&orig, &copy);
+	copy_mps(&orig, &copy);
 
 	struct block_sparse_tensor orig_vec;
 	mps_to_statevector(&orig, &orig_vec);
@@ -741,7 +742,7 @@ char* test_mps_deep_copy() {
 		return "'nsites' of the copies are not identical";
 	}
 
-	if (!qnumber_all_equal(nsites, orig.qsite, copy.qsite)) {
+	if (!qnumber_all_equal(orig.d, orig.qsite, copy.qsite)) {
 		return "qnumbers of the copies are not identical";
 	}
 
