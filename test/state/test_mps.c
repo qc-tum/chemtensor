@@ -7,6 +7,50 @@
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
 
 
+char* test_copy_mps()
+{
+	// number of lattice sites
+	const long nsites = 7;
+	// local physical dimension
+	const long d = 4;
+
+	const qnumber qsite[4] = { 0, 2, 0, -1 };
+
+	struct rng_state rng_state;
+	seed_rng_state(41, &rng_state);
+
+	struct mps src;
+	const long max_vdim = 16;
+	const qnumber qnum_sector = 1;
+	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
+
+	struct mps dst;
+	copy_mps(&src, &dst);
+
+	if (dst.nsites != src.nsites) {
+		return "'nsites' of the copy does not match source";
+	}
+
+	if (dst.d != src.d) {
+		return "local physical dimension 'd' of the copy does not match source";
+	}
+	if (!qnumber_all_equal(src.d, dst.qsite, src.qsite)) {
+		return "local physical quantum numbers of the copy do not match source";
+	}
+
+	for (int i = 0; i < nsites; i++) {
+		if (!block_sparse_tensor_allclose(&dst.a[i], &src.a[i], 0.)) {
+			return "MPS tensor of copy does not match original MPS tensor";
+		}
+	}
+
+	delete_mps(&dst);
+	delete_mps(&src);
+
+	return 0;
+}
+
+
 char* test_mps_vdot()
 {
 	hid_t file = H5Fopen("../test/state/data/test_mps_vdot.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

@@ -51,6 +51,7 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors();
 char* test_su2_tensor_fmove();
 char* test_su2_tensor_contract_simple();
 char* test_su2_to_dense_tensor();
+char* test_copy_mps();
 char* test_mps_vdot();
 char* test_mps_add();
 char* test_mps_orthonormalize_qr();
@@ -143,6 +144,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mps_compress),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
+		TEST_FUNCTION_ENTRY(test_copy_mps),
 		TEST_FUNCTION_ENTRY(test_ttns_vdot),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_linked_list),

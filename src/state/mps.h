@@ -31,6 +31,8 @@ void allocate_mps(const enum numeric_type dtype, const int nsites, const long d,
 
 void delete_mps(struct mps* mps);
 
+void copy_mps(const struct mps* src, struct mps* dst);
+
 void construct_random_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct mps* mps);
 
 bool mps_is_consistent(const struct mps* mps);

@@ -67,6 +67,25 @@ void delete_mps(struct mps* mps)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Copy a matrix product state and its block sparse tensors.
+///
+void copy_mps(const struct mps* src, struct mps* dst)
+{
+	dst->nsites = src->nsites;
+	
+	dst->d = src->d;
+	dst->qsite = ct_malloc(src->d * sizeof(qnumber));
+	memcpy(dst->qsite, src->qsite, src->d * sizeof(qnumber));
+
+	dst->a = ct_malloc(src->nsites * sizeof(struct block_sparse_tensor));
+	for (int i = 0; i < src->nsites; i++) {
+		copy_block_sparse_tensor(&src->a[i], &dst->a[i]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.
 ///
 void construct_random_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct mps* mps)
