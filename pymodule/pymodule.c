@@ -2499,11 +2499,8 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	struct rng_state rng_state;
 	seed_rng_state(rng_seed, &rng_state);
 	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
-	double nrm = mps_norm(&py_psi->mps);
-	if (nrm == 0) {
-		PyMPS_dealloc(py_psi);
-		PyErr_SetString(PyExc_RuntimeError, "initial random MPS has norm zero (possibly due to mismatching quantum numbers)");
-		return NULL;
+	if (mps_norm(&py_psi->mps) == 0) {
+		PyErr_WarnEx(PyExc_RuntimeWarning, "initial random MPS has norm zero (possibly due to mismatching quantum numbers)", 1);
 	}
 
 	// run two-site DMRG
