@@ -17,3 +17,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly);
 
 void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly);
+
+void construct_quadratic_fermionic_mpo_assembly(const int nsites, const double* coeffc, const double* coeffa, struct mpo_assembly* assembly);
+
+void construct_quadratic_spin_fermionic_mpo_assembly(const int nsites, const double* coeffc, const double* coeffa, const int sigma, struct mpo_assembly* assembly);

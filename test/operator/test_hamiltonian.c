@@ -1,4 +1,5 @@
 #include "hamiltonian.h"
+#include "aligned_memory.h"
 
 
 char* test_ising_1d_mpo()
@@ -446,6 +447,166 @@ char* test_spin_molecular_hamiltonian_mpo()
 	delete_mpo(&molecular_hamiltonian_mpo);
 	delete_dense_tensor(&vint);
 	delete_dense_tensor(&tkin);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_quadratic_fermionic_mpo()
+{
+	hid_t file = H5Fopen("../test/operator/data/test_quadratic_fermionic_mpo.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_quadratic_fermionic_mpo failed";
+	}
+
+	// number of lattice sites
+	const int nsites = 7;
+
+	// coefficients
+	double* coeffc = ct_malloc(nsites * sizeof(double));
+	double* coeffa = ct_malloc(nsites * sizeof(double));
+	if (read_hdf5_dataset(file, "coeffc", H5T_NATIVE_DOUBLE, coeffc) < 0) {
+		return "reading creation operator coefficients from disk failed";
+	}
+	if (read_hdf5_dataset(file, "coeffa", H5T_NATIVE_DOUBLE, coeffa) < 0) {
+		return "reading annihilation operator coefficients from disk failed";
+	}
+
+	struct mpo quadratic_fermionic_mpo;
+	{
+		struct mpo_assembly assembly;
+		construct_quadratic_fermionic_mpo_assembly(nsites, coeffc, coeffa, &assembly);
+		mpo_from_assembly(&assembly, &quadratic_fermionic_mpo);
+		delete_mpo_assembly(&assembly);
+	}
+	if (!mpo_is_consistent(&quadratic_fermionic_mpo)) {
+		return "internal consistency check for quadratic fermionic MPO failed";
+	}
+
+	for (int i = 0; i <= nsites; i++) {
+		const long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
+		if (mpo_bond_dim(&quadratic_fermionic_mpo, i) != bdim_ref) {
+			return "virtual bond dimension of quadratic fermionic MPO does not match reference";
+		}
+	}
+
+	struct block_sparse_tensor quadratic_fermionic_mat;
+	mpo_to_matrix(&quadratic_fermionic_mpo, &quadratic_fermionic_mat);
+
+	// convert to dense tensor for comparison with reference
+	struct dense_tensor quadratic_fermionic_mat_dns;
+	block_sparse_to_dense_tensor(&quadratic_fermionic_mat, &quadratic_fermionic_mat_dns);
+
+	// reference matrix for checking
+	hsize_t dims_ref_hsize[2];
+	if (get_hdf5_dataset_dims(file, "quadratic_fermionic_mat", dims_ref_hsize) < 0) {
+		return "obtaining dimensions of reference operator failed";
+	}
+	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	struct dense_tensor quadratic_fermionic_mat_ref;
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &quadratic_fermionic_mat_ref);
+	// read values from disk
+	if (read_hdf5_dataset(file, "quadratic_fermionic_mat", H5T_NATIVE_DOUBLE, quadratic_fermionic_mat_ref.data) < 0) {
+		return "reading matrix entries from disk failed";
+	}
+
+	// compare
+	if (!dense_tensor_allclose(&quadratic_fermionic_mat_dns, &quadratic_fermionic_mat_ref, 1e-13)) {
+		return "matrix representation of quadratic fermionic MPO does not match reference";
+	}
+
+	// clean up
+	ct_free(coeffa);
+	ct_free(coeffc);
+	delete_block_sparse_tensor(&quadratic_fermionic_mat);
+	delete_dense_tensor(&quadratic_fermionic_mat_dns);
+	delete_dense_tensor(&quadratic_fermionic_mat_ref);
+	delete_mpo(&quadratic_fermionic_mpo);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_quadratic_spin_fermionic_mpo()
+{
+	hid_t file = H5Fopen("../test/operator/data/test_quadratic_spin_fermionic_mpo.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_quadratic_spin_fermionic_mpo failed";
+	}
+
+	// number of spin-endowed lattice sites
+	const int nsites = 3;
+
+	// coefficients
+	double* coeffc = ct_malloc(nsites * sizeof(double));
+	double* coeffa = ct_malloc(nsites * sizeof(double));
+	if (read_hdf5_dataset(file, "coeffc", H5T_NATIVE_DOUBLE, coeffc) < 0) {
+		return "reading creation operator coefficients from disk failed";
+	}
+	if (read_hdf5_dataset(file, "coeffa", H5T_NATIVE_DOUBLE, coeffa) < 0) {
+		return "reading annihilation operator coefficients from disk failed";
+	}
+
+	for (int sigma = 0; sigma < 2; sigma++)
+	{
+		struct mpo quadratic_spin_fermionic_mpo;
+		{
+			struct mpo_assembly assembly;
+			construct_quadratic_spin_fermionic_mpo_assembly(nsites, coeffc, coeffa, sigma, &assembly);
+			mpo_from_assembly(&assembly, &quadratic_spin_fermionic_mpo);
+			delete_mpo_assembly(&assembly);
+		}
+		if (!mpo_is_consistent(&quadratic_spin_fermionic_mpo)) {
+			return "internal consistency check for quadratic spin fermionic MPO failed";
+		}
+
+		for (int i = 0; i <= nsites; i++) {
+			const long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
+			if (mpo_bond_dim(&quadratic_spin_fermionic_mpo, i) != bdim_ref) {
+				return "virtual bond dimension of quadratic spin fermionic MPO does not match reference";
+			}
+		}
+
+		struct block_sparse_tensor quadratic_spin_fermionic_mat;
+		mpo_to_matrix(&quadratic_spin_fermionic_mpo, &quadratic_spin_fermionic_mat);
+
+		// convert to dense tensor for comparison with reference
+		struct dense_tensor quadratic_spin_fermionic_mat_dns;
+		block_sparse_to_dense_tensor(&quadratic_spin_fermionic_mat, &quadratic_spin_fermionic_mat_dns);
+
+		// reference matrix for checking
+		char varname[1024];
+		sprintf(varname, "quadratic_spin_fermionic_mat_%i", sigma);
+		hsize_t dims_ref_hsize[2];
+		if (get_hdf5_dataset_dims(file, varname, dims_ref_hsize) < 0) {
+			return "obtaining dimensions of reference operator failed";
+		}
+		const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+		struct dense_tensor quadratic_spin_fermionic_mat_ref;
+		allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &quadratic_spin_fermionic_mat_ref);
+		// read values from disk
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, quadratic_spin_fermionic_mat_ref.data) < 0) {
+			return "reading matrix entries from disk failed";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&quadratic_spin_fermionic_mat_dns, &quadratic_spin_fermionic_mat_ref, 1e-13)) {
+			return "matrix representation of quadratic spin fermionic MPO does not match reference";
+		}
+
+		// clean up
+		delete_block_sparse_tensor(&quadratic_spin_fermionic_mat);
+		delete_dense_tensor(&quadratic_spin_fermionic_mat_dns);
+		delete_dense_tensor(&quadratic_spin_fermionic_mat_ref);
+		delete_mpo(&quadratic_spin_fermionic_mpo);
+	}
+
+	ct_free(coeffa);
+	ct_free(coeffc);
 
 	H5Fclose(file);
 

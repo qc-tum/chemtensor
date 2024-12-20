@@ -382,10 +382,10 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 enum molecular_oid
 {
 	MOLECULAR_OID_I   = 0,  //!< identity
-	MOLECULAR_OID_C   = 1,  //!< a^{\dagger}
-	MOLECULAR_OID_A   = 2,  //!< a
-	MOLECULAR_OID_N   = 3,  //!< numop
-	MOLECULAR_OID_Z   = 4,  //!< Z
+	MOLECULAR_OID_C   = 1,  //!< \f$a^{\dagger}\f$
+	MOLECULAR_OID_A   = 2,  //!< \f$a\f$
+	MOLECULAR_OID_N   = 3,  //!< \f$n\f$
+	MOLECULAR_OID_Z   = 4,  //!< \f$Z\f$
 	NUM_MOLECULAR_OID = 5,  //!< number of local operators
 };
 
@@ -571,11 +571,11 @@ enum molecular_vertex_connection_direction
 struct molecular_mpo_graph_vids
 {
 	int*  identity[2];     //!< identity chains
-	int** a_dag[2];        //!< a^{\dagger}_i
-	int** a_ann[2];        //!< a_i
-	int** a_dag_a_dag[2];  //!< a^{\dagger}_i a^{\dagger}_j
-	int** a_ann_a_ann[2];  //!< a_i a_j
-	int** a_dag_a_ann[2];  //!< a^{\dagger}_i a_j
+	int** a_dag[2];        //!< \f$a^{\dagger}_i\f$
+	int** a_ann[2];        //!< \f$a_i\f$
+	int** a_dag_a_dag[2];  //!< \f$a^{\dagger}_i a^{\dagger}_j\f$
+	int** a_ann_a_ann[2];  //!< \f$a_i a_j\f$
+	int** a_dag_a_ann[2];  //!< \f$a^{\dagger}_i a_j\f$
 	int   nsites;          //!< number of sites (orbitals)
 };
 
@@ -1557,7 +1557,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 			assembly->graph.num_edges[i] = edges[i].size;
 			assembly->graph.edges[i] = ct_malloc(edges[i].size * sizeof(struct mpo_graph_edge));
 			struct linked_list_node* edge_ref = edges[i].head;
-			long eid = 0;
+			int eid = 0;
 			while (edge_ref != NULL)
 			{
 				const struct mpo_graph_edge* edge = edge_ref->data;
@@ -1595,28 +1595,28 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 enum spin_molecular_oid
 {
 	SPIN_MOLECULAR_OID_Id  =  0,  //!< identity
-	SPIN_MOLECULAR_OID_IC  =  1,  //!< a^{\dagger}_{\down}
-	SPIN_MOLECULAR_OID_IA  =  2,  //!< a_{\down}
-	SPIN_MOLECULAR_OID_IN  =  3,  //!< n_{\down}
-	SPIN_MOLECULAR_OID_CI  =  4,  //!< a^{\dagger}_{\up}
-	SPIN_MOLECULAR_OID_CC  =  5,  //!< a^{\dagger}_{\up} a^{\dagger}_{\down}
-	SPIN_MOLECULAR_OID_CA  =  6,  //!< a^{\dagger}_{\up} a_{\down}
-	SPIN_MOLECULAR_OID_CN  =  7,  //!< a^{\dagger}_{\up} n_{\down}
-	SPIN_MOLECULAR_OID_CZ  =  8,  //!< a^{\dagger}_{\up} Z_{\down}
-	SPIN_MOLECULAR_OID_AI  =  9,  //!< a_{\up}
-	SPIN_MOLECULAR_OID_AC  = 10,  //!< a_{\up} a^{\dagger}_{\down}
-	SPIN_MOLECULAR_OID_AA  = 11,  //!< a_{\up} a_{\down}
-	SPIN_MOLECULAR_OID_AN  = 12,  //!< a_{\up} n_{\down}
-	SPIN_MOLECULAR_OID_AZ  = 13,  //!< a_{\up} Z_{\down}
-	SPIN_MOLECULAR_OID_NI  = 14,  //!< n_{\up}
-	SPIN_MOLECULAR_OID_NC  = 15,  //!< n_{\up} a^{\dagger}_{\down}
-	SPIN_MOLECULAR_OID_NA  = 16,  //!< n_{\up} a_{\down}
-	SPIN_MOLECULAR_OID_NN  = 17,  //!< n_{\up} n_{\down}
-	SPIN_MOLECULAR_OID_NZ  = 18,  //!< n_{\up} Z_{\down}
-	SPIN_MOLECULAR_OID_ZC  = 19,  //!< Z_{\up} a^{\dagger}_{\down}
-	SPIN_MOLECULAR_OID_ZA  = 20,  //!< Z_{\up} a_{\down}
-	SPIN_MOLECULAR_OID_ZN  = 21,  //!< Z_{\up} n_{\down}
-	SPIN_MOLECULAR_OID_ZZ  = 22,  //!< Z_{\up} Z_{\down}
+	SPIN_MOLECULAR_OID_IC  =  1,  //!< \f$a^{\dagger}_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_IA  =  2,  //!< \f$a_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_IN  =  3,  //!< \f$n_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_CI  =  4,  //!< \f$a^{\dagger}_{\uparrow}\f$
+	SPIN_MOLECULAR_OID_CC  =  5,  //!< \f$a^{\dagger}_{\uparrow} a^{\dagger}_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_CA  =  6,  //!< \f$a^{\dagger}_{\uparrow} a_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_CN  =  7,  //!< \f$a^{\dagger}_{\uparrow} n_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_CZ  =  8,  //!< \f$a^{\dagger}_{\uparrow} Z_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_AI  =  9,  //!< \f$a_{\uparrow}\f$
+	SPIN_MOLECULAR_OID_AC  = 10,  //!< \f$a_{\uparrow} a^{\dagger}_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_AA  = 11,  //!< \f$a_{\uparrow} a_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_AN  = 12,  //!< \f$a_{\uparrow} n_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_AZ  = 13,  //!< \f$a_{\uparrow} Z_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_NI  = 14,  //!< \f$n_{\uparrow}\f$
+	SPIN_MOLECULAR_OID_NC  = 15,  //!< \f$n_{\uparrow} a^{\dagger}_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_NA  = 16,  //!< \f$n_{\uparrow} a_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_NN  = 17,  //!< \f$n_{\uparrow} n_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_NZ  = 18,  //!< \f$n_{\uparrow} Z_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_ZC  = 19,  //!< \f$Z_{\uparrow} a^{\dagger}_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_ZA  = 20,  //!< \f$Z_{\uparrow} a_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_ZN  = 21,  //!< \f$Z_{\uparrow} n_{\downarrow}\f$
+	SPIN_MOLECULAR_OID_ZZ  = 22,  //!< \f$Z_{\uparrow} Z_{\downarrow}\f$
 	NUM_SPIN_MOLECULAR_OID = 23,  //!< number of local operators
 };
 
@@ -1708,11 +1708,11 @@ static inline void symmetrize_spin_molecular_interaction_coefficients(const stru
 struct spin_molecular_mpo_graph_vids
 {
 	int*  identity[2];     //!< identity chains
-	int** a_dag[2];        //!< a^{\dagger}_{i,\sigma}
-	int** a_ann[2];        //!< a_{i,\sigma}
-	int** a_dag_a_dag[2];  //!< a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau}
-	int** a_ann_a_ann[2];  //!< a_{i,\sigma} a_{j,\tau}
-	int** a_dag_a_ann[2];  //!< a^{\dagger}_{i,\sigma} a_{j,\tau}
+	int** a_dag[2];        //!< \f$a^{\dagger}_{i,\sigma}\f$
+	int** a_ann[2];        //!< \f$a_{i,\sigma}\f$
+	int** a_dag_a_dag[2];  //!< \f$a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau}\f$
+	int** a_ann_a_ann[2];  //!< \f$a_{i,\sigma} a_{j,\tau}\f$
+	int** a_dag_a_ann[2];  //!< \f$a^{\dagger}_{i,\sigma} a_{j,\tau}\f$
 	int   nsites;          //!< number of sites (spatial orbitals)
 };
 
@@ -2693,7 +2693,7 @@ static void spin_molecular_mpo_graph_add_term(const struct spin_molecular_mpo_gr
 /// \brief Construct a molecular Hamiltonian as MPO assembly, assuming a spin orbital basis and
 /// using physicists' convention for the interaction term (note ordering of k and l):
 /// \f[
-/// H = \sum_{i,j,\sigma} t_{i,j} a^{\dagger}_{i,\sigma} a_{j,\sigma} + \frac{1}{2} \sum_{i,j,k,\ell,\sigma,\tau} v_{i,j,k,\ell} a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau} a_{\ell,\tau} a_{k,\sigma}
+/// H = \sum_{i,j} \sum_{\sigma \in \{\uparrow, \downarrow\}} t_{i,j} a^{\dagger}_{i,\sigma} a_{j,\sigma} + \frac{1}{2} \sum_{i,j,k,\ell} \sum_{\sigma, \tau \in \{\uparrow, \downarrow\}} v_{i,j,k,\ell} a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau} a_{\ell,\tau} a_{k,\sigma}
 /// \f]
 ///
 /// If 'optimize == true', optimize the virtual bond dimensions via the automatic construction starting from operator chains.
@@ -2883,7 +2883,7 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 			assembly->graph.num_edges[i] = edges[i].size;
 			assembly->graph.edges[i] = ct_malloc(edges[i].size * sizeof(struct mpo_graph_edge));
 			struct linked_list_node* edge_ref = edges[i].head;
-			long eid = 0;
+			int eid = 0;
 			while (edge_ref != NULL)
 			{
 				const struct mpo_graph_edge* edge = edge_ref->data;
@@ -2913,4 +2913,387 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 	ct_free(tkin_cids);
 	delete_dense_tensor(&gint1);
 	delete_dense_tensor(&gint0);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Represent a product of sums of fermionic creation and annihilation operators of the following form as MPO:
+/// \f[
+/// H = \left(\sum_{i=1}^L \mathrm{coeffc}_i a^{\dagger}_i\right) \left(\sum_{j=1}^L \mathrm{coeffa}_j a_j\right)
+/// \f]
+///
+void construct_quadratic_fermionic_mpo_assembly(const int nsites, const double* coeffc, const double* coeffa, struct mpo_assembly* assembly)
+{
+	assert(nsites >= 1);
+
+	// physical quantum numbers (particle number)
+	assembly->d = 2;
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
+	assembly->qsite[0] = 0;
+	assembly->qsite[1] = 1;
+
+	assembly->dtype = CT_DOUBLE_REAL;
+
+	// operator map
+	assembly->num_local_ops = NUM_MOLECULAR_OID;
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
+	create_molecular_hamiltonian_operator_map(assembly->opmap);
+
+	// coefficient map
+	assembly->num_coeffs = 2 + 3 * nsites;
+	double* coeffmap = ct_malloc(assembly->num_coeffs * sizeof(double));
+	// first two entries must always be 0 and 1
+	coeffmap[0] = 0.;
+	coeffmap[1] = 1.;
+	int* coeffc_cids = ct_malloc(nsites * sizeof(int));
+	int* coeffa_cids = ct_malloc(nsites * sizeof(int));
+	int* coeffn_cids = ct_malloc(nsites * sizeof(int));
+	int c = 2;
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffc[i];
+		coeffc_cids[i] = c;
+		c++;
+	}
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffa[i];
+		coeffa_cids[i] = c;
+		c++;
+	}
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffc[i] * coeffa[i];
+		coeffn_cids[i] = c;
+		c++;
+	}
+	assert(c == 2 + 3 * nsites);
+	assembly->coeffmap = coeffmap;
+
+	// construct operator graph
+
+	assembly->graph.nsites = nsites;
+
+	// vertices
+
+	assembly->graph.verts     = ct_calloc(nsites + 1, sizeof(struct mpo_graph_vertex*));
+	assembly->graph.num_verts = ct_calloc(nsites + 1, sizeof(int));
+
+	// identity chains from the left and right
+	int* vids_identity_l = allocate_vertex_ids(nsites);
+	int* vids_identity_r = allocate_vertex_ids(nsites);
+	for (int i = 0; i < nsites; i++) {
+		vids_identity_l[i] = assembly->graph.num_verts[i]++;
+	}
+	for (int i = 1; i < nsites + 1; i++) {
+		vids_identity_r[i] = assembly->graph.num_verts[i]++;
+	}
+	// vertices connecting creation and annihilation operators
+	int* vids_ca = allocate_vertex_ids(nsites);
+	int* vids_ac = allocate_vertex_ids(nsites);
+	for (int i = 1; i < nsites; i++)
+	{
+		vids_ca[i] = assembly->graph.num_verts[i]++;
+		vids_ac[i] = assembly->graph.num_verts[i]++;
+	}
+
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		assembly->graph.verts[i] = ct_calloc(assembly->graph.num_verts[i], sizeof(struct mpo_graph_vertex));
+	}
+
+	// identity chains from the left and right: using default initialization with zeros
+	// vertices connecting creation and annihilation operators
+	for (int i = 1; i < nsites; i++)
+	{
+		assembly->graph.verts[i][vids_ca[i]].qnum =  1;  // connect creation with annihilation operator
+		assembly->graph.verts[i][vids_ac[i]].qnum = -1;  // connect annihilation with creation operator
+	}
+
+	// edges
+
+	// temporarily store edges in linked lists
+	struct linked_list* edges = ct_calloc(nsites, sizeof(struct linked_list));
+
+	// identities
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_identity_l[i + 1], MOLECULAR_OID_I, CID_ONE));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_r[i], vids_identity_r[i + 1], MOLECULAR_OID_I, CID_ONE));
+	}
+	// Z strings
+	for (int i = 1; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ca[i], vids_ca[i + 1], MOLECULAR_OID_Z, CID_ONE));
+	}
+	for (int i = 1; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ac[i], vids_ac[i + 1], MOLECULAR_OID_Z, CID_ONE));
+	}
+	// number operators
+	for (int i = 0; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_identity_r[i + 1], MOLECULAR_OID_N, coeffn_cids[i]));
+	}
+	// creation and annihilation operators
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_ca[i + 1], MOLECULAR_OID_C, coeffc_cids[i]));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ca[i], vids_identity_r[i + 1], MOLECULAR_OID_A, coeffa_cids[i]));
+	}
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_ac[i + 1], MOLECULAR_OID_A, coeffa_cids[i]));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ac[i], vids_identity_r[i + 1], MOLECULAR_OID_C, coeffc_cids[i]));
+	}
+
+	ct_free(vids_ac);
+	ct_free(vids_ca);
+	ct_free(vids_identity_r);
+	ct_free(vids_identity_l);
+
+	ct_free(coeffn_cids);
+	ct_free(coeffa_cids);
+	ct_free(coeffc_cids);
+
+	// transfer edges into mpo_graph structure and connect vertices
+	assembly->graph.edges     = ct_calloc(nsites, sizeof(struct mpo_graph_edge*));
+	assembly->graph.num_edges = ct_calloc(nsites, sizeof(int));
+	for (int i = 0; i < nsites; i++)
+	{
+		assembly->graph.num_edges[i] = edges[i].size;
+		assembly->graph.edges[i] = ct_malloc(edges[i].size * sizeof(struct mpo_graph_edge));
+		struct linked_list_node* edge_ref = edges[i].head;
+		int eid = 0;
+		while (edge_ref != NULL)
+		{
+			const struct mpo_graph_edge* edge = edge_ref->data;
+			memcpy(&assembly->graph.edges[i][eid], edge, sizeof(struct mpo_graph_edge));
+
+			// create references from graph vertices to edge
+			assert(0 <= edge->vids[0] && edge->vids[0] < assembly->graph.num_verts[i]);
+			assert(0 <= edge->vids[1] && edge->vids[1] < assembly->graph.num_verts[i + 1]);
+			mpo_graph_vertex_add_edge(1, eid, &assembly->graph.verts[i    ][edge->vids[0]]);
+			mpo_graph_vertex_add_edge(0, eid, &assembly->graph.verts[i + 1][edge->vids[1]]);
+
+			edge_ref = edge_ref->next;
+			eid++;
+		}
+		// note: opics pointers of edges have been retained in transfer
+		delete_linked_list(&edges[i], ct_free);
+	}
+
+	ct_free(edges);
+
+	assert(mpo_graph_is_consistent(&assembly->graph));
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct an MPO assembly representation of a product of sums of fermionic creation and annihilation operators,
+/// where sigma = 0 indicates spin-up and sigma = 1 indicates spin-down:
+/// \f[
+/// H = \left(\sum_{i=1}^L \mathrm{coeffc}_i a^{\dagger}_{i,\sigma}\right) \left(\sum_{j=1}^L \mathrm{coeffa}_j a_{j,\sigma}\right)
+/// \f]
+///
+void construct_quadratic_spin_fermionic_mpo_assembly(const int nsites, const double* coeffc, const double* coeffa, const int sigma, struct mpo_assembly* assembly)
+{
+	assert(nsites >= 1);
+	assert(sigma == 0 || sigma == 1);
+
+	// physical particle number and spin quantum numbers (encoded as single integer)
+	const qnumber qn[4] = { 0,  1,  1,  2 };
+	const qnumber qs[4] = { 0, -1,  1,  0 };
+	assembly->d = 4;
+	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
+	for (long i = 0; i < assembly->d; i++) {
+		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
+	}
+
+	assembly->dtype = CT_DOUBLE_REAL;
+
+	// operator map
+	const int OID_Id  =  0;  // identity
+	const int OID_IC  =  1;  // a^{\dagger}_{\downarrow}
+	const int OID_IA  =  2;  // a_{\downarrow}
+	const int OID_IN  =  3;  // n_{\downarrow}
+	const int OID_ZC  =  4;  // Z_{\uparrow} a^{\dagger}_{\downarrow}
+	const int OID_ZA  =  5;  // Z_{\uparrow} a_{\downarrow}
+	const int OID_CI  =  6;  // a^{\dagger}_{\uparrow}
+	const int OID_AI  =  7;  // a_{\uparrow}
+	const int OID_NI  =  8;  // n_{\uparrow}
+	const int OID_CZ  =  9;  // a^{\dagger}_{\uparrow} Z_{\downarrow}
+	const int OID_AZ  = 10;  // a_{\uparrow} Z_{\downarrow}
+	const int OID_ZZ  = 11;  // Z_{\uparrow} Z_{\downarrow}
+	assembly->num_local_ops = 12;
+	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
+	struct dense_tensor opmap_single[NUM_MOLECULAR_OID];
+	create_molecular_hamiltonian_operator_map(opmap_single);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_I], &assembly->opmap[OID_Id]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_C], &assembly->opmap[OID_IC]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_A], &assembly->opmap[OID_IA]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_N], &assembly->opmap[OID_IN]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_Z], &opmap_single[MOLECULAR_OID_C], &assembly->opmap[OID_ZC]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_Z], &opmap_single[MOLECULAR_OID_A], &assembly->opmap[OID_ZA]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_C], &opmap_single[MOLECULAR_OID_I], &assembly->opmap[OID_CI]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_A], &opmap_single[MOLECULAR_OID_I], &assembly->opmap[OID_AI]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_N], &opmap_single[MOLECULAR_OID_I], &assembly->opmap[OID_NI]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_C], &opmap_single[MOLECULAR_OID_Z], &assembly->opmap[OID_CZ]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_A], &opmap_single[MOLECULAR_OID_Z], &assembly->opmap[OID_AZ]);
+	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_Z], &opmap_single[MOLECULAR_OID_Z], &assembly->opmap[OID_ZZ]);
+	for (int i = 0; i < NUM_MOLECULAR_OID; i++) {
+		delete_dense_tensor(&opmap_single[i]);
+	}
+
+	// coefficient map
+	assembly->num_coeffs = 2 + 3 * nsites;
+	double* coeffmap = ct_malloc(assembly->num_coeffs * sizeof(double));
+	// first two entries must always be 0 and 1
+	coeffmap[0] = 0.;
+	coeffmap[1] = 1.;
+	int* coeffc_cids = ct_malloc(nsites * sizeof(int));
+	int* coeffa_cids = ct_malloc(nsites * sizeof(int));
+	int* coeffn_cids = ct_malloc(nsites * sizeof(int));
+	int c = 2;
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffc[i];
+		coeffc_cids[i] = c;
+		c++;
+	}
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffa[i];
+		coeffa_cids[i] = c;
+		c++;
+	}
+	for (int i = 0; i < nsites; i++)
+	{
+		coeffmap[c] = coeffc[i] * coeffa[i];
+		coeffn_cids[i] = c;
+		c++;
+	}
+	assert(c == 2 + 3 * nsites);
+	assembly->coeffmap = coeffmap;
+
+	// construct operator graph
+
+	assembly->graph.nsites = nsites;
+
+	// vertices
+
+	assembly->graph.verts     = ct_calloc(nsites + 1, sizeof(struct mpo_graph_vertex*));
+	assembly->graph.num_verts = ct_calloc(nsites + 1, sizeof(int));
+
+	const qnumber qnum_spin[2] = { 1, -1 };
+
+	// identity chains from the left and right
+	int* vids_identity_l = allocate_vertex_ids(nsites);
+	int* vids_identity_r = allocate_vertex_ids(nsites);
+	for (int i = 0; i < nsites; i++) {
+		vids_identity_l[i] = assembly->graph.num_verts[i]++;
+	}
+	for (int i = 1; i < nsites + 1; i++) {
+		vids_identity_r[i] = assembly->graph.num_verts[i]++;
+	}
+	// vertices connecting creation and annihilation operators
+	int* vids_ca = allocate_vertex_ids(nsites);
+	int* vids_ac = allocate_vertex_ids(nsites);
+	for (int i = 1; i < nsites; i++)
+	{
+		vids_ca[i] = assembly->graph.num_verts[i]++;
+		vids_ac[i] = assembly->graph.num_verts[i]++;
+	}
+
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		assembly->graph.verts[i] = ct_calloc(assembly->graph.num_verts[i], sizeof(struct mpo_graph_vertex));
+	}
+
+	// identity chains from the left and right: using default initialization with zeros
+	// vertices connecting creation and annihilation operators
+	for (int i = 1; i < nsites; i++)
+	{
+		assembly->graph.verts[i][vids_ca[i]].qnum = encode_quantum_number_pair( 1, qnum_spin[sigma    ]);  // connect creation with annihilation operator
+		assembly->graph.verts[i][vids_ac[i]].qnum = encode_quantum_number_pair(-1, qnum_spin[1 - sigma]);  // connect annihilation with creation operator
+	}
+
+	// edges
+
+	// temporarily store edges in linked lists
+	struct linked_list* edges = ct_calloc(nsites, sizeof(struct linked_list));
+
+	// identities
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_identity_l[i + 1], OID_Id, CID_ONE));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_r[i], vids_identity_r[i + 1], OID_Id, CID_ONE));
+	}
+	// Z strings
+	for (int i = 1; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ca[i], vids_ca[i + 1], OID_ZZ, CID_ONE));
+	}
+	for (int i = 1; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ac[i], vids_ac[i + 1], OID_ZZ, CID_ONE));
+	}
+	// number operators
+	for (int i = 0; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_identity_r[i + 1], sigma == 0 ? OID_NI : OID_IN, coeffn_cids[i]));
+	}
+	// creation and annihilation operators
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_ca[i + 1], sigma == 0 ? OID_CZ : OID_IC, coeffc_cids[i]));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ca[i], vids_identity_r[i + 1], sigma == 0 ? OID_AI : OID_ZA, coeffa_cids[i]));
+	}
+	for (int i = 0; i < nsites - 1; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_identity_l[i], vids_ac[i + 1], sigma == 0 ? OID_AZ : OID_IA, coeffa_cids[i]));
+	}
+	for (int i = 1; i < nsites; i++) {
+		linked_list_append(&edges[i], construct_mpo_graph_edge(vids_ac[i], vids_identity_r[i + 1], sigma == 0 ? OID_CI : OID_ZC, coeffc_cids[i]));
+	}
+
+	ct_free(vids_ac);
+	ct_free(vids_ca);
+	ct_free(vids_identity_r);
+	ct_free(vids_identity_l);
+
+	ct_free(coeffn_cids);
+	ct_free(coeffa_cids);
+	ct_free(coeffc_cids);
+
+	// transfer edges into mpo_graph structure and connect vertices
+	assembly->graph.edges     = ct_calloc(nsites, sizeof(struct mpo_graph_edge*));
+	assembly->graph.num_edges = ct_calloc(nsites, sizeof(int));
+	for (int i = 0; i < nsites; i++)
+	{
+		assembly->graph.num_edges[i] = edges[i].size;
+		assembly->graph.edges[i] = ct_malloc(edges[i].size * sizeof(struct mpo_graph_edge));
+		struct linked_list_node* edge_ref = edges[i].head;
+		int eid = 0;
+		while (edge_ref != NULL)
+		{
+			const struct mpo_graph_edge* edge = edge_ref->data;
+			memcpy(&assembly->graph.edges[i][eid], edge, sizeof(struct mpo_graph_edge));
+
+			// create references from graph vertices to edge
+			assert(0 <= edge->vids[0] && edge->vids[0] < assembly->graph.num_verts[i]);
+			assert(0 <= edge->vids[1] && edge->vids[1] < assembly->graph.num_verts[i + 1]);
+			mpo_graph_vertex_add_edge(1, eid, &assembly->graph.verts[i    ][edge->vids[0]]);
+			mpo_graph_vertex_add_edge(0, eid, &assembly->graph.verts[i + 1][edge->vids[1]]);
+
+			edge_ref = edge_ref->next;
+			eid++;
+		}
+		// note: opics pointers of edges have been retained in transfer
+		delete_linked_list(&edges[i], ct_free);
+	}
+
+	ct_free(edges);
+
+	assert(mpo_graph_is_consistent(&assembly->graph));
 }

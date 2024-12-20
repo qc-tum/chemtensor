@@ -78,12 +78,12 @@ def molecular_hamiltonian_mpo_data():
 
     rng = np.random.default_rng(532)
 
-    # number of fermionic modes
-    nmodes = 7
+    # number of lattice sites
+    nsites = 7
 
     # Hamiltonian coefficients
-    tkin = rng.standard_normal(2 * (nmodes,))
-    vint = rng.standard_normal(4 * (nmodes,))
+    tkin = rng.standard_normal(2 * (nsites,))
+    vint = rng.standard_normal(4 * (nsites,))
 
     # reference Hamiltonian
     molecular_hamiltonian_mat = construct_molecular_hamiltonian(tkin, vint).todense()
@@ -111,6 +111,53 @@ def spin_molecular_hamiltonian_mpo_data():
         file["tkin"] = tkin
         file["vint"] = vint
         file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
+
+
+def quadratic_fermionic_mpo_data():
+
+    rng = np.random.default_rng(932)
+
+    # number of lattice sites
+    nsites = 7
+
+    # coefficients
+    coeffc = rng.standard_normal(nsites)
+    coeffa = rng.standard_normal(nsites)
+
+    # reference operator
+    clist, alist, _ = construct_fermi_operators(nsites)
+    quadratic_fermionic_mat = (
+          sum(coeffc[i] * clist[i] for i in range(nsites))
+        @ sum(coeffa[i] * alist[i] for i in range(nsites)))
+
+    with h5py.File("data/test_quadratic_fermionic_mpo.hdf5", "w") as file:
+        file["coeffc"] = coeffc
+        file["coeffa"] = coeffa
+        file["quadratic_fermionic_mat"] = quadratic_fermionic_mat.todense()
+
+
+def quadratic_spin_fermionic_mpo_data():
+
+    rng = np.random.default_rng(273)
+
+    # number of spin-endowed lattice sites
+    nsites = 3
+
+    # coefficients
+    coeffc = rng.standard_normal(nsites)
+    coeffa = rng.standard_normal(nsites)
+
+    # reference operator
+    clist, alist, _ = construct_fermi_operators(2 * nsites)
+    quadratic_spin_fermionic_mat = [
+          sum(coeffc[i] * clist[2*i + sigma] for i in range(nsites))
+        @ sum(coeffa[i] * alist[2*i + sigma] for i in range(nsites)) for sigma in (0, 1)]
+
+    with h5py.File("data/test_quadratic_spin_fermionic_mpo.hdf5", "w") as file:
+        file["coeffc"] = coeffc
+        file["coeffa"] = coeffa
+        for sigma in (0, 1):
+            file[f"quadratic_spin_fermionic_mat_{sigma}"] = quadratic_spin_fermionic_mat[sigma].todense()
 
 
 def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
@@ -298,6 +345,8 @@ def main():
     fermi_hubbard_1d_mpo_data()
     molecular_hamiltonian_mpo_data()
     spin_molecular_hamiltonian_mpo_data()
+    quadratic_fermionic_mpo_data()
+    quadratic_spin_fermionic_mpo_data()
 
 
 if __name__ == "__main__":
