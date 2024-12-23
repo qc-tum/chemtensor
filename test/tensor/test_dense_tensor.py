@@ -284,6 +284,32 @@ def dense_tensor_rq_data():
                 file[f"a_s{i}_t{j}"] = a if j < 2 else interleave_complex(a)
 
 
+def dense_tensor_eigh_data():
+
+    # random number generator
+    rng = np.random.default_rng(342)
+
+    n = 7
+
+    with h5py.File("data/test_dense_tensor_eigh.hdf5", "w") as file:
+        for j in range(4):
+            if j == 0:
+                # single precision real
+                a = rng.standard_normal((n, n)).astype(np.float32)
+            elif j == 1:
+                # double precision real
+                a = rng.standard_normal((n, n))
+            elif j == 2:
+                # single precision complex
+                a = 0.5 * crandn((n, n), rng).astype(np.complex64)
+            else:
+                # double precision complex
+                a = 0.5 * crandn((n, n), rng)
+            # symmetrize
+            a = 0.5 * (a + a.conj().T)
+            file[f"a_t{j}"] = a if j < 2 else interleave_complex(a)
+
+
 def dense_tensor_svd_data():
 
     # random number generator
@@ -343,6 +369,7 @@ def main():
     dense_tensor_block_diag_data()
     dense_tensor_qr_data()
     dense_tensor_rq_data()
+    dense_tensor_eigh_data()
     dense_tensor_svd_data()
     dense_tensor_block_data()
 

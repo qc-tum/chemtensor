@@ -25,6 +25,7 @@ char* test_dense_tensor_concatenate();
 char* test_dense_tensor_block_diag();
 char* test_dense_tensor_qr();
 char* test_dense_tensor_rq();
+char* test_dense_tensor_eigh();
 char* test_dense_tensor_svd();
 char* test_dense_tensor_block();
 char* test_block_sparse_tensor_copy();
@@ -115,6 +116,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_block_diag),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_rq),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_eigh),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_block),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_copy),

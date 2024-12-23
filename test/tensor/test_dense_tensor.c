@@ -912,6 +912,69 @@ char* test_dense_tensor_rq()
 }
 
 
+char* test_dense_tensor_eigh()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_eigh.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_dense_tensor_eigh failed";
+	}
+
+	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
+
+	// data types
+	for (int j = 0; j < 4; j++)
+	{
+		const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
+
+		// matrix 'a'
+		struct dense_tensor a;
+		const long dim[2] = { 7, 7 };
+		allocate_dense_tensor(dtypes[j], 2, dim, &a);
+		// read values from disk
+		char varname[1024];
+		sprintf(varname, "a_t%i", j);
+		if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+			return "reading tensor entries from disk failed";
+		}
+		if (!dense_tensor_is_self_adjoint(&a, tol)) {
+			return "expecting a self-adjoint matrix";
+		}
+
+		// compute spectral decomposition
+		struct dense_tensor u, lambda;
+		dense_tensor_eigh(&a, &u, &lambda);
+
+		// matrix product 'u lambda u^H' must be equal to 'a'
+		struct dense_tensor u_lambda;
+		dense_tensor_multiply_pointwise(&u, &lambda, TENSOR_AXIS_RANGE_TRAILING, &u_lambda);
+		const int perm[2] = { 1, 0 };
+		struct dense_tensor uh;
+		conjugate_transpose_dense_tensor(perm, &u, &uh);
+		struct dense_tensor u_lambda_uh;
+		dense_tensor_dot(&u_lambda, TENSOR_AXIS_RANGE_TRAILING, &uh, TENSOR_AXIS_RANGE_LEADING, 1, &u_lambda_uh);
+		delete_dense_tensor(&uh);
+		delete_dense_tensor(&u_lambda);
+		if (!dense_tensor_allclose(&u_lambda_uh, &a, tol)) {
+			return "matrix product U diag(lambda) U^dag is not equal to original A matrix";
+		}
+		delete_dense_tensor(&u_lambda_uh);
+
+		// 'u' must be an isometry
+		if (!dense_tensor_is_isometry(&u, tol, false)) {
+			return "U matrix is not an isometry";
+		}
+
+		delete_dense_tensor(&lambda);
+		delete_dense_tensor(&u);
+		delete_dense_tensor(&a);
+	}
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_dense_tensor_svd()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_svd.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

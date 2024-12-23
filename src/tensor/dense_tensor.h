@@ -209,6 +209,16 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 //________________________________________________________________________________________________________________________
 //
 
+// spectral decomposition
+
+int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda);
+
+int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // singular value decomposition
 
 int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh);
@@ -234,5 +244,7 @@ bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct d
 bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol);
 
 bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol);
+
+bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol);
 
 bool dense_tensor_is_isometry(const struct dense_tensor* t, const double tol, const bool transpose);

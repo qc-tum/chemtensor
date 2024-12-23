@@ -2633,6 +2633,115 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a', and store the result in 'u' and 'lambda' (will be allocated).
+/// The eigenvalues are real and returned as a vector.
+///
+int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda)
+{
+	// require a square matrix
+	assert(a->ndim == 2);
+	assert(a->dim[0] == a->dim[1]);
+
+	const long dim_lambda[1]  = { a->dim[0] };
+	allocate_dense_tensor(a->dtype, a->ndim, a->dim, u);
+	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_lambda, lambda);
+
+	return dense_tensor_eigh_fill(a, u, lambda);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a', and store the result in 'u' and 'lambda',
+/// which must have been allocated beforehand. The eigenvalues are real and returned as a vector.
+///
+int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda)
+{
+	assert(u->dtype == a->dtype);
+	assert(lambda->dtype == numeric_real_type(a->dtype));
+
+	assert(a->ndim == 2);
+	assert(u->ndim == 2);
+	assert(lambda->ndim == 1);
+
+	assert(a->dim[0] == a->dim[1]);
+	const long n = a->dim[0];
+
+	assert(u->dim[0] == n);
+	assert(u->dim[1] == n);
+	assert(lambda->dim[0] == n);
+
+	switch (a->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			// copy 'a' into 'u'
+			memcpy(u->data, a->data, n*n * sizeof(float));
+
+			// data entries of 'u' are overwritten with result
+			int info = LAPACKE_ssyevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'ssyevd()' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			// copy 'a' into 'u'
+			memcpy(u->data, a->data, n*n * sizeof(double));
+
+			// data entries of 'u' are overwritten with result
+			int info = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dsyevd()' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			// copy 'a' into 'u'
+			memcpy(u->data, a->data, n*n * sizeof(scomplex));
+
+			// data entries of 'u' are overwritten with result
+			int info = LAPACKE_cheevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cheevd()' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			// copy 'a' into 'u'
+			memcpy(u->data, a->data, n*n * sizeof(dcomplex));
+
+			// data entries of 'u' are overwritten with result
+			int info = LAPACKE_zheevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zheevd()' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the "economical" SVD decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh' (will be allocated).
 /// The singular values 's' are returned as vector.
 ///
@@ -3092,6 +3201,85 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 				const dcomplex ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
 				if (cabs(data[i] - ref) > tol) {
 					return false;
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether a dense tensors is self-adjoint (a real symmetric or complex Hermitian matrix) within tolerance 'tol'.
+///
+bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol)
+{
+	// must be a matrix
+	if (t->ndim != 2) {
+		return false;
+	}
+
+	// must be a square matrix
+	if (t->dim[0] != t->dim[1]) {
+		return false;
+	}
+
+	// entries
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* data = t->data;
+			for (long i = 0; i < t->dim[0]; i++) {
+				for (long j = i + 1; j < t->dim[1]; j++) {
+					if (fabsf(data[i*t->dim[1] + j] - data[j*t->dim[1] + i]) > tol) {
+						return false;
+					}
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* data = t->data;
+			for (long i = 0; i < t->dim[0]; i++) {
+				for (long j = i + 1; j < t->dim[1]; j++) {
+					if (fabs(data[i*t->dim[1] + j] - data[j*t->dim[1] + i]) > tol) {
+						return false;
+					}
+				}
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* data = t->data;
+			for (long i = 0; i < t->dim[0]; i++) {
+				for (long j = i; j < t->dim[1]; j++) {
+					if (cabsf(data[i*t->dim[1] + j] - conjf(data[j*t->dim[1] + i])) > tol) {
+						return false;
+					}
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* data = t->data;
+			for (long i = 0; i < t->dim[0]; i++) {
+				for (long j = i; j < t->dim[1]; j++) {
+					if (cabs(data[i*t->dim[1] + j] - conj(data[j*t->dim[1] + i])) > tol) {
+						return false;
+					}
 				}
 			}
 			break;
