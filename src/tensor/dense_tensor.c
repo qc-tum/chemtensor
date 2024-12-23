@@ -2633,8 +2633,9 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a', and store the result in 'u' and 'lambda' (will be allocated).
-/// The eigenvalues are real and returned as a vector.
+/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a',
+/// and store the result in 'u' and 'lambda' (will be allocated).
+/// The eigenvalues are real and returned as vector.
 ///
 int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda)
 {
@@ -2652,8 +2653,9 @@ int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a', and store the result in 'u' and 'lambda',
-/// which must have been allocated beforehand. The eigenvalues are real and returned as a vector.
+/// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a',
+/// and store the result in 'u' and 'lambda', which must have been allocated beforehand.
+/// The eigenvalues are real and returned as vector.
 ///
 int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda)
 {

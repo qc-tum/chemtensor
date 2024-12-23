@@ -1417,6 +1417,38 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions, data types and quantum numbers of s and t must agree,
+/// and alpha must be of the same data type as tensor entries.
+///
+void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t)
+{
+	assert(s->dtype == t->dtype);
+	assert(s->ndim  == t->ndim);
+	for (int i = 0; i < t->ndim; i++)
+	{
+		assert(s->dim_logical[i] == t->dim_logical[i]);
+		assert(s->axis_dir[i]    == t->axis_dir[i]);
+		assert(qnumber_all_equal(t->dim_logical[i], s->qnums_logical[i], t->qnums_logical[i]));
+	}
+
+	// for each block with matching quantum numbers...
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	for (long k = 0; k < nblocks; k++)
+	{
+		const struct dense_tensor* bs = s->blocks[k];
+		struct dense_tensor* bt       = t->blocks[k];
+		if (bt == NULL) {
+			continue;
+		}
+		assert(bs != NULL);
+
+		dense_tensor_scalar_multiply_add(alpha, bs, bt);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Pointwise multiply the entries of 's' along its leading or trailing axis with the vector 't'.
 /// The output tensor 'r' has the same data type and dimension as 's'.
 ///
