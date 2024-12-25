@@ -69,7 +69,7 @@ void delete_mps(struct mps* mps)
 ///
 /// \brief Copy a matrix product state and its block sparse tensors.
 ///
-void copy_mps(const struct mps* src, struct mps* dst)
+void copy_mps(const struct mps* restrict src, struct mps* restrict dst)
 {
 	dst->nsites = src->nsites;
 	
@@ -81,6 +81,24 @@ void copy_mps(const struct mps* src, struct mps* dst)
 	for (int i = 0; i < src->nsites; i++) {
 		copy_block_sparse_tensor(&src->a[i], &dst->a[i]);
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Move MPS data (without allocating new memory).
+///
+void move_mps_data(struct mps* restrict src, struct mps* restrict dst)
+{
+	dst->nsites = src->nsites;
+	dst->d      = src->d;
+	dst->qsite  = src->qsite;
+	dst->a      = src->a;
+
+	src->nsites = 0;
+	src->d      = 0;
+	src->qsite  = NULL;
+	src->a      = NULL;
 }
 
 
@@ -828,11 +846,12 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compress and orthonormalize a MPS by site-local SVDs and singular value truncations.
+/// \brief Compress and orthonormalize an MPS by site-local SVDs and singular value truncations.
 ///
 /// Returns original norm and scaling factor due to compression.
 ///
-int mps_compress(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode, struct mps* mps, double* restrict norm, double* restrict scale, struct trunc_info* info)
+int mps_compress(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+	struct mps* mps, double* restrict norm, double* restrict trunc_scale, struct trunc_info* info)
 {
 	const bool renormalize = false;
 
@@ -883,7 +902,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_SINGLE_REAL), &mps->a[i]);
 				}
-				(*scale) = fabsf(d);
+				(*trunc_scale) = fabsf(d);
 				break;
 			}
 			case CT_DOUBLE_REAL:
@@ -893,7 +912,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_DOUBLE_REAL), &mps->a[i]);
 				}
-				(*scale) = fabs(d);
+				(*trunc_scale) = fabs(d);
 				break;
 			}
 			case CT_SINGLE_COMPLEX:
@@ -905,7 +924,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 					scomplex phase = d / abs_d;
 					scale_block_sparse_tensor(&phase, &mps->a[i]);
 				}
-				(*scale) = abs_d;
+				(*trunc_scale) = abs_d;
 				break;
 			}
 			case CT_DOUBLE_COMPLEX:
@@ -917,7 +936,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 					dcomplex phase = d / abs_d;
 					scale_block_sparse_tensor(&phase, &mps->a[i]);
 				}
-				(*scale) = abs_d;
+				(*trunc_scale) = abs_d;
 				break;
 			}
 			default:
@@ -977,7 +996,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_SINGLE_REAL), &mps->a[0]);
 				}
-				(*scale) = fabsf(d);
+				(*trunc_scale) = fabsf(d);
 				break;
 			}
 			case CT_DOUBLE_REAL:
@@ -987,7 +1006,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_DOUBLE_REAL), &mps->a[0]);
 				}
-				(*scale) = fabs(d);
+				(*trunc_scale) = fabs(d);
 				break;
 			}
 			case CT_SINGLE_COMPLEX:
@@ -999,7 +1018,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 					scomplex phase = d / abs_d;
 					scale_block_sparse_tensor(&phase, &mps->a[0]);
 				}
-				(*scale) = abs_d;
+				(*trunc_scale) = abs_d;
 				break;
 			}
 			case CT_DOUBLE_COMPLEX:
@@ -1011,7 +1030,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 					dcomplex phase = d / abs_d;
 					scale_block_sparse_tensor(&phase, &mps->a[0]);
 				}
-				(*scale) = abs_d;
+				(*trunc_scale) = abs_d;
 				break;
 			}
 			default:
@@ -1022,6 +1041,55 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 		}
 
 		delete_block_sparse_tensor(&a_head);
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compress an MPS and rescale it by its original norm.
+///
+/// The rescaling is applied to the first tensor for right orthonormalization and to the last tensor for left orthonormalization.
+///
+int mps_compress_rescale(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+	struct mps* mps, double* trunc_scale, struct trunc_info* info)
+{
+	double norm;
+	int ret = mps_compress(tol, max_vdim, mode, mps, &norm, trunc_scale, info);
+	if (ret < 0) {
+		return ret;
+	}
+
+	// rescale by original normalization factor
+	if (mode == MPS_ORTHONORMAL_LEFT)
+	{
+		const int i = mps->nsites - 1;
+
+		if (numeric_real_type(mps->a[i].dtype) == CT_DOUBLE_REAL)
+		{
+			rscale_block_sparse_tensor(&norm, &mps->a[i]);
+		}
+		else
+		{
+			assert(numeric_real_type(mps->a[i].dtype) == CT_SINGLE_REAL);
+			const float normf = (float)norm;
+			rscale_block_sparse_tensor(&normf, &mps->a[i]);
+		}
+	}
+	else
+	{
+		if (numeric_real_type(mps->a[0].dtype) == CT_DOUBLE_REAL)
+		{
+			rscale_block_sparse_tensor(&norm, &mps->a[0]);
+		}
+		else
+		{
+			assert(numeric_real_type(mps->a[0].dtype) == CT_SINGLE_REAL);
+			const float normf = (float)norm;
+			rscale_block_sparse_tensor(&normf, &mps->a[0]);
+		}
 	}
 
 	return 0;

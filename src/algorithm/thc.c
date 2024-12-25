@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "thc.h"
 #include "hamiltonian.h"
+#include "chain_ops.h"
 #include "aligned_memory.h"
 
 
@@ -117,6 +118,113 @@ void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Apply a molecular Hamiltonian in tensor hypercontraction representation to a state in MPS form.
+///
+int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamiltonian* hamiltonian,
+	const struct mps* restrict psi, const double tol, const long max_vdim, struct mps* restrict h_psi)
+{
+	const int nsites   = (int)hamiltonian->tkin.dim[0];
+	const int thc_rank = (int)hamiltonian->thc_kernel.dim[0];
+	assert(psi->nsites == nsites);
+
+	struct trunc_info* info = ct_malloc(nsites * sizeof(struct trunc_info));
+
+	// kinetic term
+	assert(hamiltonian->en_kin.dtype == CT_DOUBLE_REAL);
+	const double* en_kin_data = hamiltonian->en_kin.data;
+	for (int i = 0; i < nsites; i++)
+	{
+		for (int sigma = 0; sigma < 2; sigma++)
+		{
+			struct mps kin_psi;
+			apply_mpo(&hamiltonian->mpo_kin[2*i + sigma], psi, &kin_psi);
+			double trunc_scale;
+			int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &kin_psi, &trunc_scale, info);
+			if (ret < 0) {
+				return ret;
+			}
+			assert(kin_psi.a[kin_psi.nsites - 1].dtype == CT_DOUBLE_REAL);
+			scale_block_sparse_tensor(&en_kin_data[i], &kin_psi.a[kin_psi.nsites - 1]);
+
+			if (i > 0 || sigma > 0)
+			{
+				// accumulate
+				struct mps tmp;
+				mps_add(h_psi, &kin_psi, &tmp);
+				delete_mps(&kin_psi);
+				delete_mps(h_psi);
+				double trunc_scale;
+				int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &tmp, &trunc_scale, info);
+				if (ret < 0) {
+					return ret;
+				}
+				move_mps_data(&tmp, h_psi);
+			}
+			else
+			{
+				move_mps_data(&kin_psi, h_psi);
+			}
+		}
+	}
+
+	// interaction term
+	assert(hamiltonian->thc_kernel.dtype == CT_DOUBLE_REAL);
+	const double* thc_kernel_data = hamiltonian->thc_kernel.data;
+	for (int nu = 0; nu < thc_rank; nu++)
+	{
+		for (int tau = 0; tau < 2; tau++)
+		{
+			struct mps thc1_psi;
+			apply_mpo(&hamiltonian->mpo_thc[2*nu + tau], psi, &thc1_psi);
+			double trunc_scale;
+			int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &thc1_psi, &trunc_scale, info);
+			if (ret < 0) {
+				return ret;
+			}
+			for (int mu = 0; mu < thc_rank; mu++)
+			{
+				struct mps thc1_k_psi;
+				copy_mps(&thc1_psi, &thc1_k_psi);
+				const double alpha = 0.5 * thc_kernel_data[mu*thc_rank + nu];
+				scale_block_sparse_tensor(&alpha, &thc1_k_psi.a[thc1_k_psi.nsites - 1]);
+
+				for (int sigma = 0; sigma < 2; sigma++)
+				{
+					struct mps thc2_psi;
+					apply_mpo(&hamiltonian->mpo_thc[2*mu + sigma], &thc1_k_psi, &thc2_psi);
+					double trunc_scale;
+					int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &thc2_psi, &trunc_scale, info);
+					if (ret < 0) {
+						return ret;
+					}
+
+					// accumulate
+					struct mps tmp;
+					mps_add(h_psi, &thc2_psi, &tmp);
+					delete_mps(&thc2_psi);
+					delete_mps(h_psi);
+					ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &tmp, &trunc_scale, info);
+					if (ret < 0) {
+						return ret;
+					}
+					move_mps_data(&tmp, h_psi);
+				}
+
+				delete_mps(&thc1_k_psi);
+			}
+
+			delete_mps(&thc1_psi);
+		}
+	}
+
+	ct_free(info);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Generate the matrix representation of the tensor hypercontraction molecular Hamiltonian on the full Hilbert space.
 ///
 int thc_spin_molecular_hamiltonian_to_matrix(const struct thc_spin_molecular_hamiltonian* hamiltonian, struct block_sparse_tensor* mat)
@@ -130,13 +238,15 @@ int thc_spin_molecular_hamiltonian_to_matrix(const struct thc_spin_molecular_ham
 	{
 		for (int sigma = 0; sigma < 2; sigma++)
 		{
-			if (i > 0 || sigma > 0) {
+			if (i > 0 || sigma > 0)
+			{
 				struct block_sparse_tensor mat_loc;
 				mpo_to_matrix(&hamiltonian->mpo_kin[2*i + sigma], &mat_loc);
 				block_sparse_tensor_scalar_multiply_add(&en_kin_data[i], &mat_loc, mat);
 				delete_block_sparse_tensor(&mat_loc);
 			}
-			else {
+			else
+			{
 				// first term
 				assert(i == 0 && sigma == 0);
 				mpo_to_matrix(&hamiltonian->mpo_kin[0], mat);
@@ -171,10 +281,12 @@ int thc_spin_molecular_hamiltonian_to_matrix(const struct thc_spin_molecular_ham
 		{
 			for (int sigma = 0; sigma < 2; sigma++)
 			{
-				if (mu > 0 || sigma > 0) {
+				if (mu > 0 || sigma > 0)
+				{
 					block_sparse_tensor_scalar_multiply_add(&u_kernel_data[mu*thc_rank + nu], &mat_thc[2*mu + sigma], &g);
 				}
-				else {
+				else
+				{
 					// first term
 					assert(mu == 0 && sigma == 0);
 					copy_block_sparse_tensor(&mat_thc[0], &g);

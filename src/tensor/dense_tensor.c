@@ -2793,7 +2793,8 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 	assert(vh->dim[0] == k);
 	assert(vh->dim[1] == n);
 
-	void* superb = ct_malloc((k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)));
+	// 'lmax' to avoid invalid memory allocation of zero bytes
+	void* superb = ct_malloc(lmax((k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)), 1));
 
 	switch (a->dtype)
 	{

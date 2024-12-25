@@ -31,7 +31,9 @@ void allocate_mps(const enum numeric_type dtype, const int nsites, const long d,
 
 void delete_mps(struct mps* mps);
 
-void copy_mps(const struct mps* src, struct mps* dst);
+void copy_mps(const struct mps* restrict src, struct mps* restrict dst);
+
+void move_mps_data(struct mps* restrict src, struct mps* restrict dst);
 
 void construct_random_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct mps* mps);
 
@@ -92,7 +94,10 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 	struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev, struct trunc_info* info);
 
 int mps_compress(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
-	struct mps* mps, double* restrict norm, double* restrict scaling, struct trunc_info* info);
+	struct mps* mps, double* restrict norm, double* restrict trunc_scale, struct trunc_info* info);
+
+int mps_compress_rescale(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+	struct mps* mps, double* trunc_scale, struct trunc_info* info);
 
 
 //________________________________________________________________________________________________________________________

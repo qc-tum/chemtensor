@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "mps.h"
 #include "mpo.h"
 
 
@@ -26,6 +27,13 @@ int construct_thc_spin_molecular_hamiltonian(const struct dense_tensor* restrict
 
 void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian* hamiltonian);
 
+//________________________________________________________________________________________________________________________
+//
+
+// application to a state in MPS form
+
+int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamiltonian* hamiltonian,
+	const struct mps* restrict psi, const double tol, const long max_vdim, struct mps* restrict h_psi);
 
 //________________________________________________________________________________________________________________________
 //
