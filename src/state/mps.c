@@ -250,16 +250,19 @@ bool mps_is_consistent(const struct mps* mps)
 ///
 /// To-be contracted tensor network:
 ///
-///       _____           _______
-///      /     \         /       \
-///   ->-|0 b*2|->-   ->-|1      |
-///      \__1__/         |       |
-///         |            |       |
-///         ^            |   r  2|-<-
-///       __|__          |       |
-///      /  1  \         |       |
-///   -<-|0 a 2|-<-   -<-|0      |
-///      \_____/         \_______/
+///      ╭───────╮         ╭─────────╮
+///      │       │         │         │
+///   ─>─0   b*  2─>─   ─>─1         │
+///      │       │         │         │
+///      ╰───1───╯         │         │
+///          │             │         │
+///          ^             │    r    2─<─
+///          │             │         │
+///      ╭───1───╮         │         │
+///      │       │         │         │
+///   ─<─0   a   2─<─   ─<─0         │
+///      │       │         │         │
+///      ╰───────╯         ╰─────────╯
 ///
 static void mps_contraction_step_right(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict r_next)
