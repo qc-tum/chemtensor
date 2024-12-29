@@ -26,6 +26,11 @@ struct local_hamiltonian_data
 ///
 static void apply_local_hamiltonian_wrapper_d(const long n, const void* restrict data, const double* restrict v, double* restrict ret)
 {
+	// avoid unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
 	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
 
 	// interpret input vector as MPS tensor entries
@@ -50,6 +55,11 @@ static void apply_local_hamiltonian_wrapper_d(const long n, const void* restrict
 ///
 static void apply_local_hamiltonian_wrapper_z(const long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret)
 {
+	// avoid unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
 	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
 
 	// interpret input vector as MPS tensor entries

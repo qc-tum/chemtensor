@@ -6,7 +6,7 @@ ChemTensor
 
 Tensor network algorithms for chemical systems.
 
-This library is written in C and offers a Python 3 interface for simpler accessibility.
+This library is written in C, offering a Python 3 interface for simpler accessibility.
 
 
 Examples
@@ -22,7 +22,7 @@ Features
 - Block-sparse tensors based on additive quantum number conservation to implement abelian symmetries
 - Single- and two-site DMRG algorithm
 - Gradient computation with respect to MPO parameters
-- Tree tensor network topologies (work in progress )
+- Tree tensor network topologies (work in progress)
 - Non-abelian symmetries (work in progress)
 
 
@@ -34,12 +34,18 @@ The code requires the BLAS, LAPACKE, HDF5 and Python 3 development libraries wit
 
 From the project directory, use `cmake` to build the project:
 ```bash
-mkdir build && cd build
+mkdir build_ct && cd build_ct
 cmake ../
 cmake --build .
 ```
-
 Currently, this will compile the unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
+
+To build the corresponding Python package directly, run
+```bash
+python3 -m build . --wheel
+pip3 install dist/chemtensor-...whl
+```
+The first line should run `cmake` in the background and create a Python "wheel" (.whl file) in the `dist/` subfolder. This package file can then be installed locally via the second line.
 
 
 Coding style conventions

@@ -2895,13 +2895,17 @@ static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, 
 
 	for (long i = 0; i < dim; i++)
 	{
+		#ifndef NDEBUG
 		bool found = false;
+		#endif
 		for (long j = 0; j < num_qnums; j++)
 		{
 			if (qnums_logical[i] == unique_qnums[j]) {
 				index_map_block[i] = j;
 				index_map_block_entry[i] = counter[j]++;
+				#ifndef NDEBUG
 				found = true;
+				#endif
 				break;
 			}
 		}

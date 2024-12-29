@@ -1519,6 +1519,7 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 		       t->dim[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - ndim_mult) + i]);
 	}
 	assert(r->ndim == s->ndim + t->ndim - 2*ndim_mult);
+	#ifndef NDEBUG
 	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
@@ -1529,6 +1530,7 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	{
 		assert(r->dim[(s->ndim - ndim_mult) + i] == t->dim[offset_t + i]);
 	}
+	#endif
 
 	const int nlds = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : s->ndim - ndim_mult);
 	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);

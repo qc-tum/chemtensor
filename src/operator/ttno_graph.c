@@ -953,6 +953,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			cv++;
 		}
 
+		#ifndef NDEBUG
 		int neigh_parent_index = -1;
 		for (int n = 0; n < topology->num_neighbors[i_site]; n++)
 		{
@@ -963,6 +964,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 			}
 		}
 		assert(neigh_parent_index != -1);
+		#endif
 
 		for (int j = 0; j < bigraph.num_v; j++)
 		{

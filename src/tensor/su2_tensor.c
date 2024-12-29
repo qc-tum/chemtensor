@@ -328,7 +328,9 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		assert((i_ax_s[i] < s->ndim_logical && i_ax_t[i] < t->ndim_logical) || (i_ax_s[i] >= s->ndim_logical && i_ax_t[i] >= t->ndim_logical));
 
 		const struct su2_irreducible_list* irred_s = &s->outer_jlists[i_ax_s[i]];
+		#ifndef NDEBUG
 		const struct su2_irreducible_list* irred_t = &t->outer_jlists[i_ax_t[i]];
+		#endif
 		assert(su2_irreducible_list_equal(irred_s, irred_t));
 		if (i_ax_s[i] < s->ndim_logical) {
 			for (int k = 0; k < irred_s->num; k++) {
@@ -361,6 +363,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 	const int ndim_subtree_t = su2_tree_axes_list(subtree_t, i_ax_subtree_t);
 	assert(ndim_subtree_s == ndim_subtree_t);  // also contains internal axes
 	// ensure that axes paired according to tree topology match the provided to-be contracted axes indices
+	#ifndef NDEBUG
 	for (int i = 0; i < ndim_mult; i++) {
 		bool found = false;
 		for (int j = 0; j < ndim_subtree_s; j++) {
@@ -372,6 +375,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		}
 		assert(found);
 	}
+	#endif
 
 	// map axes of 's' and 't' to axes of contracted tensor
 	int* axis_map_s = ct_calloc(ndim_s, sizeof(int));

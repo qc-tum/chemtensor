@@ -75,14 +75,18 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 		}
 		else if (l < ttns->nsites_physical)
 		{
+			#ifndef NDEBUG
 			bool site_info_set = false;
+			#endif
 			for (int i = 0; i < ndim; i++)
 			{
 				if (dim[i] == 0) {
 					dim[i]      = d;
 					qnums[i]    = qsite;
 					axis_dir[i] = TENSOR_AXIS_OUT;
+					#ifndef NDEBUG
 					site_info_set = true;
+					#endif
 					break;
 				}
 			}
@@ -636,7 +640,9 @@ double ttns_norm(const struct ttns* psi)
 void ttns_tensor_get_axis_desc(const struct ttns* ttns, const int i_site, struct ttns_tensor_axis_desc* desc)
 {
 	// overall number of sites
+	#ifndef NDEBUG
 	const int nsites = ttns->nsites_physical + ttns->nsites_branching;
+	#endif
 
 	const int offset_phys_aux = (i_site < ttns->nsites_physical ? (i_site == 0 ? 2 : 1) : 0);
 

@@ -84,7 +84,9 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 		// physical axes
 		if (l < ttno->nsites_physical)
 		{
+			#ifndef NDEBUG
 			bool site_info_set = false;
+			#endif
 			for (int i = 0; i < ndim; i++)
 			{
 				if (dim[i] == 0) {
@@ -95,7 +97,9 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 					qnums[i + 1] = qsite;
 					axis_dir[i]     = TENSOR_AXIS_OUT;
 					axis_dir[i + 1] = TENSOR_AXIS_IN;
+					#ifndef NDEBUG
 					site_info_set = true;
+					#endif
 					break;
 				}
 			}
@@ -272,7 +276,9 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		// physical axes at current site
 		if (l < assembly->graph.nsites_physical)
 		{
+			#ifndef NDEBUG
 			bool site_info_set = false;
+			#endif
 			for (int i = 0; i < assembly->graph.topology.num_neighbors[l] + offset_phys; i++)
 			{
 				if (qnums[i] == NULL) {
@@ -281,7 +287,9 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 					qnums[i + 1] = ttno->qsite;
 					axis_dir[i]     = TENSOR_AXIS_OUT;
 					axis_dir[i + 1] = TENSOR_AXIS_IN;
+					#ifndef NDEBUG
 					site_info_set = true;
+					#endif
 					break;
 				}
 			}
@@ -471,7 +479,9 @@ void delete_ttno(struct ttno* ttno)
 void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct ttno_tensor_axis_desc* desc)
 {
 	// overall number of sites
+	#ifndef NDEBUG
 	const int nsites = ttno->nsites_physical + ttno->nsites_branching;
+	#endif
 
 	const int offset_phys = (i_site < ttno->nsites_physical ? 2 : 0);
 
@@ -497,7 +507,9 @@ void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct
 	// physical axes at current site
 	if (i_site < ttno->nsites_physical)
 	{
+		#ifndef NDEBUG
 		bool site_info_set = false;
+		#endif
 		for (int i = 0; i < ttno->a[i_site].ndim - 1; i++)
 		{
 			if (desc[i].type == TTNO_TENSOR_AXIS_PHYS_OUT) {
@@ -505,7 +517,9 @@ void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct
 				desc[i + 1].type = TTNO_TENSOR_AXIS_PHYS_IN;
 				desc[i    ].index = i_site;
 				desc[i + 1].index = i_site;
+				#ifndef NDEBUG
 				site_info_set = true;
+				#endif
 				break;
 			}
 		}

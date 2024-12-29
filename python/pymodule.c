@@ -2732,7 +2732,7 @@ static struct PyModuleDef module = {
 };
 
 
-PyMODINIT_FUNC PyInit_chemtensor(void)
+PyMODINIT_FUNC PyInit_chemtensor_pymodule(void)
 {
 	// import NumPy array module (required)
 	import_array();
