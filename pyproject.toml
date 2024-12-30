@@ -29,6 +29,7 @@ issues = "https://github.com/qc-tum/chemtensor/issues"
 requires = [
     "scikit-build-core",
     "setuptools-scm",
+    "numpy",
 ]
 build-backend = "scikit_build_core.build"
 
