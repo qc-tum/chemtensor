@@ -13,7 +13,7 @@
 ///
 struct mps
 {
-	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions D_i x d x D_{i+1}; array of length 'nsites'
+	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions \f$D_i \times d \times D_{i+1}\f$; array of length 'nsites'
 	qnumber* qsite;                 //!< physical quantum numbers at each site
 	long d;                         //!< local physical dimension of each site
 	int nsites;                     //!< number of sites

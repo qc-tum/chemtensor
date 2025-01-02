@@ -1,5 +1,5 @@
 /// \file thc.c
-/// \brief Tensor hypercontraction (THC) representation of a molecular Hamiltonian and corresponding utility functions.
+/// \brief Tensor hypercontraction (THC) representation of a molecular Hamiltonian and corresponding utility functions (see <a href="https://arxiv.org/abs/2409.12708">arXiv:2409.12708</a>).
 
 #include <assert.h>
 #include "thc.h"
