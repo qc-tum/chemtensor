@@ -13,6 +13,7 @@ dynamic = ["version"]
 doc = [
     "ipykernel",
     "nbsphinx",
+    "nbsphinx-link",
     "breathe",
     "furo",
 ]
