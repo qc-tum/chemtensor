@@ -6,7 +6,9 @@ ChemTensor
 
 Tensor network algorithms for chemical systems.
 
-This library is written in C, offering a Python 3 interface for simpler accessibility.
+This library is written in C, offering a Python 3 interface for more straightforward accessibility.
+
+Documentation is available at [chemtensor.readthedocs.io](https://chemtensor.readthedocs.io).
 
 
 Examples
