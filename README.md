@@ -1,4 +1,4 @@
-[![Unit tests](https://github.com/qc-tum/chemtensor/actions/workflows/main.yml/badge.svg)](https://github.com/qc-tum/chemtensor/actions/workflows/main.yml)
+[![Unit tests](https://github.com/qc-tum/chemtensor/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/qc-tum/chemtensor/actions/workflows/unit_tests.yml)
 
 
 ChemTensor

@@ -1,8 +1,8 @@
 Welcome to ChemTensor's documentation!
 ======================================
 
-.. image:: https://github.com/qc-tum/chemtensor/actions/workflows/main.yml/badge.svg
-    :target: https://github.com/qc-tum/chemtensor/actions/workflows/main.yml
+.. image:: https://github.com/qc-tum/chemtensor/actions/workflows/unit_tests.yml/badge.svg
+    :target: https://github.com/qc-tum/chemtensor/actions/workflows/unit_tests.yml
 
 `ChemTensor <https://github.com/qc-tum/chemtensor>`_ is an efficient tensor network library for electronic structure calculations of chemical systems (typically small molecules). It is based on the matrix product state (MPS) and tree tensor network state (TTNS) formalism and variants of DMRG.
 
