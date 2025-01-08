@@ -24,10 +24,11 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          # install libraries
+          # install required libraries
           CIBW_BEFORE_ALL_LINUX: >
-            apt-get update &&
-            apt-get install -y libblas-dev liblapacke-dev libhdf5-dev
+            yum install -y blas-devel lapack-devel &&
+            yum install -y epel-release &&
+            yum install -y hdf5-devel
           CIBW_BUILD: "{cp38,cp39,cp310,cp311,cp312}-manylinux_{x86_64,aarch64}"
           # disable building PyPy wheels on all platforms
           CIBW_SKIP: pp*
