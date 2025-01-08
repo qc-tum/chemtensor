@@ -15,12 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy
-
-        # used to host cibuildwheel
+      # used to host cibuildwheel
       - uses: actions/setup-python@v5
 
       - name: Install cibuildwheel
@@ -29,6 +24,10 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          # install libraries
+          CIBW_BEFORE_ALL_LINUX: >
+            apt-get update &&
+            apt-get install -y libblas-dev liblapacke-dev libhdf5-dev
           CIBW_BUILD: "{cp38,cp39,cp310,cp311,cp312}-manylinux_{x86_64,aarch64}"
           # disable building PyPy wheels on all platforms
           CIBW_SKIP: pp*
