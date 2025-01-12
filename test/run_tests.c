@@ -49,6 +49,8 @@ char* test_block_sparse_tensor_get_entry();
 char* test_clebsch_gordan_coefficients();
 char* test_su2_tree_enumerate_charge_sectors();
 char* test_su2_fuse_split_tree_enumerate_charge_sectors();
+char* test_su2_graph_to_fuse_split_tree();
+char* test_su2_graph_yoga_to_simple_subtree();
 char* test_su2_tensor_fmove();
 char* test_su2_tensor_contract_simple();
 char* test_su2_to_dense_tensor();
@@ -141,6 +143,8 @@ int main()
 		TEST_FUNCTION_ENTRY(test_clebsch_gordan_coefficients),
 		TEST_FUNCTION_ENTRY(test_su2_tree_enumerate_charge_sectors),
 		TEST_FUNCTION_ENTRY(test_su2_fuse_split_tree_enumerate_charge_sectors),
+		TEST_FUNCTION_ENTRY(test_su2_graph_to_fuse_split_tree),
+		TEST_FUNCTION_ENTRY(test_su2_graph_yoga_to_simple_subtree),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fmove),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),

@@ -1,5 +1,5 @@
 Python API reference
---------------------
+====================
 
 .. automodule:: chemtensor
    :members:

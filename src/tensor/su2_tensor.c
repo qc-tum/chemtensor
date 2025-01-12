@@ -319,6 +319,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 
 	// dimension and quantum number compatibility checks
 	assert(ndim_mult >= 1);
+	#ifndef NDEBUG
 	for (int i = 0; i < ndim_mult; i++)
 	{
 		assert(0 <= i_ax_s[i] && i_ax_s[i] < s->ndim_logical + s->ndim_auxiliary);
@@ -328,9 +329,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		assert((i_ax_s[i] < s->ndim_logical && i_ax_t[i] < t->ndim_logical) || (i_ax_s[i] >= s->ndim_logical && i_ax_t[i] >= t->ndim_logical));
 
 		const struct su2_irreducible_list* irred_s = &s->outer_jlists[i_ax_s[i]];
-		#ifndef NDEBUG
 		const struct su2_irreducible_list* irred_t = &t->outer_jlists[i_ax_t[i]];
-		#endif
 		assert(su2_irreducible_list_equal(irred_s, irred_t));
 		if (i_ax_s[i] < s->ndim_logical) {
 			for (int k = 0; k < irred_s->num; k++) {
@@ -340,6 +339,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 			}
 		}
 	}
+	#endif
 
 	const int ndim_outer_s = s->ndim_logical + s->ndim_auxiliary;
 	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;

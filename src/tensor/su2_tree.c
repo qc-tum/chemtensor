@@ -11,139 +11,6 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Copy a list of irreducible 'j' quantum numbers.
-///
-void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su2_irreducible_list* dst)
-{
-	dst->num = src->num;
-	dst->jlist = ct_malloc(src->num * sizeof(qnumber));
-	memcpy(dst->jlist, src->jlist, src->num * sizeof(qnumber));
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Delete a list of irreducible 'j' quantum numbers (free memory).
-///
-void delete_su2_irreducible_list(struct su2_irreducible_list* list)
-{
-	ct_free(list->jlist);
-	list->num = 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Whether two irreducible 'j' quantum number lists are logically equal.
-///
-bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t)
-{
-	if (s->num != t->num) {
-		return false;
-	}
-
-	for (int k = 0; k < s->num; k++) {
-		if (s->jlist[k] != t->jlist[k]) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Comparison function used by 'qsort'.
-///
-static int compare_su2_irreducible_lists(const void* a, const void* b)
-{
-	const struct su2_irreducible_list* x = a;
-	const struct su2_irreducible_list* y = b;
-
-	assert(x->num == y->num);
-	for (int i = 0; i < x->num; i++)
-	{
-		if (x->jlist[i] < y->jlist[i]) {
-			return -1;
-		}
-		else if (x->jlist[i] > y->jlist[i]) {
-			return 1;
-		}
-	}
-
-	// lists are equal
-	return 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Allocate a charge sector array.
-///
-void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors)
-{
-	sectors->jlists = ct_malloc(nsec * ndim * sizeof(qnumber));
-	sectors->nsec = nsec;
-	sectors->ndim = ndim;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Delete a charge sector array (free memory).
-///
-void delete_charge_sectors(struct charge_sectors* sectors)
-{
-	ct_free(sectors->jlists);
-	sectors->nsec = 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Find the index of charge sector 'jlist', assuming that the list of charge sectors is sorted.
-/// Returns -1 if charge sector cannot be found.
-///
-long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist)
-{
-	const struct su2_irreducible_list target = {
-		.jlist = (qnumber*)jlist,  // cast to avoid compiler warning; we do not modify 'jlist'
-		.num   = sectors->ndim,
-	};
-
-	// search interval: [lower, upper)
-	long lower = 0;
-	long upper = sectors->nsec;
-	while (true)
-	{
-		if (lower >= upper) {
-			return -1;
-		}
-		const long i = (lower + upper) / 2;
-		const struct su2_irreducible_list current = {
-			.jlist = &sectors->jlists[i * sectors->ndim],
-			.num   = sectors->ndim,
-		};
-		const int c = compare_su2_irreducible_lists(&target, &current);
-		if (c < 0) {
-			// target < current
-			upper = i;
-		}
-		else if (c == 0) {
-			// target == current -> found it
-			return i;
-		}
-		else {
-			// target > current
-			lower = i + 1;
-		}
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Make a deep copy of an SU(2) symmetry tree.
 ///
 void copy_su2_tree(const struct su2_tree_node* src, struct su2_tree_node* dst)
@@ -747,6 +614,10 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree)
 		return false;
 	}
 
+	if ((tree->tree_fuse == NULL) || (tree->tree_split == NULL)) {
+		return false;
+	}
+
 	if (tree->tree_fuse->i_ax != tree->tree_split->i_ax) {
 		return false;
 	}
@@ -847,6 +718,18 @@ double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree*
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Comparison function used by 'qsort'.
+///
+static int compare_su2_irreducible_lists_wrapper(const void* a, const void* b)
+{
+	return compare_su2_irreducible_lists(
+		(const struct su2_irreducible_list*)a,
+		(const struct su2_irreducible_list*)b);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Enumerate all "charge sectors" ('j' quantum number configurations) for a given fuse and split tree layout.
 ///
 void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors)
@@ -903,7 +786,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	}
 
 	// sort lexicographically
-	qsort(merged_sectors, c, sizeof(struct su2_irreducible_list), compare_su2_irreducible_lists);
+	qsort(merged_sectors, c, sizeof(struct su2_irreducible_list), compare_su2_irreducible_lists_wrapper);
 
 	// copy data into output array
 	allocate_charge_sectors(c, tree->ndim, sectors);

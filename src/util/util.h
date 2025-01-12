@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <hdf5.h>
 #include "numeric.h"
+#include "qnumber.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -44,6 +45,26 @@ static inline long lmin(const long a, const long b)
 /// \brief Maximum of two long integers.
 ///
 static inline long lmax(const long a, const long b)
+{
+	return (a >= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Minimum of two quantum numbers.
+///
+static inline qnumber qmin(const qnumber a, const qnumber b)
+{
+	return (a <= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Maximum of two quantum numbers.
+///
+static inline qnumber qmax(const qnumber a, const qnumber b)
 {
 	return (a >= b) ? a : b;
 }
