@@ -1347,7 +1347,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 	// trailing dimension of 't' as a matrix
 	const long tdt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? integer_product(&t->dim[1], t->ndim - 1) : t->dim[t->ndim - 1]);
 
-	const enum CBLAS_TRANSPOSE transa = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
+	const int transa = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
 
 	const long m = integer_product(&r->dim[i_ax], t->ndim - 1);
 	const long k = s->dim[i_ax];
@@ -1454,8 +1454,8 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 	// trailing dimension of 't' as a matrix
 	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
-	const enum CBLAS_TRANSPOSE transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
-	const enum CBLAS_TRANSPOSE transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
+	const int transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
+	const int transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
 
 	// matrix-matrix multiplication
 	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
@@ -1545,8 +1545,8 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	// trailing dimension of 't' as a matrix
 	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
-	const enum CBLAS_TRANSPOSE transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
-	const enum CBLAS_TRANSPOSE transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
+	const int transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
+	const int transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
 
 	// matrix-matrix multiplication
 	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
