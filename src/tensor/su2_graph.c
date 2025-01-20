@@ -103,6 +103,64 @@ bool su2_graph_is_consistent(const struct su2_graph* graph)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether two SU(2) symmetry graph nodes are logically equal.
+///
+static inline bool su2_graph_node_equal(const struct su2_graph_node* restrict n0, const struct su2_graph_node* restrict n1)
+{
+	return
+		(n0->eid_parent   == n1->eid_parent)   &&
+		(n0->eid_child[0] == n1->eid_child[0]) &&
+		(n0->eid_child[1] == n1->eid_child[1]) &&
+		(n0->type         == n1->type);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether two SU(2) symmetry graphs are logically equal.
+///
+bool su2_graph_equal(const struct su2_graph* restrict f, const struct su2_graph* restrict g)
+{
+	if (f->num_nodes != g->num_nodes) {
+		return false;
+	}
+	if (f->num_edges != g->num_edges) {
+		return false;
+	}
+
+	for (int i = 0; i < f->num_edges; i++)
+	{
+		for (int d = 0; d < 2; d++)
+		{
+			// node indices need not be equal, only node contents
+
+			if (f->edges[i].nid[d] < 0)
+			{
+				if (g->edges[i].nid[d] >= 0) {
+					return false;
+				}
+			}
+			else
+			{
+				if (g->edges[i].nid[d] < 0) {
+					return false;
+				}
+				else
+				{
+					if (!su2_graph_node_equal(&f->nodes[f->edges[i].nid[d]], &g->nodes[g->edges[i].nid[d]])) {
+						return false;
+					}
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Construct an SU(2) symmetry (sub-)graph from a tree, assuming that sufficient memory for 'nodes' array has been allocated.
 ///
 static int su2_subgraph_from_tree(const struct su2_tree_node* tree, const enum su2_graph_node_type type, struct su2_graph* graph)
@@ -357,4 +415,133 @@ void su2_graph_yoga_to_simple_subtree(struct su2_graph* graph, const int eid)
 	int tmp = edge->nid[0];
 	edge->nid[0] = edge->nid[1];
 	edge->nid[1] = tmp;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Connect two graphs after applying the edge index maps; edges with the same resulting index must be outer edges and are merged.
+///
+/// This function assumes a disjoint union for the nodes.
+///
+void su2_graph_connect(
+	const struct su2_graph* restrict f, const int* restrict edge_map_f,
+	const struct su2_graph* restrict g, const int* restrict edge_map_g,
+	struct su2_graph* restrict connected_graph)
+{
+	const int max_num_edges = f->num_edges + g->num_edges;
+
+	#ifndef NDEBUG
+	// ensure that 'edge_map_f' is valid
+	int* emf_indicator = ct_calloc(max_num_edges, sizeof(int));
+	for (int i = 0; i < f->num_edges; i++)
+	{
+		assert(0 <= edge_map_f[i] && edge_map_f[i] < max_num_edges);
+		emf_indicator[edge_map_f[i]]++;
+	}
+	for (int i = 0; i < max_num_edges; i++)
+	{
+		assert(emf_indicator[i] <= 1);
+	}
+	ct_free(emf_indicator);
+	// ensure that 'edge_map_g' is valid
+	int* emg_indicator = ct_calloc(max_num_edges, sizeof(int));
+	for (int i = 0; i < g->num_edges; i++)
+	{
+		assert(0 <= edge_map_g[i] && edge_map_g[i] < max_num_edges);
+		emg_indicator[edge_map_g[i]]++;
+	}
+	for (int i = 0; i < max_num_edges; i++)
+	{
+		assert(emg_indicator[i] <= 1);
+	}
+	ct_free(emg_indicator);
+	#endif
+
+	// assuming a disjoint union for the nodes
+	connected_graph->num_nodes = f->num_nodes + g->num_nodes;
+	connected_graph->nodes = ct_malloc(connected_graph->num_nodes * sizeof(struct su2_graph_node));
+	memcpy(connected_graph->nodes, f->nodes, f->num_nodes * sizeof(struct su2_graph_node));
+	memcpy(connected_graph->nodes + f->num_nodes, g->nodes, g->num_nodes * sizeof(struct su2_graph_node));
+	for (int i = 0; i < f->num_nodes; i++)
+	{
+		connected_graph->nodes[i].eid_parent   = edge_map_f[connected_graph->nodes[i].eid_parent];
+		connected_graph->nodes[i].eid_child[0] = edge_map_f[connected_graph->nodes[i].eid_child[0]];
+		connected_graph->nodes[i].eid_child[1] = edge_map_f[connected_graph->nodes[i].eid_child[1]];
+	}
+	for (int i = f->num_nodes; i < connected_graph->num_nodes; i++)
+	{
+		connected_graph->nodes[i].eid_parent   = edge_map_g[connected_graph->nodes[i].eid_parent];
+		connected_graph->nodes[i].eid_child[0] = edge_map_g[connected_graph->nodes[i].eid_child[0]];
+		connected_graph->nodes[i].eid_child[1] = edge_map_g[connected_graph->nodes[i].eid_child[1]];
+	}
+
+	connected_graph->edges = ct_malloc(max_num_edges * sizeof(struct su2_graph_edge));
+	// mark all edges as not assigned first
+	for (int i = 0; i < max_num_edges; i++)
+	{
+		connected_graph->edges[i].nid[0] = -1;
+		connected_graph->edges[i].nid[1] = -1;
+	}
+	for (int i = 0; i < f->num_edges; i++)
+	{
+		connected_graph->edges[edge_map_f[i]] = f->edges[i];
+	}
+	// merge with edges from 'g'
+	for (int i = 0; i < g->num_edges; i++)
+	{
+		struct su2_graph_edge* edge = &connected_graph->edges[edge_map_g[i]];
+		if (edge->nid[0] < 0)
+		{
+			if (edge->nid[1] < 0)
+			{
+				// edge not assigned so far
+				edge->nid[0] = (g->edges[i].nid[0] >= 0 ? f->num_nodes + g->edges[i].nid[0] : -1);
+				edge->nid[1] = (g->edges[i].nid[1] >= 0 ? f->num_nodes + g->edges[i].nid[1] : -1);
+			}
+			else
+			{
+				// must be complementary to edge from 'f'
+				assert(g->edges[i].nid[0] >= 0);
+				assert(g->edges[i].nid[1] < 0);
+				edge->nid[0] = f->num_nodes + g->edges[i].nid[0];
+			}
+		}
+		else
+		{
+			if (edge->nid[1] < 0)
+			{
+				// must be complementary to edge from 'f'
+				assert(g->edges[i].nid[0] < 0);
+				assert(g->edges[i].nid[1] >= 0);
+				edge->nid[1] = f->num_nodes + g->edges[i].nid[1];
+			}
+			else
+			{
+				// cannot merge with inner edge from 'f'
+				assert(false);
+			}
+		}
+	}
+
+	// count assigned edges
+	connected_graph->num_edges = max_num_edges;
+	for (int i = 0; i < max_num_edges; i++)
+	{
+		if ((connected_graph->edges[i].nid[0] < 0) &&
+		    (connected_graph->edges[i].nid[1] < 0))
+		{
+			// edge at index 'i' not assigned
+			connected_graph->num_edges = i;
+			break;
+		}
+	}
+	assert(connected_graph->num_edges > 0);
+	#ifndef NDEBUG
+	// subsequent edges must not be assigned as well
+	for (int i = connected_graph->num_edges; i < max_num_edges; i++) {
+		assert((connected_graph->edges[i].nid[0] < 0) &&
+		       (connected_graph->edges[i].nid[1] < 0));
+	}
+	#endif
 }

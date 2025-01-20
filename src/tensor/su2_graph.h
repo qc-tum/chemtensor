@@ -74,6 +74,8 @@ void delete_su2_graph(struct su2_graph* graph);
 
 bool su2_graph_is_consistent(const struct su2_graph* graph);
 
+bool su2_graph_equal(const struct su2_graph* restrict f, const struct su2_graph* restrict g);
+
 
 //________________________________________________________________________________________________________________________
 //
@@ -86,6 +88,7 @@ bool su2_graph_has_fuse_split_tree_topology(const struct su2_graph* graph);
 
 void su2_graph_to_fuse_split_tree(const struct su2_graph* graph, struct su2_fuse_split_tree* tree);
 
+
 //________________________________________________________________________________________________________________________
 //
 
@@ -94,3 +97,14 @@ void su2_graph_to_fuse_split_tree(const struct su2_graph* graph, struct su2_fuse
 bool su2_graph_is_yoga_edge(const struct su2_graph* graph, const int eid);
 
 void su2_graph_yoga_to_simple_subtree(struct su2_graph* graph, const int eid);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// connecting two graphs
+
+void su2_graph_connect(
+	const struct su2_graph* restrict f, const int* restrict edge_map_f,
+	const struct su2_graph* restrict g, const int* restrict edge_map_g,
+	struct su2_graph* restrict connected_graph);

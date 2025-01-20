@@ -715,6 +715,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	}
 
 	// ensure that 'perm' is a valid permutation
+	#ifndef NDEBUG
 	int* ax_list = ct_calloc(t->ndim, sizeof(int));
 	for (int i = 0; i < t->ndim; i++)
 	{
@@ -726,6 +727,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 		assert(ax_list[i] == 1);
 	}
 	ct_free(ax_list);
+	#endif
 
 	// dimensions of new tensor 'r'
 	long* rdim = ct_malloc(t->ndim * sizeof(long));
