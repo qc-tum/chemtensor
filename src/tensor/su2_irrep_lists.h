@@ -34,7 +34,7 @@ int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const st
 ///
 struct charge_sectors
 {
-	qnumber* jlists;  //!< matrix of 'j' quantum numbers times 2, of dimension nsec x ndim
+	qnumber* jlists;  //!< matrix of 'j' quantum numbers times 2, of dimension nsec x ndim; must be sorted lexicographically
 	long nsec;        //!< number of sectors (configurations)
 	int ndim;         //!< number of dimensions ('j' quantum numbers in each configuration)
 };

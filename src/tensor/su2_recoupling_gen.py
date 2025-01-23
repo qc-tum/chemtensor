@@ -34,8 +34,8 @@ def recoupling_matrix(ja: int, jb: int, jc: int, js: int):
     jf_range = sorted(list(set(jbc_range) & set(jas_range)))
     # jc <-> js flipped in function call due to convention
     return Matrix([[sqrt((je + 1) * (jf + 1)) * racah(S(ja)/2, S(jb)/2, S(js)/2, S(jc)/2, S(je)/2, S(jf)/2)
-             for jf in jf_range]
-             for je in je_range])
+            for jf in jf_range]
+            for je in je_range])
 
 
 def convert_to_c_brackets(expr: str):
@@ -114,7 +114,7 @@ def generate_su2_recoupling_tables():
     cfile.write("};\n")
 
     hfile.write("\n")
-    hfile.write("double su_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf);\n")
+    hfile.write("double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf);\n")
 
     cfile.write(
 rf"""
@@ -123,7 +123,7 @@ rf"""
 ///
 /// \brief Retrieve the SU(2) recoupling coefficient for the provided 'j' quantum numbers (represented times 2).
 ///
-double su_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
+double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
 {{
 	if ((ja + jb + jc + js) % 2 != 0) {{
 		return 0;

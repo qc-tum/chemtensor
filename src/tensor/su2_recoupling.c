@@ -439,7 +439,7 @@ static const double* su2_recoupling_table[5][5][5][13] = { { { { (const double*)
 ///
 /// \brief Retrieve the SU(2) recoupling coefficient for the provided 'j' quantum numbers (represented times 2).
 ///
-double su_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
+double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
 {
 	if ((ja + jb + jc + js) % 2 != 0) {
 		return 0;

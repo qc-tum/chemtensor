@@ -4,14 +4,16 @@
 #include <assert.h>
 #include "su2_tensor.h"
 #include "su2_recoupling.h"
+#include "su2_graph.h"
+#include "su2_util.h"
 #include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Allocate memory for an SU(2) symmetric tensor, including the dense "degeneracy" tensors.
+/// \brief Allocate an "empty" SU(2) symmetric tensor, without the charge sectors and dense "degeneracy" tensors.
 ///
-void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
+void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
 {
 	t->dtype = dtype;
 
@@ -29,20 +31,31 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 		copy_su2_irreducible_list(&outer_jlists[i], &t->outer_jlists[i]);
 	}
 
-	su2_fuse_split_tree_enumerate_charge_sectors(&t->tree, t->outer_jlists, &t->charge_sectors);
-
-	// degeneracy tensors
 	t->dim_degen = ct_malloc(t->ndim_logical * sizeof(long*));
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
 		assert(t->outer_jlists[i].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < t->outer_jlists[i].num; k++) {
-			j_max = imax(j_max, t->outer_jlists[i].jlist[k]);
+			j_max = qmax(j_max, t->outer_jlists[i].jlist[k]);
 		}
 		t->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(long));
 		memcpy(t->dim_degen[i], dim_degen[i], (j_max + 1) * sizeof(long));
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Allocate memory for an SU(2) symmetric tensor, including the dense "degeneracy" tensors, and enumerate all possible charge sectors.
+///
+void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
+{
+	allocate_empty_su2_tensor(dtype, ndim_logical, ndim_auxiliary, tree, outer_jlists, dim_degen, t);
+
+	su2_fuse_split_tree_enumerate_charge_sectors(&t->tree, t->outer_jlists, &t->charge_sectors);
+
+	// degeneracy tensors
 	t->degensors = ct_malloc(t->charge_sectors.nsec * sizeof(struct dense_tensor*));
 	for (long c = 0; c < t->charge_sectors.nsec; c++)
 	{
@@ -180,6 +193,22 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 		}
 	}
 
+	// charge sectors must be sorted
+	for (long c = 0; c < t->charge_sectors.nsec - 1; c++)
+	{
+		const struct su2_irreducible_list list0 = {
+			.jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim],
+			.num   = t->charge_sectors.ndim,
+		};
+		const struct su2_irreducible_list list1 = {
+			.jlist = &t->charge_sectors.jlists[(c + 1) * t->charge_sectors.ndim],
+			.num   = t->charge_sectors.ndim,
+		};
+		if (compare_su2_irreducible_lists(&list0, &list1) >= 0) {
+			return false;
+		}
+	}
+
 	for (long c = 0; c < t->charge_sectors.nsec; c++)
 	{
 		if (t->degensors[c] == NULL) {
@@ -206,6 +235,38 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 			}
 		}
 	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete an individual charge sector of the SU(2) symmetric tensor,
+/// returning true if the charge sector was actually found and deleted.
+///
+bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
+{
+	const long idx = charge_sector_index(&t->charge_sectors, jlist);
+	if (idx < 0) {
+		// not found
+		return false;
+	}
+
+	// delete corresponding "degeneracy" tensor
+	delete_dense_tensor(t->degensors[idx]);
+	ct_free(t->degensors[idx]);
+
+	const int ndim = t->charge_sectors.ndim;
+	for (long c = idx; c < t->charge_sectors.nsec - 1; c++)
+	{
+		memcpy(&t->charge_sectors.jlists[c * ndim], &t->charge_sectors.jlists[(c + 1) * ndim], ndim * sizeof(qnumber));
+		// copy pointer
+		t->degensors[c] = t->degensors[c + 1];
+	}
+	t->degensors[t->charge_sectors.nsec - 1] = NULL;
+
+	t->charge_sectors.nsec--;
 
 	return true;
 }
@@ -292,7 +353,7 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 
 			const qnumber je = (orig_left_child ? jlist_t[i_ax] : jlist_r[i_ax]);
 			const qnumber jf = (orig_left_child ? jlist_r[i_ax] : jlist_t[i_ax]);
-			const double coeff = su_recoupling_coefficient(ja, jb, jc, js, je, jf);
+			const double coeff = su2_recoupling_coefficient(ja, jb, jc, js, je, jf);
 			if (coeff == 0) {
 				continue;
 			}
@@ -521,7 +582,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		assert(outer_jlists_r[ir].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
-			j_max = imax(j_max, outer_jlists_r[ir].jlist[k]);
+			j_max = qmax(j_max, outer_jlists_r[ir].jlist[k]);
 		}
 		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
 		memcpy(dim_degen_r[ir], s->dim_degen[is], (j_max + 1) * sizeof(long));
@@ -536,7 +597,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		assert(outer_jlists_r[ir].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
-			j_max = imax(j_max, outer_jlists_r[ir].jlist[k]);
+			j_max = qmax(j_max, outer_jlists_r[ir].jlist[k]);
 		}
 		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
 		memcpy(dim_degen_r[ir], t->dim_degen[it], (j_max + 1) * sizeof(long));
@@ -581,6 +642,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 			ndim_mult_logical++;
 		}
 	}
+	assert(ndim_mult_logical >= 1);
 
 	// contract degeneracy tensors
 	qnumber* jlist_r = ct_malloc(su2_tensor_ndim(r) * sizeof(qnumber));
@@ -680,6 +742,338 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Comparison function used by 'qsort'.
+///
+static int compare_su2_irreducible_lists_wrapper(const void* a, const void* b)
+{
+	return compare_su2_irreducible_lists(
+		(const struct su2_irreducible_list*)a,
+		(const struct su2_irreducible_list*)b);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Contract two SU(2) tensors along a single logical axis,
+/// for the scenario that the resulting structural tensor contains a yoga subtree
+/// which can be converted to a fusion-splitting tree in a single step.
+///
+void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_ax_s, const struct su2_tensor* restrict t, const int i_ax_t, struct su2_tensor* restrict r)
+{
+	assert(s->dtype == t->dtype);
+
+	// dimension and quantum number compatibility checks
+	#ifndef NDEBUG
+	assert(0 <= i_ax_s && i_ax_s < s->ndim_logical);
+	assert(0 <= i_ax_t && i_ax_t < t->ndim_logical);
+
+	assert(su2_irreducible_list_equal(&s->outer_jlists[i_ax_s], &t->outer_jlists[i_ax_t]));
+	for (int k = 0; k < s->outer_jlists[i_ax_s].num; k++) {
+		// degeneracy dimensions for to-be contracted axes must match
+		assert(s->dim_degen[i_ax_s][s->outer_jlists[i_ax_s].jlist[k]] ==
+		       t->dim_degen[i_ax_t][t->outer_jlists[i_ax_t].jlist[k]]);
+	}
+	#endif
+
+	const int ndim_outer_s = s->ndim_logical + s->ndim_auxiliary;
+	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;
+
+	const int ndim_s = su2_tensor_ndim(s);
+	const int ndim_t = su2_tensor_ndim(t);
+
+	// map axes of 's' and 't' to axes of contracted tensor
+	int* axis_map_s = ct_malloc(ndim_s * sizeof(int));
+	int* axis_map_t = ct_malloc(ndim_t * sizeof(int));
+
+	// new logical axes
+	int ndim_logical_r = 0;
+	for (int i = 0; i < s->ndim_logical; i++) {
+		if (i != i_ax_s) {  // skip to-be contracted axis
+			axis_map_s[i] = ndim_logical_r++;
+		}
+	}
+	for (int i = 0; i < t->ndim_logical; i++) {
+		if (i != i_ax_t) {  // skip to-be contracted axis
+			axis_map_t[i] = ndim_logical_r++;
+		}
+	}
+	// new auxiliary axes
+	int ndim_auxiliary_r = 0;
+	for (int i = s->ndim_logical; i < s->ndim_logical + s->ndim_auxiliary; i++) {
+		// 'i_ax_s' cannot be an auxiliary axis
+		axis_map_s[i] = ndim_logical_r + ndim_auxiliary_r++;
+	}
+	for (int i = t->ndim_logical; i < t->ndim_logical + t->ndim_auxiliary; i++) {
+		// 'i_ax_t' cannot be an auxiliary axis
+		axis_map_t[i] = ndim_logical_r + ndim_auxiliary_r++;
+	}
+	// new internal axes
+	const int ndim_outer_r = ndim_logical_r + ndim_auxiliary_r;
+	int ndim_internal_r = 0;
+	// to-be contracted axis becomes an internal axis
+	axis_map_s[i_ax_s] = ndim_outer_r;
+	axis_map_t[i_ax_t] = ndim_outer_r;
+	ndim_internal_r++;
+	for (int i = s->ndim_logical + s->ndim_auxiliary; i < ndim_s; i++) {
+		axis_map_s[i] = ndim_outer_r + ndim_internal_r++;
+	}
+	for (int i = t->ndim_logical + t->ndim_auxiliary; i < ndim_t; i++) {
+		axis_map_t[i] = ndim_outer_r + ndim_internal_r++;
+	}
+	assert(ndim_internal_r == ndim_outer_r - 3);
+	assert(ndim_outer_r + ndim_internal_r == ndim_s + ndim_t - 1);
+	const int ndim_r = ndim_outer_r + ndim_internal_r;
+
+	struct su2_graph graph_r;
+	{
+		struct su2_graph graph_s, graph_t;
+		su2_graph_from_fuse_split_tree(&s->tree, &graph_s);
+		su2_graph_from_fuse_split_tree(&t->tree, &graph_t);
+
+		assert(su2_graph_is_consistent(&graph_s));
+		assert(su2_graph_is_consistent(&graph_t));
+
+		assert(su2_graph_has_fuse_split_tree_topology(&graph_s));
+		assert(su2_graph_has_fuse_split_tree_topology(&graph_t));
+
+		su2_graph_connect(&graph_s, axis_map_s, &graph_t, axis_map_t, &graph_r);
+		assert(su2_graph_is_yoga_edge(&graph_r, axis_map_s[i_ax_s]));
+
+		delete_su2_graph(&graph_t);
+		delete_su2_graph(&graph_s);
+	}
+
+	struct su2_irreducible_list* outer_jlists_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
+	for (int i = 0; i < ndim_outer_s; i++) {
+		if (i == i_ax_s) {  // skip to-be contracted axis
+			continue;
+		}
+		assert(axis_map_s[i] < ndim_outer_r);
+		copy_su2_irreducible_list(&s->outer_jlists[i], &outer_jlists_r[axis_map_s[i]]);
+	}
+	for (int i = 0; i < ndim_outer_t; i++) {
+		if (i == i_ax_t) {  // skip to-be contracted axis
+			continue;
+		}
+		assert(axis_map_t[i] < ndim_outer_r);
+		copy_su2_irreducible_list(&t->outer_jlists[i], &outer_jlists_r[axis_map_t[i]]);
+	}
+
+	long** dim_degen_r = ct_calloc(ndim_logical_r, sizeof(long*));
+	for (int is = 0; is < s->ndim_logical; is++)
+	{
+		if (is == i_ax_s) {  // skip to-be contracted axis
+			continue;
+		}
+		const int ir = axis_map_s[is];
+		assert(0 <= ir && ir < ndim_logical_r);
+		assert(outer_jlists_r[ir].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
+			j_max = qmax(j_max, outer_jlists_r[ir].jlist[k]);
+		}
+		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
+		memcpy(dim_degen_r[ir], s->dim_degen[is], (j_max + 1) * sizeof(long));
+	}
+	for (int it = 0; it < t->ndim_logical; it++)
+	{
+		if (it == i_ax_t) {  // skip to-be contracted axis
+			continue;
+		}
+		const int ir = axis_map_t[it];
+		assert(0 <= ir && ir < ndim_logical_r);
+		assert(outer_jlists_r[ir].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_jlists_r[ir].num; k++) {
+			j_max = qmax(j_max, outer_jlists_r[ir].jlist[k]);
+		}
+		dim_degen_r[ir] = ct_malloc((j_max + 1) * sizeof(long));
+		memcpy(dim_degen_r[ir], t->dim_degen[it], (j_max + 1) * sizeof(long));
+	}
+
+	// merge the charge sectors of 's' and 't'
+	assert(s->charge_sectors.ndim == ndim_s);
+	assert(t->charge_sectors.ndim == ndim_t);
+	struct su2_irreducible_list* merged_sectors = ct_malloc(s->charge_sectors.nsec * t->charge_sectors.nsec * sizeof(struct su2_irreducible_list));
+	long nsec_r = 0;
+	for (long j = 0; j < s->charge_sectors.nsec; j++)
+	{
+		for (long k = 0; k < t->charge_sectors.nsec; k++)
+		{
+			// quantum number at to-be contracted edge must match
+			if (s->charge_sectors.jlists[j * ndim_s + i_ax_s] == t->charge_sectors.jlists[k * ndim_t + i_ax_t])
+			{
+				merged_sectors[nsec_r].num = ndim_r;
+				merged_sectors[nsec_r].jlist = ct_malloc(ndim_r * sizeof(qnumber));
+				// merge quantum numbers
+				for (int i = 0; i < ndim_s; i++) {
+					merged_sectors[nsec_r].jlist[axis_map_s[i]] = s->charge_sectors.jlists[j * ndim_s + i];
+				}
+				for (int i = 0; i < ndim_t; i++) {
+					merged_sectors[nsec_r].jlist[axis_map_t[i]] = t->charge_sectors.jlists[k * ndim_t + i];
+				}
+
+				nsec_r++;
+			}
+		}
+	}
+
+	// sort lexicographically
+	qsort(merged_sectors, nsec_r, sizeof(struct su2_irreducible_list), compare_su2_irreducible_lists_wrapper);
+
+	struct su2_tensor_data data_yoga;
+
+	// copy charge sectors into 'data_yoga'
+	allocate_charge_sectors(nsec_r, ndim_r, &data_yoga.charge_sectors);
+	for (long i = 0; i < nsec_r; i++)
+	{
+		memcpy(&data_yoga.charge_sectors.jlists[i * ndim_r], merged_sectors[i].jlist, ndim_r * sizeof(qnumber));
+		ct_free(merged_sectors[i].jlist);
+	}
+
+	ct_free(merged_sectors);
+
+	// permutations of dense degeneracy tensors before contraction
+	// transpose degeneracy tensors in 's' such that to-be contracted axis is the trailing axis
+	int* perm_s = ct_malloc(s->ndim_logical * sizeof(int));
+	for (int i = 0; i < s->ndim_logical - 1; i++) {
+		perm_s[i] = (i < i_ax_s ? i : i + 1);
+	}
+	perm_s[s->ndim_logical - 1] = i_ax_s;
+	const bool perm_s_is_identity = is_identity_permutation(perm_s, s->ndim_logical);
+	// transpose degeneracy tensors in 't' such that to-be contracted axis is the leading axis
+	int* perm_t = ct_malloc(t->ndim_logical * sizeof(int));
+	perm_t[0] = i_ax_t;
+	for (int i = 1; i < t->ndim_logical; i++) {
+		perm_t[i] = (i <= i_ax_t ? i - 1 : i);
+	}
+	const bool perm_t_is_identity = is_identity_permutation(perm_t, t->ndim_logical);
+
+	// contract degeneracy tensors
+	data_yoga.degensors = ct_calloc(nsec_r, sizeof(struct dense_tensor*));
+	qnumber* jlist_r = ct_malloc(ndim_r * sizeof(qnumber));
+	for (long cs = 0; cs < s->charge_sectors.nsec; cs++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist_s = &s->charge_sectors.jlists[cs * s->charge_sectors.ndim];
+
+		// corresponding "degeneracy" tensor
+		const struct dense_tensor* ds = s->degensors[cs];
+		assert(ds->dtype == s->dtype);
+		assert(ds->ndim  == s->ndim_logical);
+		struct dense_tensor ds_perm;
+		if (perm_s_is_identity) {
+			ds_perm = *ds;  // only copy pointers
+		}
+		else {
+			transpose_dense_tensor(perm_s, ds, &ds_perm);
+		}
+
+		// fill 'j' quantum numbers for merged charge sector
+		for (int i = 0; i < ndim_s; i++) {
+			jlist_r[axis_map_s[i]] = jlist_s[i];
+		}
+
+		for (long ct = 0; ct < t->charge_sectors.nsec; ct++)
+		{
+			// 'j' quantum numbers of current sector
+			const qnumber* jlist_t = &t->charge_sectors.jlists[ct * t->charge_sectors.ndim];
+
+			// quantum number at to-be contracted edge must match
+			if (jlist_s[i_ax_s] != jlist_t[i_ax_t]) {
+				continue;
+			}
+
+			// corresponding "degeneracy" tensor
+			const struct dense_tensor* dt = t->degensors[ct];
+			assert(dt->dtype == t->dtype);
+			assert(dt->ndim  == t->ndim_logical);
+			struct dense_tensor dt_perm;
+			if (perm_t_is_identity) {
+				dt_perm = *dt;  // only copy pointers
+			}
+			else {
+				transpose_dense_tensor(perm_t, dt, &dt_perm);
+			}
+
+			// fill 'j' quantum numbers for merged charge sector
+			for (int i = 0; i < ndim_t; i++) {
+				jlist_r[axis_map_t[i]] = jlist_t[i];
+			}
+
+			const long cr = charge_sector_index(&data_yoga.charge_sectors, jlist_r);
+			assert(cr != -1);
+
+			if (data_yoga.degensors[cr] == NULL)
+			{
+				data_yoga.degensors[cr] = ct_malloc(sizeof(struct dense_tensor));
+				// actually multiply dense tensors
+				dense_tensor_dot(&ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, 1, data_yoga.degensors[cr]);
+			}
+			else
+			{
+				assert(data_yoga.degensors[cr]->dtype == s->dtype);
+				assert(data_yoga.degensors[cr]->ndim  == ndim_logical_r);
+				// actually multiply dense tensors and add result to existing tensor
+				dense_tensor_dot_update(numeric_one(s->dtype), &ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, 1, numeric_one(s->dtype), data_yoga.degensors[cr]);
+			}
+
+			if (!perm_t_is_identity) {
+				delete_dense_tensor(&dt_perm);
+			}
+		}
+
+		if (!perm_s_is_identity) {
+			delete_dense_tensor(&ds_perm);
+		}
+	}
+	ct_free(jlist_r);
+
+	ct_free(perm_t);
+	ct_free(perm_s);
+
+	// convert yoga to simple subtree, and update degeneracy tensors accordingly
+	struct su2_tensor_data data_simple;
+	su2_convert_yoga_to_simple_subtree(&data_yoga, &graph_r, axis_map_s[i_ax_s], &data_simple);
+	assert(su2_graph_has_fuse_split_tree_topology(&graph_r));
+
+	ct_free(axis_map_t);
+	ct_free(axis_map_s);
+
+	for (long i = 0; i < nsec_r; i++)
+	{
+		assert(data_yoga.degensors[i] != NULL);
+		delete_dense_tensor(data_yoga.degensors[i]);
+		ct_free(data_yoga.degensors[i]);
+	}
+	ct_free(data_yoga.degensors);
+	delete_charge_sectors(&data_yoga.charge_sectors);
+
+	struct su2_fuse_split_tree tree_r;
+	su2_graph_to_fuse_split_tree(&graph_r, &tree_r);
+	delete_su2_graph(&graph_r);
+
+	allocate_empty_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_jlists_r, (const long**)dim_degen_r, r);
+	// copy pointers
+	r->charge_sectors = data_simple.charge_sectors;
+	r->degensors      = data_simple.degensors;
+
+	delete_su2_fuse_split_tree(&tree_r);
+
+	for (int i = 0; i < ndim_logical_r; i++) {
+		ct_free(dim_degen_r[i]);
+	}
+	ct_free(dim_degen_r);
+
+	for (int i = 0; i < ndim_outer_r; i++) {
+		delete_su2_irreducible_list(&outer_jlists_r[i]);
+	}
+	ct_free(outer_jlists_r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the lexicographically next quantum index.
 ///
 static inline void next_quantum_index(const int ndim, const int* restrict dim, int* restrict index)
@@ -716,7 +1110,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		assert(s->outer_jlists[i].num > 0);
 		qnumber j_max = 0;
 		for (int k = 0; k < s->outer_jlists[i].num; k++) {
-			j_max = imax(j_max, s->outer_jlists[i].jlist[k]);
+			j_max = qmax(j_max, s->outer_jlists[i].jlist[k]);
 		}
 		sector_offsets[i] = ct_calloc(j_max + 1, sizeof(long));
 		for (int k = 0; k < s->outer_jlists[i].num; k++)

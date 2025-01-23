@@ -10,4 +10,4 @@
 #include "qnumber.h"
 
 
-double su_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf);
+double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf);

@@ -31,6 +31,8 @@ struct su2_tensor
 
 // allocation and construction
 
+void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t);
+
 void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t);
 
 void delete_su2_tensor(struct su2_tensor* t);
@@ -72,12 +74,15 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t);
 //________________________________________________________________________________________________________________________
 //
 
-// flip interal fusin-splitting tree
+// in-place manipulation
 
 static inline void su2_tensor_flip_trees(struct su2_tensor* t)
 {
 	su2_fuse_split_tree_flip(&t->tree);
 }
+
+
+bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist);
 
 
 //________________________________________________________________________________________________________________________
@@ -94,6 +99,8 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 // contraction
 
 void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* restrict i_ax_s, const struct su2_tensor* restrict t, const int* restrict i_ax_t, const int ndim_mult, struct su2_tensor* restrict r);
+
+void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_ax_s, const struct su2_tensor* restrict t, const int i_ax_t, struct su2_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________
