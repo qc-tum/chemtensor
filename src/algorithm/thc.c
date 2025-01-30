@@ -302,8 +302,8 @@ int thc_spin_molecular_hamiltonian_to_matrix(const struct thc_spin_molecular_ham
 		assert(g.axis_dir[1] == TENSOR_AXIS_OUT);
 		assert(g.axis_dir[2] == TENSOR_AXIS_IN);
 		struct block_sparse_tensor gl, gr;
-		flatten_block_sparse_tensor_axes(&g, 2, TENSOR_AXIS_IN,  &gl);
-		flatten_block_sparse_tensor_axes(&g, 0, TENSOR_AXIS_OUT, &gr);
+		block_sparse_tensor_flatten_axes(&g, 2, TENSOR_AXIS_IN,  &gl);
+		block_sparse_tensor_flatten_axes(&g, 0, TENSOR_AXIS_OUT, &gr);
 		delete_block_sparse_tensor(&g);
 		// multiply tensors
 		struct block_sparse_tensor g2;

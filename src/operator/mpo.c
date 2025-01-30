@@ -273,9 +273,9 @@ void mpo_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 	// combine original physical dimensions of a0 and a1 into one dimension
 	struct block_sparse_tensor tmp;
-	flatten_block_sparse_tensor_axes(&a0_a1_dot_perm, 1, TENSOR_AXIS_OUT, &tmp);
+	block_sparse_tensor_flatten_axes(&a0_a1_dot_perm, 1, TENSOR_AXIS_OUT, &tmp);
 	delete_block_sparse_tensor(&a0_a1_dot_perm);
-	flatten_block_sparse_tensor_axes(&tmp, 2, TENSOR_AXIS_IN, a);
+	block_sparse_tensor_flatten_axes(&tmp, 2, TENSOR_AXIS_IN, a);
 	delete_block_sparse_tensor(&tmp);
 
 	assert(a->ndim == 4);

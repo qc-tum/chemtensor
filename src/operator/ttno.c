@@ -887,9 +887,9 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 
 		// flatten pairs of physical input and output axes
 		struct block_sparse_tensor s;
-		flatten_block_sparse_tensor_axes(&t, 0, TENSOR_AXIS_OUT, &s);
+		block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, &s);
 		delete_block_sparse_tensor(&t);
-		flatten_block_sparse_tensor_axes(&s, 1, TENSOR_AXIS_IN, &contracted.tensor);
+		block_sparse_tensor_flatten_axes(&s, 1, TENSOR_AXIS_IN, &contracted.tensor);
 		delete_block_sparse_tensor(&s);
 	}
 	assert(contracted.tensor.ndim == 2);

@@ -539,7 +539,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 					const enum tensor_axis_direction new_axis_dir[2] = { psi_a_bonds.axis_dir[0],      TENSOR_AXIS_OUT };
 					const qnumber* new_qnums_logical[2]              = { psi_a_bonds.qnums_logical[0], q_zero          };
 					struct block_sparse_tensor tmp;
-					split_block_sparse_tensor_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+					block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 					delete_block_sparse_tensor(&psi_a_bonds);
 					move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
 				}
@@ -550,7 +550,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 					const enum tensor_axis_direction new_axis_dir[2] = { chi_a_conj.axis_dir[0],      TENSOR_AXIS_IN };
 					const qnumber* new_qnums_logical[2]              = { chi_a_conj.qnums_logical[0], q_zero         };
 					struct block_sparse_tensor tmp;
-					split_block_sparse_tensor_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+					block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 					delete_block_sparse_tensor(&chi_a_conj);
 					move_block_sparse_tensor_data(&tmp, &chi_a_conj);
 				}
@@ -920,7 +920,7 @@ void ttns_to_statevector(const struct ttns* ttns, struct block_sparse_tensor* ve
 	{
 		// flatten pairs of physical axes
 		struct block_sparse_tensor t;
-		flatten_block_sparse_tensor_axes(&ctensor_flip_aux, 1, TENSOR_AXIS_OUT, &t);
+		block_sparse_tensor_flatten_axes(&ctensor_flip_aux, 1, TENSOR_AXIS_OUT, &t);
 		delete_block_sparse_tensor(&ctensor_flip_aux);
 		move_block_sparse_tensor_data(&t, &ctensor_flip_aux);
 		assert(ctensor_flip_aux.dim_logical[0] == 1);  // auxiliary axis

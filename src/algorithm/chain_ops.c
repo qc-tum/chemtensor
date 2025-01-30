@@ -38,9 +38,9 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 	assert(s.blocks[0] != NULL);
 	memcpy(s.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	struct block_sparse_tensor t;
-	flatten_block_sparse_tensor_axes(&s, 4, TENSOR_AXIS_IN, &t);
+	block_sparse_tensor_flatten_axes(&s, 4, TENSOR_AXIS_IN, &t);
 	delete_block_sparse_tensor(&s);
-	flatten_block_sparse_tensor_axes(&t, 3, TENSOR_AXIS_IN, r);
+	block_sparse_tensor_flatten_axes(&t, 3, TENSOR_AXIS_IN, r);
 	delete_block_sparse_tensor(&t);
 }
 
@@ -77,9 +77,9 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 	assert(s.blocks[0] != NULL);
 	memcpy(s.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	struct block_sparse_tensor t;
-	flatten_block_sparse_tensor_axes(&s, 0, TENSOR_AXIS_OUT, &t);
+	block_sparse_tensor_flatten_axes(&s, 0, TENSOR_AXIS_OUT, &t);
 	delete_block_sparse_tensor(&s);
-	flatten_block_sparse_tensor_axes(&t, 0, TENSOR_AXIS_OUT, l);
+	block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, l);
 	delete_block_sparse_tensor(&t);
 }
 
@@ -289,9 +289,9 @@ void mpo_inner_product(const struct mps* chi, const struct mpo* op, const struct
 	// flatten left virtual bonds
 	{
 		struct block_sparse_tensor t;
-		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &t);
+		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &t);
 		delete_block_sparse_tensor(&r);
-		flatten_block_sparse_tensor_axes(&t, 0, TENSOR_AXIS_OUT, &r);
+		block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, &r);
 		delete_block_sparse_tensor(&t);
 	}
 
@@ -491,9 +491,9 @@ void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
 		delete_block_sparse_tensor(&t);
 
 		// flatten left and right virtual bonds
-		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &s);
+		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &s);
 		delete_block_sparse_tensor(&r);
-		flatten_block_sparse_tensor_axes(&s, 2, TENSOR_AXIS_IN, &op_psi->a[i]);
+		block_sparse_tensor_flatten_axes(&s, 2, TENSOR_AXIS_IN, &op_psi->a[i]);
 		delete_block_sparse_tensor(&s);
 	}
 }

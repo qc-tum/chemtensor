@@ -448,6 +448,28 @@ void conjugate_dense_tensor(struct dense_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Flatten the two neighboring axes (tensor legs) 'i_ax' and 'i_ax + 1' into a single axis.
+///
+void dense_tensor_flatten_axes(struct dense_tensor* t, const int i_ax)
+{
+	assert(0 <= i_ax && i_ax + 1 < t->ndim);
+
+	// new dimensions
+	long* new_dim = ct_malloc((t->ndim - 1) * sizeof(long));
+	for (int i = 0; i < i_ax; i++) {
+		new_dim[i] = t->dim[i];
+	}
+	new_dim[i_ax] = t->dim[i_ax] * t->dim[i_ax + 1];
+	for (int i = i_ax + 1; i < t->ndim - 1; i++) {
+		new_dim[i] = t->dim[i + 1];
+	}
+
+	reshape_dense_tensor(t->ndim - 1, new_dim, t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Set the tensor to the identity operator; all dimensions of the tensor must agree.
 ///
 void dense_tensor_set_identity(struct dense_tensor* t)
@@ -1778,6 +1800,7 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 	assert(r->dtype == tlist[0].dtype);
 	assert(r->ndim  == tlist[0].ndim);
 	assert(0 <= i_ax && i_ax < r->ndim);
+	#ifndef NDEBUG
 	for (int j = 0; j < num_tensors - 1; j++)
 	{
 		// data types must match
@@ -1791,6 +1814,7 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 			}
 		}
 	}
+	#endif
 	long dim_concat = 0;
 	for (int j = 0; j < num_tensors; j++) {
 		dim_concat += tlist[j].dim[i_ax];

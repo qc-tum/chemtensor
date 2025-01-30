@@ -96,6 +96,14 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 //________________________________________________________________________________________________________________________
 //
 
+// axis fusion and splitting
+
+void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, struct su2_tensor* restrict r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // contraction
 
 void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* restrict i_ax_s, const struct su2_tensor* restrict t, const int* restrict i_ax_t, const int ndim_mult, struct su2_tensor* restrict r);

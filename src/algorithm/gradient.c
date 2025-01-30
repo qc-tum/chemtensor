@@ -47,9 +47,9 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 
 		// flatten left virtual bonds
 		struct block_sparse_tensor t;
-		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &t);
+		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &t);
 		delete_block_sparse_tensor(&r);
-		flatten_block_sparse_tensor_axes(&t, 0, TENSOR_AXIS_OUT, &r);
+		block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, &r);
 		delete_block_sparse_tensor(&t);
 
 		// 'r' should now be a 1 x 1 tensor

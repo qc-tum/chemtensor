@@ -299,9 +299,9 @@ char* test_apply_mpo()
 		delete_block_sparse_tensor(&t);
 
 		// flatten left and right dummy virtual bonds
-		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &s);
+		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &s);
 		delete_block_sparse_tensor(&r);
-		flatten_block_sparse_tensor_axes(&s, 2, TENSOR_AXIS_IN, &op_psi_ref);
+		block_sparse_tensor_flatten_axes(&s, 2, TENSOR_AXIS_IN, &op_psi_ref);
 		delete_block_sparse_tensor(&s);
 
 		delete_block_sparse_tensor(&op_mat);

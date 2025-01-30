@@ -412,7 +412,7 @@ char* test_block_sparse_tensor_reshape()
 	const int i_ax = 1;
 	const enum tensor_axis_direction new_axis_dir = TENSOR_AXIS_OUT;
 	struct block_sparse_tensor t_flat;
-	flatten_block_sparse_tensor_axes(&t, i_ax, new_axis_dir, &t_flat);
+	block_sparse_tensor_flatten_axes(&t, i_ax, new_axis_dir, &t_flat);
 
 	// reshape original dense tensor, as reference
 	const long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
@@ -429,7 +429,7 @@ char* test_block_sparse_tensor_reshape()
 
 	// split axis again
 	struct block_sparse_tensor s;
-	split_block_sparse_tensor_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.qnums_logical + i_ax), &s);
+	block_sparse_tensor_split_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.qnums_logical + i_ax), &s);
 
 	// compare
 	if (!block_sparse_tensor_allclose(&s, &t, 0.)) {

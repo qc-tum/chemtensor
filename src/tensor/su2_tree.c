@@ -128,6 +128,30 @@ bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Locate the node with axis index 'i_ax', returning NULL if such a node cannot be found.
+///
+const struct su2_tree_node* su2_tree_find_node(const struct su2_tree_node* tree, const int i_ax)
+{
+	if (tree == NULL) {
+		return NULL;
+	}
+
+	if (tree->i_ax == i_ax) {
+		return tree;
+	}
+
+	// search in left subtree
+	const struct su2_tree_node* node = su2_tree_find_node(tree->c[0], i_ax);
+	if (node != NULL) {
+		return node;
+	}
+	// search in right subtree
+	return su2_tree_find_node(tree->c[1], i_ax);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Locate the parent of the node with axis index 'i_ax', returning NULL if parent cannot be found.
 ///
 const struct su2_tree_node* su2_tree_find_parent_node(const struct su2_tree_node* tree, const int i_ax)

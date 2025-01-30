@@ -104,9 +104,9 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 
 // reshaping
 
-void flatten_block_sparse_tensor_axes(const struct block_sparse_tensor* restrict t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r);
 
-void split_block_sparse_tensor_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

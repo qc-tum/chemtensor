@@ -49,6 +49,8 @@ bool su2_tree_equal_topology(const struct su2_tree_node* restrict s, const struc
 
 bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax);
 
+const struct su2_tree_node* su2_tree_find_node(const struct su2_tree_node* tree, const int i_ax);
+
 const struct su2_tree_node* su2_tree_find_parent_node(const struct su2_tree_node* tree, const int i_ax);
 
 int su2_tree_num_nodes(const struct su2_tree_node* tree);

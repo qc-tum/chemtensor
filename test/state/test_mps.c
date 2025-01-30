@@ -328,7 +328,7 @@ char* test_mps_orthonormalize_qr()
 			{
 				// mps.a[i] must be an isometry
 				struct block_sparse_tensor a_mat;
-				flatten_block_sparse_tensor_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
+				block_sparse_tensor_flatten_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
 				if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, false)) {
 					return "MPS tensor is not isometric";
 				}
@@ -341,7 +341,7 @@ char* test_mps_orthonormalize_qr()
 			{
 				// mps.a[i] must be an isometry
 				struct block_sparse_tensor a_mat;
-				flatten_block_sparse_tensor_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
+				block_sparse_tensor_flatten_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
 				if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, true)) {
 					return "MPS tensor is not isometric";
 				}
@@ -466,7 +466,7 @@ char* test_mps_compress()
 				{
 					// mps.a[i] must be an isometry
 					struct block_sparse_tensor a_mat;
-					flatten_block_sparse_tensor_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
+					block_sparse_tensor_flatten_axes(&mps.a[i], 0, TENSOR_AXIS_OUT, &a_mat);
 					if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, false)) {
 						return "MPS tensor is not isometric";
 					}
@@ -479,7 +479,7 @@ char* test_mps_compress()
 				{
 					// mps.a[i] must be an isometry
 					struct block_sparse_tensor a_mat;
-					flatten_block_sparse_tensor_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
+					block_sparse_tensor_flatten_axes(&mps.a[i], 1, TENSOR_AXIS_IN, &a_mat);
 					if (!block_sparse_tensor_is_isometry(&a_mat, 5e-6, true)) {
 						return "MPS tensor is not isometric";
 					}

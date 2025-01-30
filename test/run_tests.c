@@ -53,6 +53,7 @@ char* test_su2_graph_to_fuse_split_tree();
 char* test_su2_graph_yoga_to_simple_subtree();
 char* test_su2_graph_connect();
 char* test_su2_tensor_fmove();
+char* test_su2_tensor_fuse_axes();
 char* test_su2_tensor_contract_simple();
 char* test_su2_tensor_contract_yoga();
 char* test_su2_to_dense_tensor();
@@ -149,6 +150,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_graph_yoga_to_simple_subtree),
 		TEST_FUNCTION_ENTRY(test_su2_graph_connect),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fmove),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_fuse_axes),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_yoga),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),

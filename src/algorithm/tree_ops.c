@@ -248,7 +248,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				const enum tensor_axis_direction new_axis_dir[2] = { TENSOR_AXIS_OUT, psi_a_bonds.axis_dir[0]      };
 				const qnumber* new_qnums_logical[2]              = { q_zero,          psi_a_bonds.qnums_logical[0] };
 				struct block_sparse_tensor tmp;
-				split_block_sparse_tensor_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+				block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&psi_a_bonds);
 				move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
 			}
@@ -260,7 +260,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				const enum tensor_axis_direction new_axis_dir[2] = { op_a.axis_dir[0],      TENSOR_AXIS_IN };
 				const qnumber* new_qnums_logical[2]              = { op_a.qnums_logical[0], q_zero         };
 				struct block_sparse_tensor tmp;
-				split_block_sparse_tensor_axis(&op_a, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+				block_sparse_tensor_split_axis(&op_a, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&op_a);
 				move_block_sparse_tensor_data(&tmp, &op_a);
 			}
@@ -387,7 +387,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				const enum tensor_axis_direction new_axis_dir[3] = { op_psi_a_bonds.axis_dir[0],      op_psi_a_bonds.axis_dir[1],      TENSOR_AXIS_OUT };
 				const qnumber* new_qnums_logical[3]              = { op_psi_a_bonds.qnums_logical[0], op_psi_a_bonds.qnums_logical[1], q_zero          };
 				struct block_sparse_tensor tmp;
-				split_block_sparse_tensor_axis(&op_psi_a_bonds, 1, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+				block_sparse_tensor_split_axis(&op_psi_a_bonds, 1, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&op_psi_a_bonds);
 				move_block_sparse_tensor_data(&tmp, &op_psi_a_bonds);
 			}
@@ -399,7 +399,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				const enum tensor_axis_direction new_axis_dir[2] = { chi_a_conj.axis_dir[0],      TENSOR_AXIS_IN };
 				const qnumber* new_qnums_logical[2]              = { chi_a_conj.qnums_logical[0], q_zero         };
 				struct block_sparse_tensor tmp;
-				split_block_sparse_tensor_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
+				block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&chi_a_conj);
 				move_block_sparse_tensor_data(&tmp, &chi_a_conj);
 			}

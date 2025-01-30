@@ -325,7 +325,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
 		assert(t.blocks[0] != NULL);
 		memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
-		flatten_block_sparse_tensor_axes(&t, 2, TENSOR_AXIS_IN, &r);
+		block_sparse_tensor_flatten_axes(&t, 2, TENSOR_AXIS_IN, &r);
 		delete_block_sparse_tensor(&t);
 	}
 
@@ -340,7 +340,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 	// flatten left virtual bonds
 	{
 		struct block_sparse_tensor r_flat;
-		flatten_block_sparse_tensor_axes(&r, 0, TENSOR_AXIS_OUT, &r_flat);
+		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &r_flat);
 		delete_block_sparse_tensor(&r);
 		move_block_sparse_tensor_data(&r_flat, &r);
 	}
@@ -516,7 +516,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 
 	// combine left virtual bond and physical axis
 	struct block_sparse_tensor a_mat;
-	flatten_block_sparse_tensor_axes(a, 0, TENSOR_AXIS_OUT, &a_mat);
+	block_sparse_tensor_flatten_axes(a, 0, TENSOR_AXIS_OUT, &a_mat);
 	delete_block_sparse_tensor(a);
 
 	// perform QR decomposition
@@ -525,7 +525,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	delete_block_sparse_tensor(&a_mat);
 
 	// replace 'a' by reshaped 'q' matrix
-	split_block_sparse_tensor_axis(&q, 0, dim_logical_left, axis_dir_left, (const qnumber**)qnums_logical_left, a);
+	block_sparse_tensor_split_axis(&q, 0, dim_logical_left, axis_dir_left, (const qnumber**)qnums_logical_left, a);
 	delete_block_sparse_tensor(&q);
 	for (int i = 0; i < 2; i++)
 	{
@@ -563,7 +563,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 
 	// combine physical and right virtual bond axis
 	struct block_sparse_tensor a_mat;
-	flatten_block_sparse_tensor_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
+	block_sparse_tensor_flatten_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
 	delete_block_sparse_tensor(a);
 
 	// perform RQ decomposition
@@ -572,7 +572,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	delete_block_sparse_tensor(&a_mat);
 
 	// replace 'a' by reshaped 'q' matrix
-	split_block_sparse_tensor_axis(&q, 1, dim_logical_right, axis_dir_right, (const qnumber**)qnums_logical_right, a);
+	block_sparse_tensor_split_axis(&q, 1, dim_logical_right, axis_dir_right, (const qnumber**)qnums_logical_right, a);
 	delete_block_sparse_tensor(&q);
 	for (int i = 0; i < 2; i++)
 	{
@@ -767,7 +767,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 
 	// combine left virtual bond and physical axis
 	struct block_sparse_tensor a_mat;
-	flatten_block_sparse_tensor_axes(a, 0, TENSOR_AXIS_OUT, &a_mat);
+	block_sparse_tensor_flatten_axes(a, 0, TENSOR_AXIS_OUT, &a_mat);
 	delete_block_sparse_tensor(a);
 
 	// perform truncated SVD
@@ -779,7 +779,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 	}
 
 	// replace 'a' by reshaped 'm0' matrix
-	split_block_sparse_tensor_axis(&m0, 0, dim_logical_left, axis_dir_left, (const qnumber**)qnums_logical_left, a);
+	block_sparse_tensor_split_axis(&m0, 0, dim_logical_left, axis_dir_left, (const qnumber**)qnums_logical_left, a);
 	delete_block_sparse_tensor(&m0);
 	for (int i = 0; i < 2; i++) {
 		ct_free(qnums_logical_left[i]);
@@ -818,7 +818,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 
 	// combine physical and right virtual bond axis
 	struct block_sparse_tensor a_mat;
-	flatten_block_sparse_tensor_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
+	block_sparse_tensor_flatten_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
 	delete_block_sparse_tensor(a);
 
 	// perform truncated SVD
@@ -830,7 +830,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 	}
 
 	// replace 'a' by reshaped 'm1' matrix
-	split_block_sparse_tensor_axis(&m1, 1, dim_logical_right, axis_dir_right, (const qnumber**)qnums_logical_right, a);
+	block_sparse_tensor_split_axis(&m1, 1, dim_logical_right, axis_dir_right, (const qnumber**)qnums_logical_right, a);
 	delete_block_sparse_tensor(&m1);
 	for (int i = 0; i < 2; i++) {
 		ct_free(qnums_logical_right[i]);
@@ -1116,13 +1116,13 @@ int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const lon
 	struct block_sparse_tensor a_twosite;
 	assert(a->axis_dir[1] == TENSOR_AXIS_OUT);
 	const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
-	split_block_sparse_tensor_axis(a, 1, d, axis_dir, new_qsite, &a_twosite);
+	block_sparse_tensor_split_axis(a, 1, d, axis_dir, new_qsite, &a_twosite);
 	// reshape to a matrix
 	struct block_sparse_tensor tmp;
-	flatten_block_sparse_tensor_axes(&a_twosite, 0, TENSOR_AXIS_OUT, &tmp);
+	block_sparse_tensor_flatten_axes(&a_twosite, 0, TENSOR_AXIS_OUT, &tmp);
 	assert(tmp.ndim == 3);
 	struct block_sparse_tensor a_mat;
-	flatten_block_sparse_tensor_axes(&tmp, 1, TENSOR_AXIS_IN, &a_mat);
+	block_sparse_tensor_flatten_axes(&tmp, 1, TENSOR_AXIS_IN, &a_mat);
 	delete_block_sparse_tensor(&tmp);
 
 	// split by truncated SVD
@@ -1135,8 +1135,8 @@ int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const lon
 
 	// restore original virtual bonds and physical axes
 	assert(a_twosite.ndim == 4);
-	split_block_sparse_tensor_axis(&m0, 0, a_twosite.dim_logical,     a_twosite.axis_dir,     (const qnumber**) a_twosite.qnums_logical,      a0);
-	split_block_sparse_tensor_axis(&m1, 1, a_twosite.dim_logical + 2, a_twosite.axis_dir + 2, (const qnumber**)(a_twosite.qnums_logical + 2), a1);
+	block_sparse_tensor_split_axis(&m0, 0, a_twosite.dim_logical,     a_twosite.axis_dir,     (const qnumber**) a_twosite.qnums_logical,      a0);
+	block_sparse_tensor_split_axis(&m1, 1, a_twosite.dim_logical + 2, a_twosite.axis_dir + 2, (const qnumber**)(a_twosite.qnums_logical + 2), a1);
 
 	delete_block_sparse_tensor(&m1);
 	delete_block_sparse_tensor(&m0);
@@ -1161,7 +1161,7 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 	block_sparse_tensor_dot(a0, TENSOR_AXIS_RANGE_TRAILING, a1, TENSOR_AXIS_RANGE_LEADING, 1, &a0_a1_dot);
 
 	// combine original physical dimensions of a0 and a1 into one dimension
-	flatten_block_sparse_tensor_axes(&a0_a1_dot, 1, TENSOR_AXIS_OUT, a);
+	block_sparse_tensor_flatten_axes(&a0_a1_dot, 1, TENSOR_AXIS_OUT, a);
 	delete_block_sparse_tensor(&a0_a1_dot);
 }
 

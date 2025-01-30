@@ -116,6 +116,8 @@ void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* 
 
 void conjugate_dense_tensor(struct dense_tensor* t);
 
+void dense_tensor_flatten_axes(struct dense_tensor* t, const int i_ax);
+
 void dense_tensor_set_identity(struct dense_tensor* t);
 
 void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct dense_tensor* t);
