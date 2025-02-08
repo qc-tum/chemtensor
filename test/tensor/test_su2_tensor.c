@@ -49,7 +49,7 @@ char* test_su2_tensor_fmove()
 	qnumber j2list[] = { 1, 3 };
 	qnumber j3list[] = { 2, 4 };
 	qnumber j4list[] = { 0, 2 };
-	const struct su2_irreducible_list outer_jlists[5] = {
+	const struct su2_irreducible_list outer_irreps[5] = {
 		{ .jlist = j0list, .num = ARRLEN(j0list) },
 		{ .jlist = j1list, .num = ARRLEN(j1list) },
 		{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -76,7 +76,7 @@ char* test_su2_tensor_fmove()
 	const int ndim_auxiliary = 0;
 
 	struct su2_tensor t;
-	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
 
 	if (!su2_tensor_is_consistent(&t)) {
 		return "internal consistency check for SU(2) tensor failed";
@@ -204,7 +204,7 @@ char* test_su2_tensor_fuse_axes()
 		qnumber j2list[] = { 1, 3 };
 		qnumber j3list[] = { 1, 5 };
 		qnumber j4list[] = { 0 };  // auxiliary
-		const struct su2_irreducible_list outer_jlists[5] = {
+		const struct su2_irreducible_list outer_irreps[5] = {
 			{ .jlist = j0list, .num = ARRLEN(j0list) },
 			{ .jlist = j1list, .num = ARRLEN(j1list) },
 			{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -228,7 +228,7 @@ char* test_su2_tensor_fuse_axes()
 		const int ndim_logical   = 4;
 		const int ndim_auxiliary = 1;
 
-		allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+		allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
 
 		// delete some charge sectors
 		qnumber jlist_del1[7];
@@ -307,7 +307,7 @@ char* test_su2_tensor_fuse_axes()
 		qnumber j0list[] = { 1, 3, 5, 7 };
 		qnumber j1list[] = { 0, 2 };
 		qnumber j2list[] = { 1, 5 };
-		const struct su2_irreducible_list outer_jlists[3] = {
+		const struct su2_irreducible_list outer_irreps[3] = {
 			{ .jlist = j0list, .num = ARRLEN(j0list) },
 			{ .jlist = j1list, .num = ARRLEN(j1list) },
 			{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -327,7 +327,7 @@ char* test_su2_tensor_fuse_axes()
 		const int ndim_logical   = 3;
 		const int ndim_auxiliary = 0;
 
-		allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &u_fuse);
+		allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &u_fuse);
 
 		if (!su2_tensor_is_consistent(&u_fuse)) {
 			return "internal consistency check for SU(2) tensor failed";
@@ -478,7 +478,7 @@ char* test_su2_tensor_contract_simple()
 		qnumber j3list[] = { 2 };
 		qnumber j4list[] = { 0 };  // auxiliary
 		qnumber j5list[] = { 0 };  // auxiliary
-		const struct su2_irreducible_list outer_jlists[6] = {
+		const struct su2_irreducible_list outer_irreps[6] = {
 			{ .jlist = j0list, .num = ARRLEN(j0list) },
 			{ .jlist = j1list, .num = ARRLEN(j1list) },
 			{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -503,7 +503,7 @@ char* test_su2_tensor_contract_simple()
 		const int ndim_logical   = 4;
 		const int ndim_auxiliary = 2;
 
-		allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &s);
+		allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &s);
 
 		if (!su2_tensor_is_consistent(&s)) {
 			return "internal consistency check for SU(2) tensor failed";
@@ -570,7 +570,7 @@ char* test_su2_tensor_contract_simple()
 		qnumber j3list[] = { 2 };
 		qnumber j4list[] = { 4 };
 		qnumber j5list[] = { 0 };  // auxiliary
-		const struct su2_irreducible_list outer_jlists[6] = {
+		const struct su2_irreducible_list outer_irreps[6] = {
 			{ .jlist = j0list, .num = ARRLEN(j0list) },
 			{ .jlist = j1list, .num = ARRLEN(j1list) },
 			{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -597,7 +597,7 @@ char* test_su2_tensor_contract_simple()
 		const int ndim_logical   = 5;
 		const int ndim_auxiliary = 1;
 
-		allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+		allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
 
 		if (!su2_tensor_is_consistent(&t)) {
 			return "internal consistency check for SU(2) tensor failed";
@@ -822,7 +822,7 @@ char* test_su2_tensor_contract_yoga()
 			qnumber j1list[] = { 1, 3 };
 			qnumber j2list[] = { 1, 3 };
 			qnumber j3list[] = { 1 };
-			const struct su2_irreducible_list outer_jlists[4] = {
+			const struct su2_irreducible_list outer_irreps[4] = {
 				{ .jlist = j0list, .num = ARRLEN(j0list) },
 				{ .jlist = j1list, .num = ARRLEN(j1list) },
 				{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -845,7 +845,7 @@ char* test_su2_tensor_contract_yoga()
 			const int ndim_logical   = 4;
 			const int ndim_auxiliary = 0;
 
-			allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &s);
+			allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &s);
 
 			// delete some charge sectors, to probe yoga transformation with missing sectors
 			const qnumber jlist_del1[5] = { 1, 1, 1, 1, 2 };
@@ -920,7 +920,7 @@ char* test_su2_tensor_contract_yoga()
 			qnumber j2list[] = { 1, 3 };
 			qnumber j3list[] = { 2 };
 			qnumber j4list[] = { 0 };  // auxiliary
-			const struct su2_irreducible_list outer_jlists[5] = {
+			const struct su2_irreducible_list outer_irreps[5] = {
 				{ .jlist = j0list, .num = ARRLEN(j0list) },
 				{ .jlist = j1list, .num = ARRLEN(j1list) },
 				{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -944,7 +944,7 @@ char* test_su2_tensor_contract_yoga()
 			const int ndim_logical   = 4;
 			const int ndim_auxiliary = 1;
 
-			allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+			allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
 
 			// delete some charge sectors, to probe yoga transformation with missing sectors
 			const qnumber jlist_del1[7] = { 3, 0, 3, 2, 0, 3, 0 };
@@ -1076,7 +1076,7 @@ char* test_su2_to_dense_tensor()
 	qnumber j2list[] = { 1, 5 };
 	qnumber j3list[] = { 2, 4 };
 	qnumber j4list[] = { 0 };  // auxiliary
-	const struct su2_irreducible_list outer_jlists[5] = {
+	const struct su2_irreducible_list outer_irreps[5] = {
 		{ .jlist = j0list, .num = ARRLEN(j0list) },
 		{ .jlist = j1list, .num = ARRLEN(j1list) },
 		{ .jlist = j2list, .num = ARRLEN(j2list) },
@@ -1101,7 +1101,7 @@ char* test_su2_to_dense_tensor()
 	const int ndim_auxiliary = 1;
 
 	struct su2_tensor t;
-	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_jlists, dim_degen, &t);
+	allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
 
 	if (!su2_tensor_is_consistent(&t)) {
 		return "internal consistency check for SU(2) tensor failed";

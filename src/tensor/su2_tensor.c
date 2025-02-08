@@ -13,7 +13,7 @@
 ///
 /// \brief Allocate an "empty" SU(2) symmetric tensor, without the charge sectors and dense "degeneracy" tensors.
 ///
-void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
+void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_irreps, const long** dim_degen, struct su2_tensor* t)
 {
 	t->dtype = dtype;
 
@@ -26,18 +26,18 @@ void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_log
 
 	// irreducible 'j' quantum numbers on outer axes
 	const int ndim_outer = ndim_logical + ndim_auxiliary;
-	t->outer_jlists = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
+	t->outer_irreps = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
 	for (int i = 0; i < ndim_outer; i++) {
-		copy_su2_irreducible_list(&outer_jlists[i], &t->outer_jlists[i]);
+		copy_su2_irreducible_list(&outer_irreps[i], &t->outer_irreps[i]);
 	}
 
 	t->dim_degen = ct_malloc(t->ndim_logical * sizeof(long*));
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
-		assert(t->outer_jlists[i].num > 0);
+		assert(t->outer_irreps[i].num > 0);
 		qnumber j_max = 0;
-		for (int k = 0; k < t->outer_jlists[i].num; k++) {
-			j_max = qmax(j_max, t->outer_jlists[i].jlist[k]);
+		for (int k = 0; k < t->outer_irreps[i].num; k++) {
+			j_max = qmax(j_max, t->outer_irreps[i].jlist[k]);
 		}
 		t->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(long));
 		memcpy(t->dim_degen[i], dim_degen[i], (j_max + 1) * sizeof(long));
@@ -49,11 +49,11 @@ void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_log
 ///
 /// \brief Allocate memory for an SU(2) symmetric tensor, including the dense "degeneracy" tensors, and enumerate all possible charge sectors.
 ///
-void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_jlists, const long** dim_degen, struct su2_tensor* t)
+void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_irreps, const long** dim_degen, struct su2_tensor* t)
 {
-	allocate_empty_su2_tensor(dtype, ndim_logical, ndim_auxiliary, tree, outer_jlists, dim_degen, t);
+	allocate_empty_su2_tensor(dtype, ndim_logical, ndim_auxiliary, tree, outer_irreps, dim_degen, t);
 
-	su2_fuse_split_tree_enumerate_charge_sectors(&t->tree, t->outer_jlists, &t->charge_sectors);
+	su2_fuse_split_tree_enumerate_charge_sectors(&t->tree, t->outer_irreps, &t->charge_sectors);
 
 	// degeneracy tensors
 	t->degensors = ct_malloc(t->charge_sectors.nsec * sizeof(struct dense_tensor*));
@@ -100,10 +100,10 @@ void delete_su2_tensor(struct su2_tensor* t)
 
 	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
 	for (int i = 0; i < ndim_outer; i++) {
-		delete_su2_irreducible_list(&t->outer_jlists[i]);
+		delete_su2_irreducible_list(&t->outer_irreps[i]);
 	}
-	ct_free(t->outer_jlists);
-	t->outer_jlists = NULL;
+	ct_free(t->outer_irreps);
+	t->outer_irreps = NULL;
 
 	delete_su2_fuse_split_tree(&t->tree);
 }
@@ -118,9 +118,9 @@ long su2_tensor_dim_logical_axis(const struct su2_tensor* t, const int i_ax)
 	assert(0 <= i_ax && i_ax < t->ndim_logical);
 
 	long d = 0;
-	for (int k = 0; k < t->outer_jlists[i_ax].num; k++)
+	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
 	{
-		const qnumber j = t->outer_jlists[i_ax].jlist[k];
+		const qnumber j = t->outer_irreps[i_ax].jlist[k];
 		assert(t->dim_degen[i_ax][j] > 0);
 		d += t->dim_degen[i_ax][j] * (j + 1);
 	}
@@ -177,13 +177,13 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
-		if (t->outer_jlists[i].num <= 0) {
+		if (t->outer_irreps[i].num <= 0) {
 			return false;
 		}
 
-		for (int k = 0; k < t->outer_jlists[i].num; k++)
+		for (int k = 0; k < t->outer_irreps[i].num; k++)
 		{
-			const qnumber j = t->outer_jlists[i].jlist[k];
+			const qnumber j = t->outer_irreps[i].jlist[k];
 			if (j < 0) {
 				return false;
 			}
@@ -321,7 +321,7 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 	}
 
 	// create new tensor
-	allocate_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &tree, t->outer_jlists, (const long**)t->dim_degen, r);
+	allocate_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &tree, t->outer_irreps, (const long**)t->dim_degen, r);
 	delete_su2_fuse_split_tree(&tree);
 
 	for (long cr = 0; cr < r->charge_sectors.nsec; cr++)
@@ -422,12 +422,12 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 	}
 
 	qnumber j_max_0 = 0;
-	for (int k = 0; k < t->outer_jlists[i_ax_0].num; k++) {
-		j_max_0 = qmax(j_max_0, t->outer_jlists[i_ax_0].jlist[k]);
+	for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++) {
+		j_max_0 = qmax(j_max_0, t->outer_irreps[i_ax_0].jlist[k]);
 	}
 	qnumber j_max_1 = 0;
-	for (int k = 0; k < t->outer_jlists[i_ax_1].num; k++) {
-		j_max_1 = qmax(j_max_1, t->outer_jlists[i_ax_1].jlist[k]);
+	for (int k = 0; k < t->outer_irreps[i_ax_1].num; k++) {
+		j_max_1 = qmax(j_max_1, t->outer_irreps[i_ax_1].jlist[k]);
 	}
 	// largest possible 'j' quantum number of the new fused axis
 	qnumber j_max_fused = j_max_0 + j_max_1;
@@ -456,15 +456,15 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 		assert(su2_fuse_split_tree_is_consistent(&tree_r));
 
 		long* dim_degen_fused = ct_calloc(j_max_fused + 1, sizeof(long));
-		for (int k = 0; k < t->outer_jlists[i_ax_0].num; k++)
+		for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++)
 		{
-			const qnumber j0 = t->outer_jlists[i_ax_0].jlist[k];
+			const qnumber j0 = t->outer_irreps[i_ax_0].jlist[k];
 			assert(j0 <= j_max_0);
 			assert(t->dim_degen[i_ax_0][j0] > 0);
 
-			for (int l = 0; l < t->outer_jlists[i_ax_1].num; l++)
+			for (int l = 0; l < t->outer_irreps[i_ax_1].num; l++)
 			{
-				const qnumber j1 = t->outer_jlists[i_ax_1].jlist[l];
+				const qnumber j1 = t->outer_irreps[i_ax_1].jlist[l];
 				assert(j1 <= j_max_1);
 				assert(t->dim_degen[i_ax_1][j1] > 0);
 
@@ -478,24 +478,24 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 			}
 		}
 
-		struct su2_irreducible_list outer_jlists_r_fused = {
+		struct su2_irreducible_list outer_irreps_r_fused = {
 			.jlist = ct_malloc((j_max_fused + 1) * sizeof(qnumber)),
 			.num = 0,
 		};
 		for (qnumber j = 0; j <= j_max_fused; j++) {
 			if (dim_degen_fused[j] > 0) {
-				outer_jlists_r_fused.jlist[outer_jlists_r_fused.num] = j;
-				outer_jlists_r_fused.num++;
+				outer_irreps_r_fused.jlist[outer_irreps_r_fused.num] = j;
+				outer_irreps_r_fused.num++;
 			}
 		}
-		assert(outer_jlists_r_fused.num > 0);
-		struct su2_irreducible_list* outer_jlists_r = ct_malloc((ndim_outer_t - 1) * sizeof(struct su2_irreducible_list));
+		assert(outer_irreps_r_fused.num > 0);
+		struct su2_irreducible_list* outer_irreps_r = ct_malloc((ndim_outer_t - 1) * sizeof(struct su2_irreducible_list));
 		for (int i = 0; i < ndim_outer_t; i++) {
 			if (axis_map[i] != -1) {
-				outer_jlists_r[axis_map[i]] = t->outer_jlists[i];
+				outer_irreps_r[axis_map[i]] = t->outer_irreps[i];
 			}
 		}
-		outer_jlists_r[i_ax_0] = outer_jlists_r_fused;
+		outer_irreps_r[i_ax_0] = outer_irreps_r_fused;
 
 		const long** dim_degen_r = ct_calloc(t->ndim_logical - 1, sizeof(long*));
 		for (int i = 0; i < t->ndim_logical; i++)
@@ -504,18 +504,18 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 				continue;
 			}
 			assert(0 <= axis_map[i] && axis_map[i] < t->ndim_logical - 1);
-			assert(outer_jlists_r[axis_map[i]].num > 0);
+			assert(outer_irreps_r[axis_map[i]].num > 0);
 			// simply copy the pointer
 			dim_degen_r[axis_map[i]] = t->dim_degen[i];
 		}
 		dim_degen_r[i_ax_0] = dim_degen_fused;
 
-		allocate_empty_su2_tensor(t->dtype, t->ndim_logical - 1, t->ndim_auxiliary, &tree_r, outer_jlists_r, dim_degen_r, r);
+		allocate_empty_su2_tensor(t->dtype, t->ndim_logical - 1, t->ndim_auxiliary, &tree_r, outer_irreps_r, dim_degen_r, r);
 
 		ct_free(dim_degen_r);
 
-		delete_su2_irreducible_list(&outer_jlists_r_fused);
-		ct_free(outer_jlists_r);
+		delete_su2_irreducible_list(&outer_irreps_r_fused);
+		ct_free(outer_irreps_r);
 		ct_free(dim_degen_fused);
 
 		delete_su2_fuse_split_tree(&tree_r);
@@ -524,7 +524,7 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 	const int ndim_r = su2_tensor_ndim(r);
 
 	// all possible charge sectors
-	su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_jlists, &r->charge_sectors);
+	su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
 	assert(r->charge_sectors.nsec > 0);
 	assert(r->charge_sectors.ndim == ndim_r);
 	// unused charge sectors will correspond to NULL pointers
@@ -671,8 +671,8 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		// must both be logical or both be auxiliary axes
 		assert((i_ax_s[i] < s->ndim_logical && i_ax_t[i] < t->ndim_logical) || (i_ax_s[i] >= s->ndim_logical && i_ax_t[i] >= t->ndim_logical));
 
-		const struct su2_irreducible_list* irred_s = &s->outer_jlists[i_ax_s[i]];
-		const struct su2_irreducible_list* irred_t = &t->outer_jlists[i_ax_t[i]];
+		const struct su2_irreducible_list* irred_s = &s->outer_irreps[i_ax_s[i]];
+		const struct su2_irreducible_list* irred_t = &t->outer_irreps[i_ax_t[i]];
 		assert(su2_irreducible_list_equal(irred_s, irred_t));
 		if (i_ax_s[i] < s->ndim_logical) {
 			for (int k = 0; k < irred_s->num; k++) {
@@ -837,20 +837,20 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		ct_free(old_subtree);  // free actual node
 	}
 
-	struct su2_irreducible_list* outer_jlists_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
+	struct su2_irreducible_list* outer_irreps_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
 	for (int i = 0; i < ndim_outer_s; i++) {
 		if (axis_map_s[i] == -1) {
 			continue;
 		}
 		assert(axis_map_s[i] < ndim_outer_r);
-		copy_su2_irreducible_list(&s->outer_jlists[i], &outer_jlists_r[axis_map_s[i]]);
+		copy_su2_irreducible_list(&s->outer_irreps[i], &outer_irreps_r[axis_map_s[i]]);
 	}
 	for (int i = 0; i < ndim_outer_t; i++) {
 		if (axis_map_t[i] == -1) {
 			continue;
 		}
 		assert(axis_map_t[i] < ndim_outer_r);
-		copy_su2_irreducible_list(&t->outer_jlists[i], &outer_jlists_r[axis_map_t[i]]);
+		copy_su2_irreducible_list(&t->outer_irreps[i], &outer_irreps_r[axis_map_t[i]]);
 	}
 
 	long** dim_degen_r = ct_calloc(ndim_logical_r, sizeof(long*));
@@ -861,7 +861,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		}
 		const int ir = axis_map_s[is];
 		assert(0 <= ir && ir < ndim_logical_r);
-		assert(outer_jlists_r[ir].num > 0);
+		assert(outer_irreps_r[ir].num > 0);
 		// simply copy the pointer
 		dim_degen_r[ir] = s->dim_degen[is];
 	}
@@ -872,12 +872,12 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		}
 		const int ir = axis_map_t[it];
 		assert(0 <= ir && ir < ndim_logical_r);
-		assert(outer_jlists_r[ir].num > 0);
+		assert(outer_irreps_r[ir].num > 0);
 		// simply copy the pointer
 		dim_degen_r[ir] = t->dim_degen[it];
 	}
 
-	allocate_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_jlists_r, (const long**)dim_degen_r, r);
+	allocate_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_irreps_r, (const long**)dim_degen_r, r);
 
 	// permutations of dense degeneracy tensors before contraction
 	int* perm_s = ct_malloc(s->ndim_logical * sizeof(int));
@@ -996,9 +996,9 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 	ct_free(dim_degen_r);
 
 	for (int i = 0; i < ndim_outer_r; i++) {
-		delete_su2_irreducible_list(&outer_jlists_r[i]);
+		delete_su2_irreducible_list(&outer_irreps_r[i]);
 	}
-	ct_free(outer_jlists_r);
+	ct_free(outer_irreps_r);
 
 	delete_su2_fuse_split_tree(&mapped_tree_t);
 	delete_su2_fuse_split_tree(&mapped_tree_s);
@@ -1036,12 +1036,12 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 	// dimension and quantum number compatibility checks
 	assert(0 <= i_ax_s && i_ax_s < s->ndim_logical);
 	assert(0 <= i_ax_t && i_ax_t < t->ndim_logical);
-	assert(su2_irreducible_list_equal(&s->outer_jlists[i_ax_s], &t->outer_jlists[i_ax_t]));
+	assert(su2_irreducible_list_equal(&s->outer_irreps[i_ax_s], &t->outer_irreps[i_ax_t]));
 	#ifndef NDEBUG
-	for (int k = 0; k < s->outer_jlists[i_ax_s].num; k++) {
+	for (int k = 0; k < s->outer_irreps[i_ax_s].num; k++) {
 		// degeneracy dimensions for to-be contracted axes must match
-		assert(s->dim_degen[i_ax_s][s->outer_jlists[i_ax_s].jlist[k]] ==
-		       t->dim_degen[i_ax_t][t->outer_jlists[i_ax_t].jlist[k]]);
+		assert(s->dim_degen[i_ax_s][s->outer_irreps[i_ax_s].jlist[k]] ==
+		       t->dim_degen[i_ax_t][t->outer_irreps[i_ax_t].jlist[k]]);
 	}
 	#endif
 
@@ -1113,20 +1113,20 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 		delete_su2_graph(&graph_s);
 	}
 
-	struct su2_irreducible_list* outer_jlists_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
+	struct su2_irreducible_list* outer_irreps_r = ct_calloc(ndim_outer_r, sizeof(struct su2_irreducible_list));
 	for (int i = 0; i < ndim_outer_s; i++) {
 		if (i == i_ax_s) {  // skip to-be contracted axis
 			continue;
 		}
 		assert(axis_map_s[i] < ndim_outer_r);
-		copy_su2_irreducible_list(&s->outer_jlists[i], &outer_jlists_r[axis_map_s[i]]);
+		copy_su2_irreducible_list(&s->outer_irreps[i], &outer_irreps_r[axis_map_s[i]]);
 	}
 	for (int i = 0; i < ndim_outer_t; i++) {
 		if (i == i_ax_t) {  // skip to-be contracted axis
 			continue;
 		}
 		assert(axis_map_t[i] < ndim_outer_r);
-		copy_su2_irreducible_list(&t->outer_jlists[i], &outer_jlists_r[axis_map_t[i]]);
+		copy_su2_irreducible_list(&t->outer_irreps[i], &outer_irreps_r[axis_map_t[i]]);
 	}
 
 	long** dim_degen_r = ct_calloc(ndim_logical_r, sizeof(long*));
@@ -1137,7 +1137,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 		}
 		const int ir = axis_map_s[is];
 		assert(0 <= ir && ir < ndim_logical_r);
-		assert(outer_jlists_r[ir].num > 0);
+		assert(outer_irreps_r[ir].num > 0);
 		// simply copy the pointer
 		dim_degen_r[ir] = s->dim_degen[is];
 	}
@@ -1148,7 +1148,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 		}
 		const int ir = axis_map_t[it];
 		assert(0 <= ir && ir < ndim_logical_r);
-		assert(outer_jlists_r[ir].num > 0);
+		assert(outer_irreps_r[ir].num > 0);
 		// simply copy the pointer
 		dim_degen_r[ir] = t->dim_degen[it];
 	}
@@ -1315,7 +1315,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 	su2_graph_to_fuse_split_tree(&graph_r, &tree_r);
 	delete_su2_graph(&graph_r);
 
-	allocate_empty_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_jlists_r, (const long**)dim_degen_r, r);
+	allocate_empty_su2_tensor(s->dtype, ndim_logical_r, ndim_auxiliary_r, &tree_r, outer_irreps_r, (const long**)dim_degen_r, r);
 	// copy pointers
 	r->charge_sectors = data_simple.charge_sectors;
 	r->degensors      = data_simple.degensors;
@@ -1324,9 +1324,9 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 
 	ct_free(dim_degen_r);
 	for (int i = 0; i < ndim_outer_r; i++) {
-		delete_su2_irreducible_list(&outer_jlists_r[i]);
+		delete_su2_irreducible_list(&outer_irreps_r[i]);
 	}
-	ct_free(outer_jlists_r);
+	ct_free(outer_irreps_r);
 }
 
 
@@ -1365,15 +1365,15 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 
 	for (int i = 0; i < s->ndim_logical; i++)
 	{
-		assert(s->outer_jlists[i].num > 0);
+		assert(s->outer_irreps[i].num > 0);
 		qnumber j_max = 0;
-		for (int k = 0; k < s->outer_jlists[i].num; k++) {
-			j_max = qmax(j_max, s->outer_jlists[i].jlist[k]);
+		for (int k = 0; k < s->outer_irreps[i].num; k++) {
+			j_max = qmax(j_max, s->outer_irreps[i].jlist[k]);
 		}
 		sector_offsets[i] = ct_calloc(j_max + 1, sizeof(long));
-		for (int k = 0; k < s->outer_jlists[i].num; k++)
+		for (int k = 0; k < s->outer_irreps[i].num; k++)
 		{
-			const qnumber j = s->outer_jlists[i].jlist[k];
+			const qnumber j = s->outer_irreps[i].jlist[k];
 			assert(s->dim_degen[i][j] > 0);
 			sector_offsets[i][j] = dim_t[i];
 			dim_t[i] += s->dim_degen[i][j] * (j + 1);
