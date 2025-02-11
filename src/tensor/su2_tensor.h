@@ -100,6 +100,8 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 
 void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, struct su2_tensor* restrict r);
 
+void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_split, const int i_ax_add, const bool tree_left_child, const struct su2_irreducible_list outer_irreps[2], const long* dim_degen[2], struct su2_tensor* restrict r);
+
 
 //________________________________________________________________________________________________________________________
 //
