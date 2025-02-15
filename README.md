@@ -28,6 +28,19 @@ Features
 - Non-abelian symmetries (work in progress)
 
 
+Installation
+------------
+ChemTensor can be conveniently installed as Python package (in a virtual environment) via
+```bash
+(venv) $ pip install chemtensor
+```
+This downloads and installs a pre-built Python "wheel" from PyPI, see [pypi.org/project/chemtensor/](https://pypi.org/project/chemtensor/).
+
+Alternatively, you can build the project locally; see the instructions below.
+
+Note that ChemTensor can also run as standalone C code.
+
+
 Building
 --------
 The code requires the BLAS, LAPACKE, HDF5 and Python 3 development libraries with NumPy. These can be installed via 
