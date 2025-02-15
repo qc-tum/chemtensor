@@ -1,4 +1,4 @@
-name: Unit tests
+name: CI
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   BUILD_TYPE: Debug
 
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:

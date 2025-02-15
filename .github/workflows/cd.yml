@@ -1,11 +1,11 @@
-name: Build wheels
+name: CD
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
