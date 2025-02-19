@@ -132,9 +132,11 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 
 		// enumerate all allowed 'jy' quantum numbers
 		const qnumber jy_min = qmax(abs(j1 - j2), abs(j3 - j4));
+		#ifndef NDEBUG
 		const qnumber jy_max = qmin(j1 + j2, j3 + j4);
 		assert((jy_max - jy_min) % 2 == 0);
 		assert(jx_max - jx_min == jy_max - jy_min);
+		#endif
 		for (int i = 0; i < n; i++)
 		{
 			const qnumber jy = jy_min + 2*i;

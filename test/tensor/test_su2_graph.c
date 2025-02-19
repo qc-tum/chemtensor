@@ -11,19 +11,19 @@ char* test_su2_graph_to_fuse_split_tree()
 	// construct the fuse and split tree
 	//
 	//    4    3   0
-	//     \  /   /
-	//      \/   /         fuse
-	//      7\  /
-	//        \/
-	//        |
-	//        |9
-	//        |
-	//        /\
-	//       /  \
-	//      /    \         split
-	//    8/      \10
-	//    /\      /\
-	//   /  \    /  \
+	//     ╲  ╱   ╱
+	//      ╲╱   ╱         fuse
+	//      7╲  ╱
+	//        ╲╱
+	//        │
+	//        │9
+	//        │
+	//        ╱╲
+	//       ╱  ╲
+	//      ╱    ╲         split
+	//    8╱      ╲10
+	//    ╱╲      ╱╲
+	//   ╱  ╲    ╱  ╲
 	//  5    1  6    2
 	//
 	struct su2_tree_node j0  = { .i_ax =  0, .c = { NULL, NULL } };
@@ -81,14 +81,14 @@ char* test_su2_graph_yoga_to_simple_subtree()
 	// construct the graph
 	//
 	//   4       2    6
-	//    \       \  /
-	//     \       \/
-	//      \      /3
-	//       \    /
-	//        \ 1/\
-	//         \/  \
-	//         /    \
-	//        /      \
+	//    ╲       ╲  ╱
+	//     ╲       ╲╱
+	//      ╲      ╱3
+	//       ╲    ╱
+	//        ╲ 1╱╲
+	//         ╲╱  ╲
+	//         ╱    ╲
+	//        ╱      ╲
 	//       0        5
 	//
 	struct su2_graph_node nodes[] = {
@@ -134,15 +134,15 @@ char* test_su2_graph_yoga_to_simple_subtree()
 	// reference fuse and split tree
 	//
 	//  4   2    6
-	//   \   \  /
-	//    \   \/     fuse
-	//     \  /3
-	//      \/
-	//      |
-	//     1|
-	//      |
-	//      /\
-	//     /  \      split
+	//   ╲   ╲  ╱
+	//    ╲   ╲╱     fuse
+	//     ╲  ╱3
+	//      ╲╱
+	//      │
+	//     1│
+	//      │
+	//      ╱╲
+	//     ╱  ╲      split
 	//    0    5
 	//
 	struct su2_tree_node j0  = { .i_ax =  0, .c = { NULL, NULL } };
@@ -176,14 +176,14 @@ char* test_su2_graph_connect()
 	// construct the graph
 	//
 	//       6    2
-	//        \  /
-	//         \/
-	//         /5
-	//        /   0
-	//       /\1 /
-	//      /  \/
-	//     4    \
-	//           \
+	//        ╲  ╱
+	//         ╲╱
+	//         ╱5
+	//        ╱   0
+	//       ╱╲1 ╱
+	//      ╱  ╲╱
+	//     4    ╲
+	//           ╲
 	//            3
 	//
 	struct su2_graph_node nodes_f[] = {
@@ -215,18 +215,18 @@ char* test_su2_graph_connect()
 	// construct the graph
 	//
 	//              3
-	//             /
-	//       7    /
-	//        \ 1/\
-	//         \/  \
-	//         9\   \0
-	//           \   \
-	//           /\2 /
-	//          /  \/
-	//         5   4\
-	//               \
-	//               /\
-	//              /  \
+	//             ╱
+	//       7    ╱
+	//        ╲ 1╱╲
+	//         ╲╱  ╲
+	//         9╲   ╲0
+	//           ╲   ╲
+	//           ╱╲2 ╱
+	//          ╱  ╲╱
+	//         5   4╲
+	//               ╲
+	//               ╱╲
+	//              ╱  ╲
 	//             6    8
 	//
 	struct su2_graph_node nodes_g[] = {

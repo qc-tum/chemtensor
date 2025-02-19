@@ -17,15 +17,15 @@ char* test_su2_tensor_fmove()
 	// construct the fuse and split tree
 	//
 	//  2    4   0
-	//   \  /   /
-	//    \/   /         fuse
-	//    5\  /
-	//      \/
-	//      |
-	//      |6
-	//      |
-	//      /\
-	//     /  \          split
+	//   ╲  ╱   ╱
+	//    ╲╱   ╱         fuse
+	//    5╲  ╱
+	//      ╲╱
+	//      │
+	//      │6
+	//      │
+	//      ╱╲
+	//     ╱  ╲          split
 	//    1    3
 	//
 	struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -172,15 +172,15 @@ char* test_su2_tensor_fuse_axes()
 		// construct the fuse and split tree
 		//
 		//  0   3    1
-		//   \   \  /
-		//    \   \/       fuse
-		//     \  /5
-		//      \/
-		//      |
-		//      |6
-		//      |
-		//      /\
-		//     /  \        split
+		//   ╲   ╲  ╱
+		//    ╲   ╲╱       fuse
+		//     ╲  ╱5
+		//      ╲╱
+		//      │
+		//      │6
+		//      │
+		//      ╱╲
+		//     ╱  ╲        split
 		//    2    4
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -286,10 +286,10 @@ char* test_su2_tensor_fuse_axes()
 		// construct the fuse and split tree
 		//
 		//      0
-		//      |
-		//      |
-		//      /\
-		//     /  \
+		//      │
+		//      │
+		//      ╱╲
+		//     ╱  ╲
 		//    2    1
 		//
 		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
@@ -442,15 +442,15 @@ char* test_su2_tensor_fuse_axes()
 		// construct the fuse and split tree (with internal axes 5 <-> 6 flipped compared to original tree)
 		//
 		//  0   3    1
-		//   \   \  /
-		//    \   \/       fuse
-		//     \  /6
-		//      \/
-		//      |
-		//      |5
-		//      |
-		//      /\
-		//     /  \        split
+		//   ╲   ╲  ╱
+		//    ╲   ╲╱       fuse
+		//     ╲  ╱6
+		//      ╲╱
+		//      │
+		//      │5
+		//      │
+		//      ╱╲
+		//     ╱  ╲        split
 		//    2    4
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -506,12 +506,12 @@ char* test_su2_tensor_split_axis()
 		// construct the fuse and split tree
 		//
 		//  0    3   1
-		//   \  /   /
-		//    \/   /       fuse
-		//    4\  /
-		//      \/
-		//      |
-		//      |
+		//   ╲  ╱   ╱
+		//    ╲╱   ╱       fuse
+		//    4╲  ╱
+		//      ╲╱
+		//      │
+		//      │
 		//      2
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -623,15 +623,15 @@ char* test_su2_tensor_split_axis()
 		// construct the fuse and split tree
 		//
 		//  0    4   1
-		//   \  /   /
-		//    \/   /       fuse
-		//    5\  /
-		//      \/
-		//      |
-		//      |6
-		//      |
-		//      /\
-		//     /  \        split
+		//   ╲  ╱   ╱
+		//    ╲╱   ╱       fuse
+		//    5╲  ╱
+		//      ╲╱
+		//      │
+		//      │6
+		//      │
+		//      ╱╲
+		//     ╱  ╲        split
 		//    2    3
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -671,10 +671,10 @@ char* test_su2_tensor_split_axis()
 		// construct the fuse and split tree
 		//
 		//      0
-		//      |
-		//      |
-		//      /\
-		//     /  \
+		//      │
+		//      │
+		//      ╱╲
+		//     ╱  ╲
 		//    1    2
 		//
 		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
@@ -819,17 +819,17 @@ char* test_su2_tensor_contract_simple()
 		// construct the fuse and split tree
 		//
 		//  5   0    2
-		//   \   \  /
-		//    \   \/         fuse
-		//     \  /6
-		//      \/
-		//      |
-		//      |7
-		//      |
-		//      /\
-		//    8/  \          split
-		//    /\   \
-		//   /  \   \
+		//   ╲   ╲  ╱
+		//    ╲   ╲╱         fuse
+		//     ╲  ╱6
+		//      ╲╱
+		//      │
+		//      │7
+		//      │
+		//      ╱╲
+		//    8╱  ╲          split
+		//    ╱╲   ╲
+		//   ╱  ╲   ╲
 		//  3    1   4
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -911,17 +911,17 @@ char* test_su2_tensor_contract_simple()
 		// construct the fuse and split tree
 		//
 		//  3    2   5   0
-		//   \  /   /   /
-		//    \/   /   /
-		//    6\  /   /        fuse
-		//      \/   /
-		//      8\  /
-		//        \/
-		//        |
-		//        |7
-		//        |
-		//        /\
-		//       /  \          split
+		//   ╲  ╱   ╱   ╱
+		//    ╲╱   ╱   ╱
+		//    6╲  ╱   ╱        fuse
+		//      ╲╱   ╱
+		//      8╲  ╱
+		//        ╲╱
+		//        │
+		//        │7
+		//        │
+		//        ╱╲
+		//       ╱  ╲          split
 		//      1    4
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -1031,17 +1031,17 @@ char* test_su2_tensor_contract_simple()
 			// construct the fuse and split tree
 			//
 			//  5   0    1   2
-			//   \   \  /   /
-			//    \   \/   /
-			//     \  /6  /        fuse
-			//      \/   /
-			//      7\  /
-			//        \/
-			//        |
-			//        |8
-			//        |
-			//        /\
-			//       /  \          split
+			//   ╲   ╲  ╱   ╱
+			//    ╲   ╲╱   ╱
+			//     ╲  ╱6  ╱        fuse
+			//      ╲╱   ╱
+			//      7╲  ╱
+			//        ╲╱
+			//        │
+			//        │8
+			//        │
+			//        ╱╲
+			//       ╱  ╲          split
 			//      3    4
 			//
 			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -1069,17 +1069,17 @@ char* test_su2_tensor_contract_simple()
 			// construct the fuse and split tree
 			//
 			//      1    2
-			//       \  /          fuse
-			//        \/
-			//        |
-			//        |6
-			//        |
-			//        /\
-			//      7/  \
-			//      /\   \
-			//     /  \8  \        split
-			//    /   /\   \
-			//   /   /  \   \
+			//       ╲  ╱          fuse
+			//        ╲╱
+			//        │
+			//        │6
+			//        │
+			//        ╱╲
+			//      7╱  ╲
+			//      ╱╲   ╲
+			//     ╱  ╲8  ╲        split
+			//    ╱   ╱╲   ╲
+			//   ╱   ╱  ╲   ╲
 			//  5   3    4   0
 			//
 			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -1168,13 +1168,13 @@ char* test_su2_tensor_contract_yoga()
 			// construct the fuse and split tree (with flipped 1 <-> 3 for variant 1)
 			//
 			//  3    1
-			//   \  /     fuse
-			//    \/
-			//    |
-			//    |4
-			//    |
-			//    /\
-			//   /  \     split
+			//   ╲  ╱     fuse
+			//    ╲╱
+			//    │
+			//    │4
+			//    │
+			//    ╱╲
+			//   ╱  ╲     split
 			//  2    0
 			//
 			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -1261,15 +1261,15 @@ char* test_su2_tensor_contract_yoga()
 			// construct the fuse and split tree (with flipped 2 <-> 3 for variant 1)
 			//
 			//  0   4    1
-			//   \   \  /
-			//    \   \/       fuse
-			//     \  /6
-			//      \/
-			//      |
-			//      |5
-			//      |
-			//      /\
-			//     /  \        split
+			//   ╲   ╲  ╱
+			//    ╲   ╲╱       fuse
+			//     ╲  ╱6
+			//      ╲╱
+			//      │
+			//      │5
+			//      │
+			//      ╱╲
+			//     ╱  ╲        split
 			//    2    3
 			//
 			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
@@ -1422,15 +1422,15 @@ char* test_su2_to_dense_tensor()
 	// construct the fuse and split tree
 	//
 	//  2    4   0
-	//   \  /   /
-	//    \/   /         fuse
-	//    5\  /
-	//      \/
-	//      |
-	//      |6
-	//      |
-	//      /\
-	//     /  \          split
+	//   ╲  ╱   ╱
+	//    ╲╱   ╱         fuse
+	//    5╲  ╱
+	//      ╲╱
+	//      │
+	//      │6
+	//      │
+	//      ╱╲
+	//     ╱  ╲          split
 	//    1    3
 	//
 	struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };

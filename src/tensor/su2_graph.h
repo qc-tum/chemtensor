@@ -26,14 +26,14 @@ enum su2_graph_node_type
 ///
 /// fusion node:
 ///  c[0]  c[1]
-///      \/
-///      |
+///      ╲╱
+///      │
 ///      p
 ///
 /// splitting node:
 ///      p
-///      |
-///      /\
+///      │
+///      ╱╲
 ///  c[0]  c[1]
 ///
 struct su2_graph_node

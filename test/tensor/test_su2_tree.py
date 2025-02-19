@@ -15,14 +15,14 @@ def su2_tree_enumerate_charge_sectors_data():
 
     # manually enumerate charge sectors for the tree:
     #
-    #        |
-    #        |7
-    #        /\
-    #       /  \5
-    #      /   /\
-    #     /  8/  \
-    #    /   /\   \
-    #   /   /  \   \
+    #        │
+    #        │7
+    #        ╱╲
+    #       ╱  ╲5
+    #      ╱   ╱╲
+    #     ╱  8╱  ╲
+    #    ╱   ╱╲   ╲
+    #   ╱   ╱  ╲   ╲
     #  2   0    4   1
     #
     charge_sectors = []
@@ -45,19 +45,19 @@ def su2_fuse_split_tree_enumerate_charge_sectors_data():
     # manually enumerate charge sectors for the fuse and split tree
     #
     #    4    3   0
-    #     \  /   /
-    #      \/   /         fuse
-    #      7\  /
-    #        \/
-    #        |
-    #        |9
-    #        |
-    #        /\
-    #       /  \
-    #      /    \         split
-    #    8/      \10
-    #    /\      /\
-    #   /  \    /  \
+    #     ╲  ╱   ╱
+    #      ╲╱   ╱         fuse
+    #      7╲  ╱
+    #        ╲╱
+    #        │
+    #        │9
+    #        │
+    #        ╱╲
+    #       ╱  ╲
+    #      ╱    ╲         split
+    #    8╱      ╲10
+    #    ╱╲      ╱╲
+    #   ╱  ╲    ╱  ╲
     #  5    1  6    2
     #
     charge_sectors = []

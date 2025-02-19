@@ -24,15 +24,15 @@ def ttno_from_assembly_data():
 
     # tree topology:
     #
-    #  4           0
-    #    \       /
-    #      \   /
+    #     4     0
+    #      ╲   ╱
+    #       ╲ ╱
     #        6
-    #        |
-    #        |
-    #  2 --- 5 --- 1 --- 7
-    #        |
-    #        |
+    #        │
+    #        │
+    #  2 ─── 5 ─── 1 ─── 7
+    #        │
+    #        │
     #        3
 
     # vertex quantum numbers
