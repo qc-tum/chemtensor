@@ -179,24 +179,15 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 
 	// free dense tensor blocks
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
-	long* index_block = ct_calloc(t->ndim, sizeof(long));
-	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block))
+	for (long k = 0; k < nblocks; k++)
 	{
-		// probe whether quantum numbers sum to zero
-		qnumber qsum = 0;
-		for (int i = 0; i < t->ndim; i++)
+		if (t->blocks[k] != NULL)
 		{
-			qsum += t->axis_dir[i] * t->qnums_blocks[i][index_block[i]];
+			delete_dense_tensor(t->blocks[k]);
+			ct_free(t->blocks[k]);
+			t->blocks[k] = NULL;
 		}
-		if (qsum != 0) {
-			continue;
-		}
-
-		assert(t->blocks[k] != NULL);
-		delete_dense_tensor(t->blocks[k]);
-		ct_free(t->blocks[k]);
 	}
-	ct_free(index_block);
 	ct_free(t->blocks);
 	t->blocks = NULL;
 
@@ -435,6 +426,11 @@ void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t
 ///
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
 {
+	if ((t->dtype == CT_SINGLE_REAL) || (t->dtype == CT_DOUBLE_REAL)) {
+		// no effect
+		return;
+	}
+
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
 	for (long k = 0; k < nblocks; k++)
 	{
@@ -2788,6 +2784,7 @@ bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const 
 
 	// entry-wise conjugation
 	struct block_sparse_tensor tc;
+	// TODO: avoid full copy
 	copy_block_sparse_tensor(t, &tc);
 	conjugate_block_sparse_tensor(&tc);
 	// revert tensor axes directions for multiplication
