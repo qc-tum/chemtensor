@@ -36,3 +36,7 @@ Krylov subspace algorithms
 Random number generation
 ------------------------
 .. doxygenfile:: rng.h
+
+Timing utility functions
+------------------------
+.. doxygenfile:: timing.h
