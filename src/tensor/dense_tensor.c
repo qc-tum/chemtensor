@@ -1814,7 +1814,6 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 			}
 		}
 	}
-	#endif
 	long dim_concat = 0;
 	for (int j = 0; j < num_tensors; j++) {
 		dim_concat += tlist[j].dim[i_ax];
@@ -1823,6 +1822,7 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 	{
 		assert(r->dim[i] == (i == i_ax ? dim_concat : tlist[0].dim[i]));
 	}
+	#endif
 
 	// leading dimensions
 	const long ld = integer_product(r->dim, i_ax);
@@ -1918,6 +1918,7 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 		i_ax_indicator[i_ax[i]] = true;
 	}
 
+	#ifndef NDEBUG
 	for (int j = 0; j < num_tensors - 1; j++)
 	{
 		// data types must match
@@ -1944,6 +1945,7 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 			assert(r->dim[i] == tlist[0].dim[i]);
 		}
 	}
+	#endif
 
 	// effective dimensions used for indexing tensor slices
 	int ndim_eff = 0;

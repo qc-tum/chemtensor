@@ -4,6 +4,29 @@
 #include "aligned_memory.h"
 
 
+char* test_tensor_index_to_offset()
+{
+	const int ndim = 5;
+	const long dim[5] = { 7, 1, 6, 2, 11 };
+
+	const long n = integer_product(dim, ndim);
+	long index_iter[5] = { 0 };
+	for (long k = 0; k < n; k++, next_tensor_index(ndim, dim, index_iter))
+	{
+		long index_comp[5];
+		offset_to_tensor_index(ndim, dim, k, index_comp);
+
+		for (int i = 0; i < ndim; i++) {
+			if (index_comp[i] != index_iter[i]) {
+				return "inconsistent tensor index computation";
+			}
+		}
+	}
+
+	return 0;
+}
+
+
 char* test_dense_tensor_trace()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_trace.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

@@ -11,6 +11,7 @@ struct test
 };
 
 
+char* test_tensor_index_to_offset();
 char* test_dense_tensor_trace();
 char* test_dense_tensor_cyclic_partial_trace();
 char* test_dense_tensor_transpose();
@@ -109,6 +110,7 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix();
 int main()
 {
 	struct test tests[] = {
+		TEST_FUNCTION_ENTRY(test_tensor_index_to_offset),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_trace),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_cyclic_partial_trace),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_transpose),

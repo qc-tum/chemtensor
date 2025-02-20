@@ -398,6 +398,7 @@ void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, b
 
 	// number of vertices in minimum vertex cover must agree with
 	// maximum-cardinality matching according to Kőnig's theorem
+	#ifndef NDEBUG
 	int num_cover = 0;
 	for (int u = 0; u < graph->num_u; u++) {
 		if (u_cover[u]) {
@@ -410,6 +411,7 @@ void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, b
 		}
 	}
 	assert(num_cover == matching.nedges);
+	#endif
 
 	// clean up
 	ct_free(v_visited);
