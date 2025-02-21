@@ -1,4 +1,7 @@
 #include <stdio.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 
 typedef char* (*test_function)();
@@ -109,6 +112,12 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix();
 
 int main()
 {
+	#ifdef _OPENMP
+	printf("maximum number of OpenMP threads: %d\n", omp_get_max_threads());
+	#else
+	printf("OpenMP not available\n");
+	#endif
+
 	struct test tests[] = {
 		TEST_FUNCTION_ENTRY(test_tensor_index_to_offset),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_trace),

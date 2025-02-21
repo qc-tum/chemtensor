@@ -1,4 +1,7 @@
 #include <stdio.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "hamiltonian.h"
 #include "dmrg.h"
 #include "aligned_memory.h"
@@ -71,6 +74,12 @@ int main()
 			return -1;
 		}
 	}
+
+	#ifdef _OPENMP
+	printf("maximum number of OpenMP threads: %d\n", omp_get_max_threads());
+	#else
+	printf("OpenMP not available\n");
+	#endif
 
 	// get the tick resolution
 	const double ticks_per_sec = (double)get_tick_resolution();

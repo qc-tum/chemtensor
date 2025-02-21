@@ -2,6 +2,9 @@
 #include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "ttno.h"
 #include "hamiltonian.h"
 #include "dmrg.h"
@@ -2634,6 +2637,20 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 }
 
 
+//________________________________________________________________________________________________________________________
+///
+/// \brief Get the maximum number of OpenMP threads, or 0 if OpenMP is not available.
+///
+static PyObject* Py_get_max_openmp_threads(PyObject* Py_UNUSED(self), PyObject* Py_UNUSED(args))
+{
+	#ifdef _OPENMP
+	return PyLong_FromLong(omp_get_max_threads());
+	#else
+	return PyLong_FromLong(0);
+	#endif
+}
+
+
 static PyMethodDef methods[] = {
 	{
 		.ml_name  = "encode_quantum_number_pair",
@@ -2712,6 +2729,12 @@ static PyMethodDef methods[] = {
 		.ml_meth  = Py_operator_average_coefficient_gradient,
 		.ml_flags = METH_VARARGS,
 		.ml_doc   = "Compute the value and gradient of `<chi | op | psi>` with respect to the internal MPO coefficients.\nSyntax: operator_average_coefficient_gradient(op: MPO, psi: MPS: chi: MPS)",
+	},
+	{
+		.ml_name  = "get_max_openmp_threads",
+		.ml_meth  = Py_get_max_openmp_threads,
+		.ml_flags = METH_NOARGS,
+		.ml_doc   = "Get the maximum number of OpenMP threads, or 0 if OpenMP is not available.",
 	},
 	{
 		0  // sentinel
