@@ -85,7 +85,7 @@ def dmrg_singlesite_data():
     numsweeps = 6
 
     psi = copy.deepcopy(psi_start)
-    en_sweeps = ptn.calculate_ground_state_local_singlesite(H, psi, numsweeps)
+    en_sweeps = ptn.dmrg_singlesite(H, psi, numsweeps)
 
     # reference (numerically exact) ground state energy
     en_min = np.linalg.eigvalsh(Hmat)[0]
@@ -135,7 +135,7 @@ def dmrg_twosite_data():
     tol_split = 1e-5
 
     psi = copy.deepcopy(psi_start)
-    en_sweeps = ptn.calculate_ground_state_local_twosite(H, psi, numsweeps, numiter_lanczos=25, tol_split=tol_split)
+    en_sweeps = ptn.dmrg_twosite(H, psi, numsweeps, numiter_lanczos=25, tol_split=tol_split)
 
     # reference (numerically exact) ground state energy
     en_min = np.linalg.eigvalsh(Hmat)[0]
