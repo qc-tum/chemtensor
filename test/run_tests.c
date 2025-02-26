@@ -105,6 +105,7 @@ char* test_dmrg_twosite();
 char* test_operator_average_coefficient_gradient();
 char* test_apply_thc_spin_molecular_hamiltonian();
 char* test_thc_spin_molecular_hamiltonian_to_matrix();
+char* test_save_mps_hdf5();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -210,6 +211,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),
 		TEST_FUNCTION_ENTRY(test_apply_thc_spin_molecular_hamiltonian),
 		TEST_FUNCTION_ENTRY(test_thc_spin_molecular_hamiltonian_to_matrix),
+		TEST_FUNCTION_ENTRY(test_save_mps_hdf5),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 
