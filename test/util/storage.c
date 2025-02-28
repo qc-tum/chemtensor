@@ -14,12 +14,7 @@ char* test_save_mps_hdf5()
 	struct mps m;
 	const long max_vdim = 16;
 	const qnumber qnum_sector = 1;
-	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &m);
-
-    printf("\n");
-    for(size_t i = 0; i < m.d; i++) {
-        printf("%d\n", m.qsite[i]);
-    }
+	construct_random_mps(CT_DOUBLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &m);
 
     int status = save_mps_hdf5(&m, "test_save_mps_hdf5.hdf5");
     return 0;
