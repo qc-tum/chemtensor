@@ -8,13 +8,14 @@ hid_t get_axis_dir_enum_dtype();
 
 int load_mps_hdf5(const char* filename, struct mps* mps) {
 	herr_t status;
-	hid_t file, root_group, space, attr, dtype, dset;
 
+	hid_t file;
 	if ((file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT)) == H5I_INVALID_HID) {
 		fprintf(stderr, "H5Fopen() failed for %s, return value: %lld\n", filename, file);
 		return -1;
 	}
 
+	hid_t root_group;
 	if ((root_group = H5Gopen1(file, "/")) == H5I_INVALID_HID) {
 		fprintf(stderr, "H5Gopen1() failed for /, return value: %lld\n", file);
 		return -1;
@@ -22,6 +23,7 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 
 	long d; // attribute 'd': physical dimension
 	{
+		hid_t attr;
 		if ((attr = H5Aopen(root_group, "d", H5P_DEFAULT)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Acreate() failed for d, return value: %lld\n", attr);
 			return -1;
@@ -40,6 +42,7 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 
 	int nsites; // attribute 'nsites': number of sites
 	{
+		hid_t attr;
 		if ((attr = H5Aopen(root_group, "nsites", H5P_DEFAULT)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Acreate() failed for d, return value: %lld\n", attr);
 			return -1;
@@ -56,15 +59,15 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 		}
 	}
 
-	qnumber* qsite; // attribute 'qsite': quantum numbers at each site
+	qnumber qsite[d]; // attribute 'qsite': quantum numbers at each site
 	{
+		hid_t attr;
 		if ((attr = H5Aopen(root_group, "qsite", H5P_DEFAULT)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Aopen() failed for qsite, return value: %lld\n", attr);
 			return -1;
 		}
 
-		qsite = ct_malloc(d * sizeof(qnumber));
-		if ((status = H5Aread(attr, H5T_NATIVE_INT, qsite)) < 0) {
+		if ((status = H5Aread(attr, H5T_NATIVE_INT, (void*)&qsite)) < 0) {
 			fprintf(stderr, "H5Aread() failed for qsite, return value: %d\n", status);
 			return -1;
 		}
@@ -75,48 +78,58 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 		}
 	}
 
-	allocate_empty_mps(nsites, d, qsite, mps);
-	free(qsite); // allocate_empty_mps copies qsite
+	allocate_empty_mps(nsites, d, (const qnumber*)&qsite, mps);
 
 	for (size_t site = 0; site < nsites; site++) {
-		char dset_name[100];
+		char dset_name[128];
 		sprintf(dset_name, "tensor-%zu", site);
 
+		hid_t dset;
 		if ((dset = H5Dopen2(file, dset_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Dopen2() failed for %s, return value: %d\n", dset_name, status);
 			return -1;
 		}
 
-		if ((dtype = H5Dget_type(dset)) == H5I_INVALID_HID) {
-			fprintf(stderr, "H5Dget_type() failed for %s, return value: %d\n", dset_name, status);
-			return -1;
-		}
-
+		// extract dtype and convert to chemtensor numeric_type
+		hid_t dtype;
 		enum numeric_type dt_dtype;
-		if (H5Tequal(dtype, H5T_NATIVE_FLOAT)) {
-			dt_dtype = CT_SINGLE_REAL;
-		} else if (H5Tequal(dtype, H5T_NATIVE_DOUBLE)) {
-			dt_dtype = CT_DOUBLE_REAL;
-		} else {
-			fprintf(stderr, "Invalid dtype: %lld.\n", dtype);
-			return -1;
+		{
+			if ((dtype = H5Dget_type(dset)) == H5I_INVALID_HID) {
+				fprintf(stderr, "H5Dget_type() failed for %s, return value: %d\n", dset_name, status);
+				return -1;
+			}
+
+			if (H5Tequal(dtype, H5T_NATIVE_FLOAT)) {
+				dt_dtype = CT_SINGLE_REAL;
+			} else if (H5Tequal(dtype, H5T_NATIVE_DOUBLE)) {
+				dt_dtype = CT_DOUBLE_REAL;
+			} else {
+				fprintf(stderr, "Invalid dtype: %lld.\n", dtype);
+				return -1;
+			}
 		}
 
-		if ((space = H5Dget_space(dset)) == H5I_INVALID_HID) {
+		hid_t dset_space;
+		if ((dset_space = H5Dget_space(dset)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", dset_name, status);
 			return -1;
 		}
 
 		int ndim;
-		if ((ndim = H5Sget_simple_extent_ndims(space)) < 0) {
+		if ((ndim = H5Sget_simple_extent_ndims(dset_space)) < 0) {
 			fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", dset_name, ndim);
 			return -1;
 		}
 
 		hsize_t dims[ndim];
-		if ((ndim = H5Sget_simple_extent_dims(space, &dims[0], NULL)) < 0) {
+		if ((ndim = H5Sget_simple_extent_dims(dset_space, (hsize_t*)&dims, NULL)) < 0) {
 			fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", dset_name, ndim);
 			return -1;
+		}
+
+		// dset_space not required anymore, hence, close handle
+		if ((status = H5Sclose(dset_space)) < 0) {
+			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
 		}
 
 		struct dense_tensor dt;
@@ -127,9 +140,15 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 			return -1;
 		}
 
+		// dtype not required anymore, hence, close handle.
+		if ((status = H5Tclose(dtype)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
 		enum tensor_axis_direction axis_dir[ndim]; // attribute 'axis_dir'
 		{
-			hid_t enum_dtype;
+			hid_t attr, enum_dtype;
 			if ((attr = H5Aopen(dset, "axis_dir", H5P_DEFAULT)) == H5I_INVALID_HID) {
 				fprintf(stderr, "H5Aopen() failed for axis_dir, return value: %lld\n", attr);
 				return -1;
@@ -155,47 +174,54 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 			}
 		}
 
-		const qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*)); // attribute qnums
+		qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*)); // attribute qnums
 		for (size_t i = 0; i < ndim; i++) {
-			hid_t space_qnums;
-			char attr_qnums_name[100];
-			sprintf(attr_qnums_name, "qnums-%zu", i);
+			char qnums_name[128];
+			sprintf(qnums_name, "qnums-%zu", i);
 
-			if ((attr = H5Aopen(dset, attr_qnums_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
-				fprintf(stderr, "H5Aopen() failed for %s, return value: %lld\n", attr_qnums_name, attr);
+			hid_t attr;
+			if ((attr = H5Aopen(dset, qnums_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
+				fprintf(stderr, "H5Aopen() failed for %s, return value: %lld\n", qnums_name, attr);
 				return -1;
 			}
 
-			if ((space_qnums = H5Dget_space(dset)) == H5I_INVALID_HID) {
-				fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", attr_qnums_name, status);
-				return -1;
-			}
+			// retrieve dataspace information for qnums
+			// dataspace for qnums is one-dimensional, hence, scalar variable
+			hsize_t qnums_dim;
+			{
+				hid_t space_qnums;
+				if ((space_qnums = H5Aget_space(attr)) == H5I_INVALID_HID) {
+					fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", qnums_name, status);
+					return -1;
+				}
 
-			int rank;
-			hsize_t qnums_dim; // dataspace for qnums is one-dimensional
-			if ((rank = H5Sget_simple_extent_dims(space_qnums, &qnums_dim, NULL)) < 0) {
-				fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", attr_qnums_name, rank);
-				return -1;
-			}
+				int rank;
+				if ((rank = H5Sget_simple_extent_dims(space_qnums, &qnums_dim, NULL)) < 0) {
+					fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", qnums_name, rank);
+					return -1;
+				}
 
-			if ((status = H5Sclose(space_qnums)) < 0) {
-				fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", attr_qnums_name, status);
-				return -1;
+				assert(rank == 1);
+
+				if ((status = H5Sclose(space_qnums)) < 0) {
+					fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", qnums_name, status);
+					return -1;
+				}
 			}
 
 			qnums[i] = ct_malloc(qnums_dim * sizeof(qnumber));
-			if ((status = H5Aread(attr, H5T_NATIVE_INT, &qnums[i])) < 0) {
-				fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", attr_qnums_name, status);
+			if ((status = H5Aread(attr, H5T_NATIVE_INT, qnums[i])) < 0) {
+				fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
 
 			if ((status = H5Aclose(attr)) < 0) {
-				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", attr_qnums_name, status);
+				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
 		}
 
-		// dense_to_block_sparse_tensor(&dt, axis_dir, qnums, &mps->a[site]);
+		dense_to_block_sparse_tensor(&dt, axis_dir, (const qnumber**)qnums, &mps->a[site]);
 
 		if ((status = H5Dclose(dset)) < 0) {
 			fprintf(stderr, "H5Dclose() failed for %s, return value: %d\n", dset_name, status);
@@ -316,12 +342,12 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 
 	// dataspace: dense tensors for each site
 	for (size_t site = 0; site < mps->nsites; site++) {
+		char dset_name[128];
+		sprintf(dset_name, "tensor-%zu", site);
+
 		struct dense_tensor dt;
 		struct block_sparse_tensor* bst = &mps->a[site];
 		block_sparse_to_dense_tensor(bst, &dt);
-
-		char dset_name[100];
-		sprintf(dset_name, "tensor-%zu", site);
 
 		switch (dt.dtype) {
 		case CT_SINGLE_REAL:
@@ -395,31 +421,31 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 		// attributes 'qnums-{ndim}'
 		hid_t space_qnums;
 		for (size_t i = 0; i < bst->ndim; i++) {
-			char attr_qnums_name[100];
-			sprintf(attr_qnums_name, "qnums-%zu", i);
+			char qnums_name[128];
+			sprintf(qnums_name, "qnums-%zu", i);
 
 			if ((space_qnums = H5Screate_simple(1, (hsize_t[]){bst->dim_blocks[i]}, NULL)) < 0) {
-				fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", attr_qnums_name, space_qnums);
+				fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", qnums_name, space_qnums);
 				return -1;
 			}
 
-			if ((attr = H5Acreate2(dset, attr_qnums_name, H5T_NATIVE_INT, space_qnums, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-				fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", attr_qnums_name, attr);
+			if ((attr = H5Acreate2(dset, qnums_name, H5T_NATIVE_INT, space_qnums, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
+				fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", qnums_name, attr);
 				return -1;
 			}
 
 			if ((status = H5Awrite(attr, H5T_NATIVE_INT, bst->qnums_logical[i])) < 0) {
-				fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", attr_qnums_name, status);
+				fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
 
 			if ((status = H5Aclose(attr)) < 0) {
-				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", attr_qnums_name, status);
+				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
 
 			if ((status = H5Sclose(space_qnums)) < 0) {
-				fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", attr_qnums_name, status);
+				fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
 		}
