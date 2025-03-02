@@ -424,7 +424,7 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 			char qnums_name[128];
 			sprintf(qnums_name, "qnums-%zu", i);
 
-			if ((space_qnums = H5Screate_simple(1, (hsize_t[]){bst->dim_blocks[i]}, NULL)) < 0) {
+			if ((space_qnums = H5Screate_simple(1, (hsize_t[]){bst->dim_logical[i]}, NULL)) < 0) {
 				fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", qnums_name, space_qnums);
 				return -1;
 			}

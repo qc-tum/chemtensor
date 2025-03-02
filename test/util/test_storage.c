@@ -19,10 +19,10 @@ char* test_save_mps_hdf5() {
 
 	int status;
 
-	// status = save_mps_hdf5(&msource, filename);
-	// if (status < 0) {
-	// 	return "storing mps as hdf5 file failed.";
-	// }
+	status = save_mps_hdf5(&msource, filename);
+	if (status < 0) {
+		return "storing mps as hdf5 file failed.";
+	}
 
 	struct mps mloaded;
 	status = load_mps_hdf5(filename, &mloaded);
@@ -42,14 +42,14 @@ char* test_save_mps_hdf5() {
 		return "local physical quantum numbers of loaded does not match source.";
 	}
 
-	// // for (int i = 0; i < nsites; i++) {
-	// // 	if (!block_sparse_tensor_allclose(&mloaded.a[i], &m.a[i], 0.)) {
-	// // 		return "MPS tensor of the loaded one does not match original MPS tensor";
-	// // 	}
-	// // }
+	for (int i = 0; i < nsites; i++) {
+		if (!block_sparse_tensor_allclose(&mloaded.a[i], &msource.a[i], 0.)) {
+			return "MPS tensor of the loaded one does not match original MPS tensor";
+		}
+	}
 
 	delete_mps(&msource);
-	// delete_mps(&mloaded);
+	delete_mps(&mloaded);
 
 	return 0;
 }
