@@ -6,6 +6,14 @@
 /// \brief Create HDF5 enumeration datatype for `tensor_axis_direction` and return its id.
 hid_t get_axis_dir_enum_dtype();
 
+/// \brief Create HDF5 scalar attribute with name and type attached to parent.
+/// \returns 0 on success, -1 otherwise
+int write_scalar_attribute(const char* name, hid_t type_id, const void* buf, hid_t parent_id);
+
+/// \brief Create HDF5 vector attribute with name and type of given length attached to parent.
+/// \returns 0 on success, -1 otherwise
+int write_vector_attribute(const char* name, hid_t type_id, const hsize_t length, const void* buf, hid_t parent_id);
+
 int load_mps_hdf5(const char* filename, struct mps* mps) {
 	herr_t status;
 
@@ -244,103 +252,37 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 
 int save_mps_hdf5(const struct mps* mps, const char* filename) {
 	herr_t status;
-	hid_t file, root_group, space, attr, dtype, dset;
 
+	hid_t file;
 	if ((file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
 		fprintf(stderr, "H5Fcreate() failed for %s, return value: %lld\n", filename, file);
 		return -1;
 	}
 
+	hid_t root_group;
 	if ((root_group = H5Gopen1(file, "/")) == H5I_INVALID_HID) {
 		fprintf(stderr, "H5Gopen1() failed for /, return value: %lld\n", file);
 		return -1;
 	}
 
-	// attribute 'd': physical dimension
-	{
-		if ((space = H5Screate(H5S_SCALAR)) == H5I_INVALID_HID) {
-			fprintf(stderr, "H5Screate() failed for d, return value: %lld\n", space);
-			return space;
-		}
-
-		if ((attr = H5Acreate2(root_group, "d", H5T_NATIVE_LONG, space, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-			fprintf(stderr, "H5Acreate() failed for d, return value: %lld\n", attr);
-			return attr;
-		}
-
-		if ((status = H5Awrite(attr, H5T_NATIVE_LONG, &mps->d)) < 0) {
-			fprintf(stderr, "H5Awrite() failed for d, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for d, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Sclose(space)) < 0) {
-			fprintf(stderr, "H5Sclose() failed for d, return value: %d\n", status);
-			return -1;
-		}
+	// create attributes attached to '/' group
+	// - physical dimension:                d
+	// - number of sites:                   nsites
+	// - quantum numbers at physical sites: qsite
+	//
+	// helper functions already print error messages
+	// hence only return here
+	if (write_scalar_attribute("d", H5T_NATIVE_LONG, (void*)&mps->d, root_group) < 0 ||
+		write_scalar_attribute("nsites", H5T_NATIVE_INT, (void*)&mps->nsites, root_group) < 0 ||
+		write_vector_attribute("qsite", H5T_NATIVE_INT, (hsize_t)mps->d, (void*)mps->qsite, root_group) < 0) {
+		return -1;
 	}
 
-	// attribute 'nsites': number of sites
-	{
-		if ((space = H5Screate(H5S_SCALAR)) < 0) {
-			fprintf(stderr, "H5Screate() failed for nsites, return value: %lld\n", space);
-			return space;
-		}
-
-		if ((attr = H5Acreate2(root_group, "nsites", H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-			fprintf(stderr, "H5Acreate() failed for nsites, return value: %lld\n", attr);
-			return attr;
-		}
-
-		if ((status = H5Awrite(attr, H5T_NATIVE_INT, &mps->nsites)) < 0) {
-			fprintf(stderr, "H5Awrite() failed for nsites, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for nsites, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Sclose(space)) < 0) {
-			fprintf(stderr, "H5Sclose() failed for nsites, return value: %d\n", status);
-			return -1;
-		}
-	}
-
-	// attribute 'qsite': quantum numbers at each site
-	{
-		if ((space = H5Screate_simple(1, (hsize_t[]){mps->d}, NULL)) < 0) {
-			fprintf(stderr, "H5Screate_simple() failed for qsite, return value: %lld\n", space);
-			return -1;
-		}
-
-		if ((attr = H5Acreate2(root_group, "qsite", H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-			fprintf(stderr, "H5Acreate() failed for qsite, return value: %lld\n", attr);
-			return -1;
-		}
-
-		if ((status = H5Awrite(attr, H5T_NATIVE_INT, mps->qsite)) < 0) {
-			fprintf(stderr, "H5Awrite() failed for qsite, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for qsite, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Sclose(space)) < 0) {
-			fprintf(stderr, "H5Sclose() failed for qsite, return value: %d\n", status);
-			return -1;
-		}
-	}
-
-	// dataspace: dense tensors for each site
+	// create datasets tensor-{site} for each block sparse tensor
+	// 
+	// here we convert block sparse to dense tensors and store 
+	// the accompying quantum numbers as attributes to reconstruct
+	// the sparse tensors when importing
 	for (size_t site = 0; site < mps->nsites; site++) {
 		char dset_name[128];
 		sprintf(dset_name, "tensor-%zu", site);
@@ -349,6 +291,7 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 		struct block_sparse_tensor* bst = &mps->a[site];
 		block_sparse_to_dense_tensor(bst, &dt);
 
+		hid_t dtype;
 		switch (dt.dtype) {
 		case CT_SINGLE_REAL:
 			dtype = H5T_NATIVE_FLOAT;
@@ -363,12 +306,13 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 			return -1;
 		}
 
-		// todo: casting long* to hsize_t* might cause troubles on some systems (?)
+		hid_t space;
 		if ((space = H5Screate_simple(dt.ndim, (const hsize_t*)dt.dim, NULL)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", dset_name, space);
 			return -1;
 		}
 
+		hid_t dset;
 		dset = H5Dcreate(root_group, dset_name, dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 		if (dset == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Dcreate() failed for %s, return value: %d\n", dset_name, status);
@@ -380,83 +324,43 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 			return -1;
 		}
 
-		// attribute 'axis_dir'
-		{
-			hid_t space_axis, enum_dtype;
-			if ((space_axis = H5Screate_simple(1, (hsize_t[]){bst->ndim}, NULL)) < 0) {
-				fprintf(stderr, "H5Screate_simple() failed for axis_dir, return value: %lld\n", space_axis);
-				return -1;
-			}
-
-			if ((enum_dtype = get_axis_dir_enum_dtype()) < 0) {
-				return -1; // function already prints error message
-			}
-
-			if ((attr = H5Acreate2(dset, "axis_dir", enum_dtype, space_axis, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-				fprintf(stderr, "H5Acreate() failed for axis_dir, return value: %lld\n", attr);
-				return -1;
-			}
-
-			if ((status = H5Awrite(attr, enum_dtype, bst->axis_dir)) < 0) {
-				fprintf(stderr, "H5Awrite() failed for axis_dir, return value: %d\n", status);
-				return -1;
-			}
-
-			if ((status = H5Tclose(enum_dtype)) < 0) {
-				fprintf(stderr, "H5Tclose() failed for axis_dir(enum_dtype), return value: %d\n", status);
-				return -1;
-			}
-
-			if ((status = H5Aclose(attr)) < 0) {
-				fprintf(stderr, "H5Aclose() failed for axis_dir, return value: %d\n", status);
-				return -1;
-			}
-
-			if ((status = H5Sclose(space_axis)) < 0) {
-				fprintf(stderr, "H5Sclose() failed for axis_dir, return value: %d\n", status);
-				return -1;
-			}
+		if ((status = H5Sclose(space)) < 0) {
+			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
 		}
 
-		// attributes 'qnums-{ndim}'
-		hid_t space_qnums;
-		for (size_t i = 0; i < bst->ndim; i++) {
+		// create attributes attached to tensor-{site} dataset
+		// - tensor axis directions:                axis_dir
+		// - quantum numbers to reconstruct block
+		//   sparse tensors:                        qnums-{dim}
+		//
+		// uses a custom type for the axis dir enumeration, hence,
+		// call a helper function to construct it
+		hid_t enum_type_id;
+		if ((enum_type_id = get_axis_dir_enum_dtype()) < 0) {
+			return -1;
+		}
+
+		if (write_vector_attribute("axis_dir", enum_type_id, (hsize_t)bst->ndim, (void*)bst->axis_dir, dset) < 0) {
+			return -1;
+		}
+
+		if ((status = H5Tclose(enum_type_id)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for axis_dir, return value: %d\n", status);
+			return -1;
+		}
+
+		for (size_t dim = 0; dim < bst->ndim; dim++) {
 			char qnums_name[128];
-			sprintf(qnums_name, "qnums-%zu", i);
+			sprintf(qnums_name, "qnums-%zu", dim);
 
-			if ((space_qnums = H5Screate_simple(1, (hsize_t[]){bst->dim_logical[i]}, NULL)) < 0) {
-				fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", qnums_name, space_qnums);
-				return -1;
-			}
-
-			if ((attr = H5Acreate2(dset, qnums_name, H5T_NATIVE_INT, space_qnums, H5P_DEFAULT, H5P_DEFAULT)) < 0) {
-				fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", qnums_name, attr);
-				return -1;
-			}
-
-			if ((status = H5Awrite(attr, H5T_NATIVE_INT, bst->qnums_logical[i])) < 0) {
-				fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", qnums_name, status);
-				return -1;
-			}
-
-			if ((status = H5Aclose(attr)) < 0) {
-				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", qnums_name, status);
-				return -1;
-			}
-
-			if ((status = H5Sclose(space_qnums)) < 0) {
-				fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", qnums_name, status);
+			if (write_vector_attribute(qnums_name, H5T_NATIVE_INT, (hsize_t)bst->dim_logical[dim], (void*)bst->qnums_logical[dim], dset) < 0) {
 				return -1;
 			}
 		}
 
 		if ((status = H5Dclose(dset)) < 0) {
 			fprintf(stderr, "H5Dclose() failed for %s, return value: %d\n", dset_name, status);
-			return -1;
-		}
-
-		if ((status = H5Sclose(space)) < 0) {
-			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
 			return -1;
 		}
 
@@ -497,4 +401,68 @@ hid_t get_axis_dir_enum_dtype() {
 	}
 
 	return enum_dtype;
+}
+
+int write_scalar_attribute(const char* name, hid_t type_id, const void* buf, hid_t parent_id) {
+	herr_t status;
+
+	hid_t space, attr;
+	if ((space = H5Screate(H5S_SCALAR)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Screate() failed for %s, return value: %lld\n", name, space);
+		return -1;
+	}
+
+	if ((attr = H5Acreate2(parent_id, name, type_id, space, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", name, attr);
+		return -1;
+	}
+
+	if ((status = H5Awrite(attr, type_id, buf)) < 0) {
+		fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Sclose(space)) < 0) {
+		fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	return 0;
+}
+
+int write_vector_attribute(const char* name, hid_t type_id, const hsize_t length, const void* buf, hid_t parent_id) {
+	herr_t status;
+	hid_t space, attr;
+
+	if ((space = H5Screate_simple(1, (hsize_t[]){length}, NULL)) < 0) {
+		fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", name, space);
+		return -1;
+	}
+
+	if ((attr = H5Acreate2(parent_id, name, type_id, space, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", name, attr);
+		return -1;
+	}
+
+	if ((status = H5Awrite(attr, type_id, buf)) < 0) {
+		fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Sclose(space)) < 0) {
+		fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	return 0;
 }
