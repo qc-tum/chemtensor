@@ -14,6 +14,20 @@ int write_scalar_attribute(const char* name, hid_t type_id, const void* buf, hid
 /// \returns 0 on success, -1 otherwise
 int write_vector_attribute(const char* name, hid_t type_id, const hsize_t length, const void* buf, hid_t parent_id);
 
+/// \brief Read HDF5 attribute with name and type into buf.
+/// \returns 0 on success, -1 otherwise
+int read_attribute(const char* name, hid_t type_id, hid_t parent_id, void* buf);
+
+/// \brief Convert HDF5 datatype id to chemtensor numeric_type
+/// \returns 0 on success, -1 otherwise
+int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype);
+
+/// \brief Convert HDF5 datatype id to chemtensor numeric_type
+/// \returns HDF5 datatype id
+hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype);
+
+/// \brief Import MPS from HDF5 file.
+/// \returns 0 on success, -1 otherwise
 int load_mps_hdf5(const char* filename, struct mps* mps) {
 	herr_t status;
 
@@ -29,65 +43,29 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 		return -1;
 	}
 
-	long d; // attribute 'd': physical dimension
-	{
-		hid_t attr;
-		if ((attr = H5Aopen(root_group, "d", H5P_DEFAULT)) == H5I_INVALID_HID) {
-			fprintf(stderr, "H5Acreate() failed for d, return value: %lld\n", attr);
-			return -1;
-		}
-
-		if ((status = H5Aread(attr, H5T_NATIVE_LONG, &d)) < 0) {
-			fprintf(stderr, "H5Aread() failed for d, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for d, return value: %d\n", status);
-			return -1;
-		}
+	// read attributes attached to '/' group and allocate
+	// empty mps with
+	// - physical dimension:                d
+	// - number of sites:                   nsites
+	// - quantum numbers at physical sites: qsite
+	long d;
+	int nsites;
+	if (read_attribute("d", H5T_NATIVE_LONG, root_group, (void*)&d) < 0 ||
+		read_attribute("nsites", H5T_NATIVE_INT, root_group, (void*)&nsites) < 0) {
+		return -1;
 	}
 
-	int nsites; // attribute 'nsites': number of sites
-	{
-		hid_t attr;
-		if ((attr = H5Aopen(root_group, "nsites", H5P_DEFAULT)) == H5I_INVALID_HID) {
-			fprintf(stderr, "H5Acreate() failed for d, return value: %lld\n", attr);
-			return -1;
-		}
-
-		if ((status = H5Aread(attr, H5T_NATIVE_INT, &nsites)) < 0) {
-			fprintf(stderr, "H5Aread() failed for d, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for d, return value: %d\n", status);
-			return -1;
-		}
-	}
-
-	qnumber qsite[d]; // attribute 'qsite': quantum numbers at each site
-	{
-		hid_t attr;
-		if ((attr = H5Aopen(root_group, "qsite", H5P_DEFAULT)) == H5I_INVALID_HID) {
-			fprintf(stderr, "H5Aopen() failed for qsite, return value: %lld\n", attr);
-			return -1;
-		}
-
-		if ((status = H5Aread(attr, H5T_NATIVE_INT, (void*)&qsite)) < 0) {
-			fprintf(stderr, "H5Aread() failed for qsite, return value: %d\n", status);
-			return -1;
-		}
-
-		if ((status = H5Aclose(attr)) < 0) {
-			fprintf(stderr, "H5Aclose() failed for qsite, return value: %d\n", status);
-			return -1;
-		}
+	qnumber qsite[d];
+	if (read_attribute("qsite", H5T_NATIVE_INT, root_group, (void*)&qsite) < 0) {
+		return -1;
 	}
 
 	allocate_empty_mps(nsites, d, (const qnumber*)&qsite, mps);
 
+	// read datasets tensor-{site}
+	//
+	// here we load dense tensors from and the accompying attributes
+	// to reconstruct the block sparse tensors of the MPS
 	for (size_t site = 0; site < nsites; site++) {
 		char dset_name[128];
 		sprintf(dset_name, "tensor-%zu", site);
@@ -98,25 +76,8 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 			return -1;
 		}
 
-		// extract dtype and convert to chemtensor numeric_type
-		hid_t dtype;
-		enum numeric_type dt_dtype;
-		{
-			if ((dtype = H5Dget_type(dset)) == H5I_INVALID_HID) {
-				fprintf(stderr, "H5Dget_type() failed for %s, return value: %d\n", dset_name, status);
-				return -1;
-			}
-
-			if (H5Tequal(dtype, H5T_NATIVE_FLOAT)) {
-				dt_dtype = CT_SINGLE_REAL;
-			} else if (H5Tequal(dtype, H5T_NATIVE_DOUBLE)) {
-				dt_dtype = CT_DOUBLE_REAL;
-			} else {
-				fprintf(stderr, "Invalid dtype: %lld.\n", dtype);
-				return -1;
-			}
-		}
-
+		// read hdf5 dataspace of dataset containing the dimensions for
+		// the empty dense tensors
 		hid_t dset_space;
 		if ((dset_space = H5Dget_space(dset)) == H5I_INVALID_HID) {
 			fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", dset_name, status);
@@ -135,57 +96,64 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 			return -1;
 		}
 
-		// dset_space not required anymore, hence, close handle
 		if ((status = H5Sclose(dset_space)) < 0) {
 			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		// read hdf5 datatype of dataset and convert it to chemtensor's
+		// numeric_type to allocate empty dense tensors
+		hid_t hdf5_dtype;
+		if ((hdf5_dtype = H5Dget_type(dset)) == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Dget_type() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		enum numeric_type ct_dtype;
+		if (hdf5_to_chemtensor_dtype(hdf5_dtype, &ct_dtype) < 0) {
+			return -1;
 		}
 
 		struct dense_tensor dt;
-		allocate_dense_tensor(dt_dtype, ndim, (const long*)&dims, &dt);
+		allocate_dense_tensor(ct_dtype, ndim, (const long*)&dims, &dt);
 
-		if (H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, dt.data) < 0) {
+		// read raw data into empty dense tensor
+		if (H5Dread(dset, hdf5_dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, dt.data) < 0) {
 			fprintf(stderr, "H5Dread() failed for %s, return value: %d\n", dset_name, ndim);
 			return -1;
 		}
 
-		// dtype not required anymore, hence, close handle.
-		if ((status = H5Tclose(dtype)) < 0) {
+		if ((status = H5Tclose(hdf5_dtype)) < 0) {
 			fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
 			return -1;
 		}
 
-		enum tensor_axis_direction axis_dir[ndim]; // attribute 'axis_dir'
-		{
-			hid_t attr, enum_dtype;
-			if ((attr = H5Aopen(dset, "axis_dir", H5P_DEFAULT)) == H5I_INVALID_HID) {
-				fprintf(stderr, "H5Aopen() failed for axis_dir, return value: %lld\n", attr);
-				return -1;
-			}
-
-			if ((enum_dtype = get_axis_dir_enum_dtype()) < 0) {
-				return -1; // function already prints error message
-			}
-
-			if ((status = H5Aread(attr, enum_dtype, &axis_dir)) < 0) {
-				fprintf(stderr, "H5Aread() failed for axis_dir, return value: %d\n", status);
-				return -1;
-			}
-
-			if ((status = H5Tclose(enum_dtype)) < 0) {
-				fprintf(stderr, "H5Tclose() failed for axis_dir(enum_dtype), return value: %d\n", status);
-				return -1;
-			}
-
-			if ((status = H5Aclose(attr)) < 0) {
-				fprintf(stderr, "H5Aclose() failed for axis_dir, return value: %d\n", status);
-				return -1;
-			}
+		// read attributes attached to tensor-{site} dataset and
+		// reconstruct block sparse from dense tensor with
+		// - tensor axis directions: axis_dir
+		// - quantum numbers:        qnums-{dim}
+		//
+		// uses a custom type for the axis dir enumeration, hence,
+		// call a helper function to construct it
+		hid_t enum_type_id;
+		enum tensor_axis_direction axis_dir[ndim];
+		if ((enum_type_id = get_axis_dir_enum_dtype()) < 0) {
+			return -1;
 		}
 
-		qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*)); // attribute qnums
-		for (size_t i = 0; i < ndim; i++) {
+		if (read_attribute("axis_dir", enum_type_id, dset, &axis_dir) < 0) {
+			return -1;
+		}
+
+		if ((status = H5Tclose(enum_type_id)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for axis_dir, return value: %d\n", status);
+			return -1;
+		}
+
+		qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*));
+		for (size_t dim = 0; dim < ndim; dim++) {
 			char qnums_name[128];
-			sprintf(qnums_name, "qnums-%zu", i);
+			sprintf(qnums_name, "qnums-%zu", dim);
 
 			hid_t attr;
 			if ((attr = H5Aopen(dset, qnums_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
@@ -194,7 +162,7 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 			}
 
 			// retrieve dataspace information for qnums
-			// dataspace for qnums is one-dimensional, hence, scalar variable
+			// dataspace for qnums is one-dimensional, hence, scalar variable suffices
 			hsize_t qnums_dim;
 			{
 				hid_t space_qnums;
@@ -209,16 +177,14 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 					return -1;
 				}
 
-				assert(rank == 1);
-
 				if ((status = H5Sclose(space_qnums)) < 0) {
 					fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", qnums_name, status);
 					return -1;
 				}
 			}
 
-			qnums[i] = ct_malloc(qnums_dim * sizeof(qnumber));
-			if ((status = H5Aread(attr, H5T_NATIVE_INT, qnums[i])) < 0) {
+			qnums[dim] = ct_malloc(qnums_dim * sizeof(qnumber));
+			if ((status = H5Aread(attr, H5T_NATIVE_INT, qnums[dim])) < 0) {
 				fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", qnums_name, status);
 				return -1;
 			}
@@ -250,6 +216,8 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 	return 0;
 }
 
+/// \brief Dump MPS to HDF5 file.
+/// \returns 0 on success, -1 otherwise
 int save_mps_hdf5(const struct mps* mps, const char* filename) {
 	herr_t status;
 
@@ -269,9 +237,6 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 	// - physical dimension:                d
 	// - number of sites:                   nsites
 	// - quantum numbers at physical sites: qsite
-	//
-	// helper functions already print error messages
-	// hence only return here
 	if (write_scalar_attribute("d", H5T_NATIVE_LONG, (void*)&mps->d, root_group) < 0 ||
 		write_scalar_attribute("nsites", H5T_NATIVE_INT, (void*)&mps->nsites, root_group) < 0 ||
 		write_vector_attribute("qsite", H5T_NATIVE_INT, (hsize_t)mps->d, (void*)mps->qsite, root_group) < 0) {
@@ -279,8 +244,8 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 	}
 
 	// create datasets tensor-{site} for each block sparse tensor
-	// 
-	// here we convert block sparse to dense tensors and store 
+	//
+	// here we convert block sparse to dense tensors and store
 	// the accompying quantum numbers as attributes to reconstruct
 	// the sparse tensors when importing
 	for (size_t site = 0; site < mps->nsites; site++) {
@@ -291,20 +256,7 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 		struct block_sparse_tensor* bst = &mps->a[site];
 		block_sparse_to_dense_tensor(bst, &dt);
 
-		hid_t dtype;
-		switch (dt.dtype) {
-		case CT_SINGLE_REAL:
-			dtype = H5T_NATIVE_FLOAT;
-			break;
-		case CT_DOUBLE_REAL:
-			dtype = H5T_NATIVE_DOUBLE;
-			break;
-		case CT_SINGLE_COMPLEX:
-		case CT_DOUBLE_COMPLEX:
-		default:
-			fprintf(stderr, "Invalid dtype: %lld.\n", dtype);
-			return -1;
-		}
+		hid_t dtype = chemtensor_to_hdf5_dtype(dt.dtype);
 
 		hid_t space;
 		if ((space = H5Screate_simple(dt.ndim, (const hsize_t*)dt.dim, NULL)) == H5I_INVALID_HID) {
@@ -437,8 +389,8 @@ int write_scalar_attribute(const char* name, hid_t type_id, const void* buf, hid
 
 int write_vector_attribute(const char* name, hid_t type_id, const hsize_t length, const void* buf, hid_t parent_id) {
 	herr_t status;
-	hid_t space, attr;
 
+	hid_t space, attr;
 	if ((space = H5Screate_simple(1, (hsize_t[]){length}, NULL)) < 0) {
 		fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", name, space);
 		return -1;
@@ -465,4 +417,49 @@ int write_vector_attribute(const char* name, hid_t type_id, const hsize_t length
 	}
 
 	return 0;
+}
+
+int read_attribute(const char* name, hid_t type_id, hid_t parent_id, void* buf) {
+	herr_t status;
+
+	hid_t attr;
+	if ((attr = H5Aopen(parent_id, name, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", name, attr);
+		return -1;
+	}
+
+	if ((status = H5Aread(attr, type_id, buf)) < 0) {
+		fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	return 0;
+}
+
+int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype) {
+	if (H5Tequal(hdf5_dtype, H5T_NATIVE_FLOAT)) {
+		*ct_dtype = CT_SINGLE_REAL;
+	} else if (H5Tequal(hdf5_dtype, H5T_NATIVE_DOUBLE)) {
+		*ct_dtype = CT_DOUBLE_REAL;
+	} else {
+		fprintf(stderr, "Invalid dtype: %lld.\n", hdf5_dtype);
+		return -1;
+	}
+	return 0;
+}
+
+hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype) {
+	switch (ct_dtype) {
+	case CT_SINGLE_COMPLEX:
+	case CT_SINGLE_REAL:
+		return H5T_NATIVE_FLOAT;
+	case CT_DOUBLE_COMPLEX:
+	case CT_DOUBLE_REAL:
+		return H5T_NATIVE_DOUBLE;
+	}
 }
