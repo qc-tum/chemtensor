@@ -23,10 +23,19 @@ int read_attribute(const char* name, hid_t type_id, hid_t parent_id, void* buf);
 int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype);
 
 /// \brief Convert HDF5 datatype id to chemtensor numeric_type
-/// \returns HDF5 datatype id
+/// \returns HDF5 datatype id, or -1 on failure
 hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype);
 
+/// \brief Return id of HDF5 compound type for single precision complex numbers
+/// \returns id on success, -1 otherwise
+hid_t get_single_complex_dtype();
+
+/// \brief Return id of HDF5 compound type for double precision complex numbers
+/// \returns id on success, -1 otherwise
+hid_t get_double_complex_dtype();
+
 /// \brief Import MPS from HDF5 file.
+/// \note Uses HDF5 compound type for single and double complex numbers.
 /// \returns 0 on success, -1 otherwise
 int load_mps_hdf5(const char* filename, struct mps* mps) {
 	herr_t status;
@@ -217,6 +226,7 @@ int load_mps_hdf5(const char* filename, struct mps* mps) {
 }
 
 /// \brief Dump MPS to HDF5 file.
+/// \note Uses HDF5 compound type for single and double complex numbers.
 /// \returns 0 on success, -1 otherwise
 int save_mps_hdf5(const struct mps* mps, const char* filename) {
 	herr_t status;
@@ -278,6 +288,11 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 
 		if ((status = H5Sclose(space)) < 0) {
 			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		if ((status = H5Tclose(dtype)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
 			return -1;
 		}
 
@@ -353,6 +368,50 @@ hid_t get_axis_dir_enum_dtype() {
 	}
 
 	return enum_dtype;
+}
+
+hid_t get_single_complex_dtype() {
+	herr_t status;
+	hid_t complex_dtype;
+
+	if ((complex_dtype = H5Tcreate(H5T_COMPOUND, sizeof(scomplex))) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Tcreate() failed for single complex dtype, return value: %lld\n", complex_dtype);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "real", 0, H5T_NATIVE_FLOAT)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for single complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "imag", sizeof(float), H5T_NATIVE_FLOAT)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for single complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	return complex_dtype;
+}
+
+hid_t get_double_complex_dtype() {
+	herr_t status;
+	hid_t complex_dtype;
+
+	if ((complex_dtype = H5Tcreate(H5T_COMPOUND, sizeof(dcomplex))) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Tcreate() failed for double complex dtype, return value: %lld\n", complex_dtype);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "real", 0, H5T_NATIVE_DOUBLE)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for double complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "imag", sizeof(double), H5T_NATIVE_DOUBLE)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for double complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	return complex_dtype;
 }
 
 int write_scalar_attribute(const char* name, hid_t type_id, const void* buf, hid_t parent_id) {
@@ -442,24 +501,40 @@ int read_attribute(const char* name, hid_t type_id, hid_t parent_id, void* buf) 
 }
 
 int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype) {
+	int ret = 0;
+	hid_t single_complex_id = get_single_complex_dtype();
+	hid_t double_complex_id = get_double_complex_dtype();
+
 	if (H5Tequal(hdf5_dtype, H5T_NATIVE_FLOAT)) {
 		*ct_dtype = CT_SINGLE_REAL;
 	} else if (H5Tequal(hdf5_dtype, H5T_NATIVE_DOUBLE)) {
 		*ct_dtype = CT_DOUBLE_REAL;
+	} else if (H5Tequal(hdf5_dtype, single_complex_id)) {
+		*ct_dtype = CT_SINGLE_COMPLEX;
+	} else if (H5Tequal(hdf5_dtype, double_complex_id)) {
+		*ct_dtype = CT_DOUBLE_COMPLEX;
 	} else {
 		fprintf(stderr, "Invalid dtype: %lld.\n", hdf5_dtype);
-		return -1;
+		ret = -1;
 	}
-	return 0;
+
+	H5Tclose(single_complex_id);
+	H5Tclose(double_complex_id);
+
+	return ret;
 }
 
 hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype) {
 	switch (ct_dtype) {
-	case CT_SINGLE_COMPLEX:
 	case CT_SINGLE_REAL:
 		return H5T_NATIVE_FLOAT;
-	case CT_DOUBLE_COMPLEX:
 	case CT_DOUBLE_REAL:
 		return H5T_NATIVE_DOUBLE;
+	case CT_SINGLE_COMPLEX:
+		return get_single_complex_dtype();
+	case CT_DOUBLE_COMPLEX:
+		return get_double_complex_dtype();
 	}
+
+	return -1;
 }
