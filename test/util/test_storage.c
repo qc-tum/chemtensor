@@ -10,46 +10,32 @@ char* test_save_mps_hdf5() {
 	struct rng_state rng_state;
 	seed_rng_state(41, &rng_state);
 
-	struct mps msource;
+	struct mps src;
 	const long max_vdim = 16;
 	const qnumber qnum_sector = 1;
-	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &msource);
+	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
 
 	const char* filename = "test_save_mps_hdf5.hdf5";
 
 	int status;
 
-	status = save_mps_hdf5(&msource, filename);
+	status = save_mps_hdf5(&src, filename);
 	if (status < 0) {
 		return "storing mps as hdf5 file failed.";
 	}
 
-	struct mps mloaded;
-	status = load_mps_hdf5(filename, &mloaded);
+	struct mps loaded;
+	status = load_mps_hdf5(filename, &loaded);
 	if (status < 0) {
 		return "loading mps from hdf5 file failed.";
 	}
 
-	if (msource.nsites != mloaded.nsites) {
-		return "'nsites' of loaded does not match source.";
+	if (!mps_equals(&src, &loaded)) {
+		return "source and loaded MPSs don't match.";
 	}
 
-	if (msource.d != mloaded.d) {
-		return "local physical dimension 'd' of loaded does not match source.";
-	}
-
-	if (!qnumber_all_equal(msource.d, mloaded.qsite, msource.qsite)) {
-		return "local physical quantum numbers of loaded does not match source.";
-	}
-
-	for (int i = 0; i < nsites; i++) {
-		if (!block_sparse_tensor_allclose(&mloaded.a[i], &msource.a[i], 0.)) {
-			return "MPS tensor of the loaded one does not match original MPS tensor";
-		}
-	}
-
-	delete_mps(&msource);
-	delete_mps(&mloaded);
+	delete_mps(&src);
+	delete_mps(&loaded);
 
 	return 0;
 }

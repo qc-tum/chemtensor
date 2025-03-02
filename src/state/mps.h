@@ -39,6 +39,8 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 
 bool mps_is_consistent(const struct mps* mps);
 
+bool mps_equals(const struct mps* a, const struct mps* b);
+
 
 //________________________________________________________________________________________________________________________
 ///

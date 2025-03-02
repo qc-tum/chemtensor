@@ -27,21 +27,8 @@ char* test_copy_mps()
 	struct mps dst;
 	copy_mps(&src, &dst);
 
-	if (dst.nsites != src.nsites) {
-		return "'nsites' of the copy does not match source";
-	}
-
-	if (dst.d != src.d) {
-		return "local physical dimension 'd' of the copy does not match source";
-	}
-	if (!qnumber_all_equal(src.d, dst.qsite, src.qsite)) {
-		return "local physical quantum numbers of the copy do not match source";
-	}
-
-	for (int i = 0; i < nsites; i++) {
-		if (!block_sparse_tensor_allclose(&dst.a[i], &src.a[i], 0.)) {
-			return "MPS tensor of copy does not match original MPS tensor";
-		}
+	if (!mps_equals(&src, &dst)) {
+		return "src and dst MPSs don't match.";
 	}
 
 	delete_mps(&dst);
