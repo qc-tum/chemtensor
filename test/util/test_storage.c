@@ -13,7 +13,7 @@ char* test_save_mps_hdf5() {
 	struct mps src;
 	const long max_vdim = 16;
 	const qnumber qnum_sector = 1;
-	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
+	construct_random_mps(CT_DOUBLE_REAL, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
 
 	const char* filename = "test_save_mps_hdf5.hdf5";
 

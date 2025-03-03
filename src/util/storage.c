@@ -291,9 +291,13 @@ int save_mps_hdf5(const struct mps* mps, const char* filename) {
 			return -1;
 		}
 
-		if ((status = H5Tclose(dtype)) < 0) {
-			fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
-			return -1;
+		// only compound type must be closed
+		// H5Tclose will fail for immutable datatype, otherwise
+		if (dt.dtype == CT_SINGLE_COMPLEX || dt.dtype == CT_DOUBLE_COMPLEX) {
+			if ((status = H5Tclose(dtype)) < 0) {
+				fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
+				return -1;
+			}
 		}
 
 		// create attributes attached to tensor-{site} dataset
