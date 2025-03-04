@@ -69,6 +69,7 @@ char* test_mps_orthonormalize_qr();
 char* test_mps_compress();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
+char* test_save_mps_hdf5();
 char* test_ttns_vdot();
 char* test_queue();
 char* test_linked_list();
@@ -105,7 +106,6 @@ char* test_dmrg_twosite();
 char* test_operator_average_coefficient_gradient();
 char* test_apply_thc_spin_molecular_hamiltonian();
 char* test_thc_spin_molecular_hamiltonian_to_matrix();
-char* test_save_mps_hdf5();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }

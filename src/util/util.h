@@ -124,3 +124,15 @@ herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* d
 herr_t write_hdf5_dataset(hid_t file, const char* name, int degree, const hsize_t dims[], hid_t mem_type_store, hid_t mem_type_input, const void* data);
 
 herr_t write_hdf5_scalar_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data);
+
+herr_t write_hdf5_vector_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const hsize_t length, const void* data);
+
+hid_t get_axis_dir_enum_dtype();
+
+hid_t get_single_complex_dtype();
+
+hid_t get_double_complex_dtype();
+
+int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype);
+
+hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype);

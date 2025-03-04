@@ -121,3 +121,12 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 // conversion to a statevector (intended for testing)
 
 void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// storage as HDF5 files
+
+int load_mps_hdf5(const char* filename, struct mps* mps);
+int save_mps_hdf5(const struct mps* mps, const char* filename);

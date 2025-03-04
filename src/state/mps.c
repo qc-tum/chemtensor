@@ -1215,3 +1215,328 @@ void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec)
 
 	assert(vec->ndim == 3);
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Import MPS from HDF5 file.
+/// \note Uses HDF5 compound type for single and double complex numbers.
+/// \returns 0 on success, -1 otherwise
+///
+int load_mps_hdf5(const char* filename, struct mps* mps) {
+	herr_t status;
+
+	hid_t file;
+	if ((file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Fopen() failed for %s, return value: %lld\n", filename, file);
+		return -1;
+	}
+
+	hid_t root_group;
+	if ((root_group = H5Gopen1(file, "/")) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Gopen1() failed for /, return value: %lld\n", file);
+		return -1;
+	}
+
+	// read attributes attached to '/' group and allocate
+	// empty mps with
+	// - physical dimension:                d
+	// - number of sites:                   nsites
+	// - quantum numbers at physical sites: qsite
+	long d;
+	int nsites;
+	if (read_hdf5_attribute(root_group, "d", H5T_NATIVE_LONG, (void*)&d) < 0 ||
+		read_hdf5_attribute(root_group, "nsites", H5T_NATIVE_INT, (void*)&nsites) < 0) {
+		return -1;
+	}
+
+	qnumber qsite[d];
+	if (read_hdf5_attribute(root_group, "qsite", H5T_NATIVE_INT, (void*)&qsite) < 0) {
+		return -1;
+	}
+
+	allocate_empty_mps(nsites, d, (const qnumber*)&qsite, mps);
+
+	// read datasets tensor-{site}
+	//
+	// here we load dense tensors from and the accompying attributes
+	// to reconstruct the block sparse tensors of the MPS
+	for (size_t site = 0; site < nsites; site++) {
+		char dset_name[128];
+		sprintf(dset_name, "tensor-%zu", site);
+
+		hid_t dset;
+		if ((dset = H5Dopen2(file, dset_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Dopen2() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		// read hdf5 dataspace of dataset containing the dimensions for
+		// the empty dense tensors
+		hid_t dset_space;
+		if ((dset_space = H5Dget_space(dset)) == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		int ndim;
+		if ((ndim = H5Sget_simple_extent_ndims(dset_space)) < 0) {
+			fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", dset_name, ndim);
+			return -1;
+		}
+
+		hsize_t dims[ndim];
+		if ((ndim = H5Sget_simple_extent_dims(dset_space, (hsize_t*)&dims, NULL)) < 0) {
+			fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", dset_name, ndim);
+			return -1;
+		}
+
+		if ((status = H5Sclose(dset_space)) < 0) {
+			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		// read hdf5 datatype of dataset and convert it to chemtensor's
+		// numeric_type to allocate empty dense tensors
+		hid_t hdf5_dtype;
+		if ((hdf5_dtype = H5Dget_type(dset)) == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Dget_type() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		enum numeric_type ct_dtype;
+		if (hdf5_to_chemtensor_dtype(hdf5_dtype, &ct_dtype) < 0) {
+			return -1;
+		}
+
+		struct dense_tensor dt;
+		allocate_dense_tensor(ct_dtype, ndim, (const long*)&dims, &dt);
+
+		// read raw data into empty dense tensor
+		if (H5Dread(dset, hdf5_dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, dt.data) < 0) {
+			fprintf(stderr, "H5Dread() failed for %s, return value: %d\n", dset_name, ndim);
+			return -1;
+		}
+
+		if ((status = H5Tclose(hdf5_dtype)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		// read attributes attached to tensor-{site} dataset and
+		// reconstruct block sparse from dense tensor with
+		// - tensor axis directions: axis_dir
+		// - quantum numbers:        qnums-{dim}
+		//
+		// uses a custom type for the axis dir enumeration, hence,
+		// call a helper function to construct it
+		hid_t enum_type_id;
+		enum tensor_axis_direction axis_dir[ndim];
+		if ((enum_type_id = get_axis_dir_enum_dtype()) < 0) {
+			return -1;
+		}
+
+		if (read_hdf5_attribute(dset, "axis_dir", enum_type_id, &axis_dir) < 0) {
+			return -1;
+		}
+
+		if ((status = H5Tclose(enum_type_id)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for axis_dir, return value: %d\n", status);
+			return -1;
+		}
+
+		qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*));
+		for (size_t dim = 0; dim < ndim; dim++) {
+			char qnums_name[128];
+			sprintf(qnums_name, "qnums-%zu", dim);
+
+			hid_t attr;
+			if ((attr = H5Aopen(dset, qnums_name, H5P_DEFAULT)) == H5I_INVALID_HID) {
+				fprintf(stderr, "H5Aopen() failed for %s, return value: %lld\n", qnums_name, attr);
+				return -1;
+			}
+
+			// retrieve dataspace information for qnums
+			// dataspace for qnums is one-dimensional, hence, scalar variable suffices
+			hsize_t qnums_dim;
+			{
+				hid_t space_qnums;
+				if ((space_qnums = H5Aget_space(attr)) == H5I_INVALID_HID) {
+					fprintf(stderr, "H5Dget_space() failed for %s, return value: %d\n", qnums_name, status);
+					return -1;
+				}
+
+				int rank;
+				if ((rank = H5Sget_simple_extent_dims(space_qnums, &qnums_dim, NULL)) < 0) {
+					fprintf(stderr, "H5Sget_simple_extent_ndims() failed for %s, return value: %d\n", qnums_name, rank);
+					return -1;
+				}
+
+				if ((status = H5Sclose(space_qnums)) < 0) {
+					fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", qnums_name, status);
+					return -1;
+				}
+			}
+
+			qnums[dim] = ct_malloc(qnums_dim * sizeof(qnumber));
+			if ((status = H5Aread(attr, H5T_NATIVE_INT, qnums[dim])) < 0) {
+				fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", qnums_name, status);
+				return -1;
+			}
+
+			if ((status = H5Aclose(attr)) < 0) {
+				fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", qnums_name, status);
+				return -1;
+			}
+		}
+
+		dense_to_block_sparse_tensor(&dt, axis_dir, (const qnumber**)qnums, &mps->a[site]);
+
+		if ((status = H5Dclose(dset)) < 0) {
+			fprintf(stderr, "H5Dclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+	}
+
+	if ((status = H5Gclose(root_group)) < 0) {
+		fprintf(stderr, "H5Gclose() failed for root_group, return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Fclose(file)) < 0) {
+		fprintf(stderr, "H5Fclose() failed for %s, return value: %d\n", filename, status);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Dump MPS to HDF5 file.
+/// \note Uses HDF5 compound type for single and double complex numbers.
+/// \returns 0 on success, -1 otherwise
+///
+int save_mps_hdf5(const struct mps* mps, const char* filename) {
+	herr_t status;
+
+	hid_t file;
+	if ((file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Fcreate() failed for %s, return value: %lld\n", filename, file);
+		return -1;
+	}
+
+	hid_t root_group;
+	if ((root_group = H5Gopen1(file, "/")) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Gopen1() failed for /, return value: %lld\n", file);
+		return -1;
+	}
+
+	// create attributes attached to '/' group
+	// - physical dimension:                d
+	// - number of sites:                   nsites
+	// - quantum numbers at physical sites: qsite
+	if (write_hdf5_scalar_attribute(root_group, "d", H5T_NATIVE_LONG, H5T_NATIVE_LONG, (void*)&mps->d) < 0 ||
+		write_hdf5_scalar_attribute(root_group, "nsites", H5T_NATIVE_INT, H5T_NATIVE_INT, (void*)&mps->nsites) < 0 ||
+		write_hdf5_vector_attribute(root_group, "qsite", H5T_NATIVE_INT, H5T_NATIVE_INT, (hsize_t)mps->d, (void*)mps->qsite) < 0) {
+		return -1;
+	}
+
+	// create datasets tensor-{site} for each block sparse tensor
+	//
+	// here we convert block sparse to dense tensors and store
+	// the accompying quantum numbers as attributes to reconstruct
+	// the sparse tensors when importing
+	for (size_t site = 0; site < mps->nsites; site++) {
+		char dset_name[128];
+		sprintf(dset_name, "tensor-%zu", site);
+
+		struct dense_tensor dt;
+		struct block_sparse_tensor* bst = &mps->a[site];
+		block_sparse_to_dense_tensor(bst, &dt);
+
+		hid_t dtype = chemtensor_to_hdf5_dtype(dt.dtype);
+
+		hid_t space;
+		if ((space = H5Screate_simple(dt.ndim, (const hsize_t*)dt.dim, NULL)) == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", dset_name, space);
+			return -1;
+		}
+
+		hid_t dset;
+		dset = H5Dcreate(root_group, dset_name, dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if (dset == H5I_INVALID_HID) {
+			fprintf(stderr, "H5Dcreate() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		if ((status = H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, dt.data)) < 0) {
+			fprintf(stderr, "H5Dwrite() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		if ((status = H5Sclose(space)) < 0) {
+			fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		// only compound type must be closed
+		// H5Tclose will fail for immutable datatype, otherwise
+		if (dt.dtype == CT_SINGLE_COMPLEX || dt.dtype == CT_DOUBLE_COMPLEX) {
+			if ((status = H5Tclose(dtype)) < 0) {
+				fprintf(stderr, "H5Tclose() failed for %s, return value: %d\n", dset_name, status);
+				return -1;
+			}
+		}
+
+		// create attributes attached to tensor-{site} dataset
+		// - tensor axis directions:                axis_dir
+		// - quantum numbers to reconstruct block
+		//   sparse tensors:                        qnums-{dim}
+		//
+		// uses a custom type for the axis dir enumeration, hence,
+		// call a helper function to construct it
+		hid_t enum_type_id;
+		if ((enum_type_id = get_axis_dir_enum_dtype()) < 0) {
+			return -1;
+		}
+
+		if (write_hdf5_vector_attribute(dset, "axis_dir", enum_type_id, enum_type_id, (hsize_t)bst->ndim, (void*)bst->axis_dir) < 0) {
+			return -1;
+		}
+
+		if ((status = H5Tclose(enum_type_id)) < 0) {
+			fprintf(stderr, "H5Tclose() failed for axis_dir, return value: %d\n", status);
+			return -1;
+		}
+
+		for (size_t dim = 0; dim < bst->ndim; dim++) {
+			char qnums_name[128];
+			sprintf(qnums_name, "qnums-%zu", dim);
+
+			if (write_hdf5_vector_attribute(dset, qnums_name, H5T_NATIVE_INT, H5T_NATIVE_INT, (hsize_t)bst->dim_logical[dim], (void*)bst->qnums_logical[dim]) < 0) {
+				return -1;
+			}
+		}
+
+		if ((status = H5Dclose(dset)) < 0) {
+			fprintf(stderr, "H5Dclose() failed for %s, return value: %d\n", dset_name, status);
+			return -1;
+		}
+
+		delete_dense_tensor(&dt);
+	}
+
+	if ((status = H5Gclose(root_group)) < 0) {
+		fprintf(stderr, "H5Gclose() failed for root_group, return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Fclose(file)) < 0) {
+		fprintf(stderr, "H5Fclose() failed for %s, return value: %d\n", filename, status);
+		return -1;
+	}
+
+	return 0;
+}
