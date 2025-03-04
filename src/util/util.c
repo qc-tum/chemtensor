@@ -281,24 +281,27 @@ herr_t get_hdf5_attribute_dims(hid_t file, const char* name, hsize_t* dims)
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Read an HDF5 attribute from a file.
+/// \returns 0 on success, -1 otherwise.
 ///
 herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* data)
 {
-	hid_t attr = H5Aopen(file, name, H5P_DEFAULT);
-	if (attr < 0)
-	{
-		fprintf(stderr, "'H5Aopen' for '%s' failed, return value: %" PRId64 "\n", name, attr);
+	herr_t status;
+
+	hid_t attr;
+	if ((attr = H5Aopen(file, name, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Aopen() failed for %s, return value: %lld\n", name, attr);
 		return -1;
 	}
 
-	herr_t status = H5Aread(attr, mem_type, data);
-	if (status < 0)
-	{
-		fprintf(stderr, "'H5Aread' failed, return value: %d\n", status);
-		return status;
+	if ((status = H5Aread(attr, mem_type, data)) < 0) {
+		fprintf(stderr, "H5Aread() failed for %s, return value: %d\n", name, status);
+		return -1;
 	}
 
-	H5Aclose(attr);
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
 
 	return 0;
 }
@@ -350,31 +353,210 @@ herr_t write_hdf5_dataset(hid_t file, const char* name, int degree, const hsize_
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Write an HDF5 scalar attribute to a file.
+/// \returns 0 on success, -1 otherwise
 ///
 herr_t write_hdf5_scalar_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data)
 {
-	// create dataspace
-	hid_t space = H5Screate(H5S_SCALAR);
-	if (space < 0) {
-		fprintf(stderr, "'H5Screate' failed, return value: %" PRId64 "\n", space);
+	herr_t status;
+
+	hid_t space, attr;
+	if ((space = H5Screate(H5S_SCALAR)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Screate() failed for %s, return value: %lld\n", name, space);
 		return -1;
 	}
 
-	// create attribute
-	hid_t attr = H5Acreate(file, name, mem_type_store, space, H5P_DEFAULT, H5P_DEFAULT);
-	if (attr < 0) {
-		fprintf(stderr, "'H5Acreate' failed, return value: %" PRId64 "\n", attr);
+	if ((attr = H5Acreate2(file, name, mem_type_store, space, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", name, attr);
 		return -1;
 	}
 
-	herr_t status = H5Awrite(attr, mem_type_input, data);
-	if (status < 0) {
-		fprintf(stderr, "'H5Awrite' failed, return value: %d\n", status);
-		return status;
+	if ((status = H5Awrite(attr, mem_type_input, data)) < 0) {
+		fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", name, status);
+		return -1;
 	}
 
-	H5Aclose(attr);
-	H5Sclose(space);
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Sclose(space)) < 0) {
+		fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
 
 	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Create HDF5 vector attribute with name and type of given length attached to parent.
+/// \returns 0 on success, -1 otherwise
+///
+herr_t write_hdf5_vector_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const hsize_t length, const void* data) {
+	herr_t status;
+
+	hid_t space, attr;
+	if ((space = H5Screate_simple(1, (hsize_t[]){length}, NULL)) < 0) {
+		fprintf(stderr, "H5Screate_simple() failed for %s, return value: %lld\n", name, space);
+		return -1;
+	}
+
+	if ((attr = H5Acreate2(file, name, mem_type_store, space, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Acreate() failed for %s, return value: %lld\n", name, attr);
+		return -1;
+	}
+
+	if ((status = H5Awrite(attr, mem_type_input, data)) < 0) {
+		fprintf(stderr, "H5Awrite() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Aclose(attr)) < 0) {
+		fprintf(stderr, "H5Aclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	if ((status = H5Sclose(space)) < 0) {
+		fprintf(stderr, "H5Sclose() failed for %s, return value: %d\n", name, status);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Create HDF5 enumeration datatype for `tensor_axis_direction` and return its id.
+///
+hid_t get_axis_dir_enum_dtype() {
+	herr_t status;
+	hid_t enum_dtype;
+	if ((enum_dtype = H5Tenum_create(H5T_NATIVE_INT)) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Tenum_create() failed for axis_dir, return value: %lld\n", enum_dtype);
+		return -1;
+	}
+
+	enum tensor_axis_direction in = TENSOR_AXIS_IN;
+	if ((status = H5Tenum_insert(enum_dtype, "TENSOR_AXIS_IN", &in)) < 0) {
+		fprintf(stderr, "H5Tenum_insert() failed for axis_dir(TENSOR_AXIS_IN), return value: %d\n", status);
+		return -1;
+	}
+
+	enum tensor_axis_direction out = TENSOR_AXIS_OUT;
+	if ((status = H5Tenum_insert(enum_dtype, "TENSOR_AXIS_OUT", &out)) < 0) {
+		fprintf(stderr, "H5Tenum_insert() failed for axis_dir(TENSOR_AXIS_OUT), return value: %d\n", status);
+		return -1;
+	}
+
+	return enum_dtype;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Return id of HDF5 compound type for single precision complex numbers
+/// \returns id on success, -1 otherwise
+///
+hid_t get_single_complex_dtype() {
+	herr_t status;
+	hid_t complex_dtype;
+
+	if ((complex_dtype = H5Tcreate(H5T_COMPOUND, sizeof(scomplex))) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Tcreate() failed for single complex dtype, return value: %lld\n", complex_dtype);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "real", 0, H5T_NATIVE_FLOAT)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for single complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "imag", sizeof(float), H5T_NATIVE_FLOAT)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for single complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	return complex_dtype;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Return id of HDF5 compound type for double precision complex numbers
+/// \returns id on success, -1 otherwise
+///
+hid_t get_double_complex_dtype() {
+	herr_t status;
+	hid_t complex_dtype;
+
+	if ((complex_dtype = H5Tcreate(H5T_COMPOUND, sizeof(dcomplex))) == H5I_INVALID_HID) {
+		fprintf(stderr, "H5Tcreate() failed for double complex dtype, return value: %lld\n", complex_dtype);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "real", 0, H5T_NATIVE_DOUBLE)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for double complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	if ((status = H5Tinsert(complex_dtype, "imag", sizeof(double), H5T_NATIVE_DOUBLE)) < 0) {
+		fprintf(stderr, "H5Tinsert() failed for double complex dtype (real), return value: %d\n", status);
+		return -1;
+	}
+
+	return complex_dtype;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Convert HDF5 datatype id to chemtensor numeric_type
+/// \returns 0 on success, -1 otherwise
+///
+int hdf5_to_chemtensor_dtype(hid_t hdf5_dtype, enum numeric_type* ct_dtype) {
+	int ret = 0;
+	hid_t single_complex_id = get_single_complex_dtype();
+	hid_t double_complex_id = get_double_complex_dtype();
+
+	if (H5Tequal(hdf5_dtype, H5T_NATIVE_FLOAT)) {
+		*ct_dtype = CT_SINGLE_REAL;
+	} else if (H5Tequal(hdf5_dtype, H5T_NATIVE_DOUBLE)) {
+		*ct_dtype = CT_DOUBLE_REAL;
+	} else if (H5Tequal(hdf5_dtype, single_complex_id)) {
+		*ct_dtype = CT_SINGLE_COMPLEX;
+	} else if (H5Tequal(hdf5_dtype, double_complex_id)) {
+		*ct_dtype = CT_DOUBLE_COMPLEX;
+	} else {
+		fprintf(stderr, "Invalid dtype: %lld.\n", hdf5_dtype);
+		ret = -1;
+	}
+
+	H5Tclose(single_complex_id);
+	H5Tclose(double_complex_id);
+
+	return ret;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Convert HDF5 datatype id to chemtensor numeric_type
+/// \returns HDF5 datatype id, or -1 on failure
+///
+hid_t chemtensor_to_hdf5_dtype(enum numeric_type ct_dtype) {
+	switch (ct_dtype) {
+	case CT_SINGLE_REAL:
+		return H5T_NATIVE_FLOAT;
+	case CT_DOUBLE_REAL:
+		return H5T_NATIVE_DOUBLE;
+	case CT_SINGLE_COMPLEX:
+		return get_single_complex_dtype();
+	case CT_DOUBLE_COMPLEX:
+		return get_double_complex_dtype();
+	}
+
+	return -1;
 }

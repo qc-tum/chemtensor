@@ -69,6 +69,7 @@ char* test_mps_orthonormalize_qr();
 char* test_mps_compress();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
+char* test_save_mps_hdf5();
 char* test_ttns_vdot();
 char* test_queue();
 char* test_linked_list();
@@ -210,6 +211,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),
 		TEST_FUNCTION_ENTRY(test_apply_thc_spin_molecular_hamiltonian),
 		TEST_FUNCTION_ENTRY(test_thc_spin_molecular_hamiltonian_to_matrix),
+		TEST_FUNCTION_ENTRY(test_save_mps_hdf5),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

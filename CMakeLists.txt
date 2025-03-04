@@ -38,14 +38,14 @@ set_target_properties(     chemtensor_pymodule PROPERTIES PREFIX "" OUTPUT_NAME 
 
 add_executable(            basic_dmrg_fermi_hubbard ${CHEMTENSOR_SOURCES} "examples/dmrg/basic_dmrg_fermi_hubbard.c")
 target_include_directories(basic_dmrg_fermi_hubbard PRIVATE ${CHEMTENSOR_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACKE_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
-target_link_libraries(     basic_dmrg_fermi_hubbard PRIVATE ${BLAS_LIBRARIES} ${LAPACKE_LIBRARIES} lapacke ${HDF5_LIBRARIES})
+target_link_libraries(     basic_dmrg_fermi_hubbard PRIVATE ${BLAS_LIBRARIES} lapacke ${LAPACKE_LIBRARIES} ${HDF5_LIBRARIES})
 if(OpenMP_C_FOUND)
     target_link_libraries( basic_dmrg_fermi_hubbard PRIVATE OpenMP::OpenMP_C)
 endif()
 
 add_executable(            perf_dmrg ${CHEMTENSOR_SOURCES} "perf/perf_dmrg.c")
 target_include_directories(perf_dmrg PRIVATE ${CHEMTENSOR_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACKE_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
-target_link_libraries(     perf_dmrg PRIVATE ${BLAS_LIBRARIES} ${LAPACKE_LIBRARIES} lapacke ${HDF5_LIBRARIES})
+target_link_libraries(     perf_dmrg PRIVATE ${BLAS_LIBRARIES} lapacke ${LAPACKE_LIBRARIES} ${HDF5_LIBRARIES})
 if(OpenMP_C_FOUND)
     target_link_libraries( perf_dmrg PRIVATE OpenMP::OpenMP_C)
 endif()
