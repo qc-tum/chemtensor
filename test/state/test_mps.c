@@ -27,7 +27,7 @@ char* test_copy_mps()
 	struct mps dst;
 	copy_mps(&src, &dst);
 
-	if (!mps_equals(&src, &dst)) {
+	if (!mps_allclose(&src, &dst, 0)) {
 		return "src and dst MPSs don't match.";
 	}
 

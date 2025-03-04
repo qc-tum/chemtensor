@@ -30,7 +30,7 @@ char* test_save_mps_hdf5() {
 		return "loading mps from hdf5 file failed.";
 	}
 
-	if (!mps_equals(&src, &loaded)) {
+	if (!mps_allclose(&src, &loaded, 0)) {
 		return "source and loaded MPSs don't match.";
 	}
 
