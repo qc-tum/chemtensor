@@ -27,21 +27,8 @@ char* test_copy_mps()
 	struct mps dst;
 	copy_mps(&src, &dst);
 
-	if (dst.nsites != src.nsites) {
-		return "'nsites' of the copy does not match source";
-	}
-
-	if (dst.d != src.d) {
-		return "local physical dimension 'd' of the copy does not match source";
-	}
-	if (!qnumber_all_equal(src.d, dst.qsite, src.qsite)) {
-		return "local physical quantum numbers of the copy do not match source";
-	}
-
-	for (int i = 0; i < nsites; i++) {
-		if (!block_sparse_tensor_allclose(&dst.a[i], &src.a[i], 0.)) {
-			return "MPS tensor of copy does not match original MPS tensor";
-		}
+	if (!mps_allclose(&src, &dst, 0)) {
+		return "MPS tensor of copy does not match original MPS tensor";
 	}
 
 	delete_mps(&dst);
@@ -745,6 +732,48 @@ char* test_mps_to_statevector()
 	ct_free(qsite);
 
 	H5Fclose(file);
+
+	return 0;
+}
+
+
+char* test_save_mps()
+{
+	 // number of lattice sites
+	const long nsites = 7;
+	// local physical dimension
+	const long d = 4;
+	// local quantum numbers at each physical site
+	const qnumber qsite[4] = { 0, 2, 0, -1 };
+
+	struct rng_state rng_state;
+	seed_rng_state(43, &rng_state);
+
+	struct mps mps;
+	const long max_vdim = 14;
+	const qnumber qnum_sector = 1;
+	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &mps);
+	if (mps_norm(&mps) == 0) {
+		return "requiring a non-zero MPS";
+	}
+
+	const char* filename = "../test/state/data/test_save_mps.hdf5";
+
+	if (save_mps(filename, &mps) < 0) {
+		return "storing MPS in an HDF5 file failed";
+	}
+
+	struct mps loaded;
+	if (load_mps(filename, &loaded) < 0) {
+		return "loading MPS from an HDF5 file failed";
+	}
+
+	if (!mps_allclose(&mps, &loaded, 0)) {
+		return "MPS loaded from a file does not agree with original MPS stored in this file";
+	}
+
+	delete_mps(&mps);
+	delete_mps(&loaded);
 
 	return 0;
 }

@@ -39,6 +39,8 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 
 bool mps_is_consistent(const struct mps* mps);
 
+bool mps_allclose(const struct mps* chi, const struct mps* psi, const double tol);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -119,3 +121,13 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 // conversion to a statevector (intended for testing)
 
 void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// storage in HDF5 file format
+
+int save_mps(const char* filename, const struct mps* mps);
+
+int load_mps(const char* filename, struct mps* mps);

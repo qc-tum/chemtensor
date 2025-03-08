@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <math.h>
 #include <complex.h>
+#include <stdio.h>
 #include "mps.h"
 #include "aligned_memory.h"
 
@@ -235,6 +236,34 @@ bool mps_is_consistent(const struct mps* mps)
 		if (mps->a[i].axis_dir[0] != TENSOR_AXIS_OUT ||
 		    mps->a[i].axis_dir[1] != TENSOR_AXIS_OUT ||
 		    mps->a[i].axis_dir[2] != TENSOR_AXIS_IN) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether two matrix product states agree in terms of sites, quantum numbers and entries within tolerance 'tol'.
+///
+bool mps_allclose(const struct mps* chi, const struct mps* psi, const double tol)
+{
+	if (chi->nsites != psi->nsites) {
+		return false;
+	}
+
+	if (chi->d != psi->d) {
+		return false;
+	}
+
+	if (!qnumber_all_equal(chi->d, chi->qsite, psi->qsite)) {
+		return false;
+	}
+
+	for (int i = 0; i < chi->nsites; i++) {
+		if (!block_sparse_tensor_allclose(&chi->a[i], &psi->a[i], tol)) {
 			return false;
 		}
 	}
@@ -1195,4 +1224,254 @@ void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec)
 	}
 
 	assert(vec->ndim == 3);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Save an MPS in an HDF5 file.
+/// \note Uses an HDF5 compound type for single and double complex numbers.
+/// \returns 0 on success, a negative integer otherwise
+///
+int save_mps(const char* filename, const struct mps* mps)
+{
+	hid_t file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+	if (file < 0)
+	{
+		fprintf(stderr, "'H5Fcreate' failed for '%s'\n", filename);
+		return -1;
+	}
+
+	// create global attributes describing:
+	// - number of sites
+	// - quantum numbers at each physical site
+	// - virtual bond quantum numbers
+	if (write_hdf5_scalar_attribute(file, "nsites", H5T_STD_I32LE, H5T_NATIVE_INT, &mps->nsites) < 0)
+	{
+		fprintf(stderr, "writing 'nsites' attribute data to HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
+	if (write_hdf5_vector_attribute(file, "qsite", H5T_STD_I32LE, H5T_NATIVE_INT, mps->d, mps->qsite) < 0)
+	{
+		fprintf(stderr, "writing 'qsite' attribute data to HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
+	for (int i = 0; i < mps->nsites + 1; i++)
+	{
+		char varname[128];
+		sprintf(varname, "qbond_%i", i);
+		const qnumber* qbond = (i < mps->nsites ? mps->a[i].qnums_logical[0] : mps->a[mps->nsites - 1].qnums_logical[2]);
+		if (write_hdf5_vector_attribute(file, varname, H5T_STD_I32LE, H5T_NATIVE_INT, mps_bond_dim(mps, i), qbond) < 0)
+		{
+			fprintf(stderr, "writing '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+	}
+
+	// create datasets tensor_{i} containing the (dense) MPS tensor for site 'i'
+	for (int i = 0; i < mps->nsites; i++)
+	{
+		char varname[128];
+		sprintf(varname, "tensor_%i", i);
+
+		const struct block_sparse_tensor* bst = &mps->a[i];
+
+		struct dense_tensor dt;
+		block_sparse_to_dense_tensor(bst, &dt);
+
+		// write dense tensor data to file
+		hid_t dtype_store = numeric_to_hdf5_dtype(bst->dtype, true);
+		hid_t dtype_input = numeric_to_hdf5_dtype(bst->dtype, false);
+		// copy entry-by-entry to ensure correct conversion from 'long' to 'hsize_t'
+		hsize_t* dims = ct_malloc(dt.ndim * sizeof(hsize_t));
+		for (int j = 0; j < dt.ndim; j++) {
+			dims[j] = dt.dim[j];
+		}
+		herr_t status = write_hdf5_dataset(file, varname, dt.ndim, dims, dtype_store, dtype_input, dt.data);
+		ct_free(dims);
+		delete_dense_tensor(&dt);
+		if (status < 0)
+		{
+			fprintf(stderr, "writing '%s' tensor data to HDF5 file '%s' failed\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+		// only compound types must be closed
+		if (bst->dtype == CT_SINGLE_COMPLEX || bst->dtype == CT_DOUBLE_COMPLEX)
+		{
+			H5Tclose(dtype_input);
+			H5Tclose(dtype_store);
+		}
+	}
+
+	if (H5Fclose(file) < 0)
+	{
+		fprintf(stderr, "'H5Fclose' failed for '%s'\n", filename);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Load an MPS from an HDF5 file.
+/// \note Uses an HDF5 compound type for single and double complex numbers.
+/// \returns 0 on success, a negative integer otherwise
+///
+int load_mps(const char* filename, struct mps* mps)
+{
+	hid_t file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0)
+	{
+		fprintf(stderr, "'H5Fopen' failed for '%s'\n", filename);
+		return -1;
+	}
+
+	// read global attributes describing the MPS
+	int nsites;
+	if (read_hdf5_attribute(file, "nsites", H5T_NATIVE_INT, &nsites) < 0)
+	{
+		fprintf(stderr, "reading 'nsites' attribute data from HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
+	if (nsites <= 0)
+	{
+		fprintf(stderr, "'nsites' attribute must be positive, read %i in HDF5 file '%s'\n", nsites, filename);
+		H5Fclose(file);
+		return -1;
+	}
+	// local physical dimension of each site
+	long d;
+	{
+		hsize_t dim[1];
+		if (get_hdf5_attribute_dims(file, "qsite", dim) < 0)
+		{
+			fprintf(stderr, "getting dimensions of 'qsite' attribute in HDF5 file '%s' failed\n", filename);
+			H5Fclose(file);
+			return -1;
+		}
+		d = dim[0];
+	}
+	if (d <= 0)
+	{
+		fprintf(stderr, "local physical dimension 'd' must be positive, obtained %li in HDF5 file '%s'\n", d, filename);
+		H5Fclose(file);
+		return -1;
+	}
+	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
+	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0)
+	{
+		fprintf(stderr, "reading 'qsite' attribute data from HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
+
+	// virtual bond quantum numbers
+	long* dim_bonds = ct_malloc((nsites + 1) * sizeof(long));
+	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+	for (int i = 0; i < nsites + 1; i++)
+	{
+		char varname[128];
+		sprintf(varname, "qbond_%i", i);
+
+		hsize_t dim[1];
+		if (get_hdf5_attribute_dims(file, varname, dim) < 0)
+		{
+			fprintf(stderr, "obtaining dimensions of attribute '%s' from HDF5 file '%s' failed\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+		dim_bonds[i] = dim[0];
+
+		qbonds[i] = ct_malloc(dim_bonds[i] * sizeof(qnumber));
+
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0)
+		{
+			fprintf(stderr, "reading '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+	}
+
+	// tensor data type
+	enum numeric_type dtype;
+	{
+		const char* varname = "tensor_0";
+
+		hid_t dset = H5Dopen(file, varname, H5P_DEFAULT);
+		if (dset < 0)
+		{
+			fprintf(stderr, "'H5Dopen' failed for '%s' in HDF5 file '%s'\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+
+		hid_t hdf5_dtype = H5Dget_type(dset);
+		if (hdf5_dtype < 0)
+		{
+			fprintf(stderr, "'H5Dget_type' failed for '%s' in HDF5 file '%s'\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+
+		dtype = hdf5_to_numeric_dtype(hdf5_dtype);
+		if (dtype < 0)
+		{
+			fprintf(stderr, "could not determine numeric data type of '%s' in HDF5 file '%s'\n", varname, filename);
+			H5Fclose(file);
+			return -1;
+		}
+
+		H5Dclose(dset);
+	}
+
+	allocate_mps(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mps);
+
+	for (int i = 0; i < nsites + 1; i++) {
+		ct_free(qbonds[i]);
+	}
+	ct_free(qbonds);
+	ct_free(dim_bonds);
+	ct_free(qsite);
+
+	// HDF5 data type as stored in memory
+	hid_t hdf5_dtype = numeric_to_hdf5_dtype(dtype, false);
+
+	// read MPS tensors from file
+	for (int i = 0; i < nsites; i++)
+	{
+		struct dense_tensor dt;
+		allocate_dense_tensor(mps->a[i].dtype, mps->a[i].ndim, mps->a[i].dim_logical, &dt);
+		char varname[128];
+		sprintf(varname, "tensor_%i", i);
+		if (read_hdf5_dataset(file, varname, hdf5_dtype, dt.data) < 0)
+		{
+			fprintf(stderr, "could read entries of %i-th tensor from HDF5 file '%s'\n", i, filename);
+			H5Fclose(file);
+			return -1;
+		}
+
+		dense_to_block_sparse_tensor_entries(&dt, &mps->a[i]);
+
+		delete_dense_tensor(&dt);
+	}
+
+	// only compound types must be closed
+	if (dtype == CT_SINGLE_COMPLEX || dtype == CT_DOUBLE_COMPLEX) {
+		H5Tclose(hdf5_dtype);
+	}
+
+	if (H5Fclose(file) < 0)
+	{
+		fprintf(stderr, "'H5Fclose' failed for '%s'\n", filename);
+		return -1;
+	}
+
+	return 0;
 }

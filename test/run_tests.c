@@ -69,6 +69,7 @@ char* test_mps_orthonormalize_qr();
 char* test_mps_compress();
 char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
+char* test_save_mps();
 char* test_ttns_vdot();
 char* test_queue();
 char* test_linked_list();
@@ -167,13 +168,14 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_yoga),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
+		TEST_FUNCTION_ENTRY(test_copy_mps),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_add),
 		TEST_FUNCTION_ENTRY(test_mps_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_mps_compress),
 		TEST_FUNCTION_ENTRY(test_mps_split_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
-		TEST_FUNCTION_ENTRY(test_copy_mps),
+		TEST_FUNCTION_ENTRY(test_save_mps),
 		TEST_FUNCTION_ENTRY(test_ttns_vdot),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_linked_list),
