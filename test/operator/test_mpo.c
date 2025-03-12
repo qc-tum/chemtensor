@@ -13,6 +13,8 @@ char* test_mpo_from_assembly()
 		return "'H5Fopen' in test_mpo_from_assembly failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// number of lattice sites
 	const int nsites = 5;
 	// local physical dimension
@@ -110,7 +112,7 @@ char* test_mpo_from_assembly()
 	const long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
-	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
+	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
@@ -181,6 +183,7 @@ char* test_mpo_from_assembly()
 	}
 	ct_free(opmap);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

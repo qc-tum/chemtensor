@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import crandn, interleave_complex
 
 
 def lanczos_iteration_d_data():
@@ -23,8 +20,6 @@ def lanczos_iteration_d_data():
 
     # perform Lanczos iteration, using 'a' as linear transformation
     alpha, beta, v = ptn.lanczos_iteration(lambda x: a @ x, vstart, numiter)
-    # function returns complex matrix by default
-    v = v.real
 
     # check orthogonality of Lanczos vectors
     assert np.allclose(v.T @ v, np.identity(numiter), rtol=1e-12)
@@ -50,11 +45,11 @@ def lanczos_iteration_z_data():
     numiter = 24
 
     # random Hermitian matrix
-    a = crandn((n, n), rng) / np.sqrt(n)
+    a = ptn.crandn((n, n), rng) / np.sqrt(n)
     a = 0.5 * (a + a.conj().T)
 
     # random complex starting vector
-    vstart = crandn(n, rng) / np.sqrt(n)
+    vstart = ptn.crandn(n, rng) / np.sqrt(n)
 
     # perform Lanczos iteration, using 'a' as linear transformation
     alpha, beta, v = ptn.lanczos_iteration(lambda x: a @ x, vstart, numiter)
@@ -67,11 +62,11 @@ def lanczos_iteration_z_data():
     assert np.allclose(v.conj().T @ a @ v, t, rtol=1e-12)
 
     with h5py.File("data/test_lanczos_iteration_z.hdf5", "w") as file:
-        file["a"]      = interleave_complex(a)
-        file["vstart"] = interleave_complex(vstart)
+        file["a"]      = a
+        file["vstart"] = vstart
         file["alpha"]  = alpha
         file["beta"]   = beta
-        file["v"]      = interleave_complex(v.T)  # transposition due to different convention
+        file["v"]      = v.T  # transposition due to different convention
 
 
 def eigensystem_krylov_symmetric_data():
@@ -115,11 +110,11 @@ def eigensystem_krylov_hermitian_data():
     numeig = 6
 
     # random Hermitian matrix
-    a = crandn((n, n), rng) / np.sqrt(n)
+    a = ptn.crandn((n, n), rng) / np.sqrt(n)
     a = 0.5 * (a + a.conj().T)
 
     # random complex starting vector
-    vstart = crandn(n, rng) / np.sqrt(n)
+    vstart = ptn.crandn(n, rng) / np.sqrt(n)
 
     w, u_ritz = ptn.eigh_krylov(lambda x: a @ x, vstart, numiter, numeig)
 
@@ -127,10 +122,10 @@ def eigensystem_krylov_hermitian_data():
     assert np.allclose(u_ritz.conj().T @ u_ritz, np.identity(numeig), rtol=1e-12)
 
     with h5py.File("data/test_eigensystem_krylov_hermitian.hdf5", "w") as file:
-        file["a"]      = interleave_complex(a)
-        file["vstart"] = interleave_complex(vstart)
+        file["a"]      = a
+        file["vstart"] = vstart
         file["lambda"] = w
-        file["u_ritz"] = interleave_complex(u_ritz)
+        file["u_ritz"] = u_ritz
 
 
 def main():

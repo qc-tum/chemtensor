@@ -13,6 +13,8 @@ char* test_ttno_graph_from_opchains()
 		return "'H5Fopen' in test_ttno_graph_from_opchains failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// number of physical and branching lattice sites
 	const int nsites_physical  = 5;
 	const int nsites_branching = 3;
@@ -131,7 +133,7 @@ char* test_ttno_graph_from_opchains()
 	const long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
-	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
+	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
@@ -147,7 +149,7 @@ char* test_ttno_graph_from_opchains()
 
 	// coefficient map
 	dcomplex* coeffmap = ct_malloc(9 * sizeof(dcomplex));
-	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_DOUBLE, coeffmap) < 0) {
+	if (read_hdf5_dataset(file, "coeffmap", hdf5_dcomplex_id, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
 
@@ -187,6 +189,7 @@ char* test_ttno_graph_from_opchains()
 	ct_free(chains);
 	delete_ttno_graph(&graph);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

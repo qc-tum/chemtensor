@@ -1417,6 +1417,8 @@ char* test_su2_to_dense_tensor()
 		return "'H5Fopen' in test_su2_to_dense_tensor failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	const int ndim = 7;
 
 	// construct the fuse and split tree
@@ -1521,7 +1523,7 @@ char* test_su2_to_dense_tensor()
 
 		char varname[1024];
 		sprintf(varname, "w%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, w.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, w.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 
@@ -1556,6 +1558,7 @@ char* test_su2_to_dense_tensor()
 	delete_dense_tensor(&t_dns);
 	delete_su2_tensor(&t);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

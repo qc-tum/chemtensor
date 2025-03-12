@@ -1,8 +1,6 @@
 import numpy as np
 import h5py
-import sys
-sys.path.append("../")
-from util import crandn, interleave_complex
+import pytenet as ptn
 
 
 def block_sparse_tensor_copy_data():
@@ -23,7 +21,7 @@ def block_sparse_tensor_copy_data():
     qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
 
     # dense tensor representation
-    t = crandn(dims, rng)
+    t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -32,7 +30,7 @@ def block_sparse_tensor_copy_data():
             x[...] = 0
 
     with h5py.File("data/test_block_sparse_tensor_copy.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -56,7 +54,7 @@ def block_sparse_tensor_get_block_data():
     qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
 
     # dense tensors
-    t = crandn(dims, rng)
+    t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -65,7 +63,7 @@ def block_sparse_tensor_get_block_data():
             x[...] = 0
 
     with h5py.File("data/test_block_sparse_tensor_get_block.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -94,7 +92,7 @@ def block_sparse_tensor_cyclic_partial_trace_data():
         qnums.append(qnums[j])
 
     # dense tensor
-    t = crandn(dims, rng).astype(np.complex64)
+    t = ptn.crandn(dims, rng).astype(np.complex64)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -105,8 +103,8 @@ def block_sparse_tensor_cyclic_partial_trace_data():
     t_tr = np.trace(np.trace(t, axis1=0, axis2=ndim-ndim_trace), axis1=0, axis2=ndim-ndim_trace-1)
 
     with h5py.File("data/test_block_sparse_tensor_cyclic_partial_trace.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["t_tr"] = interleave_complex(t_tr)
+        file["t"] = t
+        file["t_tr"] = t_tr
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -130,7 +128,7 @@ def block_sparse_tensor_norm2_data():
     qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
 
     # dense tensor
-    t = crandn(dims, rng)
+    t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -141,7 +139,7 @@ def block_sparse_tensor_norm2_data():
     nrm = np.linalg.norm(t.reshape(-1), ord=2)
 
     with h5py.File("data/test_block_sparse_tensor_norm2.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         file["nrm"] = nrm
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
@@ -203,7 +201,7 @@ def block_sparse_tensor_reshape_data():
     qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
 
     # tensor with random entries
-    t = crandn(dims, rng)
+    t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -213,7 +211,7 @@ def block_sparse_tensor_reshape_data():
 
     # save tensor to disk - reshaping of dense tensor is straightforward
     with h5py.File("data/test_block_sparse_tensor_reshape.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -289,13 +287,13 @@ def block_sparse_tensor_multiply_pointwise_vector_data():
     s_mult_t = [s * t[0][:, None, None, None], s * t[1]]
 
     with h5py.File("data/test_block_sparse_tensor_multiply_pointwise_vector.hdf5", "w") as file:
-        file["s"] = interleave_complex(s)
+        file["s"] = s
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
         for i in range(2):
             file[f"t{i}"] = t[i]
-            file[f"s_mult_t{i}"] = interleave_complex(s_mult_t[i])
+            file[f"s_mult_t{i}"] = s_mult_t[i]
 
 
 def block_sparse_tensor_multiply_axis_data():
@@ -321,9 +319,9 @@ def block_sparse_tensor_multiply_axis_data():
     t1_qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in t1_dim[:-1]] + [s_qnums[i_ax]]
 
     # dense tensors
-    s  = crandn(s_dim,  rng)
-    t0 = crandn(t0_dim, rng)
-    t1 = crandn(t1_dim, rng)
+    s  = ptn.crandn(s_dim,  rng)
+    t0 = ptn.crandn(t0_dim, rng)
+    t1 = ptn.crandn(t1_dim, rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -346,11 +344,11 @@ def block_sparse_tensor_multiply_axis_data():
     r1 = np.einsum(s, (0, 1, 5, 4), t1, (2, 3, 5), (0, 1, 2, 3, 4))
 
     with h5py.File("data/test_block_sparse_tensor_multiply_axis.hdf5", "w") as file:
-        file["s"]  = interleave_complex(s)
-        file["t0"] = interleave_complex(t0)
-        file["r0"] = interleave_complex(r0)
-        file["t1"] = interleave_complex(t1)
-        file["r1"] = interleave_complex(r1)
+        file["s"]  = s
+        file["t0"] = t0
+        file["r0"] = r0
+        file["t1"] = t1
+        file["r1"] = r1
         file.attrs["s_axis_dir"]  = s_axis_dir
         file.attrs["t0_axis_dir"] = t0_axis_dir
         file.attrs["t1_axis_dir"] = t1_axis_dir
@@ -383,8 +381,8 @@ def block_sparse_tensor_dot_data():
     qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
 
     # dense tensors
-    s = crandn(dims[ :ndim_s], rng)
-    t = crandn(dims[-ndim_t:], rng)
+    s = ptn.crandn(dims[ :ndim_s], rng)
+    t = ptn.crandn(dims[-ndim_t:], rng)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -403,9 +401,9 @@ def block_sparse_tensor_dot_data():
     r = np.tensordot(s, t, axes=ndim_mult)
 
     with h5py.File("data/test_block_sparse_tensor_dot.hdf5", "w") as file:
-        file["s"] = interleave_complex(s)
-        file["t"] = interleave_complex(t)
-        file["r"] = interleave_complex(r)
+        file["s"] = s
+        file["t"] = t
+        file["r"] = r
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -541,7 +539,7 @@ def block_sparse_tensor_qr_data():
                 else rng.integers(-3, 0, size=d).astype(np.int32) for d in dims]
 
             # dense tensor
-            a = crandn(dims, rng)
+            a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
             it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
             for x in it:
@@ -549,7 +547,7 @@ def block_sparse_tensor_qr_data():
                 if qsum != 0:
                     x[...] = 0
 
-            file[f"a{c}"] = interleave_complex(a)
+            file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
             for i, qn in enumerate(qnums):
                 file.attrs[f"qnums{c}{i}"] = qn
@@ -574,7 +572,7 @@ def block_sparse_tensor_rq_data():
                 else rng.integers(-3, 0, size=d).astype(np.int32) for d in dims]
 
             # dense tensor
-            a = crandn(dims, rng)
+            a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
             it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
             for x in it:
@@ -582,7 +580,7 @@ def block_sparse_tensor_rq_data():
                 if qsum != 0:
                     x[...] = 0
 
-            file[f"a{c}"] = interleave_complex(a)
+            file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
             for i, qn in enumerate(qnums):
                 file.attrs[f"qnums{c}{i}"] = qn
@@ -607,7 +605,7 @@ def block_sparse_tensor_svd_data():
                 else rng.integers(-3, 0, size=d).astype(np.int32) for d in dims]
 
             # dense tensor
-            a = crandn(dims, rng)
+            a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
             it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
             for x in it:
@@ -615,7 +613,7 @@ def block_sparse_tensor_svd_data():
                 if qsum != 0:
                     x[...] = 0
 
-            file[f"a{c}"] = interleave_complex(a)
+            file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
             for i, qn in enumerate(qnums):
                 file.attrs[f"qnums{c}{i}"] = qn
@@ -639,7 +637,7 @@ def block_sparse_tensor_serialize_data():
     qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
 
     # dense tensor representation
-    t = crandn(dims, rng).astype(np.complex64)
+    t = ptn.crandn(dims, rng).astype(np.complex64)
     # enforce sparsity pattern based on quantum numbers
     it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
@@ -648,7 +646,7 @@ def block_sparse_tensor_serialize_data():
             x[...] = 0
 
     with h5py.File("data/test_block_sparse_tensor_serialize.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn

@@ -34,11 +34,13 @@ char* test_dense_tensor_trace()
 		return "'H5Fopen' in test_dense_tensor_trace failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	struct dense_tensor t;
 	const long tdim[3] = { 5, 5, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, tdim, &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -47,7 +49,7 @@ char* test_dense_tensor_trace()
 
 	// reference value for checking
 	dcomplex tr_ref;
-	if (read_hdf5_dataset(file, "tr", H5T_NATIVE_DOUBLE, &tr_ref) < 0) {
+	if (read_hdf5_dataset(file, "tr", hdf5_dcomplex_id, &tr_ref) < 0) {
 		return "reading trace value from disk failed";
 	}
 
@@ -59,6 +61,7 @@ char* test_dense_tensor_trace()
 	// clean up
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -72,6 +75,8 @@ char* test_dense_tensor_cyclic_partial_trace()
 		return "'H5Fopen' in test_dense_tensor_cyclic_partial_trace failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	const int ndim = 7;
 	const int ndim_trace = 2;
 
@@ -79,7 +84,7 @@ char* test_dense_tensor_cyclic_partial_trace()
 	const long tdim[7] = { 5, 2, 3, 4, 1, 5, 2 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, ndim, tdim, &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -90,7 +95,7 @@ char* test_dense_tensor_cyclic_partial_trace()
 	struct dense_tensor t_tr_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, ndim - 2*ndim_trace, tdim + ndim_trace, &t_tr_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t_tr", H5T_NATIVE_FLOAT, t_tr_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "t_tr", hdf5_scomplex_id, t_tr_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -104,6 +109,7 @@ char* test_dense_tensor_cyclic_partial_trace()
 	delete_dense_tensor(&t_tr);
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -165,12 +171,14 @@ char* test_dense_tensor_slice()
 		return "'H5Fopen' in test_dense_tensor_slice failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	// create tensor 't'
 	struct dense_tensor t;
 	const long dim[5] = { 2, 7, 3, 5, 4 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim, &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// read indices from disk
@@ -188,7 +196,7 @@ char* test_dense_tensor_slice()
 	const long dim_ref[5] = { 2, 10, 3, 5, 4 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim_ref, &s_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -203,6 +211,7 @@ char* test_dense_tensor_slice()
 	ct_free(ind);
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -267,12 +276,14 @@ char* test_dense_tensor_multiply_pointwise()
 		return "'H5Fopen' in test_dense_tensor_multiply_pointwise failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	// create tensor 't'
 	struct dense_tensor t;
 	const long tdim[3] = { 2, 6, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, tdim,  &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -298,7 +309,7 @@ char* test_dense_tensor_multiply_pointwise()
 		allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, refdim, &t_mult_s_ref);
 		// read values from disk
 		sprintf(varname, "t_mult_s%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, t_mult_s_ref.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_scomplex_id, t_mult_s_ref.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 
@@ -314,6 +325,7 @@ char* test_dense_tensor_multiply_pointwise()
 
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -327,12 +339,14 @@ char* test_dense_tensor_multiply_axis()
 		return "'H5Fopen' in test_dense_tensor_multiply_axis failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	// create tensor 's'
 	struct dense_tensor s;
 	const long sdim[4] = { 3, 8, 5, 7 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -341,7 +355,7 @@ char* test_dense_tensor_multiply_axis()
 	const long t0_dim[3] = { 6, 4, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t0_dim,  &t0);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t0", H5T_NATIVE_FLOAT, t0.data) < 0) {
+	if (read_hdf5_dataset(file, "t0", hdf5_scomplex_id, t0.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -356,7 +370,7 @@ char* test_dense_tensor_multiply_axis()
 	struct dense_tensor r0_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r0_ref_dim, &r0_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "r0", H5T_NATIVE_FLOAT, r0_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "r0", hdf5_scomplex_id, r0_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -370,7 +384,7 @@ char* test_dense_tensor_multiply_axis()
 	const long t1_dim[3] = { 5, 2, 6 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t1_dim,  &t1);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t1", H5T_NATIVE_FLOAT, t1.data) < 0) {
+	if (read_hdf5_dataset(file, "t1", hdf5_scomplex_id, t1.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -383,7 +397,7 @@ char* test_dense_tensor_multiply_axis()
 	struct dense_tensor r1_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r1_ref_dim, &r1_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "r1", H5T_NATIVE_FLOAT, r1_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "r1", hdf5_scomplex_id, r1_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -401,6 +415,7 @@ char* test_dense_tensor_multiply_axis()
 	delete_dense_tensor(&t0);
 	delete_dense_tensor(&s);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -414,12 +429,14 @@ char* test_dense_tensor_dot()
 		return "'H5Fopen' in test_dense_tensor_dot failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// create tensor 't'
 	struct dense_tensor t;
 	const long tdim[5] = { 2, 11, 3, 4, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, tdim,  &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -428,7 +445,7 @@ char* test_dense_tensor_dot()
 	const long sdim[4] = { 4, 5, 7, 6 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_DOUBLE, s.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -437,7 +454,7 @@ char* test_dense_tensor_dot()
 	struct dense_tensor t_dot_s_ref;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t_dot_s", H5T_NATIVE_DOUBLE, t_dot_s_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "t_dot_s", hdf5_dcomplex_id, t_dot_s_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -485,6 +502,7 @@ char* test_dense_tensor_dot()
 	delete_dense_tensor(&s);
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -498,6 +516,8 @@ char* test_dense_tensor_dot_update()
 		return "'H5Fopen' in test_dense_tensor_dot_update failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	const scomplex alpha =  1.2f - 0.3f*I;
 	const scomplex beta  = -0.7f + 0.8f*I;
 
@@ -506,7 +526,7 @@ char* test_dense_tensor_dot_update()
 	const long dim[5] = { 2, 11, 3, 4, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim, &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -515,7 +535,7 @@ char* test_dense_tensor_dot_update()
 	const long sdim[4] = { 4, 5, 7, 6 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -524,7 +544,7 @@ char* test_dense_tensor_dot_update()
 	struct dense_tensor t_dot_s_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t_dot_s_1", H5T_NATIVE_FLOAT, t_dot_s_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "t_dot_s_1", hdf5_scomplex_id, t_dot_s_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -555,7 +575,7 @@ char* test_dense_tensor_dot_update()
 			const long t_dot_s_dim[5] = { 2, 11, 3, 7, 6 };
 			allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, t_dot_s_dim, &t_dot_s);
 			// read values from disk
-			if (read_hdf5_dataset(file, "t_dot_s_0", H5T_NATIVE_FLOAT, t_dot_s.data) < 0) {
+			if (read_hdf5_dataset(file, "t_dot_s_0", hdf5_scomplex_id, t_dot_s.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 			dense_tensor_dot_update(&alpha, &tp, axrange_t, &sp, axrange_s, 2, &beta, &t_dot_s);
@@ -578,6 +598,7 @@ char* test_dense_tensor_dot_update()
 	delete_dense_tensor(&s);
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -591,12 +612,14 @@ char* test_dense_tensor_kronecker_product()
 		return "'H5Fopen' in test_dense_tensor_kronecker_product failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// create tensor 's'
 	struct dense_tensor s;
 	const long sdim[4] = { 6, 5, 7, 2 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_DOUBLE, s.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -605,7 +628,7 @@ char* test_dense_tensor_kronecker_product()
 	const long tdim[4] = { 3, 11, 2, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, tdim,  &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -617,7 +640,7 @@ char* test_dense_tensor_kronecker_product()
 	const long refdim[4] = { 18, 55, 14, 10 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, refdim, &r_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "r", H5T_NATIVE_DOUBLE, r_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "r", hdf5_dcomplex_id, r_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -632,6 +655,7 @@ char* test_dense_tensor_kronecker_product()
 	delete_dense_tensor(&t);
 	delete_dense_tensor(&s);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -645,11 +669,13 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 		return "'H5Fopen' in test_dense_tensor_kronecker_product_degree_zero failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	// create tensor 's'
 	struct dense_tensor s;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 0, NULL, &s);
 	// read values from disk
-	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s.data) < 0) {
+	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -657,7 +683,7 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 	struct dense_tensor t;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 0, NULL,  &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -668,7 +694,7 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 	struct dense_tensor r_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 0, NULL, &r_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "r", H5T_NATIVE_FLOAT, r_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "r", hdf5_scomplex_id, r_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -683,6 +709,7 @@ char* test_dense_tensor_kronecker_product_degree_zero()
 	delete_dense_tensor(&t);
 	delete_dense_tensor(&s);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -808,6 +835,13 @@ char* test_dense_tensor_qr()
 		return "'H5Fopen' in test_dense_tensor_qr failed";
 	}
 
+	const hid_t hdf5_type_ids[4] = {
+		H5T_NATIVE_FLOAT,
+		H5T_NATIVE_DOUBLE,
+		construct_hdf5_single_complex_dtype(false),
+		construct_hdf5_double_complex_dtype(false),
+	};
+
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
 	// cases m >= n and m < n
@@ -825,7 +859,7 @@ char* test_dense_tensor_qr()
 			// read values from disk
 			char varname[1024];
 			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -862,6 +896,8 @@ char* test_dense_tensor_qr()
 		}
 	}
 
+	H5Tclose(hdf5_type_ids[2]);
+	H5Tclose(hdf5_type_ids[3]);
 	H5Fclose(file);
 
 	return 0;
@@ -874,6 +910,13 @@ char* test_dense_tensor_rq()
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_rq failed";
 	}
+
+	const hid_t hdf5_type_ids[4] = {
+		H5T_NATIVE_FLOAT,
+		H5T_NATIVE_DOUBLE,
+		construct_hdf5_single_complex_dtype(false),
+		construct_hdf5_double_complex_dtype(false),
+	};
 
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
@@ -892,7 +935,7 @@ char* test_dense_tensor_rq()
 			// read values from disk
 			char varname[1024];
 			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -929,6 +972,8 @@ char* test_dense_tensor_rq()
 		}
 	}
 
+	H5Tclose(hdf5_type_ids[2]);
+	H5Tclose(hdf5_type_ids[3]);
 	H5Fclose(file);
 
 	return 0;
@@ -941,6 +986,13 @@ char* test_dense_tensor_eigh()
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_eigh failed";
 	}
+
+	const hid_t hdf5_type_ids[4] = {
+		H5T_NATIVE_FLOAT,
+		H5T_NATIVE_DOUBLE,
+		construct_hdf5_single_complex_dtype(false),
+		construct_hdf5_double_complex_dtype(false),
+	};
 
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
@@ -956,7 +1008,7 @@ char* test_dense_tensor_eigh()
 		// read values from disk
 		char varname[1024];
 		sprintf(varname, "a_t%i", j);
-		if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 		if (!dense_tensor_is_self_adjoint(&a, tol)) {
@@ -992,6 +1044,8 @@ char* test_dense_tensor_eigh()
 		delete_dense_tensor(&a);
 	}
 
+	H5Tclose(hdf5_type_ids[2]);
+	H5Tclose(hdf5_type_ids[3]);
 	H5Fclose(file);
 
 	return 0;
@@ -1004,6 +1058,13 @@ char* test_dense_tensor_svd()
 	if (file < 0) {
 		return "'H5Fopen' in test_dense_tensor_svd failed";
 	}
+
+	const hid_t hdf5_type_ids[4] = {
+		H5T_NATIVE_FLOAT,
+		H5T_NATIVE_DOUBLE,
+		construct_hdf5_single_complex_dtype(false),
+		construct_hdf5_double_complex_dtype(false),
+	};
 
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
@@ -1022,7 +1083,7 @@ char* test_dense_tensor_svd()
 			// read values from disk
 			char varname[1024];
 			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, j % 2 == 0 ? H5T_NATIVE_FLOAT : H5T_NATIVE_DOUBLE, a.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -1058,6 +1119,8 @@ char* test_dense_tensor_svd()
 		}
 	}
 
+	H5Tclose(hdf5_type_ids[2]);
+	H5Tclose(hdf5_type_ids[3]);
 	H5Fclose(file);
 
 	return 0;
@@ -1071,12 +1134,14 @@ char* test_dense_tensor_block()
 		return "'H5Fopen' in test_dense_tensor_transpose failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// create tensor 't'
 	struct dense_tensor t;
 	const long dim[4] = { 2, 3, 4, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, dim,  &t);
 	// read values from disk
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t.data) < 0) {
+	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -1096,7 +1161,7 @@ char* test_dense_tensor_block()
 	struct dense_tensor b_ref;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, bdim, &b_ref);
 	// read values from disk
-	if (read_hdf5_dataset(file, "b", H5T_NATIVE_DOUBLE, b_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "b", hdf5_dcomplex_id, b_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -1110,6 +1175,7 @@ char* test_dense_tensor_block()
 	delete_dense_tensor(&b);
 	delete_dense_tensor(&t);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

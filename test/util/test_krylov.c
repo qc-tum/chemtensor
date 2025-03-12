@@ -111,6 +111,8 @@ char* test_lanczos_iteration_z()
 		return "'H5Fopen' in test_lanczos_iteration_z failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// "large" matrix dimension
 	const long n = 173;
 
@@ -119,13 +121,13 @@ char* test_lanczos_iteration_z()
 
 	// load 'a' matrix from disk
 	dcomplex* a = ct_malloc(n*n * sizeof(dcomplex));
-	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
+	if (read_hdf5_dataset(file, "a", hdf5_dcomplex_id, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
 	dcomplex* vstart = ct_malloc(n * sizeof(dcomplex));
-	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
+	if (read_hdf5_dataset(file, "vstart", hdf5_dcomplex_id, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
@@ -151,7 +153,7 @@ char* test_lanczos_iteration_z()
 	if (read_hdf5_dataset(file, "beta", H5T_NATIVE_DOUBLE, beta_ref) < 0) {
 		return "reading 'beta' vector from disk failed";
 	}
-	if (read_hdf5_dataset(file, "v", H5T_NATIVE_DOUBLE, v_ref) < 0) {
+	if (read_hdf5_dataset(file, "v", hdf5_dcomplex_id, v_ref) < 0) {
 		return "reading 'v' matrix from disk failed";
 	}
 
@@ -176,6 +178,7 @@ char* test_lanczos_iteration_z()
 	ct_free(vstart);
 	ct_free(a);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -272,6 +275,8 @@ char* test_eigensystem_krylov_hermitian()
 		return "'H5Fopen' in test_eigensystem_krylov_hermitian failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// "large" matrix dimension
 	const long n = 185;
 
@@ -283,13 +288,13 @@ char* test_eigensystem_krylov_hermitian()
 
 	// load 'a' matrix from disk
 	dcomplex* a = ct_malloc(n*n * sizeof(dcomplex));
-	if (read_hdf5_dataset(file, "a", H5T_NATIVE_DOUBLE, a) < 0) {
+	if (read_hdf5_dataset(file, "a", hdf5_dcomplex_id, a) < 0) {
 		return "reading matrix entries from disk failed";
 	}
 
 	// load starting vector from disk
 	dcomplex* vstart = ct_malloc(n * sizeof(dcomplex));
-	if (read_hdf5_dataset(file, "vstart", H5T_NATIVE_DOUBLE, vstart) < 0) {
+	if (read_hdf5_dataset(file, "vstart", hdf5_dcomplex_id, vstart) < 0) {
 		return "reading starting vector from disk failed";
 	}
 
@@ -306,7 +311,7 @@ char* test_eigensystem_krylov_hermitian()
 	if (read_hdf5_dataset(file, "lambda", H5T_NATIVE_DOUBLE, lambda_ref) < 0) {
 		return "reading Ritz eigenvalues from disk failed";
 	}
-	if (read_hdf5_dataset(file, "u_ritz", H5T_NATIVE_DOUBLE, u_ritz_ref) < 0) {
+	if (read_hdf5_dataset(file, "u_ritz", hdf5_dcomplex_id, u_ritz_ref) < 0) {
 		return "reading Ritz eigenvectors from disk failed";
 	}
 
@@ -342,6 +347,7 @@ char* test_eigensystem_krylov_hermitian()
 	ct_free(vstart);
 	ct_free(a);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

@@ -12,6 +12,8 @@ char* test_dmrg_singlesite()
 		return "'H5Fopen' in test_dmrg_singlesite failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// number of lattice sites
 	const int nsites = 7;
 	// local physical dimension
@@ -61,7 +63,7 @@ char* test_dmrg_singlesite()
 			allocate_dense_tensor(hamiltonian.a[i].dtype, hamiltonian.a[i].ndim, hamiltonian.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "h_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -113,7 +115,7 @@ char* test_dmrg_singlesite()
 			allocate_dense_tensor(psi.a[i].dtype, psi.a[i].ndim, psi.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "psi_start_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -192,7 +194,7 @@ char* test_dmrg_singlesite()
 			allocate_dense_tensor(psi_ref.a[i].dtype, psi_ref.a[i].ndim, psi_ref.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "psi_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -220,6 +222,7 @@ char* test_dmrg_singlesite()
 	delete_mpo(&hamiltonian);
 	ct_free(qsite);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -232,6 +235,8 @@ char* test_dmrg_twosite()
 	if (file < 0) {
 		return "'H5Fopen' in test_dmrg_twosite failed";
 	}
+
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	// number of lattice sites
 	const int nsites = 11;
@@ -282,7 +287,7 @@ char* test_dmrg_twosite()
 			allocate_dense_tensor(hamiltonian.a[i].dtype, hamiltonian.a[i].ndim, hamiltonian.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "h_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -334,7 +339,7 @@ char* test_dmrg_twosite()
 			allocate_dense_tensor(psi.a[i].dtype, psi.a[i].ndim, psi.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "psi_start_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -418,7 +423,7 @@ char* test_dmrg_twosite()
 			allocate_dense_tensor(psi_ref.a[i].dtype, psi_ref.a[i].ndim, psi_ref.a[i].dim_logical, &a_dns);
 			char varname[1024];
 			sprintf(varname, "psi_a%i", i);
-			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, a_dns.data) < 0) {
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 
@@ -447,6 +452,7 @@ char* test_dmrg_twosite()
 	delete_mpo(&hamiltonian);
 	ct_free(qsite);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;

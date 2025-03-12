@@ -10,6 +10,8 @@ char* test_mpo_graph_from_opchains_basic()
 		return "'H5Fopen' in test_mpo_graph_from_opchains_basic failed";
 	}
 
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
 	// local physical dimension
 	const long d = 3;
 	// number of sites
@@ -68,7 +70,7 @@ char* test_mpo_graph_from_opchains_basic()
 	const long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
-	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_DOUBLE, opmap_tensor.data) < 0) {
+	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
@@ -93,7 +95,7 @@ char* test_mpo_graph_from_opchains_basic()
 	struct dense_tensor a_ref;
 	const long dim_a_ref[2] = { dim_full, dim_full };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_ref, &a_ref);
-	if (read_hdf5_dataset(file, "mat", H5T_NATIVE_DOUBLE, a_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "mat", hdf5_dcomplex_id, a_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -129,6 +131,7 @@ char* test_mpo_graph_from_opchains_basic()
 	ct_free(opmap);
 	delete_mpo_graph(&mpo_graph);
 
+	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
 
 	return 0;
@@ -141,6 +144,8 @@ char* test_mpo_graph_from_opchains_advanced()
 	if (file < 0) {
 		return "'H5Fopen' in test_mpo_graph_from_opchains_advanced failed";
 	}
+
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
 	// local physical dimension
 	const long d = 4;
@@ -204,7 +209,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	const long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
-	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_FLOAT, opmap_tensor.data) < 0) {
+	if (read_hdf5_dataset(file, "opmap", hdf5_scomplex_id, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
@@ -220,7 +225,7 @@ char* test_mpo_graph_from_opchains_advanced()
 
 	// coefficient map
 	scomplex* coeffmap = ct_malloc(8 * sizeof(scomplex));
-	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
+	if (read_hdf5_dataset(file, "coeffmap", hdf5_scomplex_id, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
 
@@ -258,6 +263,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	ct_free(chains);
 	delete_mpo_graph(&mpo_graph);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;

@@ -1,8 +1,6 @@
 import numpy as np
 import h5py
-import sys
-sys.path.append("../")
-from util import crandn, interleave_complex
+import pytenet as ptn
 
 
 def dense_tensor_trace_data():
@@ -10,7 +8,7 @@ def dense_tensor_trace_data():
     # random number generator
     rng = np.random.default_rng(95)
 
-    t = crandn((5, 5, 5), rng)
+    t = ptn.crandn((5, 5, 5), rng)
 
     # sum of diagonal entries
     tr = 0
@@ -18,8 +16,8 @@ def dense_tensor_trace_data():
         tr += t[i, i, i]
 
     with h5py.File("data/test_dense_tensor_trace.hdf5", "w") as file:
-        file["t"]  = interleave_complex(t)
-        file["tr"] = interleave_complex(tr)
+        file["t"]  = t
+        file["tr"] = tr
 
 
 def dense_tensor_cyclic_partial_trace_data():
@@ -29,14 +27,14 @@ def dense_tensor_cyclic_partial_trace_data():
 
     ndim_trace = 2
 
-    t = crandn((5, 2, 3, 4, 1, 5, 2), rng).astype(np.complex64)
+    t = ptn.crandn((5, 2, 3, 4, 1, 5, 2), rng).astype(np.complex64)
 
     # compute cyclic trace
     t_tr = np.trace(np.trace(t, axis1=0, axis2=t.ndim-ndim_trace), axis1=0, axis2=t.ndim-ndim_trace-1)
 
     with h5py.File("data/test_dense_tensor_cyclic_partial_trace.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["t_tr"] = interleave_complex(t_tr)
+        file["t"] = t
+        file["t_tr"] = t_tr
 
 
 def dense_tensor_transpose_data():
@@ -60,15 +58,15 @@ def dense_tensor_slice_data():
     # random number generator
     rng = np.random.default_rng(143)
 
-    t = crandn((2, 7, 3, 5, 4), rng).astype(np.complex64)
+    t = ptn.crandn((2, 7, 3, 5, 4), rng).astype(np.complex64)
 
     # slice along axis 1
     ind = rng.integers(0, t.shape[1], 10)
     s = t[:, ind, :, :, :]
 
     with h5py.File("data/test_dense_tensor_slice.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["s"] = interleave_complex(s)
+        file["t"] = t
+        file["s"] = s
         file.attrs["ind"] = ind
 
 
@@ -91,16 +89,16 @@ def dense_tensor_multiply_pointwise_data():
     # random number generator
     rng = np.random.default_rng(631)
 
-    t = crandn((2, 6, 5), rng).astype(np.complex64)
+    t = ptn.crandn((2, 6, 5), rng).astype(np.complex64)
     s = [rng.standard_normal(dim).astype(np.float32) for dim in [(2, 6), (6, 5)]]
 
     t_mult_s = [t * s[0][:, :, None], t * s[1]]
 
     with h5py.File("data/test_dense_tensor_multiply_pointwise.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
+        file["t"] = t
         for i in range(2):
             file[f"s{i}"] = s[i]
-            file[f"t_mult_s{i}"] = interleave_complex(t_mult_s[i])
+            file[f"t_mult_s{i}"] = t_mult_s[i]
 
 
 def dense_tensor_multiply_axis_data():
@@ -108,20 +106,20 @@ def dense_tensor_multiply_axis_data():
     # random number generator
     rng = np.random.default_rng(193)
 
-    s = crandn((3, 8, 5, 7), rng).astype(np.complex64)
+    s = ptn.crandn((3, 8, 5, 7), rng).astype(np.complex64)
 
-    t0 = crandn((6, 4, 5), rng).astype(np.complex64)
+    t0 = ptn.crandn((6, 4, 5), rng).astype(np.complex64)
     r0 = np.einsum(s, (0, 1, 5, 4), t0, (2, 3, 5), (0, 1, 2, 3, 4))
 
-    t1 = crandn((5, 2, 6), rng).astype(np.complex64)
+    t1 = ptn.crandn((5, 2, 6), rng).astype(np.complex64)
     r1 = np.einsum(s, (0, 1, 5, 4), t1, (5, 2, 3), (0, 1, 2, 3, 4))
 
     with h5py.File("data/test_dense_tensor_multiply_axis.hdf5", "w") as file:
-        file["s"] = interleave_complex(s)
-        file["t0"] = interleave_complex(t0)
-        file["r0"] = interleave_complex(r0)
-        file["t1"] = interleave_complex(t1)
-        file["r1"] = interleave_complex(r1)
+        file["s"] = s
+        file["t0"] = t0
+        file["r0"] = r0
+        file["t1"] = t1
+        file["r1"] = r1
 
 
 def dense_tensor_dot_data():
@@ -129,15 +127,15 @@ def dense_tensor_dot_data():
     # random number generator
     rng = np.random.default_rng(524)
 
-    t = crandn((2, 11, 3, 4, 5), rng)
-    s = crandn((4, 5, 7, 6), rng)
+    t = ptn.crandn((2, 11, 3, 4, 5), rng)
+    s = ptn.crandn((4, 5, 7, 6), rng)
 
     t_dot_s = np.tensordot(t, s, 2)
 
     with h5py.File("data/test_dense_tensor_dot.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["s"] = interleave_complex(s)
-        file["t_dot_s"] = interleave_complex(t_dot_s)
+        file["t"] = t
+        file["s"] = s
+        file["t_dot_s"] = t_dot_s
 
 
 def dense_tensor_dot_update_data():
@@ -148,17 +146,17 @@ def dense_tensor_dot_update_data():
     alpha = np.array( 1.2 - 0.3j).astype(np.complex64)
     beta  = np.array(-0.7 + 0.8j).astype(np.complex64)
 
-    t = crandn((2, 11, 3, 4, 5), rng).astype(np.complex64)
-    s = crandn((4, 5, 7, 6), rng).astype(np.complex64)
+    t = ptn.crandn((2, 11, 3, 4, 5), rng).astype(np.complex64)
+    s = ptn.crandn((4, 5, 7, 6), rng).astype(np.complex64)
 
-    t_dot_s_0 = crandn((2, 11, 3, 7, 6), rng).astype(np.complex64)
+    t_dot_s_0 = ptn.crandn((2, 11, 3, 7, 6), rng).astype(np.complex64)
     t_dot_s_1 = alpha * np.tensordot(t, s, 2) + beta * t_dot_s_0
 
     with h5py.File("data/test_dense_tensor_dot_update.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["s"] = interleave_complex(s)
-        file["t_dot_s_0"] = interleave_complex(t_dot_s_0)
-        file["t_dot_s_1"] = interleave_complex(t_dot_s_1)
+        file["t"] = t
+        file["s"] = s
+        file["t_dot_s_0"] = t_dot_s_0
+        file["t_dot_s_1"] = t_dot_s_1
 
 
 def dense_tensor_kronecker_product_data():
@@ -166,15 +164,15 @@ def dense_tensor_kronecker_product_data():
     # random number generator
     rng = np.random.default_rng(172)
 
-    s = crandn((6,  5, 7, 2), rng)
-    t = crandn((3, 11, 2, 5), rng)
+    s = ptn.crandn((6,  5, 7, 2), rng)
+    t = ptn.crandn((3, 11, 2, 5), rng)
 
     r = np.kron(s, t)
 
     with h5py.File("data/test_dense_tensor_kronecker_product.hdf5", "w") as file:
-        file["s"] = interleave_complex(s)
-        file["t"] = interleave_complex(t)
-        file["r"] = interleave_complex(r)
+        file["s"] = s
+        file["t"] = t
+        file["r"] = r
 
 
 def dense_tensor_kronecker_product_degree_zero_data():
@@ -182,15 +180,15 @@ def dense_tensor_kronecker_product_degree_zero_data():
     # random number generator
     rng = np.random.default_rng(743)
 
-    s = crandn((), rng).astype(np.complex64)
-    t = crandn((), rng).astype(np.complex64)
+    s = ptn.crandn((), rng).astype(np.complex64)
+    t = ptn.crandn((), rng).astype(np.complex64)
 
     r = np.kron(s, t)
 
     with h5py.File("data/test_dense_tensor_kronecker_product_degree_zero.hdf5", "w") as file:
-        file["s"] = interleave_complex(s)
-        file["t"] = interleave_complex(t)
-        file["r"] = interleave_complex(r)
+        file["s"] = s
+        file["t"] = t
+        file["r"] = r
 
 
 def dense_tensor_concatenate_data():
@@ -252,11 +250,11 @@ def dense_tensor_qr_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = crandn(size, rng).astype(np.complex64)
+                    a = ptn.crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = crandn(size, rng)
-                file[f"a_s{i}_t{j}"] = a if j < 2 else interleave_complex(a)
+                    a = ptn.crandn(size, rng)
+                file[f"a_s{i}_t{j}"] = a
 
 
 def dense_tensor_rq_data():
@@ -277,11 +275,11 @@ def dense_tensor_rq_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = crandn(size, rng).astype(np.complex64)
+                    a = ptn.crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = crandn(size, rng)
-                file[f"a_s{i}_t{j}"] = a if j < 2 else interleave_complex(a)
+                    a = ptn.crandn(size, rng)
+                file[f"a_s{i}_t{j}"] = a
 
 
 def dense_tensor_eigh_data():
@@ -301,13 +299,13 @@ def dense_tensor_eigh_data():
                 a = rng.standard_normal((n, n))
             elif j == 2:
                 # single precision complex
-                a = 0.5 * crandn((n, n), rng).astype(np.complex64)
+                a = 0.5 * ptn.crandn((n, n), rng).astype(np.complex64)
             else:
                 # double precision complex
-                a = 0.5 * crandn((n, n), rng)
+                a = 0.5 * ptn.crandn((n, n), rng)
             # symmetrize
             a = 0.5 * (a + a.conj().T)
-            file[f"a_t{j}"] = a if j < 2 else interleave_complex(a)
+            file[f"a_t{j}"] = a
 
 
 def dense_tensor_svd_data():
@@ -328,11 +326,11 @@ def dense_tensor_svd_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = 0.5 * crandn(size, rng).astype(np.complex64)
+                    a = 0.5 * ptn.crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = 0.5 * crandn(size, rng)
-                file[f"a_s{i}_t{j}"] = a if j < 2 else interleave_complex(a)
+                    a = 0.5 * ptn.crandn(size, rng)
+                file[f"a_s{i}_t{j}"] = a
 
 
 def dense_tensor_block_data():
@@ -340,7 +338,7 @@ def dense_tensor_block_data():
     # random number generator
     rng = np.random.default_rng(945)
 
-    t = crandn((2, 3, 4, 5), rng)
+    t = ptn.crandn((2, 3, 4, 5), rng)
 
     # generalized sub-block of 't'
     b = t.copy()
@@ -349,8 +347,8 @@ def dense_tensor_block_data():
     b = b[:, :, :, [1, 4, 4]]
 
     with h5py.File("data/test_dense_tensor_block.hdf5", "w") as file:
-        file["t"] = interleave_complex(t)
-        file["b"] = interleave_complex(b)
+        file["t"] = t
+        file["b"] = b
 
 
 def main():

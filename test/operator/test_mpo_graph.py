@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def mpo_graph_from_opchains_basic_data():
@@ -67,8 +64,8 @@ def mpo_graph_from_opchains_basic_data():
         bond_dims.append(len(nids0))
 
     with h5py.File("data/test_mpo_graph_from_opchains_basic.hdf5", "w") as file:
-        file["opmap"] = interleave_complex(np.array(opmap))
-        file["mat"]   = interleave_complex(mat)
+        file["opmap"] = np.array(opmap)
+        file["mat"]   = mat
         file.attrs["bond_dims"] = bond_dims
 
 
@@ -137,8 +134,8 @@ def mpo_graph_from_opchains_advanced_data():
             file.attrs[f"/chain{i}/qnums"]  = chain.qnums
             file.attrs[f"/chain{i}/cid"]    = cids[i]
             file.attrs[f"/chain{i}/istart"] = chain.istart
-        file["opmap"]    = interleave_complex(np.array(opmap))
-        file["coeffmap"] = interleave_complex(coeffmap)
+        file["opmap"]    = np.array(opmap)
+        file["coeffmap"] = coeffmap
         file.attrs["bond_dims"] = mpo.bond_dims
 
 

@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def ttno_graph_from_opchains_data():
@@ -80,8 +77,8 @@ def ttno_graph_from_opchains_data():
             file.attrs[f"/chain{i}/qnums"]  = chain.qnums
             file.attrs[f"/chain{i}/cid"]    = cids[i]
             file.attrs[f"/chain{i}/istart"] = chain.istart
-        file["opmap"]    = interleave_complex(np.array(opmap))
-        file["coeffmap"] = interleave_complex(coeffmap)
+        file["opmap"]    = np.array(opmap)
+        file["coeffmap"] = coeffmap
         file.attrs["rank_04_123"] = rank_04_123
         file.attrs["rank_1_0234"] = rank_1_0234
         # note: local operators acting on sites 2 and 4 span a 5-dimensional subspace,

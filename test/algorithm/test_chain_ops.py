@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def mpo_inner_product_data():
@@ -52,14 +49,14 @@ def mpo_inner_product_data():
             file.attrs[f"qbond_op_{i}"] = qbond
         for i, a in enumerate(psi.A):
             # transposition due to different convention for axis ordering
-            file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+            file[f"psi_a{i}"] = a.transpose((1, 0, 2))
         for i, a in enumerate(chi.A):
             # transposition due to different convention for axis ordering
-            file[f"chi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+            file[f"chi_a{i}"] = a.transpose((1, 0, 2))
         for i, a in enumerate(op.A):
             # transposition due to different convention for axis ordering
-            file[f"op_a{i}"] = interleave_complex(a.transpose((2, 0, 1, 3)))
-        file["s"] = interleave_complex(s)
+            file[f"op_a{i}"] = a.transpose((2, 0, 1, 3))
+        file["s"] = s
 
 
 def apply_mpo_data():
@@ -93,10 +90,10 @@ def apply_mpo_data():
             file.attrs[f"qbond_op_{i}"] = qbond
         for i, a in enumerate(psi.A):
             # transposition due to different convention for axis ordering
-            file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+            file[f"psi_a{i}"] = a.transpose((1, 0, 2))
         for i, a in enumerate(op.A):
             # transposition due to different convention for axis ordering
-            file[f"op_a{i}"] = interleave_complex(a.transpose((2, 0, 1, 3)))
+            file[f"op_a{i}"] = a.transpose((2, 0, 1, 3))
 
 
 def main():

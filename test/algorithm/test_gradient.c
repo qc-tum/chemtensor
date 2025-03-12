@@ -61,6 +61,8 @@ char* test_operator_average_coefficient_gradient()
 		return "'H5Fopen' in test_operator_average_coefficient_gradient failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	// number of lattice sites
 	const int nsites = 4;
 	// local physical dimension
@@ -106,7 +108,7 @@ char* test_operator_average_coefficient_gradient()
 		allocate_dense_tensor(psi.a[i].dtype, psi.a[i].ndim, psi.a[i].dim_logical, &a_dns);
 		char varname[1024];
 		sprintf(varname, "psi_a%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_scomplex_id, a_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 
@@ -130,7 +132,7 @@ char* test_operator_average_coefficient_gradient()
 		allocate_dense_tensor(chi.a[i].dtype, chi.a[i].ndim, chi.a[i].dim_logical, &a_dns);
 		char varname[1024];
 		sprintf(varname, "chi_a%i", i);
-		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_scomplex_id, a_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 
@@ -230,7 +232,7 @@ char* test_operator_average_coefficient_gradient()
 	const long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
-	if (read_hdf5_dataset(file, "opmap", H5T_NATIVE_FLOAT, opmap_tensor.data) < 0) {
+	if (read_hdf5_dataset(file, "opmap", hdf5_scomplex_id, opmap_tensor.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// copy individual operators
@@ -247,7 +249,7 @@ char* test_operator_average_coefficient_gradient()
 	// coefficient map; first two entries must always be 0 and 1
 	const int num_coeffs = 9;
 	scomplex* coeffmap = ct_malloc(num_coeffs * sizeof(scomplex));
-	if (read_hdf5_dataset(file, "coeffmap", H5T_NATIVE_FLOAT, coeffmap) < 0) {
+	if (read_hdf5_dataset(file, "coeffmap", hdf5_scomplex_id, coeffmap) < 0) {
 		return "reading coefficient map from disk failed";
 	}
 
@@ -269,7 +271,7 @@ char* test_operator_average_coefficient_gradient()
 
 	// reference average value
 	scomplex avr_ref;
-	if (read_hdf5_dataset(file, "avr", H5T_NATIVE_FLOAT, &avr_ref) < 0) {
+	if (read_hdf5_dataset(file, "avr", hdf5_scomplex_id, &avr_ref) < 0) {
 		return "reading operator inner product reference value from disk failed";
 	}
 
@@ -314,6 +316,7 @@ char* test_operator_average_coefficient_gradient()
 	ct_free(qbonds_chi);
 	ct_free(qbonds_psi);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;

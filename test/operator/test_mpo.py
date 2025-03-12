@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def mpo_from_assembly_data():
@@ -59,7 +56,7 @@ def mpo_from_assembly_data():
 
     # not storing MPO matrix representation on disk to avoid very large files
     with h5py.File("data/test_mpo_from_assembly.hdf5", "w") as file:
-        file["opmap"] = interleave_complex(np.array(opmap))
+        file["opmap"] = np.array(opmap)
 
 
 def main():

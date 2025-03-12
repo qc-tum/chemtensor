@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def mps_vdot_data():
@@ -43,11 +40,11 @@ def mps_vdot_data():
             file.attrs[f"qbond_chi_{i}"] = qbond
         for i, ai in enumerate(psi.A):
             # transposition due to different convention for axis ordering
-            file[f"psi_a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
+            file[f"psi_a{i}"] = ai.transpose((1, 0, 2))
         for i, ai in enumerate(chi.A):
             # transposition due to different convention for axis ordering
-            file[f"chi_a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
-        file["s"] = interleave_complex(s)
+            file[f"chi_a{i}"] = ai.transpose((1, 0, 2))
+        file["s"] = s
 
 
 def mps_orthonormalize_qr_data():
@@ -75,7 +72,7 @@ def mps_orthonormalize_qr_data():
             file.attrs[f"qbond{i}"] = qbond
         for i, ai in enumerate(mps.A):
             # transposition due to different convention for axis ordering
-            file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
+            file[f"a{i}"] = ai.transpose((1, 0, 2))
 
 
 def mps_compress_data():
@@ -107,7 +104,7 @@ def mps_compress_data():
             file.attrs[f"qbond{i}"] = qbond
         for i, ai in enumerate(mps.A):
             # transposition due to different convention for axis ordering
-            file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
+            file[f"a{i}"] = ai.transpose((1, 0, 2))
 
 
 def mps_split_tensor_svd_data():
@@ -181,8 +178,8 @@ def mps_to_statevector_data():
             file.attrs[f"qbond{i}"] = qbond
         for i, ai in enumerate(mps.A):
             # transposition due to different convention for axis ordering
-            file[f"a{i}"] = interleave_complex(ai.transpose((1, 0, 2)))
-        file["vec"] = interleave_complex(vec)
+            file[f"a{i}"] = ai.transpose((1, 0, 2))
+        file["vec"] = vec
 
 
 def main():

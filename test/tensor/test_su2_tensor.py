@@ -1,9 +1,6 @@
 import numpy as np
 from scipy.linalg import expm, block_diag
 import h5py
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 class SU2VectorSpaceDesc:
@@ -101,7 +98,7 @@ def su2_to_dense_tensor_data():
     with h5py.File("data/test_su2_to_dense_tensor.hdf5", "w") as file:
         # store rotation operators
         for i, w in enumerate(wlist):
-            file[f"w{i}"] = interleave_complex(w)
+            file[f"w{i}"] = w
 
 
 def main():

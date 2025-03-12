@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import crandn, interleave_complex
 
 
 def neumann_entropy(sigma):
@@ -60,7 +57,7 @@ def split_block_sparse_matrix_svd_data():
         qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
 
         # dense tensor
-        a = 0.02 * crandn(dims, rng).astype(np.complex64)
+        a = 0.02 * ptn.crandn(dims, rng).astype(np.complex64)
         # enforce sparsity pattern based on quantum numbers
         it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
         for x in it:
@@ -68,7 +65,7 @@ def split_block_sparse_matrix_svd_data():
             if qsum != 0:
                 x[...] = 0
 
-        file["a"] = interleave_complex(a)
+        file["a"] = a
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -81,12 +78,12 @@ def split_block_sparse_matrix_svd_data():
 
         # reassemble matrix after splitting, as reference
         a_trunc_plain = (a0 * s).astype(np.complex64) @ a1
-        file["a_trunc_plain"] = interleave_complex(a_trunc_plain)
+        file["a_trunc_plain"] = a_trunc_plain
 
         # renormalize retained singular values
         s_renrm = (np.linalg.norm(sigma) / np.linalg.norm(s)) * s
         a_trunc_renrm = (a0 * s_renrm).astype(np.complex64) @ a1
-        file["a_trunc_renrm"] = interleave_complex(a_trunc_renrm)
+        file["a_trunc_renrm"] = a_trunc_renrm
 
 
 def main():

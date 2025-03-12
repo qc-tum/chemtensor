@@ -90,13 +90,15 @@ char* test_split_block_sparse_matrix_svd()
 		return "'H5Fopen' in test_split_block_sparse_matrix_svd failed";
 	}
 
+	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
+
 	const long dim[2] = { 181, 191 };
 	const long max_vdim = 200;
 
 	// read dense tensor from disk
 	struct dense_tensor a_dns;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_dns);
-	if (read_hdf5_dataset(file, "a", H5T_NATIVE_FLOAT, a_dns.data) < 0) {
+	if (read_hdf5_dataset(file, "a", hdf5_scomplex_id, a_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -134,13 +136,13 @@ char* test_split_block_sparse_matrix_svd()
 	// without renormalization
 	struct dense_tensor a_trunc_plain_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_trunc_plain_ref);
-	if (read_hdf5_dataset(file, "a_trunc_plain", H5T_NATIVE_FLOAT, a_trunc_plain_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "a_trunc_plain", hdf5_scomplex_id, a_trunc_plain_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// with renormalization
 	struct dense_tensor a_trunc_renrm_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &a_trunc_renrm_ref);
-	if (read_hdf5_dataset(file, "a_trunc_renrm", H5T_NATIVE_FLOAT, a_trunc_renrm_ref.data) < 0) {
+	if (read_hdf5_dataset(file, "a_trunc_renrm", hdf5_scomplex_id, a_trunc_renrm_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -202,6 +204,7 @@ char* test_split_block_sparse_matrix_svd()
 	}
 	delete_dense_tensor(&a_dns);
 
+	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
 
 	return 0;

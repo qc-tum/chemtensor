@@ -1,9 +1,6 @@
 import numpy as np
 import h5py
 import pytenet as ptn
-import sys
-sys.path.append("../")
-from util import interleave_complex
 
 
 def operator_average_coefficient_gradient_data():
@@ -87,13 +84,13 @@ def operator_average_coefficient_gradient_data():
             file.attrs[f"qbond_chi_{i}"] = qbond
         for i, a in enumerate(psi.A):
             # transposition due to different convention for axis ordering
-            file[f"psi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
+            file[f"psi_a{i}"] = a.transpose((1, 0, 2))
         for i, a in enumerate(chi.A):
             # transposition due to different convention for axis ordering
-            file[f"chi_a{i}"] = interleave_complex(a.transpose((1, 0, 2)))
-        file["opmap"]    = interleave_complex(np.array(opmap))
-        file["coeffmap"] = interleave_complex(coeffmap)
-        file["avr"] = interleave_complex(avr)
+            file[f"chi_a{i}"] = a.transpose((1, 0, 2))
+        file["opmap"]    = np.array(opmap)
+        file["coeffmap"] = coeffmap
+        file["avr"] = avr
 
 
 def main():
