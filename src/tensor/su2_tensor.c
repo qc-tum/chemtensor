@@ -984,7 +984,8 @@ void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_s
 		r->degensors[cr] = ct_malloc(sizeof(struct dense_tensor));
 		if (perm_is_identity)
 		{
-			move_dense_tensor_data(&dr_perm, r->degensors[cr]);
+			// copy internal data pointers
+			*r->degensors[cr] = dr_perm;
 		}
 		else
 		{

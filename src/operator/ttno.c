@@ -304,7 +304,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		ct_free(qnums);
 		ct_free(axis_dir);
 
-		#ifdef DEBUG
+		#ifndef NDEBUG
 		struct dense_tensor a_loc_conv;
 		block_sparse_to_dense_tensor(&ttno->a[l], &a_loc_conv);
 		if (!dense_tensor_allclose(&a_loc_conv, &a_loc, 0.)) {
@@ -666,7 +666,7 @@ static void transpose_ttno_contracted_subtree(const int* perm, struct ttno_contr
 	struct block_sparse_tensor t;
 	transpose_block_sparse_tensor(perm, &subtree->tensor, &t);
 	delete_block_sparse_tensor(&subtree->tensor);
-	move_block_sparse_tensor_data(&t, &subtree->tensor);
+	subtree->tensor = t;  // copy internal data pointers
 
 	// update axis descriptions
 	struct ttno_tensor_axis_desc* new_axis_desc = ct_malloc(subtree->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
@@ -809,7 +809,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 		memcpy(&new_axis_desc[i_ax_c + child.tensor.ndim - 1], &contracted->axis_desc[i_ax_c + 1], (contracted->tensor.ndim - i_ax_c - 1) * sizeof(struct ttno_tensor_axis_desc));
 
 		delete_block_sparse_tensor(&contracted->tensor);
-		move_block_sparse_tensor_data(&t, &contracted->tensor);
+		contracted->tensor = t;  // copy internal data pointers
 		ct_free(contracted->axis_desc);
 		contracted->axis_desc = new_axis_desc;
 
@@ -895,5 +895,6 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 	assert(contracted.tensor.ndim == 2);
 	ct_free(perm);
 
-	move_block_sparse_tensor_data(&contracted.tensor, mat);
+	// copy internal data pointers
+	*mat = contracted.tensor;
 }

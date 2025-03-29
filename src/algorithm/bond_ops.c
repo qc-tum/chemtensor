@@ -260,14 +260,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 			struct block_sparse_tensor tmp;
 			block_sparse_tensor_multiply_pointwise_vector(a0, &s_zero, TENSOR_AXIS_RANGE_TRAILING, &tmp);
 			delete_block_sparse_tensor(a0);
-			move_block_sparse_tensor_data(&tmp, a0);
+			*a0 = tmp;  // copy internal data pointers
 		}
 		else
 		{
 			struct block_sparse_tensor tmp;
 			block_sparse_tensor_multiply_pointwise_vector(a1, &s_zero, TENSOR_AXIS_RANGE_LEADING, &tmp);
 			delete_block_sparse_tensor(a1);
-			move_block_sparse_tensor_data(&tmp, a1);
+			*a1 = tmp;  // copy internal data pointers
 		}
 
 		delete_dense_tensor(&s_zero);
@@ -314,14 +314,14 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 		struct block_sparse_tensor tmp;
 		block_sparse_tensor_multiply_pointwise_vector(a0, &s_ret, TENSOR_AXIS_RANGE_TRAILING, &tmp);
 		delete_block_sparse_tensor(a0);
-		move_block_sparse_tensor_data(&tmp, a0);
+		*a0 = tmp;  // copy internal data pointers
 	}
 	else
 	{
 		struct block_sparse_tensor tmp;
 		block_sparse_tensor_multiply_pointwise_vector(a1, &s_ret, TENSOR_AXIS_RANGE_LEADING, &tmp);
 		delete_block_sparse_tensor(a1);
-		move_block_sparse_tensor_data(&tmp, a1);
+		*a1 = tmp;  // copy internal data pointers
 	}
 
 	delete_dense_tensor(&s_ret);

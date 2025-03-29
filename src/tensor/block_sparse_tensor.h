@@ -41,8 +41,6 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t);
 
 void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
 
-void move_block_sparse_tensor_data(struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
-
 
 //________________________________________________________________________________________________________________________
 //

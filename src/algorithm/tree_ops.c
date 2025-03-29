@@ -100,7 +100,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 			const int i_ax = (k < i_site ? n : n + offset_phys_aux);
 			block_sparse_tensor_multiply_axis(&psi_a_bonds, i_ax, r_bonds[ib], TENSOR_AXIS_RANGE_LEADING, &tmp);
 			delete_block_sparse_tensor(&psi_a_bonds);
-			move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+			psi_a_bonds = tmp;  // copy internal data pointers
 		}
 		assert(psi_a_bonds.ndim == psi->a[i_site].ndim + psi->topology.num_neighbors[i_site] - (i_parent == -1 ? 0 : 1));
 
@@ -222,7 +222,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				transpose_block_sparse_tensor(perm, &psi_a_bonds, &tmp);
 				delete_block_sparse_tensor(&psi_a_bonds);
-				move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+				psi_a_bonds = tmp;  // copy internal data pointers
 			}
 
 			ct_free(perm);
@@ -250,7 +250,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&psi_a_bonds);
-				move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+				psi_a_bonds = tmp;  // copy internal data pointers
 			}
 
 			{
@@ -262,7 +262,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				block_sparse_tensor_split_axis(&op_a, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&op_a);
-				move_block_sparse_tensor_data(&tmp, &op_a);
+				op_a = tmp;  // copy internal data pointers
 			}
 		}
 		block_sparse_tensor_dot(&op_a, TENSOR_AXIS_RANGE_TRAILING, &psi_a_bonds, TENSOR_AXIS_RANGE_LEADING, imax(ndim_mult_op, 1), &op_psi_a_bonds);
@@ -325,7 +325,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				transpose_block_sparse_tensor(perm, &op_psi_a_bonds, &tmp);
 				delete_block_sparse_tensor(&op_psi_a_bonds);
-				move_block_sparse_tensor_data(&tmp, &op_psi_a_bonds);
+				op_psi_a_bonds = tmp;  // copy internal data pointers
 			}
 
 			ct_free(perm);
@@ -366,7 +366,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				transpose_block_sparse_tensor(perm, &chi_a_conj, &tmp);
 				delete_block_sparse_tensor(&chi_a_conj);
-				move_block_sparse_tensor_data(&tmp, &chi_a_conj);
+				chi_a_conj = tmp;  // copy internal data pointers
 			}
 
 			ct_free(perm);
@@ -389,7 +389,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				block_sparse_tensor_split_axis(&op_psi_a_bonds, 1, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&op_psi_a_bonds);
-				move_block_sparse_tensor_data(&tmp, &op_psi_a_bonds);
+				op_psi_a_bonds = tmp;  // copy internal data pointers
 			}
 
 			{
@@ -401,7 +401,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 				struct block_sparse_tensor tmp;
 				block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 				delete_block_sparse_tensor(&chi_a_conj);
-				move_block_sparse_tensor_data(&tmp, &chi_a_conj);
+				chi_a_conj = tmp;  // copy internal data pointers
 			}
 		}
 		block_sparse_tensor_dot(&op_psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, &chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, imax(ndim_mult_chi, 1), &r);
@@ -424,7 +424,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 			const int ib = edge_to_bond_index(nsites, i_site, i_parent);
 			assert(r_bonds[ib] == NULL);
 			r_bonds[ib] = ct_malloc(sizeof(struct block_sparse_tensor));
-			move_block_sparse_tensor_data(&r, r_bonds[ib]);
+			*r_bonds[ib] = r;  // copy internal data pointers
 		}
 	}
 

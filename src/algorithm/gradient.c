@@ -221,7 +221,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		struct block_sparse_tensor lblock_next;
 		contraction_operator_step_left(&psi->a[l], &chi->a[l], &mpo.a[l], &lblock, &lblock_next);
 		delete_block_sparse_tensor(&lblock);
-		move_block_sparse_tensor_data(&lblock_next, &lblock);
+		lblock = lblock_next;  // copy internal data pointers
 	}
 
 	ct_free(rblocks);

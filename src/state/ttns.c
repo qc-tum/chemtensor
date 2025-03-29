@@ -467,7 +467,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 			const int i_ax = (k < i_site ? n : n + offset_phys_aux);
 			block_sparse_tensor_multiply_axis(&psi_a_bonds, i_ax, r_bonds[ib], TENSOR_AXIS_RANGE_LEADING, &tmp);
 			delete_block_sparse_tensor(&psi_a_bonds);
-			move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+			psi_a_bonds = tmp;  // copy internal data pointers
 		}
 
 		struct block_sparse_tensor chi_a_conj;
@@ -519,11 +519,11 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 
 				transpose_block_sparse_tensor(perm, &psi_a_bonds, &tmp);
 				delete_block_sparse_tensor(&psi_a_bonds);
-				move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+				psi_a_bonds = tmp;  // copy internal data pointers
 
 				transpose_block_sparse_tensor(perm, &chi_a_conj, &tmp);
 				delete_block_sparse_tensor(&chi_a_conj);
-				move_block_sparse_tensor_data(&tmp, &chi_a_conj);
+				chi_a_conj = tmp;  // copy internal data pointers
 
 				ct_free(perm);
 			}
@@ -541,7 +541,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 					struct block_sparse_tensor tmp;
 					block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 					delete_block_sparse_tensor(&psi_a_bonds);
-					move_block_sparse_tensor_data(&tmp, &psi_a_bonds);
+					psi_a_bonds = tmp;  // copy internal data pointers
 				}
 
 				{
@@ -552,7 +552,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 					struct block_sparse_tensor tmp;
 					block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
 					delete_block_sparse_tensor(&chi_a_conj);
-					move_block_sparse_tensor_data(&tmp, &chi_a_conj);
+					chi_a_conj = tmp;  // copy internal data pointers
 				}
 			}
 			assert(psi_a_bonds.ndim > 1);
@@ -697,7 +697,7 @@ static void transpose_ttns_contracted_subtree(const int* perm, struct ttns_contr
 	struct block_sparse_tensor t;
 	transpose_block_sparse_tensor(perm, &subtree->tensor, &t);
 	delete_block_sparse_tensor(&subtree->tensor);
-	move_block_sparse_tensor_data(&t, &subtree->tensor);
+	subtree->tensor = t;  // copy internal data pointers
 
 	// update axis descriptions
 	struct ttns_tensor_axis_desc* new_axis_desc = ct_malloc(subtree->tensor.ndim * sizeof(struct ttns_tensor_axis_desc));
@@ -839,7 +839,7 @@ static void ttns_contract_subtree(const struct ttns* ttns, const int i_site, con
 		memcpy(&new_axis_desc[i_ax_c + child.tensor.ndim - 1], &contracted->axis_desc[i_ax_c + 1], (contracted->tensor.ndim - i_ax_c - 1) * sizeof(struct ttns_tensor_axis_desc));
 
 		delete_block_sparse_tensor(&contracted->tensor);
-		move_block_sparse_tensor_data(&t, &contracted->tensor);
+		contracted->tensor = t;  // copy internal data pointers
 		ct_free(contracted->axis_desc);
 		contracted->axis_desc = new_axis_desc;
 
@@ -922,7 +922,7 @@ void ttns_to_statevector(const struct ttns* ttns, struct block_sparse_tensor* ve
 		struct block_sparse_tensor t;
 		block_sparse_tensor_flatten_axes(&ctensor_flip_aux, 1, TENSOR_AXIS_OUT, &t);
 		delete_block_sparse_tensor(&ctensor_flip_aux);
-		move_block_sparse_tensor_data(&t, &ctensor_flip_aux);
+		ctensor_flip_aux = t;  // copy internal data pointers
 		assert(ctensor_flip_aux.dim_logical[0] == 1);  // auxiliary axis
 	}
 	assert(ctensor_flip_aux.ndim == 2);

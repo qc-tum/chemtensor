@@ -1395,12 +1395,13 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 					dense_tensor_kronecker_product(&op, &children[n].blocks[edge->vids[n]], &t);
 				}
 				delete_dense_tensor(&op);
-				move_dense_tensor_data(&t, &op);
+				op = t;  // copy internal data pointers
 			}
 
 			// accumulate Kronecker product in current block
 			if (j == 0) {
-				move_dense_tensor_data(&op, &contracted->blocks[0]);
+				// copy internal data pointers
+				contracted->blocks[0] = op;
 			}
 			else {
 				dense_tensor_scalar_multiply_add(numeric_one(op.dtype), &op, &contracted->blocks[0]);
@@ -1452,12 +1453,13 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 						dense_tensor_kronecker_product(&op, &children[n].blocks[edge->vids[n]], &t);
 					}
 					delete_dense_tensor(&op);
-					move_dense_tensor_data(&t, &op);
+					op = t;  // copy internal data pointers
 				}
 
 				// accumulate Kronecker product in current block
 				if (j == 0) {
-					move_dense_tensor_data(&op, &contracted->blocks[i]);
+					// copy internal data pointers
+					contracted->blocks[i] = op;
 				}
 				else {
 					dense_tensor_scalar_multiply_add(numeric_one(op.dtype), &op, &contracted->blocks[i]);
@@ -1510,7 +1512,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			struct dense_tensor t;
 			transpose_dense_tensor(perm, &contracted->blocks[i], &t);
 			delete_dense_tensor(&contracted->blocks[i]);
-			move_dense_tensor_data(&t, &contracted->blocks[i]);
+			contracted->blocks[i] = t;  // copy internal data pointers
 
 			reshape_dense_tensor(2, orig_dim, &contracted->blocks[i]);
 		}
@@ -1555,7 +1557,7 @@ void ttno_graph_to_matrix(const struct ttno_graph* graph, const struct dense_ten
 	for (int l = 0; l < contracted.nsites; l++) {
 		assert(contracted.i_sites[l] == l);
 	}
-	move_dense_tensor_data(&contracted.blocks[0], mat);
+	*mat = contracted.blocks[0];  // copy internal data pointers
 	ct_free(contracted.blocks);
 	ct_free(contracted.i_sites);
 }

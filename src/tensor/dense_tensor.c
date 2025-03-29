@@ -68,29 +68,7 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 
 	const long nelem = dense_tensor_num_elements(src);
 
-	////assume_aligned(src->data);
-	////assume_aligned(dst->data);
 	memcpy(dst->data, src->data, nelem * sizeof_numeric_type(src->dtype));
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Move tensor data (without allocating new memory).
-///
-void move_dense_tensor_data(struct dense_tensor* restrict src, struct dense_tensor* restrict dst)
-{
-	dst->dtype = src->dtype;
-
-	dst->ndim = src->ndim;
-
-	// move dimension pointers
-	dst->dim = src->dim;
-	src->dim = NULL;
-
-	// move data pointers
-	dst->data = src->data;
-	src->data = NULL;
 }
 
 
@@ -816,9 +794,6 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       rdata =       (float*)r->data + or;
-				////assume_aligned(tdata);
-				////assume_aligned(rdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -829,9 +804,6 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       rdata =       (double*)r->data + or;
-				////assume_aligned(tdata);
-				////assume_aligned(rdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -842,9 +814,6 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       rdata =       (scomplex*)r->data + or;
-				////assume_aligned(tdata);
-				////assume_aligned(rdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -855,9 +824,6 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       rdata =       (dcomplex*)r->data + or;
-				////assume_aligned(tdata);
-				////assume_aligned(rdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
@@ -3001,9 +2967,6 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       bdata =       (float*)b->data + ob;
-				////assume_aligned(tdata);
-				////assume_aligned(bdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -3014,9 +2977,6 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       bdata =       (double*)b->data + ob;
-				////assume_aligned(tdata);
-				////assume_aligned(bdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -3027,9 +2987,6 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       bdata =       (scomplex*)b->data + ob;
-				////assume_aligned(tdata);
-				////assume_aligned(bdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
@@ -3040,9 +2997,6 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       bdata =       (dcomplex*)b->data + ob;
-				////assume_aligned(tdata);
-				////assume_aligned(bdata);
-				////#pragma ivdep
 				for (long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];

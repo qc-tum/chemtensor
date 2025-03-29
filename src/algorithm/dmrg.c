@@ -191,7 +191,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 			}
 			assert(a_opt.ndim == 3);
 			delete_block_sparse_tensor(&psi->a[i]);
-			move_block_sparse_tensor_data(&a_opt, &psi->a[i]);
+			psi->a[i] = a_opt;  // copy internal data pointers
 
 			// left-orthonormalize current psi->a[i]
 			mps_local_orthonormalize_qr(&psi->a[i], &psi->a[i + 1]);
@@ -211,7 +211,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 			}
 			assert(a_opt.ndim == 3);
 			delete_block_sparse_tensor(&psi->a[i]);
-			move_block_sparse_tensor_data(&a_opt, &psi->a[i]);
+			psi->a[i] = a_opt;  // copy internal data pointers
 
 			// right-orthonormalize current psi->a[i]
 			mps_local_orthonormalize_rq(&psi->a[i], &psi->a[i - 1]);

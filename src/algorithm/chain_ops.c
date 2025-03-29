@@ -283,7 +283,7 @@ void mpo_inner_product(const struct mps* chi, const struct mpo* op, const struct
 		struct block_sparse_tensor r_next;
 		contraction_operator_step_right(&psi->a[i], &chi->a[i], &op->a[i], &r, &r_next);
 		delete_block_sparse_tensor(&r);
-		move_block_sparse_tensor_data(&r_next, &r);
+		r = r_next;  // copy internal data pointers
 	}
 
 	// flatten left virtual bonds

@@ -277,30 +277,6 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Move tensor data (without allocating new memory).
-///
-void move_block_sparse_tensor_data(struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst)
-{
-	dst->blocks        = src->blocks;
-	dst->dim_blocks    = src->dim_blocks;
-	dst->dim_logical   = src->dim_logical;
-	dst->axis_dir      = src->axis_dir;
-	dst->qnums_blocks  = src->qnums_blocks;
-	dst->qnums_logical = src->qnums_logical;
-	dst->dtype         = src->dtype;
-	dst->ndim          = src->ndim;
-
-	src->blocks        = NULL;
-	src->dim_blocks    = NULL;
-	src->dim_logical   = NULL;
-	src->axis_dir      = NULL;
-	src->qnums_blocks  = NULL;
-	src->qnums_logical = NULL;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Retrieve a dense block based on its quantum numbers.
 ///
 struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_tensor* t, const qnumber* qnums)
@@ -2129,7 +2105,7 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 				struct dense_tensor tmp;
 				dense_tensor_pad_zeros(&tlist_blocks[num_tlist_blocks - 1], zero_list, offset, &tmp);
 				delete_dense_tensor(&tlist_blocks[num_tlist_blocks - 1]);
-				move_dense_tensor_data(&tmp, &tlist_blocks[num_tlist_blocks - 1]);
+				tlist_blocks[num_tlist_blocks - 1] = tmp;  // copy internal data pointers
 			}
 		}
 

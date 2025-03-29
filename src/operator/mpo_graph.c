@@ -817,6 +817,6 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 
 	// final single block contains result
 	assert(mpo_graph->num_verts[nsites] == 1);
-	move_dense_tensor_data(&blocks[nsites % 2][0], mat);
+	*mat = blocks[nsites % 2][0];  // copy internal data pointers
 	ct_free(blocks[nsites % 2]);
 }

@@ -30,11 +30,11 @@ Features
 
 Installation
 ------------
-ChemTensor can be conveniently installed as Python package (in a virtual environment) via
+ChemTensor can be conveniently installed as a Python package (in a virtual environment) via
 ```bash
 (venv) $ pip install chemtensor
 ```
-This downloads and installs a pre-built Python "wheel" from PyPI, see [pypi.org/project/chemtensor/](https://pypi.org/project/chemtensor/).
+This downloads and installs a pre-built Python "wheel" from PyPI; see [pypi.org/project/chemtensor/](https://pypi.org/project/chemtensor/).
 
 Alternatively, you can build the project locally; see the instructions below.
 
@@ -43,7 +43,7 @@ Note that ChemTensor can also run as standalone C code.
 
 Building
 --------
-The code requires the BLAS, LAPACKE, HDF5 and Python 3 development libraries with NumPy. These can be installed via 
+The code requires the BLAS, LAPACKE, HDF5, and Python 3 development libraries with NumPy. These can be installed via 
 - `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux)
 - `brew install openblas lapack hdf5 python3 numpy` (on MacOS)
 
@@ -55,7 +55,7 @@ cmake --build .
 ```
 Currently, this will compile the unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
 
-To build the corresponding Python package directly, run
+To build the corresponding Python package directly, ensure that the Python [build](https://pypi.org/project/build/) tool is installed, and run
 ```bash
 python3 -m build . --wheel
 pip3 install dist/chemtensor-...whl

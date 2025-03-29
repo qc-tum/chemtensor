@@ -122,8 +122,7 @@ void op_chain_to_matrix(const struct op_chain* chain, const long d, const int ns
 
 	for (int l = 0; l < chain->length; l++)
 	{
-		struct dense_tensor tmp;
-		move_dense_tensor_data(a, &tmp);
+		struct dense_tensor tmp = *a;  // copy internal data pointers
 		const struct dense_tensor* op = &opmap[chain->oids[l]];
 		assert(op->ndim == 2);
 		assert(op->dim[0] == d && op->dim[1] == d);
@@ -139,8 +138,7 @@ void op_chain_to_matrix(const struct op_chain* chain, const long d, const int ns
 	struct dense_tensor id_trail;
 	allocate_dense_tensor(dtype, 2, dim1, &id_trail);
 	dense_tensor_set_identity(&id_trail);
-	struct dense_tensor tmp;
-	move_dense_tensor_data(a, &tmp);
+	struct dense_tensor tmp = *a;  // copy internal data pointers
 	dense_tensor_kronecker_product(&tmp, &id_trail, a);
 	delete_dense_tensor(&tmp);
 	delete_dense_tensor(&id_trail);

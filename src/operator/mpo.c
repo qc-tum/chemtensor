@@ -163,7 +163,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 			ct_free(qbonds[i]);
 		}
 
-		#ifdef DEBUG
+		#ifndef NDEBUG
 		struct dense_tensor a_loc_conv;
 		block_sparse_to_dense_tensor(&mpo->a[l], &a_loc_conv);
 		if (!dense_tensor_allclose(&a_loc_conv, &a_loc, 0.)) {

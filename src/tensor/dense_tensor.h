@@ -34,8 +34,6 @@ void delete_dense_tensor(struct dense_tensor* t);
 
 void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_tensor* restrict dst);
 
-void move_dense_tensor_data(struct dense_tensor* restrict src, struct dense_tensor* restrict dst);
-
 
 //________________________________________________________________________________________________________________________
 ///

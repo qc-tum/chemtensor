@@ -363,7 +363,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 		struct block_sparse_tensor r_next;
 		mps_contraction_step_right(&psi->a[i], &chi->a[i], &r, &r_next);
 		delete_block_sparse_tensor(&r);
-		move_block_sparse_tensor_data(&r_next, &r);
+		r = r_next;  // copy internal data pointers
 	}
 
 	// flatten left virtual bonds
@@ -371,7 +371,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 		struct block_sparse_tensor r_flat;
 		block_sparse_tensor_flatten_axes(&r, 0, TENSOR_AXIS_OUT, &r_flat);
 		delete_block_sparse_tensor(&r);
-		move_block_sparse_tensor_data(&r_flat, &r);
+		r = r_flat;  // copy internal data pointers
 	}
 
 	// 'r' should now be a 1 x 1 tensor
@@ -565,7 +565,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	struct block_sparse_tensor a_next_update;
 	block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, a_next, TENSOR_AXIS_RANGE_LEADING, 1, &a_next_update);
 	delete_block_sparse_tensor(a_next);
-	move_block_sparse_tensor_data(&a_next_update, a_next);
+	*a_next = a_next_update;  // copy internal data pointers
 	delete_block_sparse_tensor(&r);
 }
 
@@ -612,7 +612,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	struct block_sparse_tensor a_prev_update;
 	block_sparse_tensor_dot(a_prev, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &a_prev_update);
 	delete_block_sparse_tensor(a_prev);
-	move_block_sparse_tensor_data(&a_prev_update, a_prev);
+	*a_prev = a_prev_update;  // copy internal data pointers
 	delete_block_sparse_tensor(&r);
 }
 
@@ -818,7 +818,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 	struct block_sparse_tensor a_next_update;
 	block_sparse_tensor_dot(&m1, TENSOR_AXIS_RANGE_TRAILING, a_next, TENSOR_AXIS_RANGE_LEADING, 1, &a_next_update);
 	delete_block_sparse_tensor(a_next);
-	move_block_sparse_tensor_data(&a_next_update, a_next);
+	*a_next = a_next_update;  // copy internal data pointers
 	delete_block_sparse_tensor(&m1);
 
 	return 0;
@@ -869,7 +869,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 	struct block_sparse_tensor a_prev_update;
 	block_sparse_tensor_dot(a_prev, TENSOR_AXIS_RANGE_TRAILING, &m0, TENSOR_AXIS_RANGE_LEADING, 1, &a_prev_update);
 	delete_block_sparse_tensor(a_prev);
-	move_block_sparse_tensor_data(&a_prev_update, a_prev);
+	*a_prev = a_prev_update;  // copy internal data pointers
 	delete_block_sparse_tensor(&m0);
 
 	return 0;

@@ -980,7 +980,7 @@ char* test_su2_tensor_fuse_axes()
 			delete_dense_tensor(&identity);
 			reshape_dense_tensor(d->ndim, d->dim, &identity_pad);
 			delete_dense_tensor(d);
-			move_dense_tensor_data(&identity_pad, u_fuse.degensors[c]);
+			*u_fuse.degensors[c] = identity_pad;  // copy internal data pointers
 		}
 
 		su2_to_dense_tensor(&u_fuse, &u_fuse_dns);
@@ -1354,7 +1354,7 @@ char* test_su2_tensor_split_axis()
 			delete_dense_tensor(&identity);
 			reshape_dense_tensor(d->ndim, d->dim, &identity_pad);
 			delete_dense_tensor(d);
-			move_dense_tensor_data(&identity_pad, u_split.degensors[c]);
+			*u_split.degensors[c] = identity_pad;  // copy internal data pointers
 		}
 
 		su2_to_dense_tensor(&u_split, &u_split_dns);
@@ -2135,7 +2135,7 @@ char* test_su2_to_dense_tensor()
 		}
 		else
 		{
-			move_dense_tensor_data(&r, &s);
+			s = r;  // copy internal data pointers
 			dense_tensor_multiply_axis(&s, i, &w, TENSOR_AXIS_RANGE_TRAILING, &r);
 			delete_dense_tensor(&s);
 		}
