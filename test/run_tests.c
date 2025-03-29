@@ -57,6 +57,7 @@ char* test_su2_graph_to_fuse_split_tree();
 char* test_su2_graph_yoga_to_simple_subtree();
 char* test_su2_graph_connect();
 char* test_su2_tensor_fmove();
+char* test_su2_tensor_reverse_axis_simple();
 char* test_su2_tensor_fuse_axes();
 char* test_su2_tensor_split_axis();
 char* test_su2_tensor_contract_simple();
@@ -163,6 +164,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_graph_yoga_to_simple_subtree),
 		TEST_FUNCTION_ENTRY(test_su2_graph_connect),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fmove),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_reverse_axis_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fuse_axes),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_split_axis),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),

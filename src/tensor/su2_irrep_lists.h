@@ -41,6 +41,10 @@ struct charge_sectors
 
 void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors);
 
+void copy_charge_sectors(const struct charge_sectors* src, struct charge_sectors* dst);
+
 void delete_charge_sectors(struct charge_sectors* sectors);
 
 long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
+
+bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct charge_sectors* restrict t);

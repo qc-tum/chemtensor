@@ -37,6 +37,8 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 
 void delete_su2_tensor(struct su2_tensor* t);
 
+void copy_su2_tensor(const struct su2_tensor* src, struct su2_tensor* dst);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -96,6 +98,14 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 //________________________________________________________________________________________________________________________
 //
 
+// axis reversal
+
+void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // axis fusion and splitting
 
 void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, struct su2_tensor* restrict r);
@@ -119,3 +129,11 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 // conversion to a dense tensor
 
 void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tensor* restrict t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// comparison
+
+bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_tensor* restrict t, const double tol);

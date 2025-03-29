@@ -1,6 +1,7 @@
 /// \file su2_tensor.c
 /// \brief Data structures and functions for SU(2) symmetric tensors.
 
+#include <math.h>
 #include <assert.h>
 #include "su2_tensor.h"
 #include "su2_recoupling.h"
@@ -106,6 +107,26 @@ void delete_su2_tensor(struct su2_tensor* t)
 	t->outer_irreps = NULL;
 
 	delete_su2_fuse_split_tree(&t->tree);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Copy an SU(2) tensor, allocating memory for the copy.
+///
+void copy_su2_tensor(const struct su2_tensor* src, struct su2_tensor* dst)
+{
+	allocate_empty_su2_tensor(src->dtype, src->ndim_logical, src->ndim_auxiliary, &src->tree, src->outer_irreps, (const long**)src->dim_degen, dst);
+
+	copy_charge_sectors(&src->charge_sectors, &dst->charge_sectors);
+
+	// degeneracy tensors
+	dst->degensors = ct_malloc(dst->charge_sectors.nsec * sizeof(struct dense_tensor*));
+	for (long c = 0; c < dst->charge_sectors.nsec; c++)
+	{
+		dst->degensors[c] = ct_malloc(sizeof(struct dense_tensor));
+		copy_dense_tensor(src->degensors[c], dst->degensors[c]);
+	}
 }
 
 
@@ -365,6 +386,83 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 			// accumulate degeneracy tensor from 't' weighted by 'coeff'
 			dense_tensor_scalar_multiply_add(&alpha, t->degensors[ct], r->degensors[cr]);
 		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Reverse the logical axis (tensor leg) 'i_ax', assuming that the SU(2) tensor is still described by a
+/// fusion-splitting tree after the reversal and that no auxiliary axis needs to be introduced.
+///
+void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax)
+{
+	// must be an outer axis
+	assert(0 <= i_ax && i_ax < t->ndim_logical + t->ndim_auxiliary);
+
+	const bool in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax);
+	assert(in_fuse_tree != su2_tree_contains_leaf(t->tree.tree_split, i_ax));
+
+	int i_ax_sibling;
+	const int i_ax_root = t->tree.tree_fuse->i_ax;
+
+	if (in_fuse_tree)
+	{
+		// 'i_ax' cannot be at the tree root, otherwise reversal would require an auxiliary axis
+		assert(t->tree.tree_fuse->i_ax != i_ax);
+		// 'i_ax' must be either a direct left or right child
+		assert((t->tree.tree_fuse->c[0]->i_ax == i_ax) != (t->tree.tree_fuse->c[1]->i_ax == i_ax));
+
+		const int m = (t->tree.tree_fuse->c[0]->i_ax == i_ax ? 0 : 1);
+
+		struct su2_tree_node* node = t->tree.tree_fuse;
+		assert(su2_tree_node_is_leaf(node->c[m]) && (node->c[m]->i_ax == i_ax));
+		i_ax_sibling = node->c[1 - m]->i_ax;
+		// rewire the tree
+		t->tree.tree_fuse = node->c[1 - m];
+		node->c[1 - m] = t->tree.tree_split;
+		node->i_ax = t->tree.tree_fuse->i_ax;
+		t->tree.tree_split = node;
+	}
+	else  // i_ax is in splitting tree
+	{
+		// 'i_ax' cannot be at the tree root, otherwise reversal would require an auxiliary axis
+		assert(t->tree.tree_split->i_ax != i_ax);
+		// 'i_ax' must be either a direct left or right child
+		assert((t->tree.tree_split->c[0]->i_ax == i_ax) != (t->tree.tree_split->c[1]->i_ax == i_ax));
+
+		const int m = (t->tree.tree_split->c[0]->i_ax == i_ax ? 0 : 1);
+
+		struct su2_tree_node* node = t->tree.tree_split;
+		assert(su2_tree_node_is_leaf(node->c[m]) && (node->c[m]->i_ax == i_ax));
+		i_ax_sibling = node->c[1 - m]->i_ax;
+		// rewire the tree
+		t->tree.tree_split = node->c[1 - m];
+		node->c[1 - m] = t->tree.tree_fuse;
+		node->i_ax = t->tree.tree_split->i_ax;
+		t->tree.tree_fuse = node;
+	}
+
+	assert(su2_fuse_split_tree_is_consistent(&t->tree));
+
+	// reversal does not influence enumeration of charge sectors
+
+	// scale degeneracy tensors
+	for (long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
+
+		const double coeff = sqrt(jlist[i_ax] + 1) *
+			(in_fuse_tree ?
+				su2_recoupling_coefficient(jlist[i_ax], jlist[i_ax_sibling], jlist[i_ax_sibling], jlist[i_ax], jlist[i_ax_root], 0) * (1 - 2 * (jlist[i_ax] % 2)) :
+				su2_recoupling_coefficient(jlist[i_ax], jlist[i_ax], jlist[i_ax_sibling], jlist[i_ax_sibling], 0, jlist[i_ax_root]));
+
+		// ensure that 'alpha' is large enough to store any real numeric type
+		double alpha;
+		numeric_from_double(coeff, numeric_real_type(t->degensors[c]->dtype), &alpha);
+
+		rscale_dense_tensor(&alpha, t->degensors[c]);
 	}
 }
 
@@ -1754,4 +1852,67 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 		ct_free(sector_offsets[i]);
 	}
 	ct_free(sector_offsets);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether two SU(2) tensors agree in terms of quantum numbers, internal tree structure and degeneracy tensor entries within tolerance 'tol'.
+///
+bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_tensor* restrict t, const double tol)
+{
+	// compare data types
+	if (s->dtype != t->dtype) {
+		return false;
+	}
+
+	// compare degrees
+	if (s->ndim_logical != t->ndim_logical) {
+		return false;
+	}
+	if (s->ndim_auxiliary != t->ndim_auxiliary) {
+		return false;
+	}
+
+	// compare trees
+	if (!su2_fuse_split_tree_equal(&s->tree, &t->tree)) {
+		return false;
+	}
+
+	// compare irreducible 'j' quantum numbers on outer axes
+	const int ndim_outer = s->ndim_logical + s->ndim_auxiliary;
+	for (int i = 0; i < ndim_outer; i++) {
+		if (!su2_irreducible_list_equal(&s->outer_irreps[i], &t->outer_irreps[i])) {
+			return false;
+		}
+	}
+
+	// compare charge sectors
+	if (!charge_sectors_equal(&s->charge_sectors, &t->charge_sectors)) {
+		return false;
+	}
+
+	// compare degeneracy dimensions
+	for (int i = 0; i < s->ndim_logical; i++)
+	{
+		assert(s->outer_irreps[i].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < s->outer_irreps[i].num; k++) {
+			j_max = qmax(j_max, s->outer_irreps[i].jlist[k]);
+		}
+		for (qnumber j = 0; j <= j_max; j++) {
+			if (s->dim_degen[i][j] != t->dim_degen[i][j]) {
+				return false;
+			}
+		}
+	}
+
+	// compare degeneracy tensors
+	for (long c = 0; c < s->charge_sectors.nsec; c++) {
+		if (!dense_tensor_allclose(s->degensors[c], t->degensors[c], tol)) {
+			return false;
+		}
+	}
+
+	return true;
 }

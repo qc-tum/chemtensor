@@ -74,9 +74,9 @@ def generate_su2_recoupling_tables():
     cfile.write("\n")
     cfile.write("\n")
 
-    num_ja = 5
-    num_jb = 5
-    num_jc = 5
+    num_ja = 6
+    num_jb = 6
+    num_jc = 6
 
     cfile.write("// format: su2_recoupling_ja_jb_jc_js[n][n]\n")
     for ja in range(num_ja):

@@ -95,6 +95,17 @@ void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sect
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Copy a charge sector array.
+///
+void copy_charge_sectors(const struct charge_sectors* src, struct charge_sectors* dst)
+{
+	allocate_charge_sectors(src->nsec, src->ndim, dst);
+	memcpy(dst->jlists, src->jlists, src->nsec * src->ndim * sizeof(qnumber));
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Delete a charge sector array (free memory).
 ///
 void delete_charge_sectors(struct charge_sectors* sectors)
@@ -143,4 +154,28 @@ long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jl
 			lower = i + 1;
 		}
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether two charge sector arrays are logically equal.
+///
+bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct charge_sectors* restrict t)
+{
+	if (s->nsec != t->nsec) {
+		return false;
+	}
+
+	if (s->ndim != t->ndim) {
+		return false;
+	}
+
+	for (long i = 0; i < s->nsec * s->ndim; i++) {
+		if (s->jlists[i] != t->jlists[i]) {
+			return false;
+		}
+	}
+
+	return true;
 }
