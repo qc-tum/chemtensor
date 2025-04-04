@@ -238,6 +238,47 @@ static PyObject* PyMPS_bond_dims(PyMPSObject* self, void* Py_UNUSED(closure))
 }
 
 
+static PyObject* PyMPS_a(PyMPSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
+		return NULL;
+	}
+
+	PyObject* list = PyList_New(self->mps.nsites);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+
+	for (int i = 0; i < self->mps.nsites; i++)
+	{
+		struct dense_tensor ai;
+		block_sparse_to_dense_tensor(&self->mps.a[i], &ai);
+		assert(ai.ndim == 3);
+
+		npy_intp dims[3] = { ai.dim[0], ai.dim[1], ai.dim[2] };
+		PyArrayObject* py_ai = (PyArrayObject*)PyArray_SimpleNew(3, dims, numeric_to_numpy_type(ai.dtype));
+		if (py_ai == NULL) {
+			delete_dense_tensor(&ai);
+			PyErr_SetString(PyExc_RuntimeError, "error creating NumPy array");
+			return NULL;
+		}
+		memcpy(PyArray_DATA(py_ai), ai.data, dense_tensor_num_elements(&ai) * sizeof_numeric_type(ai.dtype));
+
+		delete_dense_tensor(&ai);
+
+		if (PyList_SetItem(list, i, (PyObject*)py_ai) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
 static struct PyGetSetDef PyMPS_getset[] = {
 	{
 		.name    = "d",
@@ -265,6 +306,13 @@ static struct PyGetSetDef PyMPS_getset[] = {
 		.get     = (getter)PyMPS_bond_dims,
 		.set     = NULL,
 		.doc     = "virtual bond dimensions",
+		.closure = NULL,
+	},
+	{
+		.name    = "a",
+		.get     = (getter)PyMPS_a,
+		.set     = NULL,
+		.doc     = "local tensors",
 		.closure = NULL,
 	},
 	{
@@ -754,6 +802,47 @@ static PyObject* PyMPO_bond_dims(PyMPOObject* self, void* Py_UNUSED(closure))
 }
 
 
+static PyObject* PyMPO_a(PyMPOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
+		return NULL;
+	}
+
+	PyObject* list = PyList_New(self->mpo.nsites);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+
+	for (int i = 0; i < self->mpo.nsites; i++)
+	{
+		struct dense_tensor ai;
+		block_sparse_to_dense_tensor(&self->mpo.a[i], &ai);
+		assert(ai.ndim == 4);
+
+		npy_intp dims[4] = { ai.dim[0], ai.dim[1], ai.dim[2], ai.dim[3] };
+		PyArrayObject* py_ai = (PyArrayObject*)PyArray_SimpleNew(4, dims, numeric_to_numpy_type(ai.dtype));
+		if (py_ai == NULL) {
+			delete_dense_tensor(&ai);
+			PyErr_SetString(PyExc_RuntimeError, "error creating NumPy array");
+			return NULL;
+		}
+		memcpy(PyArray_DATA(py_ai), ai.data, dense_tensor_num_elements(&ai) * sizeof_numeric_type(ai.dtype));
+
+		delete_dense_tensor(&ai);
+
+		if (PyList_SetItem(list, i, (PyObject*)py_ai) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
 static PyObject* PyMPO_coeffmap(PyMPOObject* self, void* Py_UNUSED(closure))
 {
 	if (self->assembly.d == 0) {
@@ -904,6 +993,13 @@ static struct PyGetSetDef PyMPO_getset[] = {
 		.get     = (getter)PyMPO_bond_dims,
 		.set     = NULL,
 		.doc     = "virtual bond dimensions",
+		.closure = NULL,
+	},
+	{
+		.name    = "a",
+		.get     = (getter)PyMPO_a,
+		.set     = NULL,
+		.doc     = "local tensors",
 		.closure = NULL,
 	},
 	{
@@ -1207,6 +1303,52 @@ static PyObject* PyTTNO_nsites_branching(PyTTNOObject* self, void* Py_UNUSED(clo
 }
 
 
+static PyObject* PyTTNO_a(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttno.nsites_physical + self->ttno.nsites_branching;
+
+	PyObject* list = PyList_New(nsites);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+
+	for (int i = 0; i < nsites; i++)
+	{
+		struct dense_tensor ai;
+		block_sparse_to_dense_tensor(&self->ttno.a[i], &ai);
+
+		npy_intp* dims = ct_malloc(ai.ndim * sizeof(npy_intp));
+		for (int j = 0; j < ai.ndim; j++) {
+			dims[j] = ai.dim[j];
+		}
+		PyArrayObject* py_ai = (PyArrayObject*)PyArray_SimpleNew(ai.ndim, dims, numeric_to_numpy_type(ai.dtype));
+		ct_free(dims);
+		if (py_ai == NULL) {
+			delete_dense_tensor(&ai);
+			PyErr_SetString(PyExc_RuntimeError, "error creating NumPy array");
+			return NULL;
+		}
+		memcpy(PyArray_DATA(py_ai), ai.data, dense_tensor_num_elements(&ai) * sizeof_numeric_type(ai.dtype));
+
+		delete_dense_tensor(&ai);
+
+		if (PyList_SetItem(list, i, (PyObject*)py_ai) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
 static PyObject* PyTTNO_coeffmap(PyTTNOObject* self, void* Py_UNUSED(closure))
 {
 	if (self->assembly.d == 0) {
@@ -1364,6 +1506,13 @@ static struct PyGetSetDef PyTTNO_getset[] = {
 		.get     = (getter)PyTTNO_nsites_branching,
 		.set     = NULL,
 		.doc     = "number of branching sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "a",
+		.get     = (getter)PyTTNO_a,
+		.set     = NULL,
+		.doc     = "local tensors",
 		.closure = NULL,
 	},
 	{
