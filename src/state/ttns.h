@@ -14,13 +14,13 @@
 ///
 /// Sites are enumerated as physical sites first, then branching sites.
 /// The tensor at site 0 contains an additional (dummy) auxiliary second axis for reaching non-zero quantum number sectors.
+/// The TTNS supports non-uniform local physical dimensions.
+/// The branching sites have a (dummy) physical axis of dimension 1 and quantum number 0.
 ///
 struct ttns
 {
 	struct block_sparse_tensor* a;   //!< tensors associated with sites, with interleaved physical and virtual bond dimensions (ordered by site indices)
 	struct abstract_graph topology;  //!< logical tree topology; nodes correspond to physical and branching sites
-	qnumber* qsite;                  //!< physical quantum numbers at each physical site
-	long d;                          //!< local physical dimension of each physical site
 	int nsites_physical;             //!< number of physical sites
 	int nsites_branching;            //!< number of branching sites
 };
@@ -31,13 +31,20 @@ struct ttns
 
 // allocation and construction
 
-void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const qnumber qnum_sector, const long* dim_bonds, const qnumber** qbonds, struct ttns* ttns);
+void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long* dim_bonds, const qnumber** qbonds, struct ttns* ttns);
 
 void delete_ttns(struct ttns* ttns);
 
-void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
+void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
 
 bool ttns_is_consistent(const struct ttns* ttns);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+
+long ttns_local_dimension(const struct ttns* ttns, const int i_site);
 
 
 //________________________________________________________________________________________________________________________
@@ -48,7 +55,7 @@ static inline qnumber ttns_quantum_number_sector(const struct ttns* ttns)
 {
 	assert(ttns->nsites_physical >= 1);
 	assert(ttns->a[0].ndim >= 2);
-	assert(ttns->a[0].dim_logical[0] == ttns->d && ttns->a[0].dim_logical[1] == 1);
+	assert(ttns->a[0].dim_logical[1] == 1);
 
 	return ttns->a[0].qnums_logical[1][0];
 }

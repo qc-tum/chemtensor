@@ -12,6 +12,7 @@ char* test_ttno_inner_product()
 	// local physical dimension and quantum numbers
 	const long d = 2;
 	const qnumber qsite[2] = { -1, 2 };
+	const qnumber qzero[1] = { 0 };
 
 	// number of physical and branching lattice sites
 	const int nsites_physical  = 7;
@@ -63,8 +64,11 @@ char* test_ttno_inner_product()
 	const qnumber qnum_sector = 2;
 
 	struct ttns chi, psi;
-	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, qsite, qnum_sector, 13, &rng_state, &chi);
-	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, qsite, qnum_sector, 17, &rng_state, &psi);
+	// using uniform local dimensions and quantum numbers in accordance with the TTNO
+	const long d_list[10] = { d, d, d, d, d, d, d, 1, 1, 1, };
+	const qnumber* qsite_list[10] = { qsite, qsite, qsite, qsite, qsite, qsite, qsite, qzero, qzero, qzero, };
+	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, qsite_list, qnum_sector, 13, &rng_state, &chi);
+	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, qsite_list, qnum_sector, 17, &rng_state, &psi);
 
 	if (!ttns_is_consistent(&chi) || !ttns_is_consistent(&psi)) {
 		return "internal TTNS consistency check failed";

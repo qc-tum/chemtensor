@@ -32,12 +32,6 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 	// must be a connected tree
 	assert(abstract_graph_is_connected_tree(&psi->topology));
 
-	// physical quantum numbers must agree
-	assert(chi->d == psi->d);
-	assert( op->d == psi->d);
-	assert(qnumber_all_equal(psi->d, chi->qsite, psi->qsite));
-	assert(qnumber_all_equal(psi->d,  op->qsite, psi->qsite));
-
 	// data types must match
 	assert(chi->a[0].dtype == psi->a[0].dtype);
 	assert( op->a[0].dtype == psi->a[0].dtype);
@@ -76,7 +70,7 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 		const int i_parent = sd[l].i_parent;
 		assert(l > 0 || i_parent == -1);
 
-		const int offset_phys_aux = (i_site < psi->nsites_physical ? (i_site == 0 ? 2 : 1) : 0);
+		const int offset_phys_aux = (i_site == 0 ? 2 : 1);
 
 		// contract the local tensor in 'psi' with the tensors on the bonds towards the children
 		struct block_sparse_tensor psi_a_bonds;
@@ -231,41 +225,13 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 
 		// contract with TTNO tensor
 		// number of to-be contracted axes:
-		// - physical: 1 (if physical axis present)
+		// - physical: 1
 		// - virtual:  #neighbors - (1 if not root else 0)
-		const int ndim_mult_op = (i_site < psi->nsites_physical ? 1 : 0) + psi->topology.num_neighbors[i_site] - (i_parent == -1 ? 0 : 1);
+		const int ndim_mult_op = 1 + psi->topology.num_neighbors[i_site] - (i_parent == -1 ? 0 : 1);
 		assert(op_a.ndim + psi_a_bonds.ndim - 2*ndim_mult_op == ca);
+		assert(ndim_mult_op >= 1);
 		struct block_sparse_tensor op_psi_a_bonds;
-		if (ndim_mult_op == 0)
-		{
-			// special case: single virtual bond axis to parent node and no physical or auxiliary axis
-			// -> add dummy leg for contraction
-
-			{
-				assert(psi_a_bonds.ndim == 1);
-				const qnumber q_zero[1] = { 0 };
-				const long new_dim_logical[2]                    = { 1,               psi_a_bonds.dim_logical[0]   };
-				const enum tensor_axis_direction new_axis_dir[2] = { TENSOR_AXIS_OUT, psi_a_bonds.axis_dir[0]      };
-				const qnumber* new_qnums_logical[2]              = { q_zero,          psi_a_bonds.qnums_logical[0] };
-				struct block_sparse_tensor tmp;
-				block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-				delete_block_sparse_tensor(&psi_a_bonds);
-				psi_a_bonds = tmp;  // copy internal data pointers
-			}
-
-			{
-				assert(op_a.ndim == 1);
-				const qnumber q_zero[1] = { 0 };
-				const long new_dim_logical[2]                    = { op_a.dim_logical[0],   1              };
-				const enum tensor_axis_direction new_axis_dir[2] = { op_a.axis_dir[0],      TENSOR_AXIS_IN };
-				const qnumber* new_qnums_logical[2]              = { op_a.qnums_logical[0], q_zero         };
-				struct block_sparse_tensor tmp;
-				block_sparse_tensor_split_axis(&op_a, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-				delete_block_sparse_tensor(&op_a);
-				op_a = tmp;  // copy internal data pointers
-			}
-		}
-		block_sparse_tensor_dot(&op_a, TENSOR_AXIS_RANGE_TRAILING, &psi_a_bonds, TENSOR_AXIS_RANGE_LEADING, imax(ndim_mult_op, 1), &op_psi_a_bonds);
+		block_sparse_tensor_dot(&op_a, TENSOR_AXIS_RANGE_TRAILING, &psi_a_bonds, TENSOR_AXIS_RANGE_LEADING, ndim_mult_op, &op_psi_a_bonds);
 		delete_block_sparse_tensor(&op_a);
 		delete_block_sparse_tensor(&psi_a_bonds);
 		assert(op_psi_a_bonds.ndim == ca);
@@ -375,36 +341,8 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 
 		struct block_sparse_tensor r;
 		const int ndim_mult_chi = chi_a_conj.ndim - (i_parent == -1 ? 0 : 1);
-		if (ndim_mult_chi == 0)
-		{
-			// special case: single virtual bond axis to parent node and no physical or auxiliary axis
-			// -> add dummy leg for contraction
-
-			{
-				assert(op_psi_a_bonds.ndim == 2);
-				const qnumber q_zero[1] = { 0 };
-				const long new_dim_logical[3]                    = { op_psi_a_bonds.dim_logical[0],   op_psi_a_bonds.dim_logical[1],   1               };
-				const enum tensor_axis_direction new_axis_dir[3] = { op_psi_a_bonds.axis_dir[0],      op_psi_a_bonds.axis_dir[1],      TENSOR_AXIS_OUT };
-				const qnumber* new_qnums_logical[3]              = { op_psi_a_bonds.qnums_logical[0], op_psi_a_bonds.qnums_logical[1], q_zero          };
-				struct block_sparse_tensor tmp;
-				block_sparse_tensor_split_axis(&op_psi_a_bonds, 1, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-				delete_block_sparse_tensor(&op_psi_a_bonds);
-				op_psi_a_bonds = tmp;  // copy internal data pointers
-			}
-
-			{
-				assert(chi_a_conj.ndim == 1);
-				const qnumber q_zero[1] = { 0 };
-				const long new_dim_logical[2]                    = { chi_a_conj.dim_logical[0],   1              };
-				const enum tensor_axis_direction new_axis_dir[2] = { chi_a_conj.axis_dir[0],      TENSOR_AXIS_IN };
-				const qnumber* new_qnums_logical[2]              = { chi_a_conj.qnums_logical[0], q_zero         };
-				struct block_sparse_tensor tmp;
-				block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-				delete_block_sparse_tensor(&chi_a_conj);
-				chi_a_conj = tmp;  // copy internal data pointers
-			}
-		}
-		block_sparse_tensor_dot(&op_psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, &chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, imax(ndim_mult_chi, 1), &r);
+		assert(ndim_mult_chi >= 1);
+		block_sparse_tensor_dot(&op_psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, &chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, ndim_mult_chi/****imax(ndim_mult_chi, 1)****/, &r);
 		delete_block_sparse_tensor(&op_psi_a_bonds);
 		delete_block_sparse_tensor(&chi_a_conj);
 

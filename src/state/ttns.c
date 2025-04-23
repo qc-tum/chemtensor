@@ -10,18 +10,13 @@
 ///
 /// \brief Allocate memory for a tree tensor network state. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
 ///
-void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const qnumber qnum_sector, const long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
+void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
 	const int nsites = topology->num_nodes;
 	ttns->nsites_physical  = nsites_physical;
 	ttns->nsites_branching = nsites - nsites_physical;
-
-	assert(d >= 1);
-	ttns->d = d;
-	ttns->qsite = ct_malloc(d * sizeof(qnumber));
-	memcpy(ttns->qsite, qsite, d * sizeof(qnumber));
 
 	// tree topology
 	copy_abstract_graph(topology, &ttns->topology);
@@ -30,7 +25,16 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 	ttns->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys_aux = (l < ttns->nsites_physical ? (l == 0 ? 2 : 1) : 0);
+		assert(d[l] >= 1);
+
+		if (l >= ttns->nsites_physical)
+		{
+			// local dimension for branching sites must be 1 (dummy physical dimension)
+			assert(d[l] == 1);
+			assert(qsite[l][0] == 0);
+		}
+
+		const int offset_phys_aux = (l == 0 ? 2 : 1);
 		const int ndim = ttns->topology.num_neighbors[l] + offset_phys_aux;
 
 		long* dim = ct_calloc(ndim, sizeof(long));
@@ -66,23 +70,24 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 		if (l == 0)
 		{
 			assert(dim[0] == 0 && dim[1] == 0);
-			dim[0] = d;  // physical
-			dim[1] = 1;  // auxiliary
-			qnums[0] = qsite;
+			dim[0] = d[l];  // physical
+			dim[1] = 1;     // auxiliary
+			qnums[0] = qsite[l];
 			qnums[1] = qnum_aux;
 			axis_dir[0] = TENSOR_AXIS_OUT;
 			axis_dir[1] = TENSOR_AXIS_IN;
 		}
-		else if (l < ttns->nsites_physical)
+		else
 		{
 			#ifndef NDEBUG
 			bool site_info_set = false;
 			#endif
 			for (int i = 0; i < ndim; i++)
 			{
-				if (dim[i] == 0) {
-					dim[i]      = d;
-					qnums[i]    = qsite;
+				if (dim[i] == 0)
+				{
+					dim[i]      = d[l];
+					qnums[i]    = qsite[l];
 					axis_dir[i] = TENSOR_AXIS_OUT;
 					#ifndef NDEBUG
 					site_info_set = true;
@@ -122,10 +127,6 @@ void delete_ttns(struct ttns* ttns)
 
 	ttns->nsites_physical  = 0;
 	ttns->nsites_branching = 0;
-
-	ct_free(ttns->qsite);
-	ttns->qsite = NULL;
-	ttns->d = 0;
 }
 
 
@@ -144,12 +145,11 @@ static inline int edge_to_bond_index(const int nsites, const int i, const int j)
 ///
 /// \brief Construct a tree tensor network state with random normal tensor entries, given a maximum virtual bond dimension.
 ///
-void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
+void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
 	const int nsites = topology->num_nodes;
-	assert(d >= 1);
 
 	// select site with maximum number of neighbors as root
 	int i_root = 0;
@@ -174,17 +174,23 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 		const int i_site   = sd[l].i_node;
 		const int i_parent = sd[l].i_parent;
 
-		// enumerate all combinations of bond quantum numbers to more distant nodes and local physical quantum numbers
-		long dim_full = (i_site < nsites_physical ? d : 1);
-		qnumber* qnums_full = ct_calloc(dim_full, sizeof(qnumber));
-		if (i_site < nsites_physical)
+		assert(d[i_site] >= 1);
+
+		if (i_site >= nsites_physical)
 		{
-			memcpy(qnums_full, qsite, d * sizeof(qnumber));
-			// auxiliary axis of site 0 contains overall quantum number sector
-			if (i_site == 0) {
-				for (long i = 0; i < d; i++) {
-					qnums_full[i] -= qnum_sector;
-				}
+			// local dimension for branching sites must be 1 (dummy physical dimension)
+			assert(d[i_site] == 1);
+			assert(qsite[i_site][0] == 0);
+		}
+
+		// enumerate all combinations of bond quantum numbers to more distant nodes and local physical quantum numbers
+		long dim_full = d[i_site];
+		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
+		memcpy(qnums_full, qsite[i_site], d[i_site] * sizeof(qnumber));
+		// auxiliary axis of site 0 contains overall quantum number sector
+		if (i_site == 0) {
+			for (long i = 0; i < d[0]; i++) {
+				qnums_full[i] -= qnum_sector;
 			}
 		}
 		for (int n = 0; n < topology->num_neighbors[i_site]; n++)
@@ -278,10 +284,6 @@ bool ttns_is_consistent(const struct ttns* ttns)
 	// overall number of sites
 	const int nsites = ttns->nsites_physical + ttns->nsites_branching;
 
-	if (ttns->d <= 0) {
-		return false;
-	}
-
 	// topology
 	if (ttns->topology.num_nodes != nsites) {
 		return false;
@@ -303,7 +305,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys_aux = (l < ttns->nsites_physical ? (l == 0 ? 2 : 1) : 0);
+		const int offset_phys_aux = (l == 0 ? 2 : 1);
 
 		if (ttns->a[l].ndim != ttns->topology.num_neighbors[l] + offset_phys_aux) {
 			return false;
@@ -314,10 +316,17 @@ bool ttns_is_consistent(const struct ttns* ttns)
 		{
 			if (axis_desc[l][i].type == TTNS_TENSOR_AXIS_PHYSICAL)
 			{
-				if (ttns->a[l].dim_logical[i] != ttns->d) {
-					return false;
+				// expecting dummy physical axis for a branching tensor
+				if (l >= ttns->nsites_physical)
+				{
+					if (ttns->a[l].dim_logical[i] != 1) {
+						return false;
+					}
+					if (ttns->a[l].qnums_logical[i][0] != 0) {
+						return false;
+					}
 				}
-				if (!qnumber_all_equal(ttns->d, ttns->a[l].qnums_logical[i], ttns->qsite)) {
+				if (ttns->a[l].dim_logical[i] != ttns_local_dimension(ttns, l)) {
 					return false;
 				}
 				if (ttns->a[l].axis_dir[i] != TENSOR_AXIS_OUT) {
@@ -397,6 +406,34 @@ bool ttns_is_consistent(const struct ttns* ttns)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Get the local physical dimension at 'i_site'.
+///
+long ttns_local_dimension(const struct ttns* ttns, const int i_site)
+{
+	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
+
+	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + offset_phys_aux);
+
+	// count virtual bonds preceeding physical axis
+	int n = 0;
+	for (; n < ttns->topology.num_neighbors[i_site]; n++)
+	{
+		if (n > 0) {
+			assert(ttns->topology.neighbor_map[i_site][n - 1] < ttns->topology.neighbor_map[i_site][n]);
+		}
+		int k = ttns->topology.neighbor_map[i_site][n];
+		assert(k != i_site);
+		if (k > i_site) {
+			break;
+		}
+	}
+
+	return ttns->a[i_site].dim_logical[n];
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the dot (scalar) product `<chi | psi>` of two TTNS, complex conjugating `chi`.
 ///
 void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
@@ -405,10 +442,6 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 	assert(psi->nsites_physical == chi->nsites_physical);
 	assert(psi->nsites_physical >= 1);
 	assert(abstract_graph_equal(&chi->topology, &psi->topology));
-
-	// physical quantum numbers must agree
-	assert(chi->d == psi->d);
-	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite));
 
 	// data types must match
 	assert(chi->a[0].dtype == psi->a[0].dtype);
@@ -446,7 +479,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 		const int i_site   = sd[l].i_node;
 		const int i_parent = sd[l].i_parent;
 
-		const int offset_phys_aux = (i_site < psi->nsites_physical ? (i_site == 0 ? 2 : 1) : 0);
+		const int offset_phys_aux = (i_site == 0 ? 2 : 1);
 
 		// contract the local tensor in 'psi' with the matrices on the bonds towards the children
 		struct block_sparse_tensor psi_a_bonds;
@@ -528,33 +561,6 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 				ct_free(perm);
 			}
 
-			if (psi_a_bonds.ndim == 1)
-			{
-				// special case: single virtual bond axis to parent node and no physical or auxiliary axis
-				// -> add dummy leg for contraction
-
-				{
-					const qnumber q_zero[1] = { 0 };
-					const long new_dim_logical[2]                    = { psi_a_bonds.dim_logical[0],   1               };
-					const enum tensor_axis_direction new_axis_dir[2] = { psi_a_bonds.axis_dir[0],      TENSOR_AXIS_OUT };
-					const qnumber* new_qnums_logical[2]              = { psi_a_bonds.qnums_logical[0], q_zero          };
-					struct block_sparse_tensor tmp;
-					block_sparse_tensor_split_axis(&psi_a_bonds, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-					delete_block_sparse_tensor(&psi_a_bonds);
-					psi_a_bonds = tmp;  // copy internal data pointers
-				}
-
-				{
-					const qnumber q_zero[1] = { 0 };
-					const long new_dim_logical[2]                    = { chi_a_conj.dim_logical[0],   1              };
-					const enum tensor_axis_direction new_axis_dir[2] = { chi_a_conj.axis_dir[0],      TENSOR_AXIS_IN };
-					const qnumber* new_qnums_logical[2]              = { chi_a_conj.qnums_logical[0], q_zero         };
-					struct block_sparse_tensor tmp;
-					block_sparse_tensor_split_axis(&chi_a_conj, 0, new_dim_logical, new_axis_dir, new_qnums_logical, &tmp);
-					delete_block_sparse_tensor(&chi_a_conj);
-					chi_a_conj = tmp;  // copy internal data pointers
-				}
-			}
 			assert(psi_a_bonds.ndim > 1);
 
 			const int ib = edge_to_bond_index(nsites, i_site, i_parent);
@@ -644,7 +650,7 @@ void ttns_tensor_get_axis_desc(const struct ttns* ttns, const int i_site, struct
 	const int nsites = ttns->nsites_physical + ttns->nsites_branching;
 	#endif
 
-	const int offset_phys_aux = (i_site < ttns->nsites_physical ? (i_site == 0 ? 2 : 1) : 0);
+	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
 
 	assert(0 <= i_site && i_site < nsites);
 	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + offset_phys_aux);
@@ -893,7 +899,7 @@ void ttns_to_statevector(const struct ttns* ttns, struct block_sparse_tensor* ve
 	// set parent index to -1 for root node
 	struct ttns_contracted_subtree contracted;
 	ttns_contract_subtree(ttns, i_root, -1, &contracted);
-	assert(contracted.tensor.ndim == ttns->nsites_physical + 1);  // including auxiliary axis
+	assert(contracted.tensor.ndim == nsites + 1);  // including auxiliary axis
 	assert(contracted.axis_desc[0].index == 0 && contracted.axis_desc[0].type == TTNS_TENSOR_AXIS_PHYSICAL);
 	assert(contracted.axis_desc[1].index == 0 && contracted.axis_desc[1].type == TTNS_TENSOR_AXIS_AUXILIARY);
 	for (int l = 1; l < ttns->nsites_physical; l++) {

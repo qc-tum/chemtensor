@@ -51,7 +51,7 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 	ttno->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys = (l < ttno->nsites_physical ? 2 : 0);
+		const int offset_phys = 2;
 		const int ndim = ttno->topology.num_neighbors[l] + offset_phys;
 
 		long* dim = ct_calloc(ndim, sizeof(long));
@@ -82,19 +82,21 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 			}
 		}
 		// physical axes
-		if (l < ttno->nsites_physical)
+		const qnumber qzero[1] = { 0 };
 		{
 			#ifndef NDEBUG
 			bool site_info_set = false;
 			#endif
 			for (int i = 0; i < ndim; i++)
 			{
-				if (dim[i] == 0) {
+				if (dim[i] == 0)
+				{
 					assert(dim[i + 1] == 0);
-					dim[i]     = d;
-					dim[i + 1] = d;
-					qnums[i]     = qsite;
-					qnums[i + 1] = qsite;
+					// use dummy physical axes for branching tensors
+					dim[i]       = (l < ttno->nsites_physical ? d : 1);
+					dim[i + 1]   = dim[i];
+					qnums[i]     = (l < ttno->nsites_physical ? qsite : qzero);
+					qnums[i + 1] = qnums[i];
 					axis_dir[i]     = TENSOR_AXIS_OUT;
 					axis_dir[i + 1] = TENSOR_AXIS_IN;
 					#ifndef NDEBUG
@@ -142,15 +144,15 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 
 	ttno->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
 
+	const int offset_phys = 2;
+
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys = (l < assembly->graph.nsites_physical ? 2 : 0);
-
 		// accumulate entries in a dense tensor first
 		const int ndim_a_loc = assembly->graph.topology.num_neighbors[l] + offset_phys;
 		long* dim_a_loc = ct_malloc(ndim_a_loc * sizeof(long));
 		for (int i = 0; i < ndim_a_loc; i++) {
-			dim_a_loc[i] = d;
+			dim_a_loc[i] = (l < ttno->nsites_physical ? d : 1);
 		}
 		long stride_trail = 1;
 		// overwrite with actual virtual bond dimensions
@@ -274,7 +276,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			}
 		}
 		// physical axes at current site
-		if (l < assembly->graph.nsites_physical)
+		qnumber qzero[1] = { 0 };
 		{
 			#ifndef NDEBUG
 			bool site_info_set = false;
@@ -283,8 +285,8 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			{
 				if (qnums[i] == NULL) {
 					assert(qnums[i + 1] == NULL);
-					qnums[i]     = ttno->qsite;
-					qnums[i + 1] = ttno->qsite;
+					qnums[i]     = (l < assembly->graph.nsites_physical ? assembly->qsite : qzero);
+					qnums[i + 1] = qnums[i];
 					axis_dir[i]     = TENSOR_AXIS_OUT;
 					axis_dir[i + 1] = TENSOR_AXIS_IN;
 					#ifndef NDEBUG
@@ -483,7 +485,7 @@ void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct
 	const int nsites = ttno->nsites_physical + ttno->nsites_branching;
 	#endif
 
-	const int offset_phys = (i_site < ttno->nsites_physical ? 2 : 0);
+	const int offset_phys = 2;
 
 	assert(0 <= i_site && i_site < nsites);
 	assert(ttno->a[i_site].ndim == ttno->topology.num_neighbors[i_site] + offset_phys);
@@ -505,7 +507,6 @@ void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct
 		desc[k < i_site ? i : i + offset_phys].index = k;
 	}
 	// physical axes at current site
-	if (i_site < ttno->nsites_physical)
 	{
 		#ifndef NDEBUG
 		bool site_info_set = false;
@@ -566,23 +567,27 @@ bool ttno_is_consistent(const struct ttno* ttno)
 		ttno_tensor_get_axis_desc(ttno, l, axis_desc[l]);
 	}
 
+	const int offset_phys = 2;
+
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys = (l < ttno->nsites_physical ? 2 : 0);
-
 		if (ttno->a[l].ndim != ttno->topology.num_neighbors[l] + offset_phys) {
 			return false;
 		}
 
-		// quantum numbers for physical legs of individual tensors must agree with 'qsite'
+		const qnumber qzero[1] = { 0 };
+		const long     d_loc = (l < ttno->nsites_physical ? ttno->d : 1);
+		const qnumber* q_loc = (l < ttno->nsites_physical ? ttno->qsite : qzero);
+
+		// quantum numbers for physical legs of individual tensors must agree with 'q_loc'
 		for (int i = 0; i < ttno->a[l].ndim; i++)
 		{
 			if (axis_desc[l][i].type == TTNO_TENSOR_AXIS_PHYS_OUT || axis_desc[l][i].type == TTNO_TENSOR_AXIS_PHYS_IN)
 			{
-				if (ttno->a[l].dim_logical[i] != ttno->d) {
+				if (ttno->a[l].dim_logical[i] != d_loc) {
 					return false;
 				}
-				if (!qnumber_all_equal(ttno->d, ttno->a[l].qnums_logical[i], ttno->qsite)) {
+				if (!qnumber_all_equal(d_loc, ttno->a[l].qnums_logical[i], q_loc)) {
 					return false;
 				}
 				if (ttno->a[l].axis_dir[i] != (axis_desc[l][i].type == TTNO_TENSOR_AXIS_PHYS_OUT ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN)) {
@@ -861,8 +866,8 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 	// set parent index to -1 for root node
 	struct ttno_contracted_subtree contracted;
 	ttno_contract_subtree(ttno, i_root, -1, &contracted);
-	assert(contracted.tensor.ndim == 2 * ttno->nsites_physical);
-	for (int l = 0; l < ttno->nsites_physical; l++) {
+	assert(contracted.tensor.ndim == 2 * nsites);
+	for (int l = 0; l < nsites; l++) {
 		// sites must be ordered after subtree contraction
 		assert(contracted.axis_desc[2*l    ].index == l && contracted.axis_desc[2*l    ].type == TTNO_TENSOR_AXIS_PHYS_OUT);
 		assert(contracted.axis_desc[2*l + 1].index == l && contracted.axis_desc[2*l + 1].type == TTNO_TENSOR_AXIS_PHYS_IN);

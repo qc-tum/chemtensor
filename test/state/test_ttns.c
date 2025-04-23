@@ -9,10 +9,6 @@
 
 char* test_ttns_vdot()
 {
-	// local physical dimension and quantum numbers
-	const long d = 3;
-	const qnumber qsite[3] = { 1, 2, -1 };
-
 	// number of physical and branching lattice sites
 	const int nsites_physical  = 5;
 	const int nsites_branching = 3;
@@ -55,6 +51,18 @@ char* test_ttns_vdot()
 	};
 	assert(abstract_graph_is_connected_tree(&topology));
 
+	// local physical dimensions and quantum numbers
+	const long d[8] = { 3, 1, 7, 2, 4, 1, 1, 1 };
+	const qnumber qsite0[3] = { 1, 2, -1 };
+	const qnumber qsite1[1] = { -3 };
+	const qnumber qsite2[7] = { 2, 1, 4, 0, 3, 1, 0 };
+	const qnumber qsite3[2] = { 1, 0 };
+	const qnumber qsite4[4] = { 1, 2, 0, 1 };
+	const qnumber qzero[1]  = { 0 };
+	const qnumber* qsite[8] = {
+		qsite0, qsite1, qsite2, qsite3, qsite4, qzero, qzero, qzero,
+	};
+	
 	struct rng_state rng_state;
 	seed_rng_state(45, &rng_state);
 
