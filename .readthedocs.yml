@@ -10,7 +10,7 @@ build:
     python: "3.12"
   apt_packages:
     - libblas-dev
-    - liblapacke-dev
+    - liblapack-dev
     - libhdf5-dev
 
 # Python requirements to build the docs

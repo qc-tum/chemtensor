@@ -1,4 +1,4 @@
-#include <lapacke.h>
+#include <lapack.h>
 #include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -110,10 +110,27 @@ int main()
 
 	// reference eigenvalues (based on exact diagonalization of matrix representation)
 	double* w_ref = ct_malloc(hmat.dim[1] * sizeof(double));
-	int info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'N', 'U', hmat.dim[1], hmat.data, hmat.dim[2], w_ref);
-	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
-		return info;
+	{
+		lapack_int info;
+		// query workspace size
+		lapack_int lwork = -1;
+		double work_size;
+		const lapack_int nlp = hmat.dim[1];
+		// "L" corresponds to "U" due to column-major order convention of LAPACK
+		LAPACK_dsyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
+		if (info != 0) {
+			fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+			return info;
+		}
+		lwork  = (lapack_int)work_size;
+		double* work = ct_malloc(lwork * sizeof(double));
+		// data entries of 'hmat' are overwritten
+		LAPACK_dsyev("N", "L", &nlp, hmat.data, &nlp, w_ref, work, &lwork, &info);
+		ct_free(work);
+		if (info != 0) {
+			fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+			return info;
+		}
 	}
 	printf("reference ground state energy: %g\n", w_ref[0]);
 

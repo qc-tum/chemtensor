@@ -6,7 +6,7 @@
 #include <memory.h>
 #include <complex.h>
 #include <cblas.h>
-#include <lapacke.h>
+#include <lapack.h>
 #include "dense_tensor.h"
 #include "aligned_memory.h"
 
@@ -2016,66 +2016,86 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			float* tau = ct_malloc(k * sizeof(float));
 
-			if (m >= n)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(float));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			float* t = ct_malloc(m*n * sizeof(float));
+			const float* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_sgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute QR factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_sgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				float* qdata = q->data;
-				float* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*n + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*n + j] = qdata[l*k + j];
-					}
-				}
-			}
-			else  // m < n
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(float));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_sgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				// data entries of 't' are overwritten
+				LAPACK_sgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			float* rdata = r->data;
+			for (long i = 0; i < k; i++)
+			{
+				for (long j = 0; j < i; j++) {
+					rdata[i*n + j] = 0;
+				}
+				for (long j = i; j < n; j++) {
+					// column-major order for 't'
+					rdata[i*n + j] = t[i + m*j];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int klp = k;
+				LAPACK_sorgqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				// data entries of 't' are overwritten
+				LAPACK_sorgqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				float* qdata = q->data;
-				float* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*k + j] = rdata[l*n + j];
-						rdata[l*n + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*k + j] = 0;
+				for (long i = 0; i < m; i++) {
+					for (long j = 0; j < k; j++) {
+						// column-major order for 't'
+						qdata[i*k + j] = t[i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_sorgqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'sorgqr()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2084,66 +2104,86 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			double* tau = ct_malloc(k * sizeof(double));
 
-			if (m >= n)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(double));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			double* t = ct_malloc(m*n * sizeof(double));
+			const double* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_dgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute QR factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_dgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				double* qdata = q->data;
-				double* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*n + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*n + j] = qdata[l*k + j];
-					}
-				}
-			}
-			else  // m < n
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(double));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_dgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				// data entries of 't' are overwritten
+				LAPACK_dgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			double* rdata = r->data;
+			for (long i = 0; i < k; i++)
+			{
+				for (long j = 0; j < i; j++) {
+					rdata[i*n + j] = 0;
+				}
+				for (long j = i; j < n; j++) {
+					// column-major order for 't'
+					rdata[i*n + j] = t[i + m*j];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int klp = k;
+				LAPACK_dorgqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				// data entries of 't' are overwritten
+				LAPACK_dorgqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				double* qdata = q->data;
-				double* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*k + j] = rdata[l*n + j];
-						rdata[l*n + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*k + j] = 0;
+				for (long i = 0; i < m; i++) {
+					for (long j = 0; j < k; j++) {
+						// column-major order for 't'
+						qdata[i*k + j] = t[i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_dorgqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dorgqr()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2152,66 +2192,86 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
-			if (m >= n)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(scomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			scomplex* t = ct_malloc(m*n * sizeof(scomplex));
+			const scomplex* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_cgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute QR factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_cgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				scomplex* qdata = q->data;
-				scomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*n + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*n + j] = qdata[l*k + j];
-					}
-				}
-			}
-			else  // m < n
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(scomplex));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_cgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				// data entries of 't' are overwritten
+				LAPACK_cgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			scomplex* rdata = r->data;
+			for (long i = 0; i < k; i++)
+			{
+				for (long j = 0; j < i; j++) {
+					rdata[i*n + j] = 0;
+				}
+				for (long j = i; j < n; j++) {
+					// column-major order for 't'
+					rdata[i*n + j] = t[i + m*j];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int klp = k;
+				LAPACK_cungqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				// data entries of 't' are overwritten
+				LAPACK_cungqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				scomplex* qdata = q->data;
-				scomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*k + j] = rdata[l*n + j];
-						rdata[l*n + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*k + j] = 0;
+				for (long i = 0; i < m; i++) {
+					for (long j = 0; j < k; j++) {
+						// column-major order for 't'
+						qdata[i*k + j] = t[i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_cungqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cungqr()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2220,66 +2280,86 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
-			if (m >= n)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(dcomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			dcomplex* t = ct_malloc(m*n * sizeof(dcomplex));
+			const dcomplex* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_zgeqrf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute QR factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_zgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				dcomplex* qdata = q->data;
-				dcomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*n + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*n + j] = qdata[l*k + j];
-					}
-				}
-			}
-			else  // m < n
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(dcomplex));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_zgeqrf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				// data entries of 't' are overwritten
+				LAPACK_zgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgeqrf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			dcomplex* rdata = r->data;
+			for (long i = 0; i < k; i++)
+			{
+				for (long j = 0; j < i; j++) {
+					rdata[i*n + j] = 0;
+				}
+				for (long j = i; j < n; j++) {
+					// column-major order for 't'
+					rdata[i*n + j] = t[i + m*j];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int klp = k;
+				LAPACK_zungqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				// data entries of 't' are overwritten
+				LAPACK_zungqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				dcomplex* qdata = q->data;
-				dcomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*k + j] = rdata[l*n + j];
-						rdata[l*n + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*k + j] = 0;
+				for (long i = 0; i < m; i++) {
+					for (long j = 0; j < k; j++) {
+						// column-major order for 't'
+						qdata[i*k + j] = t[i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_zungqr(LAPACK_ROW_MAJOR, m, k, k, q->data, k, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zungqr()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2348,66 +2428,91 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			float* tau = ct_malloc(k * sizeof(float));
 
-			if (n >= m)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(float));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			float* t = ct_malloc(m*n * sizeof(float));
+			const float* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_sgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute RQ factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_sgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				float* qdata = q->data;
-				float* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*k + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*k + j] = qdata[l*n + (n - k + j)];
-					}
-				}
-			}
-			else  // n < m
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(float));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_sgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				// data entries of 't' are overwritten
+				LAPACK_sgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			float* rdata = r->data;
+			const long rshift_row = lmax(m - n, 0);
+			const long rshift_col = lmax(n - m, 0);
+			for (long i = 0; i < m; i++)
+			{
+				const long numzero = lmax(i - rshift_row, 0);
+				for (long j = 0; j < numzero; j++) {
+					rdata[i*k + j] = 0;
+				}
+				for (long j = numzero; j < k; j++) {
+					// column-major order for 't'
+					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_sorgrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				const long qshift = lmax(m - n, 0);
+				// data entries of 't' are overwritten
+				LAPACK_sorgrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				float* qdata = q->data;
-				float* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*n + j] = rdata[(m - k + l)*k + j];
-						rdata[(m - k + l)*k + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*n + j] = 0;
+				for (long i = 0; i < k; i++) {
+					for (long j = 0; j < n; j++) {
+						// column-major order for 't'
+						qdata[i*n + j] = t[qshift + i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_sorgrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'sorgrq()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2416,66 +2521,91 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			double* tau = ct_malloc(k * sizeof(double));
 
-			if (n >= m)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(double));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			double* t = ct_malloc(m*n * sizeof(double));
+			const double* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_dgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute RQ factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_dgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				double* qdata = q->data;
-				double* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*k + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*k + j] = qdata[l*n + (n - k + j)];
-					}
-				}
-			}
-			else  // n < m
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(double));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_dgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				// data entries of 't' are overwritten
+				LAPACK_dgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			double* rdata = r->data;
+			const long rshift_row = lmax(m - n, 0);
+			const long rshift_col = lmax(n - m, 0);
+			for (long i = 0; i < m; i++)
+			{
+				const long numzero = lmax(i - rshift_row, 0);
+				for (long j = 0; j < numzero; j++) {
+					rdata[i*k + j] = 0;
+				}
+				for (long j = numzero; j < k; j++) {
+					// column-major order for 't'
+					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_dorgrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				const long qshift = lmax(m - n, 0);
+				// data entries of 't' are overwritten
+				LAPACK_dorgrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				double* qdata = q->data;
-				double* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*n + j] = rdata[(m - k + l)*k + j];
-						rdata[(m - k + l)*k + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*n + j] = 0;
+				for (long i = 0; i < k; i++) {
+					for (long j = 0; j < n; j++) {
+						// column-major order for 't'
+						qdata[i*n + j] = t[qshift + i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_dorgrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dorgrq()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2484,66 +2614,91 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
-			if (n >= m)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(scomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			scomplex* t = ct_malloc(m*n * sizeof(scomplex));
+			const scomplex* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_cgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute RQ factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_cgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				scomplex* qdata = q->data;
-				scomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*k + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*k + j] = qdata[l*n + (n - k + j)];
-					}
-				}
-			}
-			else  // n < m
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(scomplex));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_cgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				// data entries of 't' are overwritten
+				LAPACK_cgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			scomplex* rdata = r->data;
+			const long rshift_row = lmax(m - n, 0);
+			const long rshift_col = lmax(n - m, 0);
+			for (long i = 0; i < m; i++)
+			{
+				const long numzero = lmax(i - rshift_row, 0);
+				for (long j = 0; j < numzero; j++) {
+					rdata[i*k + j] = 0;
+				}
+				for (long j = numzero; j < k; j++) {
+					// column-major order for 't'
+					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_cungrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				const long qshift = lmax(m - n, 0);
+				// data entries of 't' are overwritten
+				LAPACK_cungrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				scomplex* qdata = q->data;
-				scomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*n + j] = rdata[(m - k + l)*k + j];
-						rdata[(m - k + l)*k + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*n + j] = 0;
+				for (long i = 0; i < k; i++) {
+					for (long j = 0; j < n; j++) {
+						// column-major order for 't'
+						qdata[i*n + j] = t[qshift + i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_cungrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cungrq()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2552,66 +2707,91 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
-			if (n >= m)
-			{
-				// copy 'a' into 'q' (as temporary matrix)
-				memcpy(q->data, a->data, m*n * sizeof(dcomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			dcomplex* t = ct_malloc(m*n * sizeof(dcomplex));
+			const dcomplex* adata = a->data;
+			for (long i = 0; i < m; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					t[i + m*j] = adata[i*n + j];
+				}
+			}
 
-				// data entries of 'q' are overwritten
-				int info = LAPACKE_zgerqf(LAPACK_ROW_MAJOR, m, n, q->data, n, tau);
+			// compute RQ factorization
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				LAPACK_zgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
-
-				// copy entries in upper triangular part into 'r' matrix
-				dcomplex* qdata = q->data;
-				dcomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						rdata[l*k + j] = 0;
-					}
-					for (long j = l; j < k; j++) {
-						rdata[l*k + j] = qdata[l*n + (n - k + j)];
-					}
-				}
-			}
-			else  // n < m
-			{
-				// copy 'a' into 'r' (as temporary matrix)
-				memcpy(r->data, a->data, m*n * sizeof(dcomplex));
-
-				// data entries of 'r' are overwritten
-				int info = LAPACKE_zgerqf(LAPACK_ROW_MAJOR, m, n, r->data, n, tau);
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				// data entries of 't' are overwritten
+				LAPACK_zgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgerqf()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
+			}
 
-				// transfer entries in first k columns below diagonal to 'q'
+			// copy entries in upper triangular part into 'r' matrix
+			dcomplex* rdata = r->data;
+			const long rshift_row = lmax(m - n, 0);
+			const long rshift_col = lmax(n - m, 0);
+			for (long i = 0; i < m; i++)
+			{
+				const long numzero = lmax(i - rshift_row, 0);
+				for (long j = 0; j < numzero; j++) {
+					rdata[i*k + j] = 0;
+				}
+				for (long j = numzero; j < k; j++) {
+					// column-major order for 't'
+					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+				}
+			}
+
+			// generate the 'q' matrix
+			{
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_zungrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				const long qshift = lmax(m - n, 0);
+				// data entries of 't' are overwritten
+				LAPACK_zungrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
+					return -2;
+				}
+				// copy entries into 'q'
 				dcomplex* qdata = q->data;
-				dcomplex* rdata = r->data;
-				for (long l = 0; l < k; l++)
-				{
-					for (long j = 0; j < l; j++) {
-						qdata[l*n + j] = rdata[(m - k + l)*k + j];
-						rdata[(m - k + l)*k + j] = 0;
-					}
-					// set other entries to zero (to avoid NaN test failures)
-					for (long j = l; j < k; j++) {
-						qdata[l*n + j] = 0;
+				for (long i = 0; i < k; i++) {
+					for (long j = 0; j < n; j++) {
+						// column-major order for 't'
+						qdata[i*n + j] = t[qshift + i + m*j];
 					}
 				}
 			}
 
-			// generate the final 'q' matrix
-			int info = LAPACKE_zungrq(LAPACK_ROW_MAJOR, k, n, k, q->data, n, tau);
-			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zungrq()' failed, return value: %i\n", info);
-				return -2;
-			}
-
+			ct_free(t);
 			ct_free(tau);
 
 			break;
@@ -2673,57 +2853,197 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 	{
 		case CT_SINGLE_REAL:
 		{
-			// copy 'a' into 'u'
-			memcpy(u->data, a->data, n*n * sizeof(float));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			float* t = ct_malloc(n*n * sizeof(float));
+			memcpy(t, a->data, n*n * sizeof(float));
 
-			// data entries of 'u' are overwritten with result
-			int info = LAPACKE_ssyevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork  = -1;
+			lapack_int liwork = -1;
+			float work_size;
+			lapack_int iwork_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_ssyevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyevd()' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
 				return -1;
 			}
+			lwork  = (lapack_int)work_size;
+			liwork = (lapack_int)iwork_size;
+			float* work       = ct_malloc(lwork * sizeof(float));
+			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			// data entries of 't' are overwritten with result
+			LAPACK_ssyevd("V", "L", &nlp, t, &nlp, lambda->data, work, &lwork, iwork, &liwork, &info);
+			ct_free(iwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			// convert from column-major to row-major ordering
+			float* udata = u->data;
+			for (long i = 0; i < n; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					udata[i*n + j] = t[i + n*j];
+				}
+			}
+
+			ct_free(t);
 
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			// copy 'a' into 'u'
-			memcpy(u->data, a->data, n*n * sizeof(double));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			double* t = ct_malloc(n*n * sizeof(double));
+			memcpy(t, a->data, n*n * sizeof(double));
 
-			// data entries of 'u' are overwritten with result
-			int info = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork  = -1;
+			lapack_int liwork = -1;
+			double work_size;
+			lapack_int iwork_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_dsyevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyevd()' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
 				return -1;
 			}
+			lwork  = (lapack_int)work_size;
+			liwork = (lapack_int)iwork_size;
+			double* work      = ct_malloc(lwork * sizeof(double));
+			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			// data entries of 't' are overwritten with result
+			LAPACK_dsyevd("V", "L", &nlp, t, &nlp, lambda->data, work, &lwork, iwork, &liwork, &info);
+			ct_free(iwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			// convert from column-major to row-major ordering
+			double* udata = u->data;
+			for (long i = 0; i < n; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					udata[i*n + j] = t[i + n*j];
+				}
+			}
+
+			ct_free(t);
 
 			break;
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			// copy 'a' into 'u'
-			memcpy(u->data, a->data, n*n * sizeof(scomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			scomplex* t = ct_malloc(n*n * sizeof(scomplex));
+			memcpy(t, a->data, n*n * sizeof(scomplex));
+			for (long i = 0; i < n*n; i++) {
+				t[i] = conjf(t[i]);
+			}
 
-			// data entries of 'u' are overwritten with result
-			int info = LAPACKE_cheevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork  = -1;
+			lapack_int lrwork = -1;
+			lapack_int liwork = -1;
+			scomplex work_size;
+			float rwork_size;
+			lapack_int iwork_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_cheevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheevd()' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
 				return -1;
 			}
+			lwork  = (lapack_int)work_size;
+			lrwork = (lapack_int)rwork_size;
+			liwork = (lapack_int)iwork_size;
+			scomplex* work    = ct_malloc(lwork * sizeof(scomplex));
+			float* rwork      = ct_malloc(lrwork * sizeof(float));
+			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			// data entries of 't' are overwritten with result
+			LAPACK_cheevd("V", "L", &nlp, t, &nlp, lambda->data, work, &lwork, rwork, &lrwork, iwork, &liwork, &info);
+			ct_free(iwork);
+			ct_free(rwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			// convert from column-major to row-major ordering
+			scomplex* udata = u->data;
+			for (long i = 0; i < n; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					udata[i*n + j] = t[i + n*j];
+				}
+			}
+
+			ct_free(t);
 
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			// copy 'a' into 'u'
-			memcpy(u->data, a->data, n*n * sizeof(dcomplex));
+			// copy 'a' into 't' (as temporary matrix using column-major order)
+			dcomplex* t = ct_malloc(n*n * sizeof(dcomplex));
+			memcpy(t, a->data, n*n * sizeof(dcomplex));
+			for (long i = 0; i < n*n; i++) {
+				t[i] = conj(t[i]);
+			}
 
-			// data entries of 'u' are overwritten with result
-			int info = LAPACKE_zheevd(LAPACK_ROW_MAJOR, 'V', 'U', n, u->data, n, lambda->data);
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork  = -1;
+			lapack_int lrwork = -1;
+			lapack_int liwork = -1;
+			dcomplex work_size;
+			double rwork_size;
+			lapack_int iwork_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_zheevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheevd()' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
 				return -1;
 			}
+			lwork  = (lapack_int)work_size;
+			lrwork = (lapack_int)rwork_size;
+			liwork = (lapack_int)iwork_size;
+			dcomplex* work    = ct_malloc(lwork * sizeof(dcomplex));
+			double* rwork     = ct_malloc(lrwork * sizeof(double));
+			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			// data entries of 't' are overwritten with result
+			LAPACK_zheevd("V", "L", &nlp, t, &nlp, lambda->data, work, &lwork, rwork, &lrwork, iwork, &liwork, &info);
+			ct_free(iwork);
+			ct_free(rwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
+				return -1;
+			}
+
+			// convert from column-major to row-major ordering
+			dcomplex* udata = u->data;
+			for (long i = 0; i < n; i++) {
+				for (long j = 0; j < n; j++) {
+					// column-major order for 't'
+					udata[i*n + j] = t[i + n*j];
+				}
+			}
+
+			ct_free(t);
 
 			break;
 		}
@@ -2789,8 +3109,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 	assert(vh->dim[0] == k);
 	assert(vh->dim[1] == n);
 
-	// 'lmax' to avoid invalid memory allocation of zero bytes
-	void* superb = ct_malloc(lmax((k - 1) * sizeof_numeric_type(numeric_real_type(a->dtype)), 1));
+	// flipping u <-> vh to avoid transpositions due to column- vs. row-major convention
 
 	switch (a->dtype)
 	{
@@ -2801,10 +3120,25 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'u'
 				memcpy(u->data, a->data, m*n * sizeof(float));
 
-				// data entries of 'u' are overwritten with result
-				int info = LAPACKE_sgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_sgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				// data entries of 'u' are overwritten with result
+				LAPACK_sgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2813,10 +3147,25 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'vh'
 				memcpy(vh->data, a->data, m*n * sizeof(float));
 
-				// data entries of 'vh' are overwritten with result
-				int info = LAPACKE_sgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				float work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_sgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				float* work = ct_malloc(lwork * sizeof(float));
+				// data entries of 'vh' are overwritten with result
+				LAPACK_sgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2830,10 +3179,25 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'u'
 				memcpy(u->data, a->data, m*n * sizeof(double));
 
-				// data entries of 'u' are overwritten with result
-				int info = LAPACKE_dgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_dgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				// data entries of 'u' are overwritten with result
+				LAPACK_dgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2842,10 +3206,25 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'vh'
 				memcpy(vh->data, a->data, m*n * sizeof(double));
 
-				// data entries of 'vh' are overwritten with result
-				int info = LAPACKE_dgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				double work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_dgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				double* work = ct_malloc(lwork * sizeof(double));
+				// data entries of 'vh' are overwritten with result
+				LAPACK_dgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, &info);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2859,10 +3238,27 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'u'
 				memcpy(u->data, a->data, m*n * sizeof(scomplex));
 
-				// data entries of 'u' are overwritten with result
-				int info = LAPACKE_cgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_cgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				float* rwork   = ct_malloc(5*k * sizeof(float));
+				// data entries of 'u' are overwritten with result
+				LAPACK_cgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, rwork, &info);
+				ct_free(rwork);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2871,10 +3267,27 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'vh'
 				memcpy(vh->data, a->data, m*n * sizeof(scomplex));
 
-				// data entries of 'vh' are overwritten with result
-				int info = LAPACKE_cgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				scomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_cgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+				float* rwork   = ct_malloc(5*k * sizeof(float));
+				// data entries of 'vh' are overwritten with result
+				LAPACK_cgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, rwork, &info);
+				ct_free(rwork);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2888,10 +3301,27 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'u'
 				memcpy(u->data, a->data, m*n * sizeof(dcomplex));
 
-				// data entries of 'u' are overwritten with result
-				int info = LAPACKE_zgesvd(LAPACK_ROW_MAJOR, 'O', 'S', m, n, u->data, k, s->data, NULL, k, vh->data, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_zgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				double* rwork   = ct_malloc(5*k * sizeof(double));
+				// data entries of 'u' are overwritten with result
+				LAPACK_zgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, rwork, &info);
+				ct_free(rwork);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2900,10 +3330,27 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				// copy 'a' into 'vh'
 				memcpy(vh->data, a->data, m*n * sizeof(dcomplex));
 
-				// data entries of 'vh' are overwritten with result
-				int info = LAPACKE_zgesvd(LAPACK_ROW_MAJOR, 'S', 'O', m, n, vh->data, n, s->data, u->data, k, NULL, n, superb);
+				lapack_int info;
+				// query workspace size
+				lapack_int lwork = -1;
+				dcomplex work_size;
+				const lapack_int mlp = m;
+				const lapack_int nlp = n;
+				const lapack_int klp = k;
+				LAPACK_zgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd()' failed, return value: %i\n", info);
+					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					return -1;
+				}
+				lwork = (lapack_int)work_size;
+				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+				double* rwork  = ct_malloc(5*k * sizeof(double));
+				// data entries of 'vh' are overwritten with result
+				LAPACK_zgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, rwork, &info);
+				ct_free(rwork);
+				ct_free(work);
+				if (info != 0) {
+					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2916,8 +3363,6 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 			assert(false);
 		}
 	}
-
-	ct_free(superb);
 
 	return 0;
 }

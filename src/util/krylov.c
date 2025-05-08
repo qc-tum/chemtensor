@@ -3,7 +3,7 @@
 
 #include <complex.h>
 #include <cblas.h>
-#include <lapacke.h>
+#include <lapack.h>
 #include <assert.h>
 #include "krylov.h"
 #include "aligned_memory.h"
@@ -184,9 +184,12 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 
 	// diagonalize Hessenberg matrix
 	double* u = ct_malloc(numiter*numiter * sizeof(double));
-	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
+	double* work = ct_malloc(imax(1, 2*numiter - 2) * sizeof(double));
+	lapack_int info;
+	LAPACK_dsteqr("I", &numiter, alpha, beta, u, &numiter, work, &info);
+	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
+		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 
@@ -194,7 +197,8 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 	memcpy(lambda, alpha, numeig * sizeof(double));
 
 	// compute Ritz eigenvectors
-	cblas_dgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, 1., v, n, u, numiter, 0., u_ritz, numeig);
+	// using transposition of 'u' for implicit column- to row-major order conversion
+	cblas_dgemm(CblasRowMajor, CblasTrans, CblasTrans, n, numeig, numiter, 1., v, n, u, numiter, 0., u_ritz, numeig);
 
 	// clean up
 	ct_free(u);
@@ -229,9 +233,12 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 
 	// diagonalize Hessenberg matrix
 	double* u = ct_malloc(numiter*numiter * sizeof(double));
-	lapack_int info = LAPACKE_dsteqr(LAPACK_ROW_MAJOR, 'I', numiter, alpha, beta, u, numiter);
+	double* work = ct_malloc(imax(1, 2*numiter - 2) * sizeof(double));
+	lapack_int info;
+	LAPACK_dsteqr("I", &numiter, alpha, beta, u, &numiter, work, &info);
+	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsteqr()' failed, return value: %i\n", info);
+		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 
@@ -246,7 +253,8 @@ int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, cons
 	}
 	const dcomplex one  = 1;
 	const dcomplex zero = 0;
-	cblas_zgemm(CblasRowMajor, CblasTrans, CblasNoTrans, n, numeig, numiter, &one, v, n, uz, numiter, &zero, u_ritz, numeig);
+	// using transposition of 'uz' for implicit column- to row-major order conversion
+	cblas_zgemm(CblasRowMajor, CblasTrans, CblasTrans, n, numeig, numiter, &one, v, n, uz, numiter, &zero, u_ritz, numeig);
 
 	// clean up
 	ct_free(uz);
