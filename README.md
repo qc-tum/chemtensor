@@ -43,7 +43,7 @@ Note that ChemTensor can also run as standalone C code.
 
 Building
 --------
-The code requires the BLAS, LAPACKE, HDF5, and Python 3 development libraries with NumPy. These can be installed via 
+The code requires the BLAS, LAPACK, HDF5, and Python 3 development libraries with NumPy. These can be installed via 
 - `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux)
 - `brew install openblas lapack hdf5 python3 numpy` (on MacOS)
 
