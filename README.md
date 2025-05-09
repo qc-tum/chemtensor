@@ -24,6 +24,7 @@ Features
 - Block-sparse tensors based on additive quantum number conservation to implement abelian symmetries
 - Single- and two-site DMRG algorithm
 - Gradient computation with respect to MPO parameters
+- Tensor hypercontraction form of molecular Hamiltonians
 - Tree tensor network topologies (work in progress)
 - Non-abelian symmetries (work in progress)
 
@@ -92,3 +93,6 @@ References
 - J. Ren, W. Li, T. Jiang, Z. Shuai  
   A general automatic method for optimal construction of matrix product operators using bipartite graph theory  
   [J. Chem. Phys. 153, 084118 (2020)](https://doi.org/10.1063/5.0018149) ([arXiv:2006.02056](https://arxiv.org/abs/2006.02056))
+- Yu Wang, Maxine Luo, Matthias Reumann, Christian B. Mendl  
+  Enhanced Krylov methods for molecular Hamiltonians via tensor hypercontraction  
+  ([arXiv:2409.12708](https://arxiv.org/abs/2409.12708))
