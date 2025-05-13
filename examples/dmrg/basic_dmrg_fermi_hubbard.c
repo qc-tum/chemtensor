@@ -1,4 +1,14 @@
+// Fermi-Hubbard model Hamiltonian and DMRG
+//
+// This demonstration uses the C interface
+// to construct the Fermi-Hubbard Hamiltonian as a matrix product operator
+// and to run DMRG.
+
+#ifdef LAPACK_H_AVAILABLE
 #include <lapack.h>
+#else
+#include <lapack_essentials.h>
+#endif
 #include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
