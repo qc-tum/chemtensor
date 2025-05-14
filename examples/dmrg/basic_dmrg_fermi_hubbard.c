@@ -4,7 +4,9 @@
 // to construct the Fermi-Hubbard Hamiltonian as a matrix product operator
 // and to run DMRG.
 
-#ifdef LAPACK_H_AVAILABLE
+#ifdef __APPLE__
+#include "lapack_apple.h"
+#elif defined(LAPACK_H_AVAILABLE)
 #include <lapack.h>
 #else
 #include <lapack_essentials.h>

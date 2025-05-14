@@ -3,7 +3,9 @@
 
 #include <complex.h>
 #include <cblas.h>
-#ifdef LAPACK_H_AVAILABLE
+#ifdef __APPLE__
+#include "lapack_apple.h"
+#elif defined(LAPACK_H_AVAILABLE)
 #include <lapack.h>
 #else
 #include <lapack_essentials.h>
