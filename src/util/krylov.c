@@ -2,13 +2,9 @@
 /// \brief Krylov subspace algorithms.
 
 #include <complex.h>
-#include <cblas.h>
-#ifdef LAPACK_H_AVAILABLE
-#include <lapack.h>
-#else
-#include <lapack_essentials.h>
-#endif
 #include <assert.h>
+#include <cblas.h>
+#include "lapack_ct.h"
 #include "krylov.h"
 #include "aligned_memory.h"
 #include "util.h"

@@ -4,15 +4,11 @@
 // to construct the Fermi-Hubbard Hamiltonian as a matrix product operator
 // and to run DMRG.
 
-#ifdef LAPACK_H_AVAILABLE
-#include <lapack.h>
-#else
-#include <lapack_essentials.h>
-#endif
 #include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include "lapack_ct.h"
 #include "hamiltonian.h"
 #include "dmrg.h"
 #include "aligned_memory.h"

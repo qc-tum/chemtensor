@@ -6,11 +6,7 @@
 #include <memory.h>
 #include <complex.h>
 #include <cblas.h>
-#ifdef LAPACK_H_AVAILABLE
-#include <lapack.h>
-#else
-#include <lapack_essentials.h>
-#endif
+#include "lapack_ct.h"
 #include "dense_tensor.h"
 #include "aligned_memory.h"
 

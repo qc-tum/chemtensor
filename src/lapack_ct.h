@@ -1,6 +1,76 @@
-// Substitute of lapack.h in case this header file is not available (e.g., on some older Linux distributions).
+// LAPACK function declarations on various platforms.
 
 #pragma once
+
+
+#ifdef __APPLE__
+
+#include <Accelerate/Accelerate.h>
+#include <inttypes.h>
+
+#if defined(ACCELERATE_LAPACK_ILP64) || defined(LAPACK_ILP64)
+typedef int64_t lapack_int
+#else
+typedef int32_t lapack_int
+#endif
+
+// The following LAPACK function are currently used by chemtensor.
+
+// QR decomposition
+
+#define LAPACK_sgeqrf sgeqrf_
+#define LAPACK_sorgqr sorgqr_
+#define LAPACK_dgeqrf dgeqrf_
+#define LAPACK_dorgqr dorgqr_
+#define LAPACK_cgeqrf cgeqrf_
+#define LAPACK_cungqr cungqr_
+#define LAPACK_zgeqrf zgeqrf_
+#define LAPACK_zungqr zungqr_
+
+// RQ decomposition
+
+#define LAPACK_sgerqf sgerqf_
+#define LAPACK_sorgrq sorgrq_
+#define LAPACK_dgerqf dgerqf_
+#define LAPACK_dorgrq dorgrq_
+#define LAPACK_cgerqf cgerqf_
+#define LAPACK_cungrq cungrq_
+#define LAPACK_zgerqf zgerqf_
+#define LAPACK_zungrq zungrq_
+
+// eigendecomposition of general symmetric matrices
+
+#define LAPACK_dsyev dsyev_
+
+// eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
+
+#define LAPACK_ssyevd ssyevd_
+#define LAPACK_dsyevd dsyevd_
+#define LAPACK_cheevd cheevd_
+#define LAPACK_zheevd zheevd_
+
+// eigendecomposition of symmetric tridiagonal matrices
+
+#define LAPACK_dsteqr dsteqr_
+
+// singular value decomposition of general matrices
+
+#define LAPACK_sgesvd sgesvd_
+#define LAPACK_dgesvd dgesvd_
+#define LAPACK_cgesvd cgesvd_
+#define LAPACK_zgesvd zgesvd_
+
+
+#elif defined(LAPACK_H_AVAILABLE)
+
+
+#include <lapack.h>
+
+
+#else
+
+
+// Substitute of lapack.h in case this header file is not available (e.g., on some older Linux distributions).
 
 #include <stdlib.h>
 #include <inttypes.h>
@@ -43,7 +113,7 @@ void LAPACK_sgeqrf(
 	float* A, lapack_int const* lda,
 	float* tau,
 	float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_sorgqr LAPACK_GLOBAL(sorgqr,SORGQR)
 void LAPACK_sorgqr(
@@ -51,7 +121,7 @@ void LAPACK_sorgqr(
 	float* A, lapack_int const* lda,
 	float const* tau,
 	float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 #define LAPACK_dgeqrf LAPACK_GLOBAL(dgeqrf,DGEQRF)
@@ -60,7 +130,7 @@ void LAPACK_dgeqrf(
 	double* A, lapack_int const* lda,
 	double* tau,
 	double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_dorgqr LAPACK_GLOBAL(dorgqr,DORGQR)
 void LAPACK_dorgqr(
@@ -68,7 +138,7 @@ void LAPACK_dorgqr(
 	double* A, lapack_int const* lda,
 	double const* tau,
 	double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 #define LAPACK_cgeqrf LAPACK_GLOBAL(cgeqrf,CGEQRF)
@@ -77,7 +147,7 @@ void LAPACK_cgeqrf(
 	lapack_complex_float* A, lapack_int const* lda,
 	lapack_complex_float* tau,
 	lapack_complex_float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_cungqr LAPACK_GLOBAL(cungqr,CUNGQR)
 void LAPACK_cungqr(
@@ -85,7 +155,7 @@ void LAPACK_cungqr(
 	lapack_complex_float* A, lapack_int const* lda,
 	lapack_complex_float const* tau,
 	lapack_complex_float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 	
 #define LAPACK_zgeqrf LAPACK_GLOBAL(zgeqrf,ZGEQRF)
@@ -94,7 +164,7 @@ void LAPACK_zgeqrf(
 	lapack_complex_double* A, lapack_int const* lda,
 	lapack_complex_double* tau,
 	lapack_complex_double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_zungqr LAPACK_GLOBAL(zungqr,ZUNGQR)
 void LAPACK_zungqr(
@@ -102,7 +172,7 @@ void LAPACK_zungqr(
 	lapack_complex_double* A, lapack_int const* lda,
 	lapack_complex_double const* tau,
 	lapack_complex_double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 // RQ decomposition
@@ -113,7 +183,7 @@ void LAPACK_sgerqf(
 	float* A, lapack_int const* lda,
 	float* tau,
 	float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_sorgrq LAPACK_GLOBAL(sorgrq,SORGRQ)
 void LAPACK_sorgrq(
@@ -121,7 +191,7 @@ void LAPACK_sorgrq(
 	float* A, lapack_int const* lda,
 	float const* tau,
 	float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 #define LAPACK_dgerqf LAPACK_GLOBAL(dgerqf,DGERQF)
@@ -130,7 +200,7 @@ void LAPACK_dgerqf(
 	double* A, lapack_int const* lda,
 	double* tau,
 	double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_dorgrq LAPACK_GLOBAL(dorgrq,DORGRQ)
 void LAPACK_dorgrq(
@@ -138,7 +208,7 @@ void LAPACK_dorgrq(
 	double* A, lapack_int const* lda,
 	double const* tau,
 	double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 #define LAPACK_cgerqf LAPACK_GLOBAL(cgerqf,CGERQF)
@@ -147,7 +217,7 @@ void LAPACK_cgerqf(
 	lapack_complex_float* A, lapack_int const* lda,
 	lapack_complex_float* tau,
 	lapack_complex_float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_cungrq LAPACK_GLOBAL(cungrq,CUNGRQ)
 void LAPACK_cungrq(
@@ -155,7 +225,7 @@ void LAPACK_cungrq(
 	lapack_complex_float* A, lapack_int const* lda,
 	lapack_complex_float const* tau,
 	lapack_complex_float* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 #define LAPACK_zgerqf LAPACK_GLOBAL(zgerqf,ZGERQF)
@@ -164,7 +234,7 @@ void LAPACK_zgerqf(
 	lapack_complex_double* A, lapack_int const* lda,
 	lapack_complex_double* tau,
 	lapack_complex_double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 #define LAPACK_zungrq LAPACK_GLOBAL(zungrq,ZUNGRQ)
 void LAPACK_zungrq(
@@ -172,7 +242,7 @@ void LAPACK_zungrq(
 	lapack_complex_double* A, lapack_int const* lda,
 	lapack_complex_double const* tau,
 	lapack_complex_double* work, lapack_int const* lwork,
-	lapack_int* info );
+	lapack_int* info);
 
 
 // eigendecomposition of general symmetric matrices
@@ -387,4 +457,7 @@ void LAPACK_zgesvd_base(
 	#define LAPACK_zgesvd(...) LAPACK_zgesvd_base(__VA_ARGS__, 1, 1)
 #else
 	#define LAPACK_zgesvd(...) LAPACK_zgesvd_base(__VA_ARGS__)
+#endif
+
+
 #endif
