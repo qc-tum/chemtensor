@@ -33,9 +33,20 @@ if(OpenMP_C_FOUND)
     target_link_libraries( chemtensor_test PRIVATE OpenMP::OpenMP_C)
 endif()
 
+if (NOT Python3_LIBRARY)
+    find_library(PYTHON3_LIBRARY
+        NAMES python3.12
+        PATHS /Library/Frameworks/Python.framework/Versions/3.12/lib
+        REQUIRED
+    )
+    set(Python3_LIBRARY ${PYTHON3_LIBRARY})
+    message(STATUS "Using Python3_LIBRARY: ${Python3_LIBRARY}")
+endif()
+
 add_library(               chemtensor_pymodule SHARED ${CHEMTENSOR_SOURCES} "python/pymodule.c")
 target_include_directories(chemtensor_pymodule PRIVATE ${CHEMTENSOR_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACK_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS} ${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
-target_link_libraries(     chemtensor_pymodule PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${HDF5_LIBRARIES} ${Python3_LIBRARIES})
+target_link_libraries(     chemtensor_pymodule PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${HDF5_LIBRARIES} ${Python3_LIBRARIES} ${Python3_LIBRARY})
+
 if(OpenMP_C_FOUND)
     target_link_libraries( chemtensor_pymodule PRIVATE OpenMP::OpenMP_C)
 endif()
