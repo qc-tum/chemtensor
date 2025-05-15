@@ -8,12 +8,7 @@
 
 #ifdef __APPLE__
 
-#include <inttypes.h>
-#if defined(ACCELERATE_LAPACK_ILP64) || defined(LAPACK_ILP64)
-typedef int64_t lapack_int;
-#else
-typedef int32_t lapack_int;
-#endif
+#define lapack_int __LAPACK_int
 
 // The following LAPACK function are currently used by chemtensor.
 
@@ -61,7 +56,7 @@ typedef int32_t lapack_int;
 #define LAPACK_cgesvd cgesvd_
 #define LAPACK_zgesvd zgesvd_
 
-#endif
+#endif  // __APPLE__
 
 #include <lapack.h>
 
