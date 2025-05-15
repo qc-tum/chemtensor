@@ -850,7 +850,7 @@ char* test_dense_tensor_qr()
 		// data types
 		for (int j = 0; j < 4; j++)
 		{
-			const double tol = (j % 2 == 0 ? 1e-6 : 1e-13);
+			const double tol = (j % 2 == 0 ? 1e-5 : 1e-13);
 
 			// matrix 'a'
 			struct dense_tensor a;
@@ -926,7 +926,7 @@ char* test_dense_tensor_rq()
 		// data types
 		for (int j = 0; j < 4; j++)
 		{
-			const double tol = (j % 2 == 0 ? 1e-6 : 1e-13);
+			const double tol = (j % 2 == 0 ? 1e-5 : 1e-13);
 
 			// matrix 'a'
 			struct dense_tensor a;

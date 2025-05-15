@@ -15,8 +15,6 @@ typedef int64_t lapack_int;
 typedef int32_t lapack_int;
 #endif
 
-#define ACCELERATE_NEW_LAPACK
-
 // The following LAPACK function are currently used by chemtensor.
 
 // QR decomposition
