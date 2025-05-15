@@ -46,7 +46,7 @@ Building
 --------
 The code requires the BLAS, LAPACK, HDF5, and Python 3 development libraries with NumPy. These can be installed via 
 - `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux)
-- `brew install openblas lapack hdf5 python3 numpy` (on MacOS)
+- `brew install hdf5 python3 numpy` (on arm64 macOS together with the Accelerate framework)
 
 From the project directory, use `cmake` to build the project:
 ```bash

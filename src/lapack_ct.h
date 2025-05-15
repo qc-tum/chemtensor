@@ -3,16 +3,19 @@
 #pragma once
 
 
+#ifdef LAPACK_H_AVAILABLE
+
+
 #ifdef __APPLE__
 
-#include <Accelerate/Accelerate.h>
 #include <inttypes.h>
-
 #if defined(ACCELERATE_LAPACK_ILP64) || defined(LAPACK_ILP64)
-typedef int64_t lapack_int
+typedef int64_t lapack_int;
 #else
-typedef int32_t lapack_int
+typedef int32_t lapack_int;
 #endif
+
+#define ACCELERATE_NEW_LAPACK
 
 // The following LAPACK function are currently used by chemtensor.
 
@@ -60,14 +63,12 @@ typedef int32_t lapack_int
 #define LAPACK_cgesvd cgesvd_
 #define LAPACK_zgesvd zgesvd_
 
-
-#elif defined(LAPACK_H_AVAILABLE)
-
+#endif
 
 #include <lapack.h>
 
 
-#else
+#else  // LAPACK_H_AVAILABLE not defined
 
 
 // Substitute of lapack.h in case this header file is not available (e.g., on some older Linux distributions).
