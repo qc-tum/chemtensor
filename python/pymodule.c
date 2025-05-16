@@ -2222,7 +2222,7 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	for (int i = 0; i < nchains; i++)
 	{
 		PyObject* item = PySequence_GetItem(py_obj_chains, i);
-		if (!Py_IS_TYPE(item, &PyOpChainType)) {
+		if (Py_TYPE(item) != &PyOpChainType) {
 			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'chains' as OpChain");
 			Py_DECREF(item);
 			return NULL;
@@ -2508,7 +2508,7 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	for (int i = 0; i < nchains; i++)
 	{
 		PyObject* item = PySequence_GetItem(py_obj_chains, i);
-		if (!Py_IS_TYPE(item, &PyOpChainType)) {
+		if (Py_TYPE(item) != &PyOpChainType) {
 			PyErr_SetString(PyExc_ValueError, "cannot interpret entry in 'chains' as OpChain");
 			Py_DECREF(item);
 			return NULL;
