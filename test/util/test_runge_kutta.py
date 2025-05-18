@@ -4,17 +4,6 @@ import h5py
 import pytenet as ptn
 
 
-def enforce_sparsity(tensor, qnums, axis_dir):
-    """
-    Enforce sparsity pattern on `tensor` based on quantum numbers.
-    """
-    it = np.nditer(tensor, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(tensor.ndim))
-        if qsum != 0:
-            x[...] = 0
-
-
 def runge_kutta_4_block_sparse_data():
 
     # random number generator
@@ -30,17 +19,19 @@ def runge_kutta_4_block_sparse_data():
     # dense tensor representation
     y0 = 0.1 * ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    enforce_sparsity(y0, qnums, axis_dir)
+    ptn.enforce_qsparsity(y0, [axis_dir[i] * qnums[i] for i in range(len(dims))])
 
     # tensor defining linear term of ODE
     lintensor = ptn.crandn(dims[:2] + dims[:2], rng)
-    enforce_sparsity(lintensor, qnums[:2] + qnums[:2], axis_dir[:2] + tuple(-ad for ad in axis_dir[:2]))
+    qnums_lin = qnums[:2] + qnums[:2]
+    axis_dir_lin = axis_dir[:2] + tuple(-ad for ad in axis_dir[:2])
+    ptn.enforce_qsparsity(lintensor, [axis_dir_lin[i] * qnums_lin[i] for i in range(len(axis_dir_lin))])
     # tensors defining nonlinear term of ODE
     nonlintensors = []
     for i in range(y0.ndim):
         i_next = (i + 1) % y0.ndim
         nlt = 0.75 * ptn.crandn((dims[i_next], dims[i]), rng)
-        enforce_sparsity(nlt, (qnums[i_next], qnums[i]), (axis_dir[i_next], -axis_dir[i]))
+        ptn.enforce_qsparsity(nlt, (axis_dir[i_next] * qnums[i_next], -axis_dir[i] * qnums[i]))
         nonlintensors.append(nlt)
 
     # ODE function

@@ -59,11 +59,7 @@ def split_block_sparse_matrix_svd_data():
         # dense tensor
         a = 0.02 * ptn.crandn(dims, rng).astype(np.complex64)
         # enforce sparsity pattern based on quantum numbers
-        it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
-        for x in it:
-            qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(a.ndim))
-            if qsum != 0:
-                x[...] = 0
+        ptn.enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
 
         file["a"] = a
         file.attrs["axis_dir"] = axis_dir

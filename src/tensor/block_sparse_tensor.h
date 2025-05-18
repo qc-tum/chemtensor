@@ -108,6 +108,40 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 
 
 //________________________________________________________________________________________________________________________
+///
+/// \brief Temporary data structure for recording the dimensions and quantum numbers before flattening two axes.
+///
+struct block_sparse_tensor_flatten_axes_record
+{
+	long dim_logical[2];                     //!< logical dimensions
+	enum tensor_axis_direction axis_dir[2];  //!< tensor axis directions
+	qnumber* qnums_logical[2];               //!< logical quantum numbers
+};
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Dimension, quantum number and axis ordering information describing the axis matricization of a tensor.
+/// This information is required to undo the matricization.
+///
+struct block_sparse_tensor_axis_matricization_info
+{
+	struct block_sparse_tensor_flatten_axes_record* records;  //!< axes flattening records; array of length 'ndim - 2'
+	int i_ax_tns;                                             //!< isolated axis index of the original tensor
+	int i_ax_mat;                                             //!< corresponding axis index of the matrix (whether 'i_ax' becomes the leading or trailing dimension)
+	int ndim;                                                 //!< number of dimensions (degree) of the original tensor
+};
+
+void delete_block_sparse_tensor_matricization_info(struct block_sparse_tensor_axis_matricization_info* info);
+
+
+void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restrict t, const int i_ax_tns,
+	const int i_ax_mat, const enum tensor_axis_direction flattened_axes_dir,
+	struct block_sparse_tensor* restrict mat, struct block_sparse_tensor_axis_matricization_info* info);
+
+void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* restrict mat, const struct block_sparse_tensor_axis_matricization_info* info, struct block_sparse_tensor* restrict t);
+
+
+//________________________________________________________________________________________________________________________
 //
 
 // slicing

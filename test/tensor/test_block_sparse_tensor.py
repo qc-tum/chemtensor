@@ -23,11 +23,7 @@ def block_sparse_tensor_copy_data():
     # dense tensor representation
     t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     with h5py.File("data/test_block_sparse_tensor_copy.hdf5", "w") as file:
         file["t"] = t
@@ -56,11 +52,7 @@ def block_sparse_tensor_get_block_data():
     # dense tensors
     t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     with h5py.File("data/test_block_sparse_tensor_get_block.hdf5", "w") as file:
         file["t"] = t
@@ -94,11 +86,7 @@ def block_sparse_tensor_cyclic_partial_trace_data():
     # dense tensor
     t = ptn.crandn(dims, rng).astype(np.complex64)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     t_tr = np.trace(np.trace(t, axis1=0, axis2=ndim-ndim_trace), axis1=0, axis2=ndim-ndim_trace-1)
 
@@ -130,11 +118,7 @@ def block_sparse_tensor_norm2_data():
     # dense tensor
     t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     nrm = np.linalg.norm(t.reshape(-1), ord=2)
 
@@ -166,11 +150,7 @@ def block_sparse_tensor_transpose_data():
     # tensor with random entries
     t = rng.standard_normal(dims)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     # transpose tensor
     t_tp = np.transpose(t, (1, 3, 2, 0))
@@ -203,11 +183,7 @@ def block_sparse_tensor_reshape_data():
     # tensor with random entries
     t = ptn.crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     # save tensor to disk - reshaping of dense tensor is straightforward
     with h5py.File("data/test_block_sparse_tensor_reshape.hdf5", "w") as file:
@@ -215,6 +191,50 @@ def block_sparse_tensor_reshape_data():
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
+
+
+def matricize(a, i: int):
+    """
+    Compute the matricization of a tensor along the i-th axis.
+    """
+    s = (int(np.prod(a.shape[:i])), a.shape[i], int(np.prod(a.shape[i+1:])))
+    a = a.reshape(s)
+    a = a.transpose((1, 0, 2)).reshape((s[1], s[0]*s[2]))
+    return a
+
+
+def block_sparse_tensor_matricize_axis_data():
+
+    # random number generator
+    rng = np.random.default_rng(391)
+
+    # dimensions
+    dims = (7, 6, 4, 11)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
+
+    # tensor with random entries
+    t = rng.standard_normal(dims).astype(np.float32)
+    # enforce sparsity pattern based on quantum numbers
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
+
+    # matricize 't' along each possible axis
+    mat = [matricize(t, i) for i in range(ndim)]
+
+    with h5py.File("data/test_block_sparse_tensor_matricize_axis.hdf5", "w") as file:
+        file["t"] = t
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+        for i in range(ndim):
+            file[f"mat{i}"] = mat[i]
 
 
 def block_sparse_tensor_slice_data():
@@ -237,11 +257,7 @@ def block_sparse_tensor_slice_data():
     # tensor with random entries
     t = rng.standard_normal(dims).astype(np.float32)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     # slice along axis 2
     ind = rng.integers(0, t.shape[2], 17)
@@ -276,11 +292,7 @@ def block_sparse_tensor_multiply_pointwise_vector_data():
     # tensor with random entries
     s = rng.standard_normal(dims).astype(np.float32)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(s, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     t = [rng.standard_normal(dim).astype(np.float32) for dim in [dims[0], dims[-1]]]
 
@@ -323,21 +335,9 @@ def block_sparse_tensor_multiply_axis_data():
     t0 = ptn.crandn(t0_dim, rng)
     t1 = ptn.crandn(t1_dim, rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(s_axis_dir[i] * s_qnums[i][it.multi_index[i]] for i in range(s.ndim))
-        if qsum != 0:
-            x[...] = 0
-    it = np.nditer(t0, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(t0_axis_dir[i] * t0_qnums[i][it.multi_index[i]] for i in range(t0.ndim))
-        if qsum != 0:
-            x[...] = 0
-    it = np.nditer(t1, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(t1_axis_dir[i] * t1_qnums[i][it.multi_index[i]] for i in range(t1.ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(s,  [ s_axis_dir[i] *  s_qnums[i] for i in range( s.ndim)])
+    ptn.enforce_qsparsity(t0, [t0_axis_dir[i] * t0_qnums[i] for i in range(t0.ndim)])
+    ptn.enforce_qsparsity(t1, [t1_axis_dir[i] * t1_qnums[i] for i in range(t1.ndim)])
 
     # contract with axis 'i_ax' of 's'
     r0 = np.einsum(s, (0, 1, 5, 4), t0, (5, 2, 3), (0, 1, 2, 3, 4))
@@ -384,18 +384,11 @@ def block_sparse_tensor_dot_data():
     s = ptn.crandn(dims[ :ndim_s], rng)
     t = ptn.crandn(dims[-ndim_t:], rng)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(s, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(s.ndim))
-        if qsum != 0:
-            x[...] = 0
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        # reversed sign of to-be contracted axes for 't' tensor
-        qsum = sum((-1 if i < ndim_mult else 1) * axis_dir[s.ndim - ndim_mult + i]
-                   * qnums[s.ndim - ndim_mult + i][it.multi_index[i]] for i in range(t.ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(s, [axis_dir[i] * qnums[i] for i in range(s.ndim)])
+    # reversed sign of to-be contracted axes for 't' tensor
+    ptn.enforce_qsparsity(t,
+        [(-1 if i < ndim_mult else 1) * axis_dir[s.ndim - ndim_mult + i] *
+         qnums[s.ndim - ndim_mult + i] for i in range(t.ndim)])
 
     # contract dense tensors
     r = np.tensordot(s, t, axes=ndim_mult)
@@ -444,11 +437,7 @@ def block_sparse_tensor_concatenate_data():
 
     # enforce sparsity pattern based on quantum numbers
     for j, t in enumerate(tlist):
-        it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-        for x in it:
-            qsum = sum(axis_dir[i] * t_qnums[j][i][it.multi_index[i]] for i in range(ndim))
-            if qsum != 0:
-                x[...] = 0
+        ptn.enforce_qsparsity(t, [axis_dir[i] * t_qnums[j][i] for i in range(ndim)])
 
     r = np.concatenate(tlist, axis=i_ax)
 
@@ -497,11 +486,7 @@ def block_sparse_tensor_block_diag_data():
 
     # enforce sparsity pattern based on quantum numbers
     for j, t in enumerate(tlist):
-        it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-        for x in it:
-            qsum = sum(axis_dir[i] * t_qnums[j][i][it.multi_index[i]] for i in range(ndim))
-            if qsum != 0:
-                x[...] = 0
+        ptn.enforce_qsparsity(t, [axis_dir[i] * t_qnums[j][i] for i in range(ndim)])
 
     r = np.zeros(dims_block_diag, dtype=np.float32)
     for j in range(len(tlist)):
@@ -541,11 +526,7 @@ def block_sparse_tensor_qr_data():
             # dense tensor
             a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
-            it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
-            for x in it:
-                qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(a.ndim))
-                if qsum != 0:
-                    x[...] = 0
+            ptn.enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
 
             file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
@@ -574,11 +555,7 @@ def block_sparse_tensor_rq_data():
             # dense tensor
             a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
-            it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
-            for x in it:
-                qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(a.ndim))
-                if qsum != 0:
-                    x[...] = 0
+            ptn.enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
 
             file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
@@ -607,11 +584,7 @@ def block_sparse_tensor_svd_data():
             # dense tensor
             a = ptn.crandn(dims, rng)
             # enforce sparsity pattern based on quantum numbers
-            it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
-            for x in it:
-                qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(a.ndim))
-                if qsum != 0:
-                    x[...] = 0
+            ptn.enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
 
             file[f"a{c}"] = a
             file.attrs[f"axis_dir{c}"] = axis_dir
@@ -639,11 +612,7 @@ def block_sparse_tensor_serialize_data():
     # dense tensor representation
     t = ptn.crandn(dims, rng).astype(np.complex64)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     with h5py.File("data/test_block_sparse_tensor_serialize.hdf5", "w") as file:
         file["t"] = t
@@ -672,11 +641,7 @@ def block_sparse_tensor_get_entry_data():
     # dense tensor representation
     t = rng.standard_normal(dims).astype(np.float32)
     # enforce sparsity pattern based on quantum numbers
-    it = np.nditer(t, flags=["multi_index"], op_flags=["readwrite"])
-    for x in it:
-        qsum = sum(axis_dir[i] * qnums[i][it.multi_index[i]] for i in range(ndim))
-        if qsum != 0:
-            x[...] = 0
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
 
     with h5py.File("data/test_block_sparse_tensor_get_entry.hdf5", "w") as file:
         file["t"] = t
@@ -692,6 +657,7 @@ def main():
     block_sparse_tensor_norm2_data()
     block_sparse_tensor_transpose_data()
     block_sparse_tensor_reshape_data()
+    block_sparse_tensor_matricize_axis_data()
     block_sparse_tensor_slice_data()
     block_sparse_tensor_multiply_pointwise_vector_data()
     block_sparse_tensor_multiply_axis_data()

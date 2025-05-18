@@ -124,8 +124,7 @@ def mps_split_tensor_svd_data():
     qD = [rng.integers(-2, 3, size=Di) for Di in D]
 
     # enforce block sparsity structure dictated by quantum numbers
-    mask = ptn.qnumber_outer_sum([ptn.qnumber_flatten(qd), qD[0], -qD[1]])
-    a_pair = np.where(mask == 0, a_pair, 0)
+    ptn.enforce_qsparsity(a_pair, [ptn.qnumber_flatten(qd), qD[0], -qD[1]])
 
     with h5py.File("data/test_mps_split_tensor_svd.hdf5", "w") as file:
 

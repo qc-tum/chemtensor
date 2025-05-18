@@ -820,6 +820,61 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Construct the maps from a logical index to the corresponding dense block and entry index along an axis.
+///
+static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, const long dim, const qnumber* unique_qnums, const long num_qnums, long* index_map_block, long* index_map_block_entry)
+{
+	long* counter = ct_calloc(num_qnums, sizeof(long));
+
+	for (long i = 0; i < dim; i++)
+	{
+		#ifndef NDEBUG
+		bool found = false;
+		#endif
+		for (long j = 0; j < num_qnums; j++)
+		{
+			if (qnums_logical[i] == unique_qnums[j]) {
+				index_map_block[i] = j;
+				index_map_block_entry[i] = counter[j]++;
+				#ifndef NDEBUG
+				found = true;
+				#endif
+				break;
+			}
+		}
+		assert(found);
+	}
+
+	ct_free(counter);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct the map from a dense block entry index to the corresponding logical index along an axis.
+///
+static inline void construct_block_to_logical_index_map(const qnumber* qnums_logical, const long dim, const qnumber qnum, const long qnum_multiplicity, long* index_map_logical_entry)
+{
+	// suppress unused parameter warning
+	#ifdef NDEBUG
+	(void)qnum_multiplicity;
+	#endif
+
+	long c = 0;
+	for (long j = 0; j < dim; j++)
+	{
+		if (qnums_logical[j] == qnum)
+		{
+			index_map_logical_entry[c] = j;
+			c++;
+		}
+	}
+	assert(c == qnum_multiplicity);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Flatten the two neighboring axes (tensor legs) 'i_ax' and 'i_ax + 1' into a single axis.
 ///
 /// Memory will be allocated for 'r'.
@@ -881,6 +936,16 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 
 	const size_t dtype_size = sizeof_numeric_type(t->dtype);
 
+	// fan-in logical to block indices for flattened axis
+	long* index_map_fanin = ct_malloc(r->dim_logical[i_ax] * sizeof(long));
+	{
+		long* index_map_block = ct_malloc(r->dim_logical[i_ax] * sizeof(long));
+		construct_logical_to_block_index_maps(
+			r->qnums_logical[i_ax], r->dim_logical[i_ax], r->qnums_blocks[i_ax], r->dim_blocks[i_ax],
+			index_map_block, index_map_fanin);
+		ct_free(index_map_block);
+	}
+
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(t->dim_blocks, t->ndim);
 	#pragma omp parallel for schedule(dynamic)
@@ -935,26 +1000,10 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 			for (int i = 0; i < 2; i++)
 			{
 				index_map_fanout[i] = ct_calloc(bt->dim[i_ax + i], sizeof(long));
-				long c = 0;
-				for (long j = 0; j < t->dim_logical[i_ax + i]; j++)
-				{
-					if (t->qnums_logical[i_ax + i][j] == qnums_i_ax[i])
-					{
-						index_map_fanout[i][c] = j;
-						c++;
-					}
-				}
-				assert(c == bt->dim[i_ax + i]);
-			}
-			// fan-in logical to block indices for flattened axis
-			long* index_map_fanin = ct_calloc(r->dim_logical[i_ax], sizeof(long));
-			long c = 0;
-			for (long j = 0; j < r->dim_logical[i_ax]; j++)
-			{
-				if (r->qnums_logical[i_ax][j] == qnum_flat) {
-					index_map_fanin[j] = c;
-					c++;
-				}
+				construct_block_to_logical_index_map(
+					t->qnums_logical[i_ax + i], t->dim_logical[i_ax + i],
+					qnums_i_ax[i], bt->dim[i_ax + i],
+					index_map_fanout[i]);
 			}
 			for (long j0 = 0; j0 < bt->dim[i_ax]; j0++)
 			{
@@ -963,7 +1012,6 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 					index_map_block[j0*bt->dim[i_ax + 1] + j1] = index_map_fanin[index_map_fanout[0][j0] * t->dim_logical[i_ax + 1] + index_map_fanout[1][j1]];
 				}
 			}
-			ct_free(index_map_fanin);
 			for (int i = 0; i < 2; i++) {
 				ct_free(index_map_fanout[i]);
 			}
@@ -993,6 +1041,8 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 		ct_free(index_block_t);
 		ct_free(index_block_r);
 	}
+
+	ct_free(index_map_fanin);
 }
 
 
@@ -1059,6 +1109,16 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 
 	const size_t dtype_size = sizeof_numeric_type(t->dtype);
 
+	// fan-in logical to block indices for original axis
+	long* index_map_fanin = ct_malloc(t->dim_logical[i_ax] * sizeof(long));
+	{
+		long* index_map_block = ct_malloc(t->dim_logical[i_ax] * sizeof(long));
+		construct_logical_to_block_index_maps(
+			t->qnums_logical[i_ax], t->dim_logical[i_ax], t->qnums_blocks[i_ax], t->dim_blocks[i_ax],
+			index_map_block, index_map_fanin);
+		ct_free(index_map_block);
+	}
+
 	// for each block with matching quantum numbers...
 	const long nblocks = integer_product(r->dim_blocks, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
@@ -1113,26 +1173,10 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 			for (int i = 0; i < 2; i++)
 			{
 				index_map_fanout[i] = ct_calloc(br->dim[i_ax + i], sizeof(long));
-				long c = 0;
-				for (long j = 0; j < r->dim_logical[i_ax + i]; j++)
-				{
-					if (r->qnums_logical[i_ax + i][j] == qnums_i_ax[i])
-					{
-						index_map_fanout[i][c] = j;
-						c++;
-					}
-				}
-				assert(c == br->dim[i_ax + i]);
-			}
-			// fan-in logical to block indices for original axis
-			long* index_map_fanin = ct_calloc(t->dim_logical[i_ax], sizeof(long));
-			long c = 0;
-			for (long j = 0; j < t->dim_logical[i_ax]; j++)
-			{
-				if (t->qnums_logical[i_ax][j] == qnum_flat) {
-					index_map_fanin[j] = c;
-					c++;
-				}
+				construct_block_to_logical_index_map(
+					r->qnums_logical[i_ax + i], r->dim_logical[i_ax + i],
+					qnums_i_ax[i], br->dim[i_ax + i],
+					index_map_fanout[i]);
 			}
 			for (long j0 = 0; j0 < br->dim[i_ax]; j0++)
 			{
@@ -1141,7 +1185,6 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 					index_map_block[j0*br->dim[i_ax + 1] + j1] = index_map_fanin[index_map_fanout[0][j0] * r->dim_logical[i_ax + 1] + index_map_fanout[1][j1]];
 				}
 			}
-			ct_free(index_map_fanin);
 			for (int i = 0; i < 2; i++) {
 				ct_free(index_map_fanout[i]);
 			}
@@ -1171,6 +1214,159 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 		ct_free(index_block_t);
 		ct_free(index_block_r);
 	}
+
+	ct_free(index_map_fanin);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete a block-sparse tensor matricization information object (free memory).
+///
+void delete_block_sparse_tensor_matricization_info(struct block_sparse_tensor_axis_matricization_info* info)
+{
+	for (int i = 0; i < info->ndim - 2; i++)
+	{
+		ct_free(info->records[i].qnums_logical[0]);
+		ct_free(info->records[i].qnums_logical[1]);
+	}
+	ct_free(info->records);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Matricize a tensor by isolating the axis 'i_ax_tns' and combining (flattening) the remaining axes.
+/// 'i_ax_mat' specifies whether 'i_ax_tns' is the leading or trailing dimension of the new matrix.
+/// 'flattened_axes_dir' is the axis direction of the combined (flattened) axes.
+/// 'info' will be filled and can be used to undo the matricization.
+///
+void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restrict t, const int i_ax_tns,
+	const int i_ax_mat, const enum tensor_axis_direction flattened_axes_dir,
+	struct block_sparse_tensor* restrict mat, struct block_sparse_tensor_axis_matricization_info* info)
+{
+	assert(0 <= i_ax_tns && i_ax_tns < t->ndim);
+	assert(0 <= i_ax_mat && i_ax_mat < 2);
+	assert(t->ndim >= 2);
+
+	// make 'i_ax_tns' the leading or trailing axis
+	int* perm = ct_malloc(t->ndim * sizeof(int));
+	if (i_ax_mat == 0)
+	{
+		perm[0] = i_ax_tns;
+		for (int i = 1; i <= i_ax_tns; i++) {
+			perm[i] = i - 1;
+		}
+		for (int i = i_ax_tns + 1; i < t->ndim; i++) {
+			perm[i] = i;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < i_ax_tns; i++) {
+			perm[i] = i;
+		}
+		for (int i = i_ax_tns; i < t->ndim - 1; i++) {
+			perm[i] = i + 1;
+		}
+		perm[t->ndim - 1] = i_ax_tns;
+	}
+	if (is_identity_permutation(perm, t->ndim))
+	{
+		// for consistency, output tensor must be a copy even if 't' is already in the correct matrix form
+		copy_block_sparse_tensor(t, mat);
+	}
+	else
+	{
+		transpose_block_sparse_tensor(perm, t, mat);
+	}
+	ct_free(perm);
+
+	info->i_ax_tns = i_ax_tns;
+	info->i_ax_mat = i_ax_mat;
+	info->ndim = t->ndim;
+	if (t->ndim > 2) {
+		info->records = ct_malloc((t->ndim - 2) * sizeof(struct block_sparse_tensor_flatten_axes_record));
+	}
+	else {
+		info->records = NULL;
+	}
+
+	const int i_ax_flatten = 1 - i_ax_mat;
+
+	// sequentially flatten all remaining axes
+	for (int i = 0; i < t->ndim - 2; i++)
+	{
+		for (int j = 0; j < 2; j++)
+		{
+			const long dim_logical = mat->dim_logical[i_ax_flatten + j];
+			info->records[i].dim_logical[j] = dim_logical;
+			info->records[i].axis_dir[j] = mat->axis_dir[i_ax_flatten + j];
+			info->records[i].qnums_logical[j] = ct_malloc(dim_logical * sizeof(qnumber));
+			memcpy(info->records[i].qnums_logical[j], mat->qnums_logical[i_ax_flatten + j], dim_logical * sizeof(qnumber));
+		}
+
+		struct block_sparse_tensor tmp = *mat;  // copy internal data pointers
+		block_sparse_tensor_flatten_axes(&tmp, i_ax_flatten, flattened_axes_dir, mat);
+		delete_block_sparse_tensor(&tmp);
+	}
+
+	assert(mat->ndim == 2);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Undo the matricization of a tensor.
+///
+void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* restrict mat, const struct block_sparse_tensor_axis_matricization_info* info, struct block_sparse_tensor* restrict t)
+{
+	assert(mat->ndim == 2);
+	assert(info->ndim >= 2);
+
+	const int i_ax_flatten = 1 - info->i_ax_mat;
+
+	// for consistency, output tensor must be a copy even if 'mat' is already in the correct tensor form
+	copy_block_sparse_tensor(mat, t);
+
+	// sequentially split the other axes
+	for (int i = info->ndim - 3; i >= 0; i--)
+	{
+		struct block_sparse_tensor tmp = *t;  // copy internal data pointers
+		block_sparse_tensor_split_axis(&tmp, i_ax_flatten, info->records[i].dim_logical, info->records[i].axis_dir, (const qnumber**)info->records[i].qnums_logical, t);
+		delete_block_sparse_tensor(&tmp);
+	}
+	assert(t->ndim == info->ndim);
+
+	// transpose isolated axis to 'i_ax_tns' in the output tensor
+	int* perm = ct_malloc(info->ndim * sizeof(int));
+	if (info->i_ax_mat == 0)
+	{
+		for (int i = 0; i < info->i_ax_tns; i++) {
+			perm[i] = i + 1;
+		}
+		perm[info->i_ax_tns] = 0;
+		for (int i = info->i_ax_tns + 1; i < info->ndim; i++) {
+			perm[i] = i;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < info->i_ax_tns; i++) {
+			perm[i] = i;
+		}
+		perm[info->i_ax_tns] = info->ndim - 1;
+		for (int i = info->i_ax_tns + 1; i < info->ndim; i++) {
+			perm[i] = i - 1;
+		}
+	}
+	if (!is_identity_permutation(perm, info->ndim))
+	{
+		struct block_sparse_tensor tmp = *t;  // copy internal data pointers
+		transpose_block_sparse_tensor(perm, &tmp, t);
+		delete_block_sparse_tensor(&tmp);
+	}
+	ct_free(perm);
 }
 
 
@@ -2815,37 +3011,6 @@ void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, cons
 			offset += nelem;
 		}
 	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Construct the maps from a logical index to the corresponding dense block and entry index along an axis.
-///
-static void construct_logical_to_block_index_maps(const qnumber* qnums_logical, const long dim, const qnumber* unique_qnums, const long num_qnums, long* index_map_block, long* index_map_block_entry)
-{
-	long* counter = ct_calloc(num_qnums, sizeof(long));
-
-	for (long i = 0; i < dim; i++)
-	{
-		#ifndef NDEBUG
-		bool found = false;
-		#endif
-		for (long j = 0; j < num_qnums; j++)
-		{
-			if (qnums_logical[i] == unique_qnums[j]) {
-				index_map_block[i] = j;
-				index_map_block_entry[i] = counter[j]++;
-				#ifndef NDEBUG
-				found = true;
-				#endif
-				break;
-			}
-		}
-		assert(found);
-	}
-
-	ct_free(counter);
 }
 
 

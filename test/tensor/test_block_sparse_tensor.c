@@ -483,6 +483,124 @@ char* test_block_sparse_tensor_reshape()
 }
 
 
+char* test_block_sparse_tensor_matricize_axis()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_matricize_axis.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_matricize_axis failed";
+	}
+
+	const int ndim = 4;
+	const long dim[4] = { 7, 6, 4, 11 };
+
+	// read dense tensor from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(CT_SINGLE_REAL, ndim, dim, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	// isolated axis index
+	for (int i_ax_tns = 0; i_ax_tns < ndim; i_ax_tns++)
+	{
+		// whether the isolated axis becomes the leading or trailing axis in the matrix
+		for (int i_ax_mat = 0; i_ax_mat < 2; i_ax_mat++)
+		{
+			// flattened axes direction
+			for (int d = 0; d < 2; d++)
+			{
+				// matricize the tensor
+				struct block_sparse_tensor mat;
+				struct block_sparse_tensor_axis_matricization_info info;
+				block_sparse_tensor_matricize_axis(&t, i_ax_tns,
+					i_ax_mat, d == 0 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
+					&mat, &info);
+
+				// convert block-sparse tensor 'mat' to a dense tensor
+				struct dense_tensor mat_dns;
+				block_sparse_to_dense_tensor(&mat, &mat_dns);
+
+				// read reference matrix from disk
+				struct dense_tensor mat_ref;
+				long dim_mat_ref[2] = { dim[i_ax_tns], 1 };
+				for (int i = 0; i < ndim; i++) {
+					if (i != i_ax_tns) {
+						dim_mat_ref[1] *= dim[i];
+					}
+				}
+				allocate_dense_tensor(CT_SINGLE_REAL, 2, dim_mat_ref, &mat_ref);
+				// read values from disk
+				char varname[1024];
+				sprintf(varname, "mat%i", i_ax_tns);
+				if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, mat_ref.data) < 0) {
+					return "reading tensor entries from disk failed";
+				}
+				if (i_ax_mat == 1) {
+					struct dense_tensor tmp;
+					const int perm[2] = { 1, 0 };
+					transpose_dense_tensor(perm, &mat_ref, &tmp);
+					delete_dense_tensor(&mat_ref);
+					mat_ref = tmp;  // copy internal data pointers
+				}
+
+				// compare with reference
+				if (!dense_tensor_allclose(&mat_dns, &mat_ref, 0.)) {
+					return "matricization of block-sparse tensor does not match reference";
+				}
+
+				// undo matricization
+				struct block_sparse_tensor t2;
+				block_sparse_tensor_dematricize_axis(&mat, &info, &t2);
+
+				// compare with original tensor
+				if (!block_sparse_tensor_allclose(&t, &t2, 0.)) {
+					return "block-sparse tensor after matricization and dematricization does not agree with original tensor";
+				}
+
+				delete_block_sparse_tensor(&t2);
+				delete_block_sparse_tensor_matricization_info(&info);
+				delete_dense_tensor(&mat_ref);
+				delete_dense_tensor(&mat_dns);
+				delete_block_sparse_tensor(&mat);
+			}
+		}
+	}
+
+	// clean up
+	delete_block_sparse_tensor(&t);
+	for (int i = 0; i < ndim; i++) {
+		ct_free(qnums[i]);
+	}
+	ct_free(qnums);
+	ct_free(axis_dir);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_block_sparse_tensor_slice()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_slice.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -493,7 +611,7 @@ char* test_block_sparse_tensor_slice()
 	const int ndim = 4;
 	const long dim[4] = { 6, 7, 11, 13 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, dim, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
