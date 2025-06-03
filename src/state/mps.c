@@ -801,7 +801,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 
 	// perform truncated SVD
 	struct block_sparse_tensor m0, m1;
-	int ret = split_block_sparse_matrix_svd(&a_mat, tol, max_vdim, renormalize, SVD_DISTR_RIGHT, &m0, &m1, info);
+	int ret = split_block_sparse_matrix_svd(&a_mat, tol, true, max_vdim, renormalize, SVD_DISTR_RIGHT, &m0, &m1, info);
 	delete_block_sparse_tensor(&a_mat);
 	if (ret < 0) {
 		return ret;
@@ -852,7 +852,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 
 	// perform truncated SVD
 	struct block_sparse_tensor m0, m1;
-	int ret = split_block_sparse_matrix_svd(&a_mat, tol, max_vdim, renormalize, SVD_DISTR_LEFT, &m0, &m1, info);
+	int ret = split_block_sparse_matrix_svd(&a_mat, tol, true, max_vdim, renormalize, SVD_DISTR_LEFT, &m0, &m1, info);
 	delete_block_sparse_tensor(&a_mat);
 	if (ret < 0) {
 		return ret;
@@ -1156,7 +1156,7 @@ int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const lon
 
 	// split by truncated SVD
 	struct block_sparse_tensor m0, m1;
-	int ret = split_block_sparse_matrix_svd(&a_mat, tol, max_vdim, renormalize, svd_distr, &m0, &m1, info);
+	int ret = split_block_sparse_matrix_svd(&a_mat, tol, true, max_vdim, renormalize, svd_distr, &m0, &m1, info);
 	delete_block_sparse_tensor(&a_mat);
 	if (ret < 0) {
 		return ret;

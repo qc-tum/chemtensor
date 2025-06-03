@@ -131,7 +131,7 @@ struct block_sparse_tensor_axis_matricization_info
 	int ndim;                                                 //!< number of dimensions (degree) of the original tensor
 };
 
-void delete_block_sparse_tensor_matricization_info(struct block_sparse_tensor_axis_matricization_info* info);
+void delete_block_sparse_tensor_axis_matricization_info(struct block_sparse_tensor_axis_matricization_info* info);
 
 
 void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restrict t, const int i_ax_tns,

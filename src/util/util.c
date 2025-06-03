@@ -167,7 +167,7 @@ double norm2(const enum numeric_type dtype, const long n, const void* x)
 ///
 /// \brief Get the number of dimensions (degree) of an HDF5 dataset.
 ///
-herr_t get_hdf5_dataset_ndims(hid_t file, const char* name, int* ndims)
+herr_t get_hdf5_dataset_ndims(const hid_t file, const char* name, int* ndims)
 {
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
@@ -196,7 +196,7 @@ herr_t get_hdf5_dataset_ndims(hid_t file, const char* name, int* ndims)
 ///
 /// \brief Get the dimensions of an HDF5 dataset.
 ///
-herr_t get_hdf5_dataset_dims(hid_t file, const char* name, hsize_t* dims)
+herr_t get_hdf5_dataset_dims(const hid_t file, const char* name, hsize_t* dims)
 {
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
@@ -226,7 +226,7 @@ herr_t get_hdf5_dataset_dims(hid_t file, const char* name, hsize_t* dims)
 ///
 /// \brief Read an HDF5 dataset from a file.
 ///
-herr_t read_hdf5_dataset(hid_t file, const char* name, hid_t mem_type, void* data)
+herr_t read_hdf5_dataset(const hid_t file, const char* name, hid_t mem_type, void* data)
 {
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
@@ -252,7 +252,7 @@ herr_t read_hdf5_dataset(hid_t file, const char* name, hid_t mem_type, void* dat
 ///
 /// \brief Write an HDF5 dataset to a file.
 ///
-herr_t write_hdf5_dataset(hid_t file, const char* name, int degree, const hsize_t dims[], hid_t mem_type_store, hid_t mem_type_input, const void* data)
+herr_t write_hdf5_dataset(const hid_t file, const char* name, int degree, const hsize_t dims[], hid_t mem_type_store, hid_t mem_type_input, const void* data)
 {
 	// create dataspace
 	hid_t space = H5Screate_simple(degree, dims, NULL);
@@ -299,7 +299,7 @@ herr_t write_hdf5_dataset(hid_t file, const char* name, int degree, const hsize_
 ///
 /// \brief Get the dimensions of an HDF5 attribute.
 ///
-herr_t get_hdf5_attribute_dims(hid_t file, const char* name, hsize_t* dims)
+herr_t get_hdf5_attribute_dims(const hid_t file, const char* name, hsize_t* dims)
 {
 	hid_t attr = H5Aopen(file, name, H5P_DEFAULT);
 	if (attr < 0)
@@ -329,7 +329,7 @@ herr_t get_hdf5_attribute_dims(hid_t file, const char* name, hsize_t* dims)
 ///
 /// \brief Read an HDF5 attribute from a file.
 ///
-herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* data)
+herr_t read_hdf5_attribute(const hid_t file, const char* name, hid_t mem_type, void* data)
 {
 	hid_t attr = H5Aopen(file, name, H5P_DEFAULT);
 	if (attr < 0)
@@ -360,7 +360,7 @@ herr_t read_hdf5_attribute(hid_t file, const char* name, hid_t mem_type, void* d
 ///
 /// \brief Write an HDF5 scalar attribute to a file.
 ///
-herr_t write_hdf5_scalar_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data)
+herr_t write_hdf5_scalar_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data)
 {
 	hid_t space = H5Screate(H5S_SCALAR);
 	if (space < 0)
@@ -404,7 +404,7 @@ herr_t write_hdf5_scalar_attribute(hid_t file, const char* name, hid_t mem_type_
 ///
 /// \brief Write an HDF5 vector attribute to a file.
 ///
-herr_t write_hdf5_vector_attribute(hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const long length, const void* data)
+herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const long length, const void* data)
 {
 	hsize_t dims[1] = { length };
 	hid_t space = H5Screate_simple(1, dims, NULL);

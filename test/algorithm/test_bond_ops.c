@@ -51,7 +51,7 @@ char* test_retained_bond_indices()
 	{
 		struct index_list list;
 		struct trunc_info info;
-		retained_bond_indices(sigma, n, i == 0 ? tol : 1e-5, i == 0 ? n : (long)ind_ref_dims[0], &list, &info);
+		retained_bond_indices(sigma, n, i == 0 ? tol : 1e-5, true, i == 0 ? n : (long)ind_ref_dims[0], &list, &info);
 
 		// compare indices
 		if (list.num != (long)ind_ref_dims[0]) {
@@ -156,7 +156,7 @@ char* test_split_block_sparse_matrix_svd()
 
 			struct block_sparse_tensor a0, a1;
 			struct trunc_info info;
-			if (split_block_sparse_matrix_svd(&a, tol, max_vdim, r == 0 ? false : true, svd_distr, &a0, &a1, &info) < 0) {
+			if (split_block_sparse_matrix_svd(&a, tol, true, max_vdim, r == 0 ? false : true, svd_distr, &a0, &a1, &info) < 0) {
 				return "'split_block_sparse_matrix_svd' failed internally";
 			}
 
@@ -237,7 +237,7 @@ char* test_split_block_sparse_matrix_svd_zero()
 
 		struct block_sparse_tensor a0, a1;
 		struct trunc_info info;
-		int ret = split_block_sparse_matrix_svd(&a, tol, max_vdim, true, svd_distr, &a0, &a1, &info);
+		int ret = split_block_sparse_matrix_svd(&a, tol, true, max_vdim, true, svd_distr, &a0, &a1, &info);
 		if (ret < 0) {
 			return "'split_block_sparse_matrix_svd' failed internally";
 		}

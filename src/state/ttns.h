@@ -46,6 +46,8 @@ bool ttns_is_consistent(const struct ttns* ttns);
 
 long ttns_local_dimension(const struct ttns* ttns, const int i_site);
 
+int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int i_site, const int i_neigh);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -67,6 +69,9 @@ static inline qnumber ttns_quantum_number_sector(const struct ttns* ttns)
 // inner product and norm
 
 void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret);
+
+void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, const struct block_sparse_tensor* restrict psi,
+	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* restrict inner_bonds);
 
 double ttns_norm(const struct ttns* psi);
 
@@ -93,7 +98,15 @@ struct ttns_tensor_axis_desc
 	int index;                        //!< local site index (for a physical axis), or neighbor site index (for a virtual bond)
 };
 
-void ttns_tensor_get_axis_desc(const struct ttns* ttns, const int i_site, struct ttns_tensor_axis_desc* desc);
+void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int i_site, struct ttns_tensor_axis_desc* desc);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// compression
+
+int ttns_compress(const int i_root, const double tol, const bool relative_thresh, const long max_vdim, struct ttns* ttns);
 
 
 //________________________________________________________________________________________________________________________

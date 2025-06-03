@@ -147,3 +147,198 @@ char* test_ttns_vdot()
 
 	return 0;
 }
+
+
+char* test_ttns_compress()
+{
+	hid_t file = H5Fopen("../test/state/data/test_ttns_compress.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_mps_compress failed";
+	}
+
+	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
+
+	// number of physical and branching lattice sites
+	const int nsites_physical  = 8;
+	const int nsites_branching = 1;
+	const int nsites = nsites_physical + nsites_branching;
+
+	// tree topology:
+	//
+	//           6
+	//           │
+	//           │
+	//     2     8 ─── 1
+	//      ╲   ╱
+	//       ╲ ╱
+	//        3
+	//        │
+	//        │
+	//  5 ─── 7 ─── 0
+	//        │
+	//        │
+	//        4
+	//
+	int neigh0[] = { 7 };
+	int neigh1[] = { 8 };
+	int neigh2[] = { 3 };
+	int neigh3[] = { 2, 7, 8 };
+	int neigh4[] = { 7 };
+	int neigh5[] = { 7 };
+	int neigh6[] = { 8 };
+	int neigh7[] = { 0, 3, 4, 5 };
+	int neigh8[] = { 1, 3, 6 };
+	int* neighbor_map[9] = {
+		neigh0, neigh1, neigh2, neigh3, neigh4, neigh5, neigh6, neigh7, neigh8,
+	};
+	int num_neighbors[9] = {
+		ARRLEN(neigh0), ARRLEN(neigh1), ARRLEN(neigh2), ARRLEN(neigh3), ARRLEN(neigh4), ARRLEN(neigh5), ARRLEN(neigh6), ARRLEN(neigh7), ARRLEN(neigh8),
+	};
+	struct abstract_graph topology = {
+		.neighbor_map  = neighbor_map,
+		.num_neighbors = num_neighbors,
+		.num_nodes     = nsites,
+	};
+	assert(abstract_graph_is_connected_tree(&topology));
+
+	// local physical dimensions and quantum numbers
+	long* d = ct_malloc(nsites * sizeof(long));
+	qnumber** qsite = ct_malloc(nsites * sizeof(qnumber*));
+	for (int l = 0; l < nsites; l++)
+	{
+		char varname[1024];
+		sprintf(varname, "qsite%i", l);
+
+		hsize_t d_loc[1];
+		if (get_hdf5_attribute_dims(file, varname, d_loc) < 0) {
+			return "obtaining local physical dimension failed";
+		}
+		d[l] = d_loc[0];
+
+		qsite[l] = ct_malloc(d[l] * sizeof(qnumber));
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qsite[l]) < 0) {
+			return "reading physical quantum numbers from disk failed";
+		}
+	}
+
+	// overall quantum number sector
+	qnumber qnum_sector;
+	if (read_hdf5_attribute(file, "qnum_sector", H5T_NATIVE_INT, &qnum_sector) < 0) {
+		return "reading quantum number sector from disk failed";
+	}
+
+	// virtual bond dimensions and quantum numbers
+	long* dim_bonds  = ct_calloc(nsites * nsites, sizeof(long));
+	qnumber** qbonds = ct_calloc(nsites * nsites, sizeof(qnumber*));
+	for (int l = 0; l < nsites; l++)
+	{
+		for (int i = 0; i < topology.num_neighbors[l]; i++)
+		{
+			int k = topology.neighbor_map[l][i];
+			assert(k != l);
+			if (k > l) {
+				continue;
+			}
+
+			const int ib = k*nsites + l;
+
+			char varname[1024];
+			sprintf(varname, "qbond%i%i", k, l);
+
+			hsize_t dim_bond[1];
+			if (get_hdf5_attribute_dims(file, varname, dim_bond) < 0) {
+				return "obtaining virtual bond dimension failed";
+			}
+			dim_bonds[ib] = dim_bond[0];
+
+			qbonds[ib] = ct_malloc(dim_bonds[ib] * sizeof(qnumber));
+			if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[ib]) < 0) {
+				return "reading virtual bond quantum numbers from disk failed";
+			}
+		}
+	}
+
+	for (int j = 0; j < 2; j++)  // determines compression tolerance
+	{
+		struct ttns ttns;
+		allocate_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, (const qnumber**)qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &ttns);
+
+		// read TTNS tensors from disk
+		for (int l = 0; l < nsites; l++)
+		{
+			struct dense_tensor a_dns;
+			allocate_dense_tensor(ttns.a[l].dtype, ttns.a[l].ndim, ttns.a[l].dim_logical, &a_dns);
+			char varname[1024];
+			sprintf(varname, "a%i", l);
+			if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, a_dns.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+
+			dense_to_block_sparse_tensor_entries(&a_dns, &ttns.a[l]);
+
+			delete_dense_tensor(&a_dns);
+		}
+
+		if (!ttns_is_consistent(&ttns)) {
+			return "internal TTNS consistency check failed";
+		}
+
+		if (ttns_norm(&ttns) < 1e-2) {
+			return "norm of TTNS is too small";
+		}
+
+		// convert original TTNS to a state vector
+		struct block_sparse_tensor vec_ref;
+		ttns_to_statevector(&ttns, &vec_ref);
+
+		// perform compression
+		const int i_root = 3;
+		const double tol_compress = (j == 0 ? 0. : 1e-7);
+		const long max_vdim = 1024;
+		int ret = ttns_compress(i_root, tol_compress, true, max_vdim, &ttns);
+		if (ret < 0) {
+			return "'ttns_compress' failed internally";
+		}
+
+		if (!ttns_is_consistent(&ttns)) {
+			return "internal TTNS consistency check failed";
+		}
+
+		// convert compressed TTNS to a state vector
+		struct block_sparse_tensor vec;
+		ttns_to_statevector(&ttns, &vec);
+
+		// compare with original state vector
+		if (!block_sparse_tensor_allclose(&vec, &vec_ref, tol_compress == 0. ? 1e-13 : 1e-3)) {
+			return "vector representation of TTNS after compression is not close to original state vector";
+		}
+
+		delete_block_sparse_tensor(&vec_ref);
+		delete_block_sparse_tensor(&vec);
+		delete_ttns(&ttns);
+	}
+
+	// clean up
+	for (int l = 0; l < nsites * nsites; l++)
+	{
+		if (qbonds[l] != NULL) {
+			assert(dim_bonds[l] > 0);
+			ct_free(qbonds[l]);
+		}
+		else {
+			assert(dim_bonds[l] == 0);
+		}
+	}
+	ct_free(qbonds);
+	ct_free(dim_bonds);
+	for (int l = 0; l < nsites; l++) {
+		ct_free(qsite[l]);
+	}
+	ct_free(qsite);
+	ct_free(d);
+
+	H5Tclose(hdf5_dcomplex_id);
+	H5Fclose(file);
+
+	return 0;
+}

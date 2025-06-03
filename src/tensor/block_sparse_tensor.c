@@ -1223,7 +1223,7 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 ///
 /// \brief Delete a block-sparse tensor matricization information object (free memory).
 ///
-void delete_block_sparse_tensor_matricization_info(struct block_sparse_tensor_axis_matricization_info* info)
+void delete_block_sparse_tensor_axis_matricization_info(struct block_sparse_tensor_axis_matricization_info* info)
 {
 	for (int i = 0; i < info->ndim - 2; i++)
 	{
@@ -1317,7 +1317,7 @@ void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restri
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Undo the matricization of a tensor.
+/// \brief Undo the axis matricization of a tensor.
 ///
 void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* restrict mat, const struct block_sparse_tensor_axis_matricization_info* info, struct block_sparse_tensor* restrict t)
 {
@@ -2614,7 +2614,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 ///
 /// \brief Compute the logical SVD decomposition of a block-sparse matrix.
 ///
-/// The logical quantum numbers of the axis connecting U and Vh will be sorted.
+/// The logical quantum numbers of the axis connecting 'u' and 'vh' will be sorted.
 /// The singular values are returned in a dense vector.
 ///
 int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict u, struct dense_tensor* restrict s, struct block_sparse_tensor* restrict vh)

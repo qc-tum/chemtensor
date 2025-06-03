@@ -578,7 +578,7 @@ char* test_block_sparse_tensor_matricize_axis()
 				}
 
 				delete_block_sparse_tensor(&t2);
-				delete_block_sparse_tensor_matricization_info(&info);
+				delete_block_sparse_tensor_axis_matricization_info(&info);
 				delete_dense_tensor(&mat_ref);
 				delete_dense_tensor(&mat_dns);
 				delete_block_sparse_tensor(&mat);

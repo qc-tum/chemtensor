@@ -73,6 +73,7 @@ char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
 char* test_save_mps();
 char* test_ttns_vdot();
+char* test_ttns_compress();
 char* test_queue();
 char* test_linked_list();
 char* test_hash_table();
@@ -109,6 +110,9 @@ char* test_dmrg_twosite();
 char* test_operator_average_coefficient_gradient();
 char* test_apply_thc_spin_molecular_hamiltonian();
 char* test_thc_spin_molecular_hamiltonian_to_matrix();
+char* test_bug_flow_update_basis_leaf();
+char* test_bug_flow_update_connecting_tensor();
+char* test_bug_tree_time_step();
 
 
 #define TEST_FUNCTION_ENTRY(fname) { .func = fname, .name = #fname }
@@ -182,6 +186,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_save_mps),
 		TEST_FUNCTION_ENTRY(test_ttns_vdot),
+		TEST_FUNCTION_ENTRY(test_ttns_compress),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_linked_list),
 		TEST_FUNCTION_ENTRY(test_hash_table),
@@ -218,6 +223,9 @@ int main()
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),
 		TEST_FUNCTION_ENTRY(test_apply_thc_spin_molecular_hamiltonian),
 		TEST_FUNCTION_ENTRY(test_thc_spin_molecular_hamiltonian_to_matrix),
+		TEST_FUNCTION_ENTRY(test_bug_flow_update_basis_leaf),
+		TEST_FUNCTION_ENTRY(test_bug_flow_update_connecting_tensor),
+		TEST_FUNCTION_ENTRY(test_bug_tree_time_step),
 	};
 	int num_tests = sizeof(tests) / sizeof(struct test);
 

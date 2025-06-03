@@ -93,6 +93,9 @@ References
 - J. Ren, W. Li, T. Jiang, Z. Shuai  
   A general automatic method for optimal construction of matrix product operators using bipartite graph theory  
   [J. Chem. Phys. 153, 084118 (2020)](https://doi.org/10.1063/5.0018149) ([arXiv:2006.02056](https://arxiv.org/abs/2006.02056))
+- Gianluca Ceruti, Christian Lubich, Dominik Sulz  
+  Rank-adaptive time integration of tree tensor networks  
+  [SIAM J. Numer. Anal. 61, 194-222 (2023)](https://doi.org/10.1137/22M1473790) ([arXiv:2201.10291](https://arxiv.org/abs/2201.10291))
 - Yu Wang, Maxine Luo, Matthias Reumann, Christian B. Mendl  
   Enhanced Krylov methods for molecular Hamiltonians via tensor hypercontraction  
   ([arXiv:2409.12708](https://arxiv.org/abs/2409.12708))

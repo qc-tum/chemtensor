@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include "ttns.h"
+#include "bond_ops.h"
 #include "aligned_memory.h"
 
 
@@ -300,7 +301,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 	for (int l = 0; l < nsites; l++)
 	{
 		axis_desc[l] = ct_malloc(ttns->a[l].ndim * sizeof(struct ttns_tensor_axis_desc));
-		ttns_tensor_get_axis_desc(ttns, l, axis_desc[l]);
+		ttns_tensor_get_axis_desc(&ttns->topology, l, axis_desc[l]);
 	}
 
 	for (int l = 0; l < nsites; l++)
@@ -311,7 +312,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 			return false;
 		}
 
-		// quantum numbers for physical legs of individual tensors must agree with 'qsite'
+		// quantum numbers for physical legs of individual tensors
 		for (int i = 0; i < ttns->a[l].ndim; i++)
 		{
 			if (axis_desc[l][i].type == TTNS_TENSOR_AXIS_PHYSICAL)
@@ -410,9 +411,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 ///
 long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 {
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
-	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + offset_phys_aux);
+	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + (i_site == 0 ? 2 : 1));
 
 	// count virtual bonds preceeding physical axis
 	int n = 0;
@@ -429,6 +428,35 @@ long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 	}
 
 	return ttns->a[i_site].dim_logical[n];
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Get the tensor axis index of the virtual bond at site 'i_site' to neighbor 'i_neigh'.
+///
+int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int i_site, const int i_neigh)
+{
+	assert(0 <= i_site  && i_site  < topology->num_nodes);
+	assert(0 <= i_neigh && i_neigh < topology->num_nodes);
+
+	for (int n = 0; n < topology->num_neighbors[i_site]; n++)
+	{
+		const int k = topology->neighbor_map[i_site][n];
+		if (k == i_neigh)
+		{
+			if (k < i_site) {
+				return n;
+			}
+			else {
+				const int offset_phys_aux = (i_site == 0 ? 2 : 1);
+				return n + offset_phys_aux;
+			}
+		}
+	}
+
+	// not found
+	return -1;
 }
 
 
@@ -467,7 +495,7 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 	assert(sd[0].i_node == i_root);
 
 	// matrices on virtual bonds corresponding to contracted subtrees
-	struct block_sparse_tensor** r_bonds = ct_calloc(nsites * nsites, sizeof(struct block_sparse_tensor*));
+	struct block_sparse_tensor* inner_bonds = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
 
 	// iterate over sites by decreasing distance from root
 	for (int l = nsites - 1; l >= 0; l--)
@@ -479,111 +507,106 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 		const int i_site   = sd[l].i_node;
 		const int i_parent = sd[l].i_parent;
 
-		const int offset_phys_aux = (i_site == 0 ? 2 : 1);
+		local_ttns_inner_product(&chi->a[i_site], &psi->a[i_site], &psi->topology, i_site, i_parent, inner_bonds);
+	}
 
-		// contract the local tensor in 'psi' with the matrices on the bonds towards the children
-		struct block_sparse_tensor psi_a_bonds;
-		copy_block_sparse_tensor(&psi->a[i_site], &psi_a_bonds);
-		for (int n = 0; n < psi->topology.num_neighbors[i_site]; n++)
+	assert(inner_bonds[i_root].ndim == 0);
+	assert(inner_bonds[i_root].blocks[0] != NULL);
+	// copy scalar entry
+	memcpy(ret, inner_bonds[i_root].blocks[0]->data, sizeof_numeric_type(inner_bonds[i_root].dtype));
+
+	for (int l = 0; l < nsites; l++) {
+		delete_block_sparse_tensor(&inner_bonds[l]);
+	}
+	ct_free(inner_bonds);
+
+	ct_free(sd);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the local inner product `<chi | psi>` at 'i_site' given the averages of the connected child nodes.
+/// The virtual bonds towards the parent node (if any) remain open.
+/// The output is stored in inner_bonds[i_site].
+///
+void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, const struct block_sparse_tensor* restrict psi,
+	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* restrict inner_bonds)
+{
+	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
+
+	int i_ax_p = -1;
+
+	struct block_sparse_tensor psi_envs;
+	copy_block_sparse_tensor(psi, &psi_envs);
+	for (int n = 0; n < topology->num_neighbors[i_site]; n++)
+	{
+		const int k = topology->neighbor_map[i_site][n];
+		assert(k != i_site);
+
+		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+
+		if (k == i_parent)
 		{
-			const int k = psi->topology.neighbor_map[i_site][n];
-			assert(k != i_site);
-			if (k == i_parent) {
-				continue;
-			}
-
-			const int ib = edge_to_bond_index(nsites, i_site, k);
-			assert(r_bonds[ib] != NULL);
-			assert(r_bonds[ib]->ndim == 2);
-
-			struct block_sparse_tensor tmp;
-			const int i_ax = (k < i_site ? n : n + offset_phys_aux);
-			block_sparse_tensor_multiply_axis(&psi_a_bonds, i_ax, r_bonds[ib], TENSOR_AXIS_RANGE_LEADING, &tmp);
-			delete_block_sparse_tensor(&psi_a_bonds);
-			psi_a_bonds = tmp;  // copy internal data pointers
+			i_ax_p = i_ax;
+			continue;
 		}
 
-		struct block_sparse_tensor chi_a_conj;
-		copy_block_sparse_tensor(&chi->a[i_site], &chi_a_conj);
-		conjugate_block_sparse_tensor(&chi_a_conj);
-		block_sparse_tensor_reverse_axis_directions(&chi_a_conj);
+		assert(inner_bonds[k].ndim == 2);
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_axis(&psi_envs, i_ax, &inner_bonds[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		delete_block_sparse_tensor(&psi_envs);
+		psi_envs = tmp;  // copy internal data pointers
+	}
 
-		if (l == 0)  // root node
+	struct block_sparse_tensor chi_conj;
+	copy_block_sparse_tensor(chi, &chi_conj);
+	conjugate_block_sparse_tensor(&chi_conj);
+	block_sparse_tensor_reverse_axis_directions(&chi_conj);
+
+	if (i_parent == -1)
+	{
+		assert(i_ax_p == -1);
+		// contract all axes
+		block_sparse_tensor_dot(&psi_envs, TENSOR_AXIS_RANGE_TRAILING, &chi_conj, TENSOR_AXIS_RANGE_TRAILING, psi_envs.ndim, &inner_bonds[i_site]);
+	}
+	else
+	{
+		assert(i_ax_p != -1);
+
+		if (i_ax_p == 0)
 		{
-			// contract all axes
-			struct block_sparse_tensor r;
-			block_sparse_tensor_dot(&chi_a_conj, TENSOR_AXIS_RANGE_LEADING, &psi_a_bonds, TENSOR_AXIS_RANGE_LEADING, psi_a_bonds.ndim, &r);
-			assert(r.ndim == 0);
-			assert(r.blocks[0] != NULL);
-
-			// copy scalar entry
-			memcpy(ret, r.blocks[0]->data, sizeof_numeric_type(r.dtype));
-
-			delete_block_sparse_tensor(&r);
+			block_sparse_tensor_dot(&psi_envs, TENSOR_AXIS_RANGE_TRAILING, &chi_conj, TENSOR_AXIS_RANGE_TRAILING, psi_envs.ndim - 1, &inner_bonds[i_site]);
+		}
+		else if (i_ax_p == psi_envs.ndim - 1)
+		{
+			block_sparse_tensor_dot(&psi_envs, TENSOR_AXIS_RANGE_LEADING, &chi_conj, TENSOR_AXIS_RANGE_LEADING, psi_envs.ndim - 1, &inner_bonds[i_site]);
 		}
 		else
 		{
-			// find parent bond axis
-			int i_ax_p = -1;
-			for (int n = 0; n < psi->topology.num_neighbors[i_site]; n++)
-			{
-				const int k = psi->topology.neighbor_map[i_site][n];
-				if (k == i_parent) {
-					i_ax_p = (k < i_site ? n : n + offset_phys_aux);
-					break;
-				}
+			// move virtual parent bond axis to the end
+
+			int* perm = ct_malloc(psi_envs.ndim * sizeof(int));
+			for (int i = 0; i < psi_envs.ndim - 1; i++) {
+				perm[i] = (i < i_ax_p ? i : i + 1);
 			}
-			assert(i_ax_p != -1);
+			perm[psi_envs.ndim - 1] = i_ax_p;
 
-			assert(psi_a_bonds.ndim == chi_a_conj.ndim);
-			assert(psi_a_bonds.ndim == psi->topology.num_neighbors[i_site] + offset_phys_aux);
+			struct block_sparse_tensor psi_envs_perm, chi_conj_perm;
+			transpose_block_sparse_tensor(perm, &psi_envs, &psi_envs_perm);
+			transpose_block_sparse_tensor(perm, &chi_conj, &chi_conj_perm);
 
-			if (i_ax_p != 0)
-			{
-				// move parent bond to the beginning
+			block_sparse_tensor_dot(&psi_envs_perm, TENSOR_AXIS_RANGE_LEADING, &chi_conj_perm, TENSOR_AXIS_RANGE_LEADING, psi_envs_perm.ndim - 1, &inner_bonds[i_site]);
 
-				int* perm = ct_malloc(psi_a_bonds.ndim * sizeof(int));
-				perm[0] = i_ax_p;
-				for (int j = 0; j < psi_a_bonds.ndim - 1; j++) {
-					perm[j + 1] = (j < i_ax_p ? j : j + 1);
-				}
-
-				struct block_sparse_tensor tmp;
-
-				transpose_block_sparse_tensor(perm, &psi_a_bonds, &tmp);
-				delete_block_sparse_tensor(&psi_a_bonds);
-				psi_a_bonds = tmp;  // copy internal data pointers
-
-				transpose_block_sparse_tensor(perm, &chi_a_conj, &tmp);
-				delete_block_sparse_tensor(&chi_a_conj);
-				chi_a_conj = tmp;  // copy internal data pointers
-
-				ct_free(perm);
-			}
-
-			assert(psi_a_bonds.ndim > 1);
-
-			const int ib = edge_to_bond_index(nsites, i_site, i_parent);
-			assert(r_bonds[ib] == NULL);
-
-			// contract all other axes
-			r_bonds[ib] = ct_malloc(sizeof(struct block_sparse_tensor));
-			block_sparse_tensor_dot(&psi_a_bonds, TENSOR_AXIS_RANGE_TRAILING, &chi_a_conj, TENSOR_AXIS_RANGE_TRAILING, psi_a_bonds.ndim - 1, r_bonds[ib]);
+			delete_block_sparse_tensor(&chi_conj_perm);
+			delete_block_sparse_tensor(&psi_envs_perm);
+			ct_free(perm);
 		}
-
-		delete_block_sparse_tensor(&chi_a_conj);
-		delete_block_sparse_tensor(&psi_a_bonds);
+		assert(inner_bonds[i_site].ndim == 2);
 	}
 
-	for (int l = 0; l < nsites * nsites; l++) {
-		if (r_bonds[l] != NULL) {
-			delete_block_sparse_tensor(r_bonds[l]);
-			ct_free(r_bonds[l]);
-		}
-	}
-	ct_free(r_bonds);
-
-	ct_free(sd);
+	delete_block_sparse_tensor(&psi_envs);
+	delete_block_sparse_tensor(&chi_conj);
 }
 
 
@@ -643,43 +666,134 @@ double ttns_norm(const struct ttns* psi)
 ///
 /// \brief Fill the axis descriptions of a TTNS tensor; 'desc' must point to an array of the same length as the degree of the tensor at 'i_site'.
 ///
-void ttns_tensor_get_axis_desc(const struct ttns* ttns, const int i_site, struct ttns_tensor_axis_desc* desc)
+void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int i_site, struct ttns_tensor_axis_desc* desc)
 {
-	// overall number of sites
-	#ifndef NDEBUG
-	const int nsites = ttns->nsites_physical + ttns->nsites_branching;
-	#endif
+	assert(0 <= i_site && i_site < topology->num_nodes);
 
 	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
-	assert(0 <= i_site && i_site < nsites);
-	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + offset_phys_aux);
+	const int ndim = topology->num_neighbors[i_site] + offset_phys_aux;
 
 	// set to default values
-	for (int i = 0; i < ttns->a[i_site].ndim; i++) {
+	for (int i = 0; i < ndim; i++) {
 		desc[i].type  = TTNS_TENSOR_AXIS_PHYSICAL;
 		desc[i].index = i_site;
 	}
 
 	// auxiliary axis of site 0 (special case)
 	if (i_site == 0) {
-		assert(ttns->a[0].ndim >= 2);
-		assert(ttns->a[0].dim_logical[1] == 1);
 		desc[1].type = TTNS_TENSOR_AXIS_AUXILIARY;
 		desc[1].index = i_site;
 	}
 
 	// virtual bonds to neighbors
-	for (int i = 0; i < ttns->topology.num_neighbors[i_site]; i++)
+	for (int n = 0; n < topology->num_neighbors[i_site]; n++)
 	{
-		if (i > 0) {
-			assert(ttns->topology.neighbor_map[i_site][i - 1] < ttns->topology.neighbor_map[i_site][i]);
+		if (n > 0) {
+			assert(topology->neighbor_map[i_site][n - 1] < topology->neighbor_map[i_site][n]);
 		}
-		int k = ttns->topology.neighbor_map[i_site][i];
+		int k = topology->neighbor_map[i_site][n];
 		assert(k != i_site);
-		desc[k < i_site ? i : i + offset_phys_aux].type  = TTNS_TENSOR_AXIS_VIRTUAL;
-		desc[k < i_site ? i : i + offset_phys_aux].index = k;
+		desc[k < i_site ? n : n + offset_phys_aux].type  = TTNS_TENSOR_AXIS_VIRTUAL;
+		desc[k < i_site ? n : n + offset_phys_aux].index = k;
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Recursively compress the subtree at 'i_site' using higher-order singular value decomposition with truncation.
+/// 'i_parent' is the parent node index (or -1 if no parent exists).
+/// \returns 0 on success, a negative integer otherwise
+///
+static int ttns_compress_subtree(const int i_site, const int i_parent, const double tol, const bool relative_thresh, const long max_vdim, struct ttns* ttns)
+{
+	if (ttns->topology.num_neighbors[i_site] <= 1)
+	{
+		// leaf node
+		return 0;
+	}
+
+	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
+
+	struct block_sparse_tensor* u_list = ct_malloc(ttns->topology.num_neighbors[i_site] * sizeof(struct block_sparse_tensor));
+	for (int n = 0; n < ttns->topology.num_neighbors[i_site]; n++)
+	{
+		const int i_child = ttns->topology.neighbor_map[i_site][n];
+		assert(i_child != i_site);
+		if (i_child == i_parent) {
+			continue;
+		}
+
+		// corresponding tensor axis index
+		const int i_ax = (i_child < i_site ? n : n + offset_phys_aux);
+
+		struct block_sparse_tensor a_mat;
+		struct block_sparse_tensor_axis_matricization_info mat_info;
+		// opposite axis direction for merged axes
+		block_sparse_tensor_matricize_axis(&ttns->a[i_site], i_ax, 0, -ttns->a[i_site].axis_dir[i_ax], &a_mat, &mat_info);
+		delete_block_sparse_tensor_axis_matricization_info(&mat_info);
+
+		struct trunc_info info;
+		int ret = split_block_sparse_matrix_svd_isometry(&a_mat, tol, relative_thresh, max_vdim, &u_list[n], &info);
+		delete_block_sparse_tensor(&a_mat);
+		if (ret < 0) {
+			return ret;
+		}
+
+		// axis index of child node connecting to current site
+		int i_ax_c = ttns_tensor_bond_axis_index(&ttns->topology, i_child, i_site);
+		assert(i_ax_c != -1);
+
+		// multiply current 'u' with child tensor
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_axis(&ttns->a[i_child], i_ax_c, &u_list[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		delete_block_sparse_tensor(&ttns->a[i_child]);
+		ttns->a[i_child] = tmp;  // copy internal data pointers
+
+		// recursion to children
+		ret = ttns_compress_subtree(i_child, i_site, tol, relative_thresh, max_vdim, ttns);
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
+	// form the truncated core tensor
+	for (int n = 0; n < ttns->topology.num_neighbors[i_site]; n++)
+	{
+		const int k = ttns->topology.neighbor_map[i_site][n];
+		assert(k != i_site);
+		if (k == i_parent) {
+			continue;
+		}
+
+		// corresponding tensor axis index
+		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+
+		// apply u^\dagger to the core tensor
+		conjugate_block_sparse_tensor(&u_list[n]);
+		block_sparse_tensor_reverse_axis_directions(&u_list[n]);
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_axis(&ttns->a[i_site], i_ax, &u_list[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		delete_block_sparse_tensor(&ttns->a[i_site]);
+		ttns->a[i_site] = tmp;  // copy internal data pointers
+
+		delete_block_sparse_tensor(&u_list[n]);
+	}
+
+	ct_free(u_list);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Recursively compress the tree from the specified root node to the leaves.
+/// \returns 0 on success, a negative integer otherwise
+///
+int ttns_compress(const int i_root, const double tol, const bool relative_thresh, const long max_vdim, struct ttns* ttns)
+{
+	return ttns_compress_subtree(i_root, -1, tol, relative_thresh, max_vdim, ttns);
 }
 
 
@@ -773,7 +887,7 @@ static void ttns_contract_subtree(const struct ttns* ttns, const int i_site, con
 {
 	copy_block_sparse_tensor(&ttns->a[i_site], &contracted->tensor);
 	contracted->axis_desc = ct_malloc(contracted->tensor.ndim * sizeof(struct ttns_tensor_axis_desc));
-	ttns_tensor_get_axis_desc(ttns, i_site, contracted->axis_desc);
+	ttns_tensor_get_axis_desc(&ttns->topology, i_site, contracted->axis_desc);
 
 	// merge child subtrees into current subtree
 	for (int i = 0; i < ttns->topology.num_neighbors[i_site]; i++)

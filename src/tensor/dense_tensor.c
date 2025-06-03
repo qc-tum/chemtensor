@@ -1543,8 +1543,6 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	const long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
 	const long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
 	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
-
-	// matrix-matrix multiplication
 	switch (s->dtype)
 	{
 		case CT_SINGLE_REAL:

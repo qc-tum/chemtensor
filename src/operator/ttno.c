@@ -478,30 +478,25 @@ void delete_ttno(struct ttno* ttno)
 ///
 /// \brief Fill the axis descriptions of a TTNO tensor; 'desc' must point to an array of the same length as the degree of the tensor at 'i_site'.
 ///
-void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct ttno_tensor_axis_desc* desc)
+void ttno_tensor_get_axis_desc(const struct abstract_graph* topology, const int i_site, struct ttno_tensor_axis_desc* desc)
 {
-	// overall number of sites
-	#ifndef NDEBUG
-	const int nsites = ttno->nsites_physical + ttno->nsites_branching;
-	#endif
+	assert(0 <= i_site && i_site < topology->num_nodes);
 
 	const int offset_phys = 2;
-
-	assert(0 <= i_site && i_site < nsites);
-	assert(ttno->a[i_site].ndim == ttno->topology.num_neighbors[i_site] + offset_phys);
+	const int ndim = topology->num_neighbors[i_site] + offset_phys;
 
 	// set to default type
-	for (int i = 0; i < ttno->a[i_site].ndim; i++) {
+	for (int i = 0; i < ndim; i++) {
 		desc[i].type = TTNO_TENSOR_AXIS_PHYS_OUT;
 	}
 
 	// virtual bonds to neighbors
-	for (int i = 0; i < ttno->topology.num_neighbors[i_site]; i++)
+	for (int i = 0; i < topology->num_neighbors[i_site]; i++)
 	{
 		if (i > 0) {
-			assert(ttno->topology.neighbor_map[i_site][i - 1] < ttno->topology.neighbor_map[i_site][i]);
+			assert(topology->neighbor_map[i_site][i - 1] < topology->neighbor_map[i_site][i]);
 		}
-		int k = ttno->topology.neighbor_map[i_site][i];
+		int k = topology->neighbor_map[i_site][i];
 		assert(k != i_site);
 		desc[k < i_site ? i : i + offset_phys].type  = TTNO_TENSOR_AXIS_VIRTUAL;
 		desc[k < i_site ? i : i + offset_phys].index = k;
@@ -511,7 +506,7 @@ void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct
 		#ifndef NDEBUG
 		bool site_info_set = false;
 		#endif
-		for (int i = 0; i < ttno->a[i_site].ndim - 1; i++)
+		for (int i = 0; i < ndim - 1; i++)
 		{
 			if (desc[i].type == TTNO_TENSOR_AXIS_PHYS_OUT) {
 				assert(desc[i + 1].type == TTNO_TENSOR_AXIS_PHYS_OUT);
@@ -564,7 +559,7 @@ bool ttno_is_consistent(const struct ttno* ttno)
 	for (int l = 0; l < nsites; l++)
 	{
 		axis_desc[l] = ct_malloc(ttno->a[l].ndim * sizeof(struct ttno_tensor_axis_desc));
-		ttno_tensor_get_axis_desc(ttno, l, axis_desc[l]);
+		ttno_tensor_get_axis_desc(&ttno->topology, l, axis_desc[l]);
 	}
 
 	const int offset_phys = 2;
@@ -741,7 +736,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 {
 	copy_block_sparse_tensor(&ttno->a[i_site], &contracted->tensor);
 	contracted->axis_desc = ct_malloc(contracted->tensor.ndim * sizeof(struct ttno_tensor_axis_desc));
-	ttno_tensor_get_axis_desc(ttno, i_site, contracted->axis_desc);
+	ttno_tensor_get_axis_desc(&ttno->topology, i_site, contracted->axis_desc);
 
 	// merge child subtrees into current subtree
 	for (int i = 0; i < ttno->topology.num_neighbors[i_site]; i++)

@@ -80,7 +80,7 @@ struct ttno_tensor_axis_desc
 	int index;                        //!< local site index (for a physical axis), or neighbor site index (for a virtual bond)
 };
 
-void ttno_tensor_get_axis_desc(const struct ttno* ttno, const int i_site, struct ttno_tensor_axis_desc* desc);
+void ttno_tensor_get_axis_desc(const struct abstract_graph* topology, const int i_site, struct ttno_tensor_axis_desc* desc);
 
 
 //________________________________________________________________________________________________________________________

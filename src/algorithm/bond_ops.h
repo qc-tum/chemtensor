@@ -35,7 +35,7 @@ struct index_list
 void delete_index_list(struct index_list* list);
 
 
-void retained_bond_indices(const double* sigma, const long n, const double tol, const long max_vdim,
+void retained_bond_indices(const double* sigma, const long n, const double tol, const bool relative_thresh, const long max_vdim,
 	struct index_list* list, struct trunc_info* info);
 
 
@@ -51,5 +51,8 @@ enum singular_value_distr
 
 
 int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
-	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	const double tol, const bool relative_thresh, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
 	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);
+
+int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const long max_vdim,
+	struct block_sparse_tensor* restrict u, struct trunc_info* info);
