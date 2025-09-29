@@ -615,15 +615,10 @@ char* test_mps_split_tensor_svd()
 			}
 			else
 			{
-				struct dense_tensor a_mrg_dns;
-				block_sparse_to_dense_tensor(&a_mrg, &a_mrg_dns);
-
 				// compare
-				if (!dense_tensor_allclose(&a_mrg_dns, &a_mrg_ref, 1e-13)) {
+				if (!dense_block_sparse_tensor_allclose(&a_mrg_ref, &a_mrg, 1e-13)) {
 					return "merged tensor after splitting does not match reference";
 				}
-
-				delete_dense_tensor(&a_mrg_dns);
 			}
 
 			delete_block_sparse_tensor(&a_mrg);
@@ -714,10 +709,6 @@ char* test_mps_to_statevector()
 	struct block_sparse_tensor vec;
 	mps_to_statevector(&mps, &vec);
 
-	// convert to dense vector (for comparison with reference vector)
-	struct dense_tensor vec_dns;
-	block_sparse_to_dense_tensor(&vec, &vec_dns);
-
 	// read reference state vector from disk
 	struct dense_tensor vec_ref;
 	const long dim_vec_ref[3] = { 1, ipow(d, nsites), 1 };  // include dummy virtual bond dimensions
@@ -727,12 +718,11 @@ char* test_mps_to_statevector()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&vec_dns, &vec_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&vec_ref, &vec, 1e-13)) {
 		return "state vector obtained from MPS does not match reference";
 	}
 
 	delete_dense_tensor(&vec_ref);
-	delete_dense_tensor(&vec_dns);
 	delete_block_sparse_tensor(&vec);
 	delete_mps(&mps);
 	for (int i = 0; i < nsites + 1; i++)

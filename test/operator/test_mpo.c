@@ -158,9 +158,6 @@ char* test_mpo_from_assembly()
 	// convert to a matrix
 	struct block_sparse_tensor mat;
 	mpo_to_matrix(&mpo, &mat);
-	// convert to dense matrix (for comparison with reference matrix)
-	struct dense_tensor mat_dns;
-	block_sparse_to_dense_tensor(&mat, &mat_dns);
 
 	// convert MPO graph to a (dense) matrix, as reference
 	struct dense_tensor mat_ref;
@@ -170,12 +167,11 @@ char* test_mpo_from_assembly()
 	reshape_dense_tensor(4, dim_mat_graph, &mat_ref);
 
 	// compare
-	if (!dense_tensor_allclose(&mat_dns, &mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&mat_ref, &mat, 1e-13)) {
 		return "matrix representation of MPO does not match corresponding matrix obtained from MPO graph";
 	}
 
 	delete_dense_tensor(&mat_ref);
-	delete_dense_tensor(&mat_dns);
 	delete_block_sparse_tensor(&mat);
 	delete_mpo(&mpo);
 	for (int i = 0; i < num_local_ops; i++) {

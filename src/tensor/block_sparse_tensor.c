@@ -415,6 +415,27 @@ void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Set the dense blocks of the tensor to identity matrices, requiring same dimensions for quantum numbers appearing on both axes.
+///
+void block_sparse_tensor_set_identity_blocks(struct block_sparse_tensor* t)
+{
+	assert(t->ndim == 2);
+	assert(t->axis_dir[0] != t->axis_dir[1]);
+
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	#pragma omp parallel for schedule(dynamic)
+	for (long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL) {
+			dense_tensor_set_identity(b);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Fill the non-zero blocks of a block-sparse tensor with random normal entries.
 ///
 void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t)
@@ -2863,6 +2884,23 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Test whether a dense and a block-sparse tensor agree elementwise within tolerance 'tol'.
+///
+bool dense_block_sparse_tensor_allclose(const struct dense_tensor* s, const struct block_sparse_tensor* t, const double tol)
+{
+	struct dense_tensor t_dns;
+	block_sparse_to_dense_tensor(t, &t_dns);
+
+	bool is_close = dense_tensor_allclose(s, &t_dns, tol);
+
+	delete_dense_tensor(&t_dns);
+
+	return is_close;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Test whether a block-sparse tensors is close to the identity map within tolerance 'tol'.
 ///
 bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol)
@@ -2937,6 +2975,87 @@ bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const 
 	delete_block_sparse_tensor(&tc);
 
 	return is_isometry;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Augment a block-sparse matrix by padding identities for quantum number sectors along the first axis which are absent along the second axis.
+///
+void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tensor* restrict t, const bool transpose, struct block_sparse_tensor* restrict ret)
+{
+	// must be a matrix
+	assert(t->ndim == 2);
+	assert(t->axis_dir[0] != t->axis_dir[1]);
+
+	const int i_ax = (transpose ? 1 : 0);
+
+	// upper bound on required memory
+	qnumber* qnums_aug = ct_malloc(t->dim_logical[i_ax] * sizeof(qnumber));
+	long dim_aug = 0;
+
+	for (long i = 0; i < t->dim_blocks[i_ax]; i++)
+	{
+		const qnumber qnum = t->qnums_blocks[i_ax][i];
+
+		// test whether current quantum number is absent along other axis
+		bool absent = true;
+		for (long j = 0; j < t->dim_blocks[1 - i_ax]; j++)
+		{
+			if (t->qnums_blocks[1 - i_ax][j] == qnum) {
+				absent = false;
+				break;
+			}
+		}
+		if (!absent) {
+			continue;
+		}
+
+		// multiplicity of quantum number 'qnum'
+		long multiplicity = 0;
+		for (long j = 0; j < t->dim_logical[i_ax]; j++)
+		{
+			if (t->qnums_logical[i_ax][j] == qnum) {
+				multiplicity++;
+			}
+		}
+		assert(multiplicity > 0);
+
+		// add absent quantum number to augmentation
+		for (long j = 0; j < multiplicity; j++)
+		{
+			qnums_aug[dim_aug] = qnum;
+			dim_aug++;
+		}
+	}
+	assert(dim_aug <= t->dim_logical[i_ax]);
+
+	if (dim_aug == 0)
+	{
+		// augmentation not required
+		ct_free(qnums_aug);
+		copy_block_sparse_tensor(t, ret);
+		return;
+	}
+
+	long dim[2];
+	dim[i_ax] = t->dim_logical[i_ax];
+	dim[1 - i_ax] = dim_aug;
+
+	qnumber* qnums_logical[2];
+	qnums_logical[i_ax] = t->qnums_logical[i_ax];  // copy the pointer
+	qnums_logical[1 - i_ax] = qnums_aug;
+
+	struct block_sparse_tensor tlist[2];
+	tlist[0] = *t;  // copy internal data pointers
+
+	allocate_block_sparse_tensor(t->dtype, 2, dim, t->axis_dir, (const qnumber**)qnums_logical, &tlist[1]);
+	block_sparse_tensor_set_identity_blocks(&tlist[1]);
+
+	block_sparse_tensor_concatenate(tlist, 2, 1 - i_ax, ret);
+
+	delete_block_sparse_tensor(&tlist[1]);
+	ct_free(qnums_aug);
 }
 
 

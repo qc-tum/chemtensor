@@ -115,23 +115,6 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 }
 
 
-//________________________________________________________________________________________________________________________
-///
-/// \brief Test whether a block sparse and a dense tensor agree elementwise within tolerance 'tol'.
-///
-static bool dense_block_sparse_tensor_allclose(const struct dense_tensor* t_dns, const struct block_sparse_tensor* t_sparse, const double tol)
-{
-	struct dense_tensor t_restore;
-	block_sparse_to_dense_tensor(t_sparse, &t_restore);
-
-	bool is_close = dense_tensor_allclose(t_dns, &t_restore, tol);
-
-	delete_dense_tensor(&t_restore);
-
-	return is_close;
-}
-
-
 static inline int read_quantum_numbers(const hid_t file, const char* varname, long* dim, qnumber** qnums)
 {
 	hsize_t qdims[1];
@@ -787,13 +770,10 @@ char* test_bug_flow_update_connecting_tensor()
 	}
 
 	// compare
-	struct dense_tensor c1_dns;
-	block_sparse_to_dense_tensor(&c1, &c1_dns);
-	if (!dense_tensor_allclose(&c1_dns, &c1_ref, 1e-14)) {
+	if (!dense_block_sparse_tensor_allclose(&c1_ref, &c1, 1e-14)) {
 		return "flow-updated connecting tensor does not match reference";
 	}
 
-	delete_dense_tensor(&c1_dns);
 	delete_dense_tensor(&c1_ref);
 	delete_block_sparse_tensor(&c1);
 	delete_block_sparse_tensor(&env_parent);
@@ -1010,13 +990,8 @@ char* test_bug_tree_time_step()
 		}
 	}
 
-	struct dense_tensor vec_dns;
-	{
-		struct block_sparse_tensor vec;
-		ttns_to_statevector(&state, &vec);
-		block_sparse_to_dense_tensor(&vec, &vec_dns);
-		delete_block_sparse_tensor(&vec);
-	}
+	struct block_sparse_tensor vec;
+	ttns_to_statevector(&state, &vec);
 
 	// read reference vector from disk
 	struct dense_tensor vec_ref;
@@ -1028,12 +1003,12 @@ char* test_bug_tree_time_step()
 	}
 
 	// compare with reference
-	if (!dense_tensor_allclose(&vec_dns, &vec_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&vec_ref, &vec, 1e-13)) {
 		return "state vector after BUG integration step does not match reference";
 	}
 
 	delete_dense_tensor(&vec_ref);
-	delete_dense_tensor(&vec_dns);
+	delete_block_sparse_tensor(&vec);
 	delete_ttns(&state);
 	delete_ttno(&hamiltonian);
 

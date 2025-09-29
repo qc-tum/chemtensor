@@ -182,14 +182,11 @@ char* test_split_block_sparse_matrix_svd()
 			// reassemble matrix after splitting, for comparison with reference
 			struct block_sparse_tensor a_trunc;
 			block_sparse_tensor_dot(&a0, TENSOR_AXIS_RANGE_TRAILING, &a1, TENSOR_AXIS_RANGE_LEADING, 1, &a_trunc);
-			struct dense_tensor a_trunc_dns;
-			block_sparse_to_dense_tensor(&a_trunc, &a_trunc_dns);
 			// compare
-			if (!dense_tensor_allclose(&a_trunc_dns, r == 0 ? &a_trunc_plain_ref : &a_trunc_renrm_ref, 2e-6)) {
+			if (!dense_block_sparse_tensor_allclose(r == 0 ? &a_trunc_plain_ref : &a_trunc_renrm_ref, &a_trunc, 2e-6)) {
 				return "merge matrix after truncation does not match reference";
 			}
 
-			delete_dense_tensor(&a_trunc_dns);
 			delete_block_sparse_tensor(&a_trunc);
 			delete_block_sparse_tensor(&a0);
 			delete_block_sparse_tensor(&a1);

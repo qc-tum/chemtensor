@@ -592,6 +592,52 @@ def block_sparse_tensor_svd_data():
                 file.attrs[f"qnums{c}{i}"] = qn
 
 
+def block_sparse_tensor_augment_identity_blocks_data():
+
+    # random number generator
+    rng = np.random.default_rng(935)
+
+    # dimensions
+    dims = (37, 21)
+
+    # axis directions
+    axis_dir = (1, -1)
+
+    # quantum numbers
+    qnums = [rng.choice([-3, -1, 0, 2, 5] if i == 0 else
+                        [-6, -3, -2, 0, 1, 2, 4], size=dims[i], replace=True).astype(np.int32)
+             for i in range(2)]
+
+    # dense tensor representation
+    t = rng.standard_normal(dims)
+    # enforce sparsity pattern based on quantum numbers
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(2)])
+
+    t_ext = [None, None]
+    for i in range(2):
+        t_ext[i] = t.copy()
+        qnums_ext = sorted(list(set(qnums[i]).difference(qnums[1 - i])))
+        # ensure that some quantum numbers along current axis do not appear along the other axis
+        assert any(qnums_ext)
+        for qn in qnums_ext:
+            idx = np.where(qnums[i] == qn)[0]
+            if i == 0:
+                extension = np.zeros((t.shape[0], len(idx)), dtype=t.dtype)
+                extension[idx, :] = np.identity(len(idx), dtype=t.dtype)
+            else:
+                extension = np.zeros((len(idx), t.shape[1]), dtype=t.dtype)
+                extension[:, idx] = np.identity(len(idx), dtype=t.dtype)
+            t_ext[i] = np.concatenate((t_ext[i], extension), axis = 1 - i)
+
+    with h5py.File("data/test_block_sparse_tensor_augment_identity_blocks.hdf5", "w") as file:
+        file["t"] = t
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+        for i in range(2):
+            file[f"t_ext{i}"] = t_ext[i]
+
+
 def block_sparse_tensor_serialize_data():
 
     # random number generator
@@ -667,6 +713,7 @@ def main():
     block_sparse_tensor_qr_data()
     block_sparse_tensor_rq_data()
     block_sparse_tensor_svd_data()
+    block_sparse_tensor_augment_identity_blocks_data()
     block_sparse_tensor_serialize_data()
     block_sparse_tensor_get_entry_data()
 

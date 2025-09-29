@@ -72,6 +72,8 @@ void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t
 
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 
+void block_sparse_tensor_set_identity_blocks(struct block_sparse_tensor* t);
+
 void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t);
 
 
@@ -191,10 +193,19 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 // comparison
 
 bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const double tol);
+bool dense_block_sparse_tensor_allclose(const struct dense_tensor* s, const struct block_sparse_tensor* t, const double tol);
 
 bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol);
 
 bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const double tol, const bool transpose);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// augmentation
+
+void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tensor* restrict t, const bool transpose, struct block_sparse_tensor* restrict ret);
 
 
 //________________________________________________________________________________________________________________________

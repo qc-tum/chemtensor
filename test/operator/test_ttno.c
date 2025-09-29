@@ -264,21 +264,17 @@ char* test_ttno_from_assembly()
 	// convert to a matrix
 	struct block_sparse_tensor mat;
 	ttno_to_matrix(&ttno, &mat);
-	// convert to dense matrix (for comparison with reference matrix)
-	struct dense_tensor mat_dns;
-	block_sparse_to_dense_tensor(&mat, &mat_dns);
 
 	// convert TTNO graph to a (dense) matrix, as reference
 	struct dense_tensor mat_ref;
 	ttno_graph_to_matrix(&graph, opmap, coeffmap, &mat_ref);
 
 	// compare
-	if (!dense_tensor_allclose(&mat_dns, &mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&mat_ref, &mat, 1e-13)) {
 		return "matrix representation of TTNO does not match corresponding matrix obtained from TTNO graph";
 	}
 
 	delete_dense_tensor(&mat_ref);
-	delete_dense_tensor(&mat_dns);
 	delete_block_sparse_tensor(&mat);
 	delete_ttno(&ttno);
 	for (int i = 0; i < num_local_ops; i++) {

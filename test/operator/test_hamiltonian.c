@@ -38,10 +38,6 @@ char* test_ising_1d_mpo()
 	struct block_sparse_tensor ising_1d_mat;
 	mpo_to_matrix(&ising_1d_mpo, &ising_1d_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor ising_1d_mat_dns;
-	block_sparse_to_dense_tensor(&ising_1d_mat, &ising_1d_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "ising_1d_mat", dims_ref_hsize) < 0) {
@@ -56,13 +52,12 @@ char* test_ising_1d_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&ising_1d_mat_dns, &ising_1d_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&ising_1d_mat_ref, &ising_1d_mat, 1e-13)) {
 		return "matrix representation of Ising Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&ising_1d_mat);
-	delete_dense_tensor(&ising_1d_mat_dns);
 	delete_dense_tensor(&ising_1d_mat_ref);
 	delete_mpo(&ising_1d_mpo);
 
@@ -108,10 +103,6 @@ char* test_heisenberg_xxz_1d_mpo()
 	struct block_sparse_tensor heisenberg_xxz_1d_mat;
 	mpo_to_matrix(&heisenberg_xxz_1d_mpo, &heisenberg_xxz_1d_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor heisenberg_xxz_1d_mat_dns;
-	block_sparse_to_dense_tensor(&heisenberg_xxz_1d_mat, &heisenberg_xxz_1d_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "heisenberg_xxz_1d_mat", dims_ref_hsize) < 0) {
@@ -126,13 +117,12 @@ char* test_heisenberg_xxz_1d_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&heisenberg_xxz_1d_mat_dns, &heisenberg_xxz_1d_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&heisenberg_xxz_1d_mat_ref, &heisenberg_xxz_1d_mat, 1e-13)) {
 		return "matrix representation of Heisenberg XXZ Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&heisenberg_xxz_1d_mat);
-	delete_dense_tensor(&heisenberg_xxz_1d_mat_dns);
 	delete_dense_tensor(&heisenberg_xxz_1d_mat_ref);
 	delete_mpo(&heisenberg_xxz_1d_mpo);
 
@@ -181,10 +171,6 @@ char* test_bose_hubbard_1d_mpo()
 	struct block_sparse_tensor bose_hubbard_1d_mat;
 	mpo_to_matrix(&bose_hubbard_1d_mpo, &bose_hubbard_1d_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor bose_hubbard_1d_mat_dns;
-	block_sparse_to_dense_tensor(&bose_hubbard_1d_mat, &bose_hubbard_1d_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "bose_hubbard_1d_mat", dims_ref_hsize) < 0) {
@@ -199,13 +185,12 @@ char* test_bose_hubbard_1d_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&bose_hubbard_1d_mat_dns, &bose_hubbard_1d_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&bose_hubbard_1d_mat_ref, &bose_hubbard_1d_mat, 1e-13)) {
 		return "matrix representation of Bose-Hubbard Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&bose_hubbard_1d_mat);
-	delete_dense_tensor(&bose_hubbard_1d_mat_dns);
 	delete_dense_tensor(&bose_hubbard_1d_mat_ref);
 	delete_mpo(&bose_hubbard_1d_mpo);
 
@@ -251,10 +236,6 @@ char* test_fermi_hubbard_1d_mpo()
 	struct block_sparse_tensor fermi_hubbard_1d_mat;
 	mpo_to_matrix(&fermi_hubbard_1d_mpo, &fermi_hubbard_1d_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor fermi_hubbard_1d_mat_dns;
-	block_sparse_to_dense_tensor(&fermi_hubbard_1d_mat, &fermi_hubbard_1d_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "fermi_hubbard_1d_mat", dims_ref_hsize) < 0) {
@@ -269,13 +250,12 @@ char* test_fermi_hubbard_1d_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&fermi_hubbard_1d_mat_dns, &fermi_hubbard_1d_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&fermi_hubbard_1d_mat_ref, &fermi_hubbard_1d_mat, 1e-13)) {
 		return "matrix representation of Fermi-Hubbard Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&fermi_hubbard_1d_mat);
-	delete_dense_tensor(&fermi_hubbard_1d_mat_dns);
 	delete_dense_tensor(&fermi_hubbard_1d_mat_ref);
 	delete_mpo(&fermi_hubbard_1d_mpo);
 
@@ -336,12 +316,6 @@ char* test_molecular_hamiltonian_mpo()
 	struct block_sparse_tensor molecular_hamiltonian_mat_opt;
 	mpo_to_matrix(&molecular_hamiltonian_mpo_opt, &molecular_hamiltonian_mat_opt);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor molecular_hamiltonian_mat_dns;
-	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat, &molecular_hamiltonian_mat_dns);
-	struct dense_tensor molecular_hamiltonian_mat_opt_dns;
-	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat_opt, &molecular_hamiltonian_mat_opt_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "molecular_hamiltonian_mat", dims_ref_hsize) < 0) {
@@ -356,18 +330,16 @@ char* test_molecular_hamiltonian_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&molecular_hamiltonian_mat_ref, &molecular_hamiltonian_mat, 1e-13)) {
 		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
 	}
-	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_opt_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&molecular_hamiltonian_mat_ref, &molecular_hamiltonian_mat_opt, 1e-13)) {
 		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&molecular_hamiltonian_mat_opt);
 	delete_block_sparse_tensor(&molecular_hamiltonian_mat);
-	delete_dense_tensor(&molecular_hamiltonian_mat_opt_dns);
-	delete_dense_tensor(&molecular_hamiltonian_mat_dns);
 	delete_dense_tensor(&molecular_hamiltonian_mat_ref);
 	delete_mpo(&molecular_hamiltonian_mpo_opt);
 	delete_mpo(&molecular_hamiltonian_mpo);
@@ -418,10 +390,6 @@ char* test_spin_molecular_hamiltonian_mpo()
 	struct block_sparse_tensor molecular_hamiltonian_mat;
 	mpo_to_matrix(&molecular_hamiltonian_mpo, &molecular_hamiltonian_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor molecular_hamiltonian_mat_dns;
-	block_sparse_to_dense_tensor(&molecular_hamiltonian_mat, &molecular_hamiltonian_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "molecular_hamiltonian_mat", dims_ref_hsize) < 0) {
@@ -436,13 +404,12 @@ char* test_spin_molecular_hamiltonian_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&molecular_hamiltonian_mat_dns, &molecular_hamiltonian_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&molecular_hamiltonian_mat_ref, &molecular_hamiltonian_mat, 1e-13)) {
 		return "matrix representation of molecular Hamiltonian based on MPO form does not match reference";
 	}
 
 	// clean up
 	delete_block_sparse_tensor(&molecular_hamiltonian_mat);
-	delete_dense_tensor(&molecular_hamiltonian_mat_dns);
 	delete_dense_tensor(&molecular_hamiltonian_mat_ref);
 	delete_mpo(&molecular_hamiltonian_mpo);
 	delete_dense_tensor(&vint);
@@ -495,10 +462,6 @@ char* test_quadratic_fermionic_mpo()
 	struct block_sparse_tensor quadratic_fermionic_mat;
 	mpo_to_matrix(&quadratic_fermionic_mpo, &quadratic_fermionic_mat);
 
-	// convert to dense tensor for comparison with reference
-	struct dense_tensor quadratic_fermionic_mat_dns;
-	block_sparse_to_dense_tensor(&quadratic_fermionic_mat, &quadratic_fermionic_mat_dns);
-
 	// reference matrix for checking
 	hsize_t dims_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "quadratic_fermionic_mat", dims_ref_hsize) < 0) {
@@ -513,7 +476,7 @@ char* test_quadratic_fermionic_mpo()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&quadratic_fermionic_mat_dns, &quadratic_fermionic_mat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&quadratic_fermionic_mat_ref, &quadratic_fermionic_mat, 1e-13)) {
 		return "matrix representation of quadratic fermionic MPO does not match reference";
 	}
 
@@ -521,7 +484,6 @@ char* test_quadratic_fermionic_mpo()
 	ct_free(coeffa);
 	ct_free(coeffc);
 	delete_block_sparse_tensor(&quadratic_fermionic_mat);
-	delete_dense_tensor(&quadratic_fermionic_mat_dns);
 	delete_dense_tensor(&quadratic_fermionic_mat_ref);
 	delete_mpo(&quadratic_fermionic_mpo);
 
@@ -574,10 +536,6 @@ char* test_quadratic_spin_fermionic_mpo()
 		struct block_sparse_tensor quadratic_spin_fermionic_mat;
 		mpo_to_matrix(&quadratic_spin_fermionic_mpo, &quadratic_spin_fermionic_mat);
 
-		// convert to dense tensor for comparison with reference
-		struct dense_tensor quadratic_spin_fermionic_mat_dns;
-		block_sparse_to_dense_tensor(&quadratic_spin_fermionic_mat, &quadratic_spin_fermionic_mat_dns);
-
 		// reference matrix for checking
 		char varname[1024];
 		sprintf(varname, "quadratic_spin_fermionic_mat_%i", sigma);
@@ -594,13 +552,12 @@ char* test_quadratic_spin_fermionic_mpo()
 		}
 
 		// compare
-		if (!dense_tensor_allclose(&quadratic_spin_fermionic_mat_dns, &quadratic_spin_fermionic_mat_ref, 1e-13)) {
+		if (!dense_block_sparse_tensor_allclose(&quadratic_spin_fermionic_mat_ref, &quadratic_spin_fermionic_mat, 1e-13)) {
 			return "matrix representation of quadratic spin fermionic MPO does not match reference";
 		}
 
 		// clean up
 		delete_block_sparse_tensor(&quadratic_spin_fermionic_mat);
-		delete_dense_tensor(&quadratic_spin_fermionic_mat_dns);
 		delete_dense_tensor(&quadratic_spin_fermionic_mat_ref);
 		delete_mpo(&quadratic_spin_fermionic_mpo);
 	}

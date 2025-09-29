@@ -111,15 +111,11 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 		struct block_sparse_tensor h_psi_vec;
 		mps_to_statevector(&h_psi, &h_psi_vec);
 
-		struct dense_tensor h_psi_vec_dns;
-		block_sparse_to_dense_tensor(&h_psi_vec, &h_psi_vec_dns);
-
 		// compare vectors
-		if (!dense_tensor_allclose(&h_psi_vec_dns, &h_psi_ref, j == 0 ? 1e-13 : 0.005)) {
+		if (!dense_block_sparse_tensor_allclose(&h_psi_ref, &h_psi_vec, j == 0 ? 1e-13 : 0.005)) {
 			return "applying a THC spin molecular Hamiltonian does not match reference";
 		}
 
-		delete_dense_tensor(&h_psi_vec_dns);
 		delete_block_sparse_tensor(&h_psi_vec);
 		delete_mps(&h_psi);
 	}
@@ -185,10 +181,6 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix()
 		return "'thc_spin_molecular_hamiltonian_to_matrix' failed internally";
 	}
 
-	// convert to dense matrix for comparison with reference
-	struct dense_tensor hmat_dns;
-	block_sparse_to_dense_tensor(&hmat, &hmat_dns);
-
 	// reference matrix for checking
 	hsize_t dim_ref_hsize[2];
 	if (get_hdf5_dataset_dims(file, "hmat", dim_ref_hsize) < 0) {
@@ -204,12 +196,11 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&hmat_dns, &hmat_ref, 1e-13)) {
+	if (!dense_block_sparse_tensor_allclose(&hmat_ref, &hmat, 1e-13)) {
 		return "matrix representation of tensor hypercontraction representation of a molecular Hamiltonian does not match reference";
 	}
 
 	delete_dense_tensor(&hmat_ref);
-	delete_dense_tensor(&hmat_dns);
 	delete_block_sparse_tensor(&hmat);
 	delete_thc_spin_molecular_hamiltonian(&hamiltonian);
 	delete_dense_tensor(&thc_transform);

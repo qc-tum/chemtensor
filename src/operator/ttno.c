@@ -307,12 +307,9 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 		ct_free(axis_dir);
 
 		#ifndef NDEBUG
-		struct dense_tensor a_loc_conv;
-		block_sparse_to_dense_tensor(&ttno->a[l], &a_loc_conv);
-		if (!dense_tensor_allclose(&a_loc_conv, &a_loc, 0.)) {
+		if (!dense_block_sparse_tensor_allclose(&a_loc, &ttno->a[l], 0.)) {
 			fprintf(stderr, "Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'ttno_from_graph', site %i\n", l);
 		}
-		delete_dense_tensor(&a_loc_conv);
 		#endif
 
 		delete_dense_tensor(&a_loc);

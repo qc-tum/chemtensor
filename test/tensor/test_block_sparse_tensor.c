@@ -323,10 +323,10 @@ char* test_block_sparse_tensor_transpose()
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
-	struct dense_tensor t_tp_dns_ref;
+	struct dense_tensor t_tp_ref;
 	const long dim_ref[4] = { 4, 7, 11, 5 };
-	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &t_tp_dns_ref);
-	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_DOUBLE, t_tp_dns_ref.data) < 0) {
+	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &t_tp_ref);
+	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_DOUBLE, t_tp_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
@@ -355,12 +355,8 @@ char* test_block_sparse_tensor_transpose()
 	struct block_sparse_tensor t_tp;
 	transpose_block_sparse_tensor(perm, &t, &t_tp);
 
-	// convert back to a dense tensor
-	struct dense_tensor t_tp_dns;
-	block_sparse_to_dense_tensor(&t_tp, &t_tp_dns);
-
 	// compare
-	if (!dense_tensor_allclose(&t_tp_dns, &t_tp_dns_ref, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&t_tp_ref, &t_tp, 0.)) {
 		return "transposed block-sparse tensor does not match reference";
 	}
 
@@ -373,8 +369,7 @@ char* test_block_sparse_tensor_transpose()
 	ct_free(axis_dir);
 	delete_block_sparse_tensor(&t_tp);
 	delete_block_sparse_tensor(&t);
-	delete_dense_tensor(&t_tp_dns);
-	delete_dense_tensor(&t_tp_dns_ref);
+	delete_dense_tensor(&t_tp_ref);
 	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
@@ -432,12 +427,8 @@ char* test_block_sparse_tensor_reshape()
 	const long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
 	reshape_dense_tensor(ndim - 1, dim_reshape, &t_dns);
 
-	// convert block-sparse back to a dense tensor
-	struct dense_tensor t_flat_dns;
-	block_sparse_to_dense_tensor(&t_flat, &t_flat_dns);
-
 	// compare
-	if (!dense_tensor_allclose(&t_flat_dns, &t_dns, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&t_dns, &t_flat, 0.)) {
 		return "flattened block-sparse tensor does not match reference";
 	}
 
@@ -450,21 +441,15 @@ char* test_block_sparse_tensor_reshape()
 		return "block-sparse tensor after axes flattening and splitting does not agree with original tensor";
 	}
 
-	// convert block-sparse tensor 's' to a dense tensor
-	struct dense_tensor s_dns;
-	block_sparse_to_dense_tensor(&s, &s_dns);
-
 	// restore shape of original dense tensor, as reference
 	reshape_dense_tensor(ndim, dim, &t_dns);
 
 	// compare
-	if (!dense_tensor_allclose(&s_dns, &t_dns, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&t_dns, &s, 0.)) {
 		return "block-sparse tensor with split axes does not match reference";
 	}
 
 	// clean up
-	delete_dense_tensor(&s_dns);
-	delete_dense_tensor(&t_flat_dns);
 	delete_block_sparse_tensor(&s);
 	delete_block_sparse_tensor(&t_flat);
 	delete_block_sparse_tensor(&t);
@@ -536,10 +521,6 @@ char* test_block_sparse_tensor_matricize_axis()
 					i_ax_mat, d == 0 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
 					&mat, &info);
 
-				// convert block-sparse tensor 'mat' to a dense tensor
-				struct dense_tensor mat_dns;
-				block_sparse_to_dense_tensor(&mat, &mat_dns);
-
 				// read reference matrix from disk
 				struct dense_tensor mat_ref;
 				long dim_mat_ref[2] = { dim[i_ax_tns], 1 };
@@ -564,7 +545,7 @@ char* test_block_sparse_tensor_matricize_axis()
 				}
 
 				// compare with reference
-				if (!dense_tensor_allclose(&mat_dns, &mat_ref, 0.)) {
+				if (!dense_block_sparse_tensor_allclose(&mat_ref, &mat, 0.)) {
 					return "matricization of block-sparse tensor does not match reference";
 				}
 
@@ -580,7 +561,6 @@ char* test_block_sparse_tensor_matricize_axis()
 				delete_block_sparse_tensor(&t2);
 				delete_block_sparse_tensor_axis_matricization_info(&info);
 				delete_dense_tensor(&mat_ref);
-				delete_dense_tensor(&mat_dns);
 				delete_block_sparse_tensor(&mat);
 			}
 		}
@@ -649,10 +629,6 @@ char* test_block_sparse_tensor_slice()
 	struct block_sparse_tensor s;
 	block_sparse_tensor_slice(&t, 2, ind, nind, &s);
 
-	// convert block-sparse tensor 's' to a dense tensor
-	struct dense_tensor s_dns;
-	block_sparse_to_dense_tensor(&s, &s_dns);
-
 	// read reference tensor from disk
 	struct dense_tensor s_ref;
 	const long dim_s_ref[4] = { 6, 7, nind, 13 };
@@ -663,13 +639,12 @@ char* test_block_sparse_tensor_slice()
 	}
 
 	// compare with reference
-	if (!dense_tensor_allclose(&s_dns, &s_ref, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&s_ref, &s, 0.)) {
 		return "block-sparse tensor with split axes does not match reference";
 	}
 
 	// clean up
 	delete_dense_tensor(&s_ref);
-	delete_dense_tensor(&s_dns);
 	delete_block_sparse_tensor(&s);
 	ct_free(ind);
 	delete_block_sparse_tensor(&t);
@@ -741,10 +716,6 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 		struct block_sparse_tensor s_mult_t;
 		block_sparse_tensor_multiply_pointwise_vector(&s, &t, i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &s_mult_t);
 
-		// convert back to a dense tensor
-		struct dense_tensor s_mult_t_dns;
-		block_sparse_to_dense_tensor(&s_mult_t, &s_mult_t_dns);
-
 		// reference tensors for checking
 		struct dense_tensor s_mult_t_ref;
 		allocate_dense_tensor(CT_SINGLE_REAL, ndim, dim, &s_mult_t_ref);
@@ -755,12 +726,11 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 		}
 
 		// compare
-		if (!dense_tensor_allclose(&s_mult_t_dns, &s_mult_t_ref, 1e-13)) {
+		if (!dense_block_sparse_tensor_allclose(&s_mult_t_ref, &s_mult_t, 1e-13)) {
 			return "pointwise product of tensors does not match reference";
 		}
 
 		delete_dense_tensor(&s_mult_t_ref);
-		delete_dense_tensor(&s_mult_t_dns);
 		delete_block_sparse_tensor(&s_mult_t);
 		delete_dense_tensor(&t);
 	}
@@ -873,27 +843,22 @@ char* test_block_sparse_tensor_multiply_axis()
 		struct block_sparse_tensor r;
 		block_sparse_tensor_multiply_axis(&s, i_ax, &t[i], i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &r);
 
-		// convert back to a dense tensor
-		struct dense_tensor r_dns;
-		block_sparse_to_dense_tensor(&r, &r_dns);
-
 		// reference tensor
-		struct dense_tensor r_dns_ref;
+		struct dense_tensor r_ref;
 		const long r_ref_dim[2][5] = { { 7, 4, 6, 9, 5 }, { 7, 4, 8, 3, 5 } };
-		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, r_ref_dim[i], &r_dns_ref);
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, r_ref_dim[i], &r_ref);
 		char varname[1024];
 		sprintf(varname, "r%i", i);
-		if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, r_dns_ref.data) < 0) {
+		if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, r_ref.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 
 		// compare
-		if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+		if (!dense_block_sparse_tensor_allclose(&r_ref, &r, 1e-13)) {
 			return "multiplication along axis for block-sparse tensors does not match reference";
 		}
 
-		delete_dense_tensor(&r_dns_ref);
-		delete_dense_tensor(&r_dns);
+		delete_dense_tensor(&r_ref);
 		delete_block_sparse_tensor(&r);
 	}
 
@@ -965,10 +930,6 @@ char* test_block_sparse_tensor_concatenate()
 	const int i_ax = 1;
 	block_sparse_tensor_concatenate(tlist, num_tensors, i_ax, &r);
 
-	// convert back to a dense tensor
-	struct dense_tensor r_dns;
-	block_sparse_to_dense_tensor(&r, &r_dns);
-
 	// load reference values from disk
 	struct dense_tensor r_ref;
 	const long refdim[4] = { 13, 55, 11, 7 };
@@ -979,12 +940,11 @@ char* test_block_sparse_tensor_concatenate()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r_dns, &r_ref, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&r_ref, &r, 0.)) {
 		return "concatenated block-sparse tensor does not match reference";
 	}
 
 	delete_dense_tensor(&r_ref);
-	delete_dense_tensor(&r_dns);
 	delete_block_sparse_tensor(&r);
 	for (int j = 0; j < num_tensors; j++) {
 		delete_block_sparse_tensor(&tlist[j]);
@@ -1053,10 +1013,6 @@ char* test_block_sparse_tensor_block_diag()
 	const int i_ax[3] = { 1, 3, 4 };
 	block_sparse_tensor_block_diag(tlist, num_tensors, i_ax, 3, &r);
 
-	// convert back to a dense tensor
-	struct dense_tensor r_dns;
-	block_sparse_to_dense_tensor(&r, &r_dns);
-
 	// load reference values from disk
 	struct dense_tensor r_ref;
 	const long refdim[5] = { 4, 26, 5, 27, 28 };
@@ -1067,12 +1023,11 @@ char* test_block_sparse_tensor_block_diag()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r_dns, &r_ref, 0.)) {
+	if (!dense_block_sparse_tensor_allclose(&r_ref, &r, 0.)) {
 		return "concatenated block-sparse tensor does not match reference";
 	}
 
 	delete_dense_tensor(&r_ref);
-	delete_dense_tensor(&r_dns);
 	delete_block_sparse_tensor(&r);
 	for (int j = 0; j < num_tensors; j++) {
 		delete_block_sparse_tensor(&tlist[j]);
@@ -1108,10 +1063,10 @@ char* test_block_sparse_tensor_dot()
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
-	struct dense_tensor r_dns_ref;
+	struct dense_tensor r_ref;
 	const long rdim_ref[5] = { 4, 11, 13, 3, 5 };
-	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, rdim_ref, &r_dns_ref);
-	if (read_hdf5_dataset(file, "r", hdf5_dcomplex_id, r_dns_ref.data) < 0) {
+	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, rdim_ref, &r_ref);
+	if (read_hdf5_dataset(file, "r", hdf5_dcomplex_id, r_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	assert(s_dns.ndim + t_dns.ndim - ndim_mult == ndim);
@@ -1169,16 +1124,12 @@ char* test_block_sparse_tensor_dot()
 			// block-sparse tensor multiplication
 			struct block_sparse_tensor r;
 			block_sparse_tensor_dot(&sp, axrange_s, &tp, axrange_t, ndim_mult, &r);
-			// convert back to a dense tensor
-			struct dense_tensor r_dns;
-			block_sparse_to_dense_tensor(&r, &r_dns);
 
 			// compare
-			if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+			if (!dense_block_sparse_tensor_allclose(&r_ref, &r, 1e-13)) {
 				return "dot product of block-sparse tensors does not match reference";
 			}
 
-			delete_dense_tensor(&r_dns);
 			delete_block_sparse_tensor(&r);
 
 			delete_block_sparse_tensor(&tp);
@@ -1196,7 +1147,7 @@ char* test_block_sparse_tensor_dot()
 	}
 	ct_free(qnums);
 	ct_free(axis_dir);
-	delete_dense_tensor(&r_dns_ref);
+	delete_dense_tensor(&r_ref);
 	delete_dense_tensor(&s_dns);
 	delete_dense_tensor(&t_dns);
 
@@ -1466,6 +1417,90 @@ char* test_block_sparse_tensor_svd()
 }
 
 
+char* test_block_sparse_tensor_augment_identity_blocks()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_augment_identity_blocks.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_augment_identity_blocks failed";
+	}
+
+	const int ndim = 2;
+	const long dims[2] = { 37, 21 };
+
+	// read dense tensor from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(CT_DOUBLE_REAL, ndim, dims, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_DOUBLE, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = ct_malloc(dims[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	for (int i = 0; i < ndim; i++)
+	{
+		struct block_sparse_tensor t_ext;
+		block_sparse_tensor_augment_identity_blocks(&t, i == 0 ? false : true, &t_ext);
+
+		// reference tensor
+		struct dense_tensor t_ext_ref;
+		{
+			// read dense tensor from disk
+			char varname[1024];
+			sprintf(varname, "t_ext%i", i);
+			hsize_t dim_file[2];
+			if (get_hdf5_dataset_dims(file, varname, dim_file) < 0) {
+				return "obtaining dimensions of reference tensor failed";
+			}
+			const long dim_ref[2] = { dim_file[0], dim_file[1] };
+			allocate_dense_tensor(CT_DOUBLE_REAL, ndim, dim_ref, &t_ext_ref);
+			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, t_ext_ref.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
+		}
+
+		// compare
+		if (!dense_block_sparse_tensor_allclose(&t_ext_ref, &t_ext, 0.)) {
+			return "block-sparse tensor with augmented identity blocks does not match reference";
+		}
+
+		delete_dense_tensor(&t_ext_ref);
+		delete_block_sparse_tensor(&t_ext);
+	}
+
+	// clean up
+	for (int i = 0; i < ndim; i++)
+	{
+		ct_free(qnums[i]);
+	}
+	ct_free(qnums);
+	ct_free(axis_dir);
+	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_block_sparse_tensor_serialize()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_serialize.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -1480,7 +1515,7 @@ char* test_block_sparse_tensor_serialize()
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, dims, &t_dns);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ndim, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}

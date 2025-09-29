@@ -176,18 +176,11 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 			delete_block_sparse_tensor_axis_matricization_info(&mat_info);
 		}
 
-		struct block_sparse_tensor u_hat_conj;
-		copy_block_sparse_tensor(&u_hat, &u_hat_conj);
-		conjugate_block_sparse_tensor(&u_hat_conj);
-		block_sparse_tensor_reverse_axis_directions(&u_hat_conj);
-
 		// compute inner product between new (extended) basis and original state
 		local_ttns_inner_product(&u_hat, &state_ai_prev, &state->topology, i_site, i_parent, augment_maps);
 
 		// compute new averages (expectation values)
 		local_ttno_inner_product(&u_hat, &hamiltonian->a[i_site], &u_hat, &hamiltonian->topology, i_site, i_parent, avg_bonds_augmented);
-
-		delete_block_sparse_tensor(&u_hat_conj);
 
 		// replace current state tensor
 		delete_block_sparse_tensor(&state->a[i_site]);
