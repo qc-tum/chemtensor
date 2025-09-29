@@ -97,5 +97,5 @@ References
   Rank-adaptive time integration of tree tensor networks  
   [SIAM J. Numer. Anal. 61, 194-222 (2023)](https://doi.org/10.1137/22M1473790) ([arXiv:2201.10291](https://arxiv.org/abs/2201.10291))
 - Yu Wang, Maxine Luo, Matthias Reumann, Christian B. Mendl  
-  Enhanced Krylov methods for molecular Hamiltonians via tensor hypercontraction  
-  ([arXiv:2409.12708](https://arxiv.org/abs/2409.12708))
+  Enhanced Krylov methods for molecular Hamiltonians: Reduced memory cost and complexity scaling via tensor hypercontraction  
+  [J. Chem. Theory Comput. 21, 6874-6886 (2025)](https://doi.org/10.1021/acs.jctc.5c00525) ([arXiv:2409.12708](https://arxiv.org/abs/2409.12708))
