@@ -2354,7 +2354,7 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 /// The logical quantum numbers of the axis connecting Q and R will be sorted.
 /// The logical R matrix is upper-triangular after sorting its second dimension by quantum numbers.
 ///
-int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r)
+int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r)
 {
 	// require a matrix
 	assert(a->ndim == 2);
@@ -2365,7 +2365,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 	long dim_interm = 0;
 
 	// allocating array of maximum possible length
-	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
+	qnumber* qnums_interm = ct_calloc(a->dim_logical[0], sizeof(qnumber));
 
 	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
 	for (long j = 0; j < a->dim_blocks[1]; j++)
@@ -2383,7 +2383,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
 
-			const long k = lmin(b->dim[0], b->dim[1]);
+			const long k = (mode == QR_REDUCED ? lmin(b->dim[0], b->dim[1]) : b->dim[0]);
 
 			// append a sequence of logical quantum numbers of length k
 			for (long l = 0; l < k; l++) {
@@ -2392,7 +2392,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 			dim_interm += k;
 		}
 	}
-	assert(dim_interm <= a->dim_logical[1]);
+	assert(dim_interm <= a->dim_logical[0]);
 
 	bool create_dummy_qr = false;
 
@@ -2474,7 +2474,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 			assert(br != NULL);
 
 			// perform QR decomposition of block
-			int ret = dense_tensor_qr_fill(ba, bq, br);
+			int ret = dense_tensor_qr_fill(ba, mode, bq, br);
 			if (ret != 0) {
 				failed = true;
 			}
@@ -2496,7 +2496,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct 
 /// The logical quantum numbers of the axis connecting R and Q will be sorted.
 /// The logical R matrix is upper-triangular after sorting its first dimension by quantum numbers.
 ///
-int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q)
+int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q)
 {
 	// require a matrix
 	assert(a->ndim == 2);
@@ -2507,7 +2507,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 	long dim_interm = 0;
 
 	// allocating array of maximum possible length
-	qnumber* qnums_interm = ct_calloc(a->dim_logical[0], sizeof(qnumber));
+	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
 
 	// loop over first dimension is outer loop to ensure that logical quantum numbers are sorted
 	for (long i = 0; i < a->dim_blocks[0]; i++)
@@ -2525,7 +2525,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
 
-			const long k = lmin(b->dim[0], b->dim[1]);
+			const long k = (mode == QR_REDUCED ? lmin(b->dim[0], b->dim[1]) : b->dim[1]);
 
 			// append a sequence of logical quantum numbers of length k
 			for (long l = 0; l < k; l++) {
@@ -2534,7 +2534,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 			dim_interm += k;
 		}
 	}
-	assert(dim_interm <= a->dim_logical[0]);
+	assert(dim_interm <= a->dim_logical[1]);
 
 	bool create_dummy_qr = false;
 
@@ -2616,7 +2616,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct 
 			assert(bq != NULL);
 
 			// perform RQ decomposition of block
-			int ret = dense_tensor_rq_fill(ba, br, bq);
+			int ret = dense_tensor_rq_fill(ba, mode, br, bq);
 			if (ret != 0) {
 				failed = true;
 			}

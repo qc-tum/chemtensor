@@ -207,18 +207,25 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 
 
 //________________________________________________________________________________________________________________________
-//
+///
+/// \brief QR and RQ decomposition mode.
+///
+enum qr_mode
+{
+	QR_REDUCED   = 0,  //!< matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'
+	QR_COMPLETE  = 1,  //!< 'q' is a square unitary matrix
+	QR_NUM_MODES = 2,  //!< number of decomposition modes
+};
 
-// QR and RQ decomposition
 
-int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+int dense_tensor_qr(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
 
-int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
 
 
-int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+int dense_tensor_rq(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
 
-int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
 
 
 //________________________________________________________________________________________________________________________

@@ -174,9 +174,9 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 
 // QR and RQ decomposition
 
-int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r);
+int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r);
 
-int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q);
+int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q);
 
 
 //________________________________________________________________________________________________________________________

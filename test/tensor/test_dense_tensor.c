@@ -845,54 +845,66 @@ char* test_dense_tensor_qr()
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
 	// cases m >= n and m < n
-	for (int i = 0; i < 2; i++)
+	for (int s = 0; s < 2; s++)
 	{
-		// data types
-		for (int j = 0; j < 4; j++)
+		// decomposition modes
+		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
-			const double tol = (j % 2 == 0 ? 1e-5 : 1e-13);
+			// data types
+			for (int t = 0; t < 4; t++)
+			{
+				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
 
-			// matrix 'a'
-			struct dense_tensor a;
-			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
-			allocate_dense_tensor(dtypes[j], 2, dim, &a);
-			// read values from disk
-			char varname[1024];
-			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
-				return "reading tensor entries from disk failed";
-			}
-
-			// perform QR decomposition
-			struct dense_tensor q, r;
-			dense_tensor_qr(&a, &q, &r);
-
-			// matrix product 'q r' must be equal to 'a'
-			struct dense_tensor qr;
-			dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
-			if (!dense_tensor_allclose(&qr, &a, tol)) {
-				return "matrix product Q R is not equal to original A matrix";
-			}
-			delete_dense_tensor(&qr);
-
-			// 'q' must be an isometry
-			if (!dense_tensor_is_isometry(&q, tol, false)) {
-				return "Q matrix is not an isometry";
-			}
-
-			// 'r' must be upper triangular
-			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
-			void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
-			for (long l = 0; l < k; l++) {
-				if (uniform_distance(r.dtype, l, (char*)r.data + (l*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
-					return "R matrix is not upper triangular";
+				// matrix 'a'
+				struct dense_tensor a;
+				const long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
+				allocate_dense_tensor(dtypes[t], 2, dim, &a);
+				// read values from disk
+				char varname[1024];
+				sprintf(varname, "a_s%i_t%i", s, t);
+				if (read_hdf5_dataset(file, varname, hdf5_type_ids[t], a.data) < 0) {
+					return "reading tensor entries from disk failed";
 				}
-			}
-			ct_free(zero_vec);
 
-			delete_dense_tensor(&r);
-			delete_dense_tensor(&q);
-			delete_dense_tensor(&a);
+				// perform QR decomposition
+				struct dense_tensor q, r;
+				dense_tensor_qr(&a, mode, &q, &r);
+
+				if (mode == QR_COMPLETE) {
+					// 'q' must be a square matrix
+					if (!(q.dim[0] == a.dim[0] && q.dim[1] == a.dim[0])) {
+						return "Q must be a square matrix with dimension equal to the first dimension of A for the \"complete\" mode";
+					}
+				}
+
+				// matrix product 'q r' must be equal to 'a'
+				struct dense_tensor qr;
+				dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
+				if (!dense_tensor_allclose(&qr, &a, tol)) {
+					return "matrix product Q R is not equal to original A matrix";
+				}
+				delete_dense_tensor(&qr);
+
+				// 'q' must be an isometry
+				if (!dense_tensor_is_isometry(&q, tol, false)) {
+					return "Q matrix is not an isometry";
+				}
+
+				// 'r' must be upper triangular
+				const long k = lmin(dim[0], dim[1]);
+				void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
+				const long l = (mode == QR_REDUCED ? k : dim[0]);
+				for (long i = 0; i < l; i++) {
+					if (uniform_distance(r.dtype, lmin(i, dim[1]), (int8_t*)r.data + (i*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
+						return "R matrix is not upper triangular";
+					}
+				}
+				ct_free(zero_vec);
+
+				delete_dense_tensor(&r);
+				delete_dense_tensor(&q);
+				delete_dense_tensor(&a);
+			}
 		}
 	}
 
@@ -921,54 +933,68 @@ char* test_dense_tensor_rq()
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
 	// cases m >= n and m < n
-	for (int i = 0; i < 2; i++)
+	for (int s = 0; s < 2; s++)
 	{
-		// data types
-		for (int j = 0; j < 4; j++)
+		// decomposition modes
+		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
-			const double tol = (j % 2 == 0 ? 1e-5 : 1e-13);
+			// data types
+			for (int t = 0; t < 4; t++)
+			{
+				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
 
-			// matrix 'a'
-			struct dense_tensor a;
-			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
-			allocate_dense_tensor(dtypes[j], 2, dim, &a);
-			// read values from disk
-			char varname[1024];
-			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
-				return "reading tensor entries from disk failed";
-			}
-
-			// perform RQ decomposition
-			struct dense_tensor r, q;
-			dense_tensor_rq(&a, &r, &q);
-
-			// matrix product 'r q' must be equal to 'a'
-			struct dense_tensor rq;
-			dense_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
-			if (!dense_tensor_allclose(&rq, &a, tol)) {
-				return "matrix product R Q is not equal to original A matrix";
-			}
-			delete_dense_tensor(&rq);
-
-			// 'q' must be an isometry
-			if (!dense_tensor_is_isometry(&q, tol, true)) {
-				return "Q matrix is not an isometry";
-			}
-
-			// 'r' must be upper triangular (referenced from the bottom right entry)
-			const long k = dim[0] <= dim[1] ? dim[0] : dim[1];
-			void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
-			for (long l = 0; l < k; l++) {
-				if (uniform_distance(r.dtype, l, (char*)r.data + ((dim[0] - k + l)*k)*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
-					return "R matrix is not upper triangular";
+				// matrix 'a'
+				struct dense_tensor a;
+				const long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
+				allocate_dense_tensor(dtypes[t], 2, dim, &a);
+				// read values from disk
+				char varname[1024];
+				sprintf(varname, "a_s%i_t%i", s, t);
+				if (read_hdf5_dataset(file, varname, hdf5_type_ids[t], a.data) < 0) {
+					return "reading tensor entries from disk failed";
 				}
-			}
-			ct_free(zero_vec);
 
-			delete_dense_tensor(&r);
-			delete_dense_tensor(&q);
-			delete_dense_tensor(&a);
+				// perform RQ decomposition
+				struct dense_tensor r, q;
+				dense_tensor_rq(&a, mode, &r, &q);
+
+				if (mode == QR_COMPLETE) {
+					// 'q' must be a square matrix
+					if (!(q.dim[0] == a.dim[1] && q.dim[1] == a.dim[1])) {
+						return "Q must be a square matrix with dimension equal to the second dimension of A for the \"complete\" mode";
+					}
+				}
+
+				// matrix product 'r q' must be equal to 'a'
+				struct dense_tensor rq;
+				dense_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
+				if (!dense_tensor_allclose(&rq, &a, tol)) {
+					return "matrix product R Q is not equal to original A matrix";
+				}
+				delete_dense_tensor(&rq);
+
+				// 'q' must be an isometry
+				if (!dense_tensor_is_isometry(&q, tol, true)) {
+					return "Q matrix is not an isometry";
+				}
+
+				// 'r' must be upper triangular (referenced from the bottom right entry)
+				const long k = lmin(dim[0], dim[1]);
+				const long l = (mode == QR_REDUCED ? k : dim[1]);
+				void* zero_vec = ct_calloc(l, sizeof_numeric_type(r.dtype));
+				const long rshift_row = lmax(dim[0] - l, 0);
+				const long rshift_col = lmax(l - dim[0], 0);
+				for (long i = rshift_row; i < dim[0]; i++) {
+					if (uniform_distance(r.dtype, rshift_col + (i - rshift_row), (int8_t*)r.data + i*l*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
+						return "R matrix is not upper triangular";
+					}
+				}
+				ct_free(zero_vec);
+
+				delete_dense_tensor(&r);
+				delete_dense_tensor(&q);
+				delete_dense_tensor(&a);
+			}
 		}
 	}
 

@@ -1964,32 +1964,30 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Compute the QR decomposition of the matrix 'a', and store the result in 'q' and 'r' (will be allocated).
-/// The matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'.
 ///
-int dense_tensor_qr(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
+int dense_tensor_qr(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
 {
 	// require a matrix
 	assert(a->ndim == 2);
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = lmin(m, n);
+	const long l = (mode == QR_REDUCED ? lmin(m, n) : m);
 
-	const long dim_q[2] = { m, k };
-	const long dim_r[2] = { k, n };
+	const long dim_q[2] = { m, l };
+	const long dim_r[2] = { l, n };
 	allocate_dense_tensor(a->dtype, 2, dim_q, q);
 	allocate_dense_tensor(a->dtype, 2, dim_r, r);
 
-	return dense_tensor_qr_fill(a, q, r);
+	return dense_tensor_qr_fill(a, mode, q, r);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Compute the QR decomposition of the matrix 'a', and store the result in 'q' and 'r', which must have been allocated beforehand.
-/// The matrix dimension between 'q' and 'r' is the minimum of the dimensions of 'a'.
 ///
-int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
+int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r)
 {
 	assert(q->dtype == a->dtype);
 	assert(r->dtype == a->dtype);
@@ -2002,10 +2000,11 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 	const long m = a->dim[0];
 	const long n = a->dim[1];
 	const long k = lmin(m, n);
+	const long l = (mode == QR_REDUCED ? k : m);
 
 	assert(q->dim[0] == m);
-	assert(q->dim[1] == k);
-	assert(r->dim[0] == k);
+	assert(q->dim[1] == l);
+	assert(r->dim[0] == l);
 	assert(r->dim[1] == n);
 
 	switch (a->dtype)
@@ -2014,8 +2013,10 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			float* tau = ct_malloc(k * sizeof(float));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			float* t = ct_malloc(m*n * sizeof(float));
+			// temporary matrix 't' using column-major order
+			float* t = ct_malloc(m * (mode == QR_REDUCED ? n : lmax(m, n)) * sizeof(float));
+
+			// copy 'a' into 't'
 			const float* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
@@ -2050,12 +2051,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			float* rdata = r->data;
-			for (long i = 0; i < k; i++)
+			for (long i = 0; i < l; i++)
 			{
-				for (long j = 0; j < i; j++) {
+				const long numzero = lmin(i, n);
+				for (long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = i; j < n; j++) {
+				for (long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2068,8 +2070,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lapack_int lwork = -1;
 				float work_size;
 				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int klp = k;
-				LAPACK_sorgqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				LAPACK_sorgqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
 					return -2;
@@ -2077,7 +2080,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				float* work = ct_malloc(lwork * sizeof(float));
 				// data entries of 't' are overwritten
-				LAPACK_sorgqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_sorgqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
@@ -2086,9 +2089,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// copy entries into 'q'
 				float* qdata = q->data;
 				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < k; j++) {
+					for (long j = 0; j < l; j++) {
 						// column-major order for 't'
-						qdata[i*k + j] = t[i + m*j];
+						qdata[i*l + j] = t[i + m*j];
 					}
 				}
 			}
@@ -2102,8 +2105,10 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			double* tau = ct_malloc(k * sizeof(double));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			double* t = ct_malloc(m*n * sizeof(double));
+			// temporary matrix 't' using column-major order
+			double* t = ct_malloc(m * (mode == QR_REDUCED ? n : lmax(m, n)) * sizeof(double));
+
+			// copy 'a' into 't'
 			const double* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
@@ -2138,12 +2143,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			double* rdata = r->data;
-			for (long i = 0; i < k; i++)
+			for (long i = 0; i < l; i++)
 			{
-				for (long j = 0; j < i; j++) {
+				const long numzero = lmin(i, n);
+				for (long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = i; j < n; j++) {
+				for (long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2156,8 +2162,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lapack_int lwork = -1;
 				double work_size;
 				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int klp = k;
-				LAPACK_dorgqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				LAPACK_dorgqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
 					return -2;
@@ -2165,7 +2172,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				double* work = ct_malloc(lwork * sizeof(double));
 				// data entries of 't' are overwritten
-				LAPACK_dorgqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_dorgqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
@@ -2174,9 +2181,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// copy entries into 'q'
 				double* qdata = q->data;
 				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < k; j++) {
+					for (long j = 0; j < l; j++) {
 						// column-major order for 't'
-						qdata[i*k + j] = t[i + m*j];
+						qdata[i*l + j] = t[i + m*j];
 					}
 				}
 			}
@@ -2190,8 +2197,10 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			scomplex* t = ct_malloc(m*n * sizeof(scomplex));
+			// temporary matrix 't' using column-major order
+			scomplex* t = ct_malloc(m * (mode == QR_REDUCED ? n : lmax(m, n)) * sizeof(scomplex));
+
+			// copy 'a' into 't'
 			const scomplex* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
@@ -2226,12 +2235,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			scomplex* rdata = r->data;
-			for (long i = 0; i < k; i++)
+			for (long i = 0; i < l; i++)
 			{
-				for (long j = 0; j < i; j++) {
+				const long numzero = lmin(i, n);
+				for (long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = i; j < n; j++) {
+				for (long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2244,8 +2254,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lapack_int lwork = -1;
 				scomplex work_size;
 				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int klp = k;
-				LAPACK_cungqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				LAPACK_cungqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
 					return -2;
@@ -2253,7 +2264,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
 				// data entries of 't' are overwritten
-				LAPACK_cungqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_cungqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
@@ -2262,9 +2273,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// copy entries into 'q'
 				scomplex* qdata = q->data;
 				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < k; j++) {
+					for (long j = 0; j < l; j++) {
 						// column-major order for 't'
-						qdata[i*k + j] = t[i + m*j];
+						qdata[i*l + j] = t[i + m*j];
 					}
 				}
 			}
@@ -2278,8 +2289,10 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			dcomplex* t = ct_malloc(m*n * sizeof(dcomplex));
+			// temporary matrix 't' using column-major order
+			dcomplex* t = ct_malloc(m * (mode == QR_REDUCED ? n : lmax(m, n)) * sizeof(dcomplex));
+
+			// copy 'a' into 't'
 			const dcomplex* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
@@ -2314,12 +2327,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			dcomplex* rdata = r->data;
-			for (long i = 0; i < k; i++)
+			for (long i = 0; i < l; i++)
 			{
-				for (long j = 0; j < i; j++) {
+				const long numzero = lmin(i, n);
+				for (long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = i; j < n; j++) {
+				for (long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2332,8 +2346,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lapack_int lwork = -1;
 				dcomplex work_size;
 				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int klp = k;
-				LAPACK_zungqr(&mlp, &klp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				LAPACK_zungqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
 					return -2;
@@ -2341,7 +2356,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
 				// data entries of 't' are overwritten
-				LAPACK_zungqr(&mlp, &klp, &klp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_zungqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
@@ -2350,9 +2365,9 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// copy entries into 'q'
 				dcomplex* qdata = q->data;
 				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < k; j++) {
+					for (long j = 0; j < l; j++) {
 						// column-major order for 't'
-						qdata[i*k + j] = t[i + m*j];
+						qdata[i*l + j] = t[i + m*j];
 					}
 				}
 			}
@@ -2376,32 +2391,30 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, struct dense_ten
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Compute the RQ decomposition (upper triangular times isometry) of the matrix 'a', and store the result in 'r' and 'q' (will be allocated).
-/// The matrix dimension between 'r' and 'q' is the minimum of the dimensions of 'a'.
 ///
-int dense_tensor_rq(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
+int dense_tensor_rq(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
 {
 	// require a matrix
 	assert(a->ndim == 2);
 
 	const long m = a->dim[0];
 	const long n = a->dim[1];
-	const long k = lmin(m, n);
+	const long l = (mode == QR_REDUCED ? lmin(m, n) : n);
 
-	const long dim_r[2] = { m, k };
-	const long dim_q[2] = { k, n };
+	const long dim_r[2] = { m, l };
+	const long dim_q[2] = { l, n };
 	allocate_dense_tensor(a->dtype, 2, dim_r, r);
 	allocate_dense_tensor(a->dtype, 2, dim_q, q);
 
-	return dense_tensor_rq_fill(a, r, q);
+	return dense_tensor_rq_fill(a, mode, r, q);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Compute the RQ decomposition (upper triangular times isometry) of the matrix 'a', and store the result in 'r' and 'q', which must have been allocated beforehand.
-/// The matrix dimension between 'r' and 'q' is the minimum of the dimensions of 'a'.
 ///
-int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
+int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q)
 {
 	assert(q->dtype == a->dtype);
 	assert(r->dtype == a->dtype);
@@ -2414,10 +2427,11 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 	const long m = a->dim[0];
 	const long n = a->dim[1];
 	const long k = lmin(m, n);
+	const long l = (mode == QR_REDUCED ? k : n);
 
 	assert(r->dim[0] == m);
-	assert(r->dim[1] == k);
-	assert(q->dim[0] == k);
+	assert(r->dim[1] == l);
+	assert(q->dim[0] == l);
 	assert(q->dim[1] == n);
 
 	switch (a->dtype)
@@ -2426,13 +2440,18 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			float* tau = ct_malloc(k * sizeof(float));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			float* t = ct_malloc(m*n * sizeof(float));
+			// temporary matrix 't' using column-major order
+			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			float* t = ct_calloc(ldt * n, sizeof(float));  // initialize with zeros to avoid NaN check issues
+			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+
+			// copy 'a' into 't'
 			const float* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
 					// column-major order for 't'
-					t[i + m*j] = adata[i*n + j];
+					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
 			}
 
@@ -2444,7 +2463,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				float work_size;
 				const lapack_int mlp = m;
 				const lapack_int nlp = n;
-				LAPACK_sgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_sgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
 					return -1;
@@ -2452,7 +2472,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				float* work = ct_malloc(lwork * sizeof(float));
 				// data entries of 't' are overwritten
-				LAPACK_sgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_sgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
@@ -2462,17 +2482,17 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			float* rdata = r->data;
-			const long rshift_row = lmax(m - n, 0);
-			const long rshift_col = lmax(n - m, 0);
+			const long rshift_row = lmax(m - l, 0);
+			const long rshift_col = lmax(l - m, 0);
 			for (long i = 0; i < m; i++)
 			{
-				const long numzero = lmax(i - rshift_row, 0);
+				const long numzero = rshift_col + lmax(i - rshift_row, 0);
 				for (long j = 0; j < numzero; j++) {
-					rdata[i*k + j] = 0;
+					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < k; j++) {
+				for (long j = numzero; j < l; j++) {
 					// column-major order for 't'
-					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
 			}
 
@@ -2482,19 +2502,19 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// query workspace size
 				lapack_int lwork = -1;
 				float work_size;
-				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int nlp = n;
 				const lapack_int klp = k;
-				LAPACK_sorgrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_sorgrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
 				float* work = ct_malloc(lwork * sizeof(float));
-				const long qshift = lmax(m - n, 0);
 				// data entries of 't' are overwritten
-				LAPACK_sorgrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				LAPACK_sorgrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
@@ -2502,10 +2522,10 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				}
 				// copy entries into 'q'
 				float* qdata = q->data;
-				for (long i = 0; i < k; i++) {
+				for (long i = 0; i < l; i++) {
 					for (long j = 0; j < n; j++) {
 						// column-major order for 't'
-						qdata[i*n + j] = t[qshift + i + m*j];
+						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
 				}
 			}
@@ -2519,13 +2539,18 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			double* tau = ct_malloc(k * sizeof(double));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			double* t = ct_malloc(m*n * sizeof(double));
+			// temporary matrix 't' using column-major order
+			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			double* t = ct_calloc(ldt * n, sizeof(double));  // initialize with zeros to avoid NaN check issues
+			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+
+			// copy 'a' into 't'
 			const double* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
 					// column-major order for 't'
-					t[i + m*j] = adata[i*n + j];
+					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
 			}
 
@@ -2537,7 +2562,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				double work_size;
 				const lapack_int mlp = m;
 				const lapack_int nlp = n;
-				LAPACK_dgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_dgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
 					return -1;
@@ -2545,7 +2571,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				double* work = ct_malloc(lwork * sizeof(double));
 				// data entries of 't' are overwritten
-				LAPACK_dgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_dgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
@@ -2555,17 +2581,17 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			double* rdata = r->data;
-			const long rshift_row = lmax(m - n, 0);
-			const long rshift_col = lmax(n - m, 0);
+			const long rshift_row = lmax(m - l, 0);
+			const long rshift_col = lmax(l - m, 0);
 			for (long i = 0; i < m; i++)
 			{
-				const long numzero = lmax(i - rshift_row, 0);
+				const long numzero = rshift_col + lmax(i - rshift_row, 0);
 				for (long j = 0; j < numzero; j++) {
-					rdata[i*k + j] = 0;
+					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < k; j++) {
+				for (long j = numzero; j < l; j++) {
 					// column-major order for 't'
-					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
 			}
 
@@ -2575,19 +2601,19 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// query workspace size
 				lapack_int lwork = -1;
 				double work_size;
-				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int nlp = n;
 				const lapack_int klp = k;
-				LAPACK_dorgrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_dorgrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
 				double* work = ct_malloc(lwork * sizeof(double));
-				const long qshift = lmax(m - n, 0);
 				// data entries of 't' are overwritten
-				LAPACK_dorgrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				LAPACK_dorgrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
@@ -2595,10 +2621,10 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				}
 				// copy entries into 'q'
 				double* qdata = q->data;
-				for (long i = 0; i < k; i++) {
+				for (long i = 0; i < l; i++) {
 					for (long j = 0; j < n; j++) {
 						// column-major order for 't'
-						qdata[i*n + j] = t[qshift + i + m*j];
+						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
 				}
 			}
@@ -2612,13 +2638,18 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			scomplex* t = ct_malloc(m*n * sizeof(scomplex));
+			// temporary matrix 't' using column-major order
+			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			scomplex* t = ct_calloc(ldt * n, sizeof(scomplex));  // initialize with zeros to avoid NaN check issues
+			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+
+			// copy 'a' into 't'
 			const scomplex* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
 					// column-major order for 't'
-					t[i + m*j] = adata[i*n + j];
+					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
 			}
 
@@ -2630,7 +2661,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				scomplex work_size;
 				const lapack_int mlp = m;
 				const lapack_int nlp = n;
-				LAPACK_cgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_cgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
 					return -1;
@@ -2638,7 +2670,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
 				// data entries of 't' are overwritten
-				LAPACK_cgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_cgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
@@ -2648,17 +2680,17 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			scomplex* rdata = r->data;
-			const long rshift_row = lmax(m - n, 0);
-			const long rshift_col = lmax(n - m, 0);
+			const long rshift_row = lmax(m - l, 0);
+			const long rshift_col = lmax(l - m, 0);
 			for (long i = 0; i < m; i++)
 			{
-				const long numzero = lmax(i - rshift_row, 0);
+				const long numzero = rshift_col + lmax(i - rshift_row, 0);
 				for (long j = 0; j < numzero; j++) {
-					rdata[i*k + j] = 0;
+					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < k; j++) {
+				for (long j = numzero; j < l; j++) {
 					// column-major order for 't'
-					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
 			}
 
@@ -2668,19 +2700,19 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// query workspace size
 				lapack_int lwork = -1;
 				scomplex work_size;
-				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int nlp = n;
 				const lapack_int klp = k;
-				LAPACK_cungrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_cungrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
 				scomplex* work = ct_malloc(lwork * sizeof(scomplex));
-				const long qshift = lmax(m - n, 0);
 				// data entries of 't' are overwritten
-				LAPACK_cungrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				LAPACK_cungrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
@@ -2688,10 +2720,10 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				}
 				// copy entries into 'q'
 				scomplex* qdata = q->data;
-				for (long i = 0; i < k; i++) {
+				for (long i = 0; i < l; i++) {
 					for (long j = 0; j < n; j++) {
 						// column-major order for 't'
-						qdata[i*n + j] = t[qshift + i + m*j];
+						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
 				}
 			}
@@ -2705,13 +2737,18 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 		{
 			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
-			// copy 'a' into 't' (as temporary matrix using column-major order)
-			dcomplex* t = ct_malloc(m*n * sizeof(dcomplex));
+			// temporary matrix 't' using column-major order
+			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			dcomplex* t = ct_calloc(ldt * n, sizeof(dcomplex));  // initialize with zeros to avoid NaN check issues
+			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+
+			// copy 'a' into 't'
 			const dcomplex* adata = a->data;
 			for (long i = 0; i < m; i++) {
 				for (long j = 0; j < n; j++) {
 					// column-major order for 't'
-					t[i + m*j] = adata[i*n + j];
+					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
 			}
 
@@ -2723,7 +2760,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				dcomplex work_size;
 				const lapack_int mlp = m;
 				const lapack_int nlp = n;
-				LAPACK_zgerqf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_zgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
 					return -1;
@@ -2731,7 +2769,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				lwork = (lapack_int)work_size;
 				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
 				// data entries of 't' are overwritten
-				LAPACK_zgerqf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
+				LAPACK_zgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
@@ -2741,17 +2779,17 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 
 			// copy entries in upper triangular part into 'r' matrix
 			dcomplex* rdata = r->data;
-			const long rshift_row = lmax(m - n, 0);
-			const long rshift_col = lmax(n - m, 0);
+			const long rshift_row = lmax(m - l, 0);
+			const long rshift_col = lmax(l - m, 0);
 			for (long i = 0; i < m; i++)
 			{
-				const long numzero = lmax(i - rshift_row, 0);
+				const long numzero = rshift_col + lmax(i - rshift_row, 0);
 				for (long j = 0; j < numzero; j++) {
-					rdata[i*k + j] = 0;
+					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < k; j++) {
+				for (long j = numzero; j < l; j++) {
 					// column-major order for 't'
-					rdata[i*k + j] = t[i + m*(rshift_col + j)];
+					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
 			}
 
@@ -2761,19 +2799,19 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				// query workspace size
 				lapack_int lwork = -1;
 				dcomplex work_size;
-				const lapack_int mlp = m;
+				const lapack_int llp = l;
 				const lapack_int nlp = n;
 				const lapack_int klp = k;
-				LAPACK_zungrq(&klp, &nlp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
+				const lapack_int tlp = ldt;
+				LAPACK_zungrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
 				dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
-				const long qshift = lmax(m - n, 0);
 				// data entries of 't' are overwritten
-				LAPACK_zungrq(&klp, &nlp, &klp, t + qshift, &mlp, tau, work, &lwork, &info);
+				LAPACK_zungrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
 					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
@@ -2781,10 +2819,10 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, struct dense_ten
 				}
 				// copy entries into 'q'
 				dcomplex* qdata = q->data;
-				for (long i = 0; i < k; i++) {
+				for (long i = 0; i < l; i++) {
 					for (long j = 0; j < n; j++) {
 						// column-major order for 't'
-						qdata[i*n + j] = t[qshift + i + m*j];
+						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
 				}
 			}

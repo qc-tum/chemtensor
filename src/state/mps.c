@@ -550,7 +550,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 
 	// perform QR decomposition
 	struct block_sparse_tensor q, r;
-	block_sparse_tensor_qr(&a_mat, &q, &r);
+	block_sparse_tensor_qr(&a_mat, QR_REDUCED, &q, &r);
 	delete_block_sparse_tensor(&a_mat);
 
 	// replace 'a' by reshaped 'q' matrix
@@ -597,7 +597,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 
 	// perform RQ decomposition
 	struct block_sparse_tensor r, q;
-	block_sparse_tensor_rq(&a_mat, &r, &q);
+	block_sparse_tensor_rq(&a_mat, QR_REDUCED, &r, &q);
 	delete_block_sparse_tensor(&a_mat);
 
 	// replace 'a' by reshaped 'q' matrix

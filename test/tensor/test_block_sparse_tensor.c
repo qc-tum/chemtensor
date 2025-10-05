@@ -1201,28 +1201,33 @@ char* test_block_sparse_tensor_qr()
 		struct block_sparse_tensor a;
 		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
 
-		// perform QR decomposition
-		struct block_sparse_tensor q, r;
-		block_sparse_tensor_qr(&a, &q, &r);
+		// decomposition modes
+		for (int mode = 0; mode < QR_NUM_MODES; mode++)
+		{
+			// perform QR decomposition
+			struct block_sparse_tensor q, r;
+			block_sparse_tensor_qr(&a, mode, &q, &r);
 
-		// matrix product 'q r' must be equal to 'a'
-		struct block_sparse_tensor qr;
-		block_sparse_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
-		if (!block_sparse_tensor_allclose(&qr, &a, 1e-13)) {
-			return "matrix product Q R is not equal to original A matrix";
+			// matrix product 'q r' must be equal to 'a'
+			struct block_sparse_tensor qr;
+			block_sparse_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
+			if (!block_sparse_tensor_allclose(&qr, &a, 1e-13)) {
+				return "matrix product Q R is not equal to original A matrix";
+			}
+			delete_block_sparse_tensor(&qr);
+
+			// 'q' must be an isometry
+			if (!block_sparse_tensor_is_isometry(&q, 1e-13, false)) {
+				return "Q matrix is not an isometry";
+			}
+
+			// 'r' only upper triangular after sorting second axis by quantum numbers
+
+			delete_block_sparse_tensor(&r);
+			delete_block_sparse_tensor(&q);
 		}
-		delete_block_sparse_tensor(&qr);
-
-		// 'q' must be an isometry
-		if (!block_sparse_tensor_is_isometry(&q, 1e-13, false)) {
-			return "Q matrix is not an isometry";
-		}
-
-		// 'r' only upper triangular after sorting second axis by quantum numbers
 
 		// clean up
-		delete_block_sparse_tensor(&r);
-		delete_block_sparse_tensor(&q);
 		delete_block_sparse_tensor(&a);
 		for (int i = 0; i < 2; i++) {
 			ct_free(qnums[i]);
@@ -1280,28 +1285,33 @@ char* test_block_sparse_tensor_rq()
 		struct block_sparse_tensor a;
 		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
 
-		// perform RQ decomposition
-		struct block_sparse_tensor r, q;
-		block_sparse_tensor_rq(&a, &r, &q);
+		// decomposition modes
+		for (int mode = 0; mode < QR_NUM_MODES; mode++)
+		{
+			// perform RQ decomposition
+			struct block_sparse_tensor r, q;
+			block_sparse_tensor_rq(&a, mode, &r, &q);
 
-		// matrix product 'r q' must be equal to 'a'
-		struct block_sparse_tensor rq;
-		block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
-		if (!block_sparse_tensor_allclose(&rq, &a, 1e-13)) {
-			return "matrix product R Q is not equal to original A matrix";
+			// matrix product 'r q' must be equal to 'a'
+			struct block_sparse_tensor rq;
+			block_sparse_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
+			if (!block_sparse_tensor_allclose(&rq, &a, 1e-13)) {
+				return "matrix product R Q is not equal to original A matrix";
+			}
+			delete_block_sparse_tensor(&rq);
+
+			// 'q' must be an isometry
+			if (!block_sparse_tensor_is_isometry(&q, 1e-13, true)) {
+				return "Q matrix is not an isometry";
+			}
+
+			// 'r' only upper triangular after sorting first axis by quantum numbers
+
+			delete_block_sparse_tensor(&r);
+			delete_block_sparse_tensor(&q);
 		}
-		delete_block_sparse_tensor(&rq);
-
-		// 'q' must be an isometry
-		if (!block_sparse_tensor_is_isometry(&q, 1e-13, true)) {
-			return "Q matrix is not an isometry";
-		}
-
-		// 'r' only upper triangular after sorting first axis by quantum numbers
 
 		// clean up
-		delete_block_sparse_tensor(&r);
-		delete_block_sparse_tensor(&q);
 		delete_block_sparse_tensor(&a);
 		for (int i = 0; i < 2; i++) {
 			ct_free(qnums[i]);

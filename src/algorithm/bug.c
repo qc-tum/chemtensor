@@ -157,10 +157,10 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 		// orthonormalize by QR decomposition to obtain new basis
 		struct block_sparse_tensor u_hat, r;
 		if (i_site < i_parent) {
-			block_sparse_tensor_qr(&c, &u_hat, &r);
+			block_sparse_tensor_qr(&c, QR_REDUCED, &u_hat, &r);
 		}
 		else {
-			block_sparse_tensor_rq(&c, &r, &u_hat);
+			block_sparse_tensor_rq(&c, QR_REDUCED, &r, &u_hat);
 		}
 		delete_block_sparse_tensor(&r);
 		delete_block_sparse_tensor(&c);
@@ -207,7 +207,7 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 
 		// perform QR decomposition
 		struct block_sparse_tensor q, r;
-		block_sparse_tensor_qr(&c, &q, &r);
+		block_sparse_tensor_qr(&c, QR_REDUCED, &q, &r);
 		delete_block_sparse_tensor(&r);
 		delete_block_sparse_tensor(&c);
 
@@ -316,7 +316,7 @@ static void bug_compute_child_environment(const struct block_sparse_tensor* rest
 
 	// perform QR decomposition
 	struct block_sparse_tensor q0, r0;
-	block_sparse_tensor_qr(&ai_mat, &q0, &r0);
+	block_sparse_tensor_qr(&ai_mat, QR_REDUCED, &q0, &r0);
 	delete_block_sparse_tensor(&ai_mat);
 
 	const int perm[2] = { 1, 0 };
