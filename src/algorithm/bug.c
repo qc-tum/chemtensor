@@ -100,6 +100,8 @@ static void bug_ode_func_basis_update_leaf_2(const double time, const struct blo
 ///
 /// TTNO-adapted Algorithm 5 in "Rank-adaptive time integration of tree tensor networks".
 ///
+/// Augmentation by identity blocks is necessary to activate all possible quantum number sectors.
+///
 void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, const int i_parent,
 	const struct block_sparse_tensor* restrict avg_bonds, const struct block_sparse_tensor* restrict env_parent, const struct block_sparse_tensor* restrict s0,
 	const void* prefactor, const double dt, struct ttns* state,
@@ -154,15 +156,26 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 			c = c_mat;  // copy internal data pointers
 		}
 
-		// orthonormalize by QR decomposition to obtain new basis
-		struct block_sparse_tensor u_hat, r;
-		if (i_site < i_parent) {
-			block_sparse_tensor_qr(&c, QR_REDUCED, &u_hat, &r);
+		// orthonormalize by QR decomposition and augment by identity blocks to obtain new basis
+		struct block_sparse_tensor u_hat;
+		if (i_site < i_parent)
+		{
+			struct block_sparse_tensor q, r;
+			block_sparse_tensor_qr(&c, QR_REDUCED, &q, &r);
+			delete_block_sparse_tensor(&r);
+			block_sparse_tensor_augment_identity_blocks(&q, false, &u_hat);
+			delete_block_sparse_tensor(&q);
 		}
-		else {
-			block_sparse_tensor_rq(&c, QR_REDUCED, &r, &u_hat);
+		else
+		{
+			struct block_sparse_tensor q, r;
+			block_sparse_tensor_rq(&c, QR_REDUCED, &r, &q);
+			delete_block_sparse_tensor(&r);
+			block_sparse_tensor_invert_axis_quantum_numbers(&q, 0);  // flip axis direction for augmentation with identity blocks
+			block_sparse_tensor_augment_identity_blocks(&q, true, &u_hat);
+			delete_block_sparse_tensor(&q);
+			block_sparse_tensor_invert_axis_quantum_numbers(&u_hat, 0);  // undo axis direction flip
 		}
-		delete_block_sparse_tensor(&r);
 		delete_block_sparse_tensor(&c);
 
 		// split the physical and auxiliary axis on site 0
@@ -205,16 +218,21 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 		delete_block_sparse_tensor(&c01_mat[0]);
 		delete_block_sparse_tensor(&c01_mat[1]);
 
-		// perform QR decomposition
+		// perform QR decomposition; "complete" QR decomposition can increase accuracy
 		struct block_sparse_tensor q, r;
-		block_sparse_tensor_qr(&c, QR_REDUCED, &q, &r);
+		block_sparse_tensor_qr(&c, QR_COMPLETE, &q, &r);
 		delete_block_sparse_tensor(&r);
 		delete_block_sparse_tensor(&c);
 
+		// augment 'q'
+		struct block_sparse_tensor q_aug;
+		block_sparse_tensor_augment_identity_blocks(&q, false, &q_aug);
+		delete_block_sparse_tensor(&q);
+
 		// undo matricization and update local site tensor
 		delete_block_sparse_tensor(&state->a[i_site]);
-		block_sparse_tensor_dematricize_axis(&q, &c01_mat_info[0], &state->a[i_site]);
-		delete_block_sparse_tensor(&q);
+		block_sparse_tensor_dematricize_axis(&q_aug, &c01_mat_info[0], &state->a[i_site]);
+		delete_block_sparse_tensor(&q_aug);
 		delete_block_sparse_tensor_axis_matricization_info(&c01_mat_info[0]);
 		delete_block_sparse_tensor_axis_matricization_info(&c01_mat_info[1]);
 

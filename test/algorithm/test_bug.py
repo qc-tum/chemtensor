@@ -383,13 +383,16 @@ def tensorize(a, shape, i: int):
     return a.reshape(s).transpose((1, 0, 2)).reshape(shape)
 
 
-def orthonormal_basis(a, tol: float = 1e-13):
+def orthonormal_basis(a, strict: bool, tol: float = 1e-13):
     """
     Construct an orthonormal basis of the subspace spanned by the column vectors in 'a'.
     """
     q, r, _ = qr(a, mode="economic", pivoting=True)
-    idx = np.abs(np.diag(r)) > tol
-    return q[:, idx]
+    if strict:
+        idx = np.abs(np.diag(r)) > tol
+        return q[:, idx]
+    else:
+        return q
 
 
 def bug_flow_update_basis(state: TreeNode, hamiltonian: TreeNode, avg: TreeNode, env_root, s0, prefactor: float, dt: float):
@@ -405,7 +408,7 @@ def bug_flow_update_basis(state: TreeNode, hamiltonian: TreeNode, avg: TreeNode,
         # right-hand side of the ordinary differential equation for the basis update
         f = lambda y: prefactor * np.einsum(env_root, (1, 2, 3), hamiltonian.conn, (0, 4, 2), y, (4, 3), (0, 1))
         k1 = rk4(f, y.conn, dt)
-        u_hat = orthonormal_basis(np.concatenate((k1, state.conn), axis=1))
+        u_hat = orthonormal_basis(np.concatenate((k1, state.conn), axis=1), strict=True)
         m_hat = u_hat.conj().T @ state.conn
         avg_hat = np.einsum(u_hat.conj(), (3, 0), hamiltonian.conn, (3, 4, 1), u_hat, (4, 2), (0, 1, 2))
         return TreeNode(state.i_site, u_hat, []), m_hat, TreeNode(avg.i_site, avg_hat, [])
@@ -413,7 +416,7 @@ def bug_flow_update_basis(state: TreeNode, hamiltonian: TreeNode, avg: TreeNode,
         y1, c0_hat, m_hat_children, avg_hat_children = bug_time_step_subtree(y, hamiltonian, avg, env_root, prefactor, dt)
         q_hat = orthonormal_basis(np.concatenate((
             matricize(y1.conn, y1.conn.ndim - 1).T,
-            matricize(c0_hat, c0_hat.ndim - 1).T), axis=1))
+            matricize(c0_hat, c0_hat.ndim - 1).T), axis=1), strict=False)
         y1.conn = tensorize(q_hat.T, y1.conn.shape[:-1] + (q_hat.shape[1],), y1.conn.ndim - 1)
         # inner product between new augmented (orthonormal) state and input state
         assert len(y1.children) == len(state.children)
@@ -458,7 +461,7 @@ def bug_compute_child_environment(state: TreeNode, hamiltonian: TreeNode, avg_ch
     """
     assert state.i_site == hamiltonian.i_site
     conn_mat = matricize(state.conn, i).T
-    q0 = orthonormal_basis(conn_mat)
+    q0 = orthonormal_basis(conn_mat, strict=True)
     s0 = q0.conj().T @ conn_mat
     s0 = s0.T
     q0ten = tensorize(q0.T, state.conn.shape[:i] + (q0.shape[1],) + state.conn.shape[i+1:], i)

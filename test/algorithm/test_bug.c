@@ -458,7 +458,7 @@ char* test_bug_flow_update_basis_leaf()
 			}
 		}
 
-		// contracting physical axes with reference tensor should result in a unitary matrix
+		// contracting physical axes with reference tensor should result in an isometry (not necessarily square due to augmentation by identity blocks)
 		{
 			struct dense_tensor a_state_dns;
 			block_sparse_to_dense_tensor(&y.a[m], &a_state_dns);
@@ -468,11 +468,8 @@ char* test_bug_flow_update_basis_leaf()
 			struct dense_tensor u;
 			dense_tensor_dot(&a_state_1_ref, TENSOR_AXIS_RANGE_LEADING,
 				&a_state_dns, m <= 1 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, m == 0 ? 2 : 1, &u);
-			if (u.dim[0] != u.dim[1]) {
-				return "overlap matrix should be quadratic";
-			}
-			if (!dense_tensor_is_isometry(&u, 1e-14, false)) {
-				return "expecting a unitary overlap matrix";
+			if (!dense_tensor_is_isometry(&u, 1e-14, true)) {
+				return "expecting an isometric overlap matrix";
 			}
 			delete_dense_tensor(&u);
 
