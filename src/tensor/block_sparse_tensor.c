@@ -352,6 +352,64 @@ void block_sparse_tensor_reverse_axis_directions(struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Flip the signs of the quantum numbers associated with a single tensor axis and reverse the direction of this axis.
+///
+void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor* t, const int i_ax)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	
+	// allocate new dense tensor block pointers
+	const long nblocks = integer_product(t->dim_blocks, t->ndim);
+	struct dense_tensor** blocks_new = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	long* index_block = ct_calloc(t->ndim, sizeof(long));
+	for (long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block))
+	{
+		// probe whether quantum numbers sum to zero
+		qnumber qsum = 0;
+		for (int i = 0; i < t->ndim; i++)
+		{
+			qsum += t->axis_dir[i] * t->qnums_blocks[i][index_block[i]];
+		}
+		if (qsum != 0) {
+			continue;
+		}
+
+		assert(t->blocks[k] != NULL);
+
+		const long ib_i_ax_ref = index_block[i_ax];
+		// new index after sign flip
+		index_block[i_ax] = t->dim_blocks[i_ax] - ib_i_ax_ref - 1;
+		const long k_new = tensor_index_to_offset(t->ndim, t->dim_blocks, index_block);
+		index_block[i_ax] = ib_i_ax_ref;  // restore
+
+		// copy dense tensor pointer
+		blocks_new[k_new] = t->blocks[k];
+	}
+	ct_free(index_block);
+	ct_free(t->blocks);
+	t->blocks = blocks_new;
+
+	// flip block quantum number signs along axis 'i_ax'
+	qnumber* qnums_blocks_i_ax_new = ct_malloc(t->dim_blocks[i_ax] * sizeof(qnumber));
+	for (long j = 0; j < t->dim_blocks[i_ax]; j++) {
+		// ensure that block quantum numbers remain sorted
+		qnums_blocks_i_ax_new[j] = -t->qnums_blocks[i_ax][t->dim_blocks[i_ax] - j - 1];
+	}
+	ct_free(t->qnums_blocks[i_ax]);
+	t->qnums_blocks[i_ax] = qnums_blocks_i_ax_new;
+
+	// flip logical quantum number signs along axis 'i_ax'
+	for (long j = 0; j < t->dim_logical[i_ax]; j++) {
+		t->qnums_logical[i_ax][j] = -t->qnums_logical[i_ax][j];
+	}
+
+	// flip tensor axis direction
+	t->axis_dir[i_ax] = -t->axis_dir[i_ax];
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scale tensor 't' by 'alpha'.
 ///
 /// Data types of all blocks and of 'alpha' must match.

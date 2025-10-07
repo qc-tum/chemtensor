@@ -307,6 +307,80 @@ char* test_block_sparse_tensor_norm2()
 }
 
 
+char* test_block_sparse_tensor_invert_axis_quantum_numbers()
+{
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_invert_axis_quantum_numbers.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (file < 0) {
+		return "'H5Fopen' in test_block_sparse_tensor_invert_axis_quantum_numbers failed";
+	}
+
+	const int ndim = 4;
+	const long dim[4] = { 13, 8, 11, 10 };
+
+	// read dense tensors from disk
+	struct dense_tensor t_dns;
+	allocate_dense_tensor(CT_SINGLE_REAL, 4, dim, &t_dns);
+	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+		return "reading tensor entries from disk failed";
+	}
+
+	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
+	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
+		return "reading axis directions from disk failed";
+	}
+
+	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
+	for (int i = 0; i < ndim; i++)
+	{
+		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
+		char varname[1024];
+		sprintf(varname, "qnums%i", i);
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+			return "reading quantum numbers from disk failed";
+		}
+	}
+
+	// convert dense to block-sparse tensor
+	struct block_sparse_tensor t;
+	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+
+	struct block_sparse_tensor t_orig;
+	copy_block_sparse_tensor(&t, &t_orig);
+
+	for (int i_ax = 0; i_ax < t.ndim; i_ax++)
+	{
+		block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
+
+		// dense tensor form must remain unchanged
+		if (!dense_block_sparse_tensor_allclose(&t_dns, &t, 0.)) {
+			return "block-sparse tensor after inverting axis quantum numbers does not match original dense tensor";
+		}
+
+		// invert again
+		block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
+
+		if (!block_sparse_tensor_allclose(&t, &t_orig, 0.)) {
+			return "block-sparse tensor after inverting axis quantum numbers twice is not equal to original tensor";
+		}
+	}
+
+	// clean up
+	for (int i = 0; i < ndim; i++)
+	{
+		ct_free(qnums[i]);
+	}
+	ct_free(qnums);
+	ct_free(axis_dir);
+	delete_block_sparse_tensor(&t_orig);
+	delete_block_sparse_tensor(&t);
+	delete_dense_tensor(&t_dns);
+
+	H5Fclose(file);
+
+	return 0;
+}
+
+
 char* test_block_sparse_tensor_transpose()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_transpose.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

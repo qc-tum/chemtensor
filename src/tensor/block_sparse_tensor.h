@@ -66,6 +66,8 @@ double block_sparse_tensor_norm2(const struct block_sparse_tensor* t);
 
 void block_sparse_tensor_reverse_axis_directions(struct block_sparse_tensor* t);
 
+void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor* t, const int i_ax);
+
 void scale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t);
 
 void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t);

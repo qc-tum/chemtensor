@@ -130,6 +130,35 @@ def block_sparse_tensor_norm2_data():
             file.attrs[f"qnums{i}"] = qn
 
 
+def block_sparse_tensor_invert_axis_quantum_numbers_data():
+
+    # random number generator
+    rng = np.random.default_rng(513)
+
+    # dimensions
+    dims = (13, 8, 11, 10)
+
+    # tensor degree
+    ndim = len(dims)
+
+    # axis directions
+    axis_dir = rng.choice((1, -1), size=ndim)
+
+    # quantum numbers
+    qnums = [rng.integers(-5, 6, size=d).astype(np.int32) for d in dims]
+
+    # dense tensor
+    t = rng.standard_normal(dims).astype(np.float32)
+    # enforce sparsity pattern based on quantum numbers
+    ptn.enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
+
+    with h5py.File("data/test_block_sparse_tensor_invert_axis_quantum_numbers.hdf5", "w") as file:
+        file["t"] = t
+        file.attrs["axis_dir"] = axis_dir
+        for i, qn in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qn
+
+
 def block_sparse_tensor_transpose_data():
 
     # random number generator
@@ -701,6 +730,7 @@ def main():
     block_sparse_tensor_get_block_data()
     block_sparse_tensor_cyclic_partial_trace_data()
     block_sparse_tensor_norm2_data()
+    block_sparse_tensor_invert_axis_quantum_numbers_data()
     block_sparse_tensor_transpose_data()
     block_sparse_tensor_reshape_data()
     block_sparse_tensor_matricize_axis_data()
