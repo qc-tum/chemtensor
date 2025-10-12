@@ -104,8 +104,6 @@ void ttno_subtrees_inner_products(const struct ttns* chi, const struct ttno* op,
 void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, const struct block_sparse_tensor* restrict op, const struct block_sparse_tensor* restrict psi,
 	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* restrict avg_bonds)
 {
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
 	// contract the local tensor 'psi' with the tensors on the bonds towards the children
 	struct block_sparse_tensor psi_avg;
 	copy_block_sparse_tensor(psi, &psi_avg);
@@ -122,7 +120,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 
 		assert(avg_bonds[k].ndim == 3);
 		struct block_sparse_tensor tmp;
-		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (k < i_site ? n : n + 1);
 		block_sparse_tensor_multiply_axis(&psi_avg, i_ax, &avg_bonds[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
 		delete_block_sparse_tensor(&psi_avg);
 		psi_avg = tmp;  // copy internal data pointers
@@ -193,13 +191,8 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 				perm[cp++] = i_ext;
 				i_ext++;
 			}
-			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY)
+			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL)
 			{
-				i_ext++;
-			}
-			else
-			{
-				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL);
 				if (axis_desc_state[i].index == i_parent) {  // bond to parent site
 					i_ext++;
 				}
@@ -207,6 +200,11 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 					perm[cp++] = i_ext;
 					i_ext += 2;
 				}
+			}
+			else
+			{
+				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY);
+				i_ext++;
 			}
 		}
 		i_ext = 0;
@@ -216,17 +214,8 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 			{
 				i_ext++;
 			}
-			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY)
+			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL)
 			{
-				perm[cp++] = i_ext;
-				i_ext++;
-				axis_desc_op_psi[ca].type  = TTNS_TENSOR_AXIS_AUXILIARY;
-				axis_desc_op_psi[ca].index = i_site;
-				ca++;
-			}
-			else
-			{
-				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL);
 				if (axis_desc_state[i].index == i_parent) {  // bond to parent site
 					perm[cp++] = i_ext;
 					i_ext++;
@@ -237,6 +226,15 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 				}
 				axis_desc_op_psi[ca].type  = TTNS_TENSOR_AXIS_VIRTUAL;
 				axis_desc_op_psi[ca].index = axis_desc_state[i].index;
+				ca++;
+			}
+			else
+			{
+				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY);
+				perm[cp++] = i_ext;
+				i_ext++;
+				axis_desc_op_psi[ca].type  = TTNS_TENSOR_AXIS_AUXILIARY;
+				axis_desc_op_psi[ca].index = i_site;
 				ca++;
 			}
 		}
@@ -391,8 +389,6 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 	const struct abstract_graph* topology, const int i_site, const struct block_sparse_tensor* restrict envs,
 	struct block_sparse_tensor* restrict ret)
 {
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
 	// contract the local tensor 'psi' with the environment tensors
 	struct block_sparse_tensor psi_envs;
 	copy_block_sparse_tensor(psi, &psi_envs);
@@ -406,7 +402,7 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 
 		assert(envs[n].ndim == 3);
 		struct block_sparse_tensor tmp;
-		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (k < i_site ? n : n + 1);
 		block_sparse_tensor_multiply_axis(&psi_envs, i_ax, &envs[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
 		delete_block_sparse_tensor(&psi_envs);
 		psi_envs = tmp;  // copy internal data pointers
@@ -471,15 +467,15 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 				i_ext++;
 				i_ax_phys = i;
 			}
-			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY)
+			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL)
 			{
-				i_ext++;
+				perm[cp++] = i_ext;
+				i_ext += 2;
 			}
 			else
 			{
-				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL);
-				perm[cp++] = i_ext;
-				i_ext += 2;
+				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY);
+				i_ext++;
 			}
 		}
 		i_ext = 0;
@@ -489,16 +485,16 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 			{
 				i_ext++;
 			}
-			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY)
+			else if (axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL)
 			{
-				perm[cp++] = i_ext;
-				i_ext++;
+				perm[cp++] = i_ext + 1;
+				i_ext += 2;
 			}
 			else
 			{
-				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_VIRTUAL);
-				perm[cp++] = i_ext + 1;
-				i_ext += 2;
+				assert(axis_desc_state[i].type == TTNS_TENSOR_AXIS_AUXILIARY);
+				perm[cp++] = i_ext;
+				i_ext++;
 			}
 		}
 		assert(cp == psi_envs.ndim);

@@ -806,19 +806,19 @@ def bug_tree_time_step_data():
     qsite = np.array([0, 1])
     # quantum number sector
     qnum_sector = 5
-    # include quantum number sector by modifying the quantum numbers at the first site
-    qsites = (qsite - qnum_sector,) + 7 * (qsite,) + (np.array([0]),)
+    # include quantum number sector at last (branching) tensor by modifying its dummy quantum number
+    qsites = 8 * (qsite,) + (np.array([-qnum_sector]),)
     # virtual bond quantum numbers of the initial quantum state,
     # ensuring that allowed bond dimensions are at least 2
     qbonds_init = {
-        (0, 3): np.array([0, 1]) - qnum_sector,
+        (0, 3): np.array([0, 1]),
         (1, 2): np.array([1, 0]),
         (2, 3): np.array([1, 0, 2, 0, 1]),
-        (3, 7): np.array([0, 2, 1, 0, 3, 1, 1, 0, 2]) - 3,
+        (3, 7): np.array([2, 4, 3, 2, 5, 3, 3, 2, 4]),
         (4, 8): np.array([1, 0]),
         (5, 8): np.array([0, 1]),
         (6, 8): np.array([0, 1]),
-        (7, 8): np.array([-1, -2, 0, 0, -3, -1]),
+        (7, 8): np.array([4, 3, 5, 5, 2, 4]),
     }
     for idx, dim in dim_bonds_init.items():
         assert len(qbonds_init[idx]) == dim

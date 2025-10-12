@@ -59,7 +59,7 @@ char* test_ttno_inner_product()
 	assert(abstract_graph_is_connected_tree(&topology));
 
 	struct rng_state rng_state;
-	seed_rng_state(47, &rng_state);
+	seed_rng_state(50, &rng_state);
 
 	const qnumber qnum_sector = 2;
 

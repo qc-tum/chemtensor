@@ -29,31 +29,6 @@ struct bug_ode_func_basis_update_leaf_data
 
 static void bug_ode_func_basis_update_leaf_0(const double time, const struct block_sparse_tensor* restrict y, const void* restrict data, struct block_sparse_tensor* restrict ret)
 {
-	// case of current site index < neighboring (parent) site index, and auxiliary axis attached to current site tensor
-
-	// suppress unused parameter warning
-	(void)time;
-
-	const struct bug_ode_func_basis_update_leaf_data* fdata = data;
-
-	assert(y->ndim == 3);  // physical, auxiliary, and virtual bond to neighbor
-	assert(fdata->op->ndim  == 3);
-	assert(fdata->env->ndim == 3);
-
-	struct block_sparse_tensor s;
-	block_sparse_tensor_dot(y, TENSOR_AXIS_RANGE_TRAILING, fdata->env, TENSOR_AXIS_RANGE_LEADING, 1, &s);
-	// flip auxiliary axis <-> operator bond axis in 's'
-	struct block_sparse_tensor t;
-	const int perm[4] = { 0, 2, 1, 3 };
-	transpose_block_sparse_tensor(perm, &s, &t);
-	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(fdata->op, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, ret);
-	delete_block_sparse_tensor(&t);
-	scale_block_sparse_tensor(fdata->prefactor, ret);
-}
-
-static void bug_ode_func_basis_update_leaf_1(const double time, const struct block_sparse_tensor* restrict y, const void* restrict data, struct block_sparse_tensor* restrict ret)
-{
 	// case of current site index < neighboring (parent) site index
 
 	// suppress unused parameter warning
@@ -72,9 +47,9 @@ static void bug_ode_func_basis_update_leaf_1(const double time, const struct blo
 	scale_block_sparse_tensor(fdata->prefactor, ret);
 }
 
-static void bug_ode_func_basis_update_leaf_2(const double time, const struct block_sparse_tensor* restrict y, const void* restrict data, struct block_sparse_tensor* restrict ret)
+static void bug_ode_func_basis_update_leaf_1(const double time, const struct block_sparse_tensor* restrict y, const void* restrict data, struct block_sparse_tensor* restrict ret)
 {
-	// case of current site index > neighboring (parent) site index
+	// case of current site index > neighboring (parent) site index, without auxiliary axis
 
 	// suppress unused parameter warning
 	(void)time;
@@ -87,6 +62,26 @@ static void bug_ode_func_basis_update_leaf_2(const double time, const struct blo
 
 	struct block_sparse_tensor t;
 	block_sparse_tensor_dot(y, TENSOR_AXIS_RANGE_TRAILING, fdata->op, TENSOR_AXIS_RANGE_TRAILING, 1, &t);
+	block_sparse_tensor_dot(fdata->env, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, ret);
+	delete_block_sparse_tensor(&t);
+	scale_block_sparse_tensor(fdata->prefactor, ret);
+}
+
+static void bug_ode_func_basis_update_leaf_2(const double time, const struct block_sparse_tensor* restrict y, const void* restrict data, struct block_sparse_tensor* restrict ret)
+{
+	// case of current site index > neighboring (parent) site index, with auxiliary axis attached to current site tensor
+
+	// suppress unused parameter warning
+	(void)time;
+
+	const struct bug_ode_func_basis_update_leaf_data* fdata = data;
+
+	assert(y->ndim == 3);  // virtual bond to neighbor, physical, and auxiliary axis
+	assert(fdata->op->ndim  == 3);
+	assert(fdata->env->ndim == 3);
+
+	struct block_sparse_tensor t;
+	block_sparse_tensor_multiply_axis(y, 1, fdata->op, TENSOR_AXIS_RANGE_TRAILING, &t);
 	block_sparse_tensor_dot(fdata->env, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, ret);
 	delete_block_sparse_tensor(&t);
 	scale_block_sparse_tensor(fdata->prefactor, ret);
@@ -108,6 +103,7 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 	struct block_sparse_tensor* restrict avg_bonds_augmented, struct block_sparse_tensor* restrict augment_maps)
 {
 	assert(i_site != i_parent);
+	const int nsites = state->topology.num_nodes;
 
 	struct block_sparse_tensor state_ai_prev = state->a[i_site];  // copy internal data pointers
 
@@ -134,7 +130,7 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 			.prefactor = prefactor
 		};
 		struct block_sparse_tensor k1;
-		runge_kutta_4_block_sparse(0, &state->a[i_site], i_site < i_parent ? (i_site == 0 ? bug_ode_func_basis_update_leaf_0 : bug_ode_func_basis_update_leaf_1) : bug_ode_func_basis_update_leaf_2, &fdata, dt, &k1);
+		runge_kutta_4_block_sparse(0, &state->a[i_site], i_site < i_parent ? bug_ode_func_basis_update_leaf_0 : (i_site < nsites - 1 ? bug_ode_func_basis_update_leaf_1 : bug_ode_func_basis_update_leaf_2), &fdata, dt, &k1);
 
 		// concatenate new and original state
 		struct block_sparse_tensor t[2] = { k1, state_ai_prev };  // copy internal data pointers
@@ -142,16 +138,16 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 		block_sparse_tensor_concatenate(t, 2, i_site < i_parent ? state_ai_prev.ndim - 1 : 0, &c);
 		delete_block_sparse_tensor(&k1);
 
-		// temporarily combine the physical and auxiliary axis on site 0
+		// temporarily combine the physical and auxiliary axis on the last site
 		struct block_sparse_tensor_axis_matricization_info mat_info;
-		if (i_site == 0)
+		if (i_site == nsites - 1)
 		{
 			assert(c.ndim == 3);
-			assert(c.dim_logical[1] == 1);
-			assert(c.axis_dir[0] == TENSOR_AXIS_OUT);
-			assert(c.axis_dir[1] == TENSOR_AXIS_IN);
+			assert(c.dim_logical[2] == 1);
+			assert(c.axis_dir[1] == TENSOR_AXIS_OUT);
+			assert(c.axis_dir[2] == TENSOR_AXIS_IN);
 			struct block_sparse_tensor c_mat;
-			block_sparse_tensor_matricize_axis(&c, 2, 1, TENSOR_AXIS_OUT, &c_mat, &mat_info);
+			block_sparse_tensor_matricize_axis(&c, 0, 0, TENSOR_AXIS_OUT, &c_mat, &mat_info);
 			delete_block_sparse_tensor(&c);
 			c = c_mat;  // copy internal data pointers
 		}
@@ -178,8 +174,8 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 		}
 		delete_block_sparse_tensor(&c);
 
-		// split the physical and auxiliary axis on site 0
-		if (i_site == 0)
+		// split the physical and auxiliary axis on the last site
+		if (i_site == nsites - 1)
 		{
 			struct block_sparse_tensor tmp;
 			block_sparse_tensor_dematricize_axis(&u_hat, &mat_info, &tmp);
@@ -396,7 +392,6 @@ static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_si
 
 	// augment the initial connecting tensor
 	copy_block_sparse_tensor(&state->a[i_site], c0);
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
 	for (int n = 0; n < hamiltonian->topology.num_neighbors[i_site]; n++)
 	{
 		const int k = hamiltonian->topology.neighbor_map[i_site][n];
@@ -406,7 +401,7 @@ static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_si
 		}
 
 		struct block_sparse_tensor tmp;
-		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (k < i_site ? n : n + 1);
 		block_sparse_tensor_multiply_axis(c0, i_ax, &augment_maps[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
 		delete_block_sparse_tensor(c0);
 		*c0 = tmp;  // copy internal data pointers

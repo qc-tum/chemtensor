@@ -13,7 +13,7 @@
 /// \brief Tree tensor network state (TTNS) data structure.
 ///
 /// Sites are enumerated as physical sites first, then branching sites.
-/// The tensor at site 0 contains an additional (dummy) auxiliary second axis for reaching non-zero quantum number sectors.
+/// The tensor at the last site contains an additional (dummy) auxiliary axis for reaching non-zero quantum number sectors.
 /// The TTNS supports non-uniform local physical dimensions.
 /// The branching sites have a (dummy) physical axis of dimension 1 and quantum number 0.
 ///
@@ -55,11 +55,13 @@ int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int
 ///
 static inline qnumber ttns_quantum_number_sector(const struct ttns* ttns)
 {
-	assert(ttns->nsites_physical >= 1);
-	assert(ttns->a[0].ndim >= 2);
-	assert(ttns->a[0].dim_logical[1] == 1);
+	const int l = ttns->nsites_physical + ttns->nsites_branching - 1;
 
-	return ttns->a[0].qnums_logical[1][0];
+	assert(l >= 0);
+	assert(ttns->a[l].ndim >= 2);
+	assert(ttns->a[l].dim_logical[ttns->a[l].ndim - 1] == 1);
+
+	return ttns->a[l].qnums_logical[ttns->a[l].ndim - 1][0];
 }
 
 
@@ -83,8 +85,8 @@ double ttns_norm(const struct ttns* psi);
 enum ttns_tensor_axis_type
 {
 	TTNS_TENSOR_AXIS_PHYSICAL  = 0,  //!< physical axis
-	TTNS_TENSOR_AXIS_AUXILIARY = 1,  //!< auxiliary (dummy) axis, for reaching non-zero quantum number sectors
-	TTNS_TENSOR_AXIS_VIRTUAL   = 2,  //!< virtual bond axis
+	TTNS_TENSOR_AXIS_VIRTUAL   = 1,  //!< virtual bond axis
+	TTNS_TENSOR_AXIS_AUXILIARY = 2,  //!< auxiliary (dummy) axis, for reaching non-zero quantum number sectors
 };
 
 

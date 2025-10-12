@@ -35,68 +35,65 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 			assert(qsite[l][0] == 0);
 		}
 
-		const int offset_phys_aux = (l == 0 ? 2 : 1);
-		const int ndim = ttns->topology.num_neighbors[l] + offset_phys_aux;
+		const int ndim = 1 + ttns->topology.num_neighbors[l] + (l == nsites - 1 ? 1 : 0);  // last term counts auxiliary dimension
 
 		long* dim = ct_calloc(ndim, sizeof(long));
 		enum tensor_axis_direction* axis_dir = ct_calloc(ndim, sizeof(enum tensor_axis_direction));
 		const qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*));
 
 		// virtual bonds
-		for (int i = 0; i < ttns->topology.num_neighbors[l]; i++)
+		for (int n = 0; n < ttns->topology.num_neighbors[l]; n++)
 		{
-			if (i > 0) {
-				assert(ttns->topology.neighbor_map[l][i - 1] < ttns->topology.neighbor_map[l][i]);
+			if (n > 0) {
+				assert(ttns->topology.neighbor_map[l][n - 1] < ttns->topology.neighbor_map[l][n]);
 			}
-			int k = ttns->topology.neighbor_map[l][i];
+			int k = ttns->topology.neighbor_map[l][n];
 			assert(k != l);
 			if (k < l)
 			{
 				assert(dim_bonds[k*nsites + l] > 0);
-				dim[i]      = dim_bonds[k*nsites + l];
-				axis_dir[i] = TENSOR_AXIS_OUT;
-				qnums[i]    = qbonds[k*nsites + l];  // copy the pointer
+				dim[n]      = dim_bonds[k*nsites + l];
+				axis_dir[n] = TENSOR_AXIS_OUT;
+				qnums[n]    = qbonds[k*nsites + l];  // copy the pointer
 			}
 			else  // l < k
 			{
 				assert(dim_bonds[l*nsites + k] > 0);
-				dim[i + offset_phys_aux]      = dim_bonds[l*nsites + k];
-				axis_dir[i + offset_phys_aux] = TENSOR_AXIS_IN;
-				qnums[i + offset_phys_aux]    = qbonds[l*nsites + k];  // copy the pointer
+				dim[n + 1]      = dim_bonds[l*nsites + k];
+				axis_dir[n + 1] = TENSOR_AXIS_IN;
+				qnums[n + 1]    = qbonds[l*nsites + k];  // copy the pointer
 			}
 		}
-		// physical and auxiliary axes
-		// include the quantum number sector in the auxiliary axis on site 0
-		const qnumber qnum_aux[1] = { qnum_sector };
-		if (l == 0)
+
+		// physical axis
+		#ifndef NDEBUG
+		bool site_info_set = false;
+		#endif
+		for (int i = 0; i < ndim; i++)
 		{
-			assert(dim[0] == 0 && dim[1] == 0);
-			dim[0] = d[l];  // physical
-			dim[1] = 1;     // auxiliary
-			qnums[0] = qsite[l];
-			qnums[1] = qnum_aux;
-			axis_dir[0] = TENSOR_AXIS_OUT;
-			axis_dir[1] = TENSOR_AXIS_IN;
-		}
-		else
-		{
-			#ifndef NDEBUG
-			bool site_info_set = false;
-			#endif
-			for (int i = 0; i < ndim; i++)
+			if (dim[i] == 0)
 			{
-				if (dim[i] == 0)
-				{
-					dim[i]      = d[l];
-					qnums[i]    = qsite[l];
-					axis_dir[i] = TENSOR_AXIS_OUT;
-					#ifndef NDEBUG
-					site_info_set = true;
-					#endif
-					break;
-				}
+				dim[i]      = d[l];
+				qnums[i]    = qsite[l];
+				axis_dir[i] = TENSOR_AXIS_OUT;
+				#ifndef NDEBUG
+				site_info_set = true;
+				#endif
+				break;
 			}
-			assert(site_info_set);
+		}
+		#ifndef NDEBUG
+		assert(site_info_set);
+		#endif
+
+		// auxiliary axis on the last site, storing the quantum number sector
+		const qnumber qnum_aux[1] = { qnum_sector };
+		if (l == nsites - 1)
+		{
+			assert(dim[ndim - 1] == 0);
+			dim[ndim - 1]      = 1;
+			qnums[ndim - 1]    = qnum_aux;
+			axis_dir[ndim - 1] = TENSOR_AXIS_IN;
 		}
 
 		allocate_block_sparse_tensor(dtype, ndim, dim, axis_dir, qnums, &ttns->a[l]);
@@ -117,8 +114,7 @@ void delete_ttns(struct ttns* ttns)
 	// overall number of sites
 	const int nsites = ttns->nsites_physical + ttns->nsites_branching;
 
-	for (int l = 0; l < nsites; l++)
-	{
+	for (int l = 0; l < nsites; l++) {
 		delete_block_sparse_tensor(&ttns->a[l]);
 	}
 	ct_free(ttns->a);
@@ -188,9 +184,9 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 		long dim_full = d[i_site];
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		memcpy(qnums_full, qsite[i_site], d[i_site] * sizeof(qnumber));
-		// auxiliary axis of site 0 contains overall quantum number sector
-		if (i_site == 0) {
-			for (long i = 0; i < d[0]; i++) {
+		// auxiliary axis of last site contains overall quantum number sector
+		if (i_site == nsites - 1) {
+			for (long i = 0; i < d[i_site]; i++) {
 				qnums_full[i] -= qnum_sector;
 			}
 		}
@@ -306,9 +302,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 
 	for (int l = 0; l < nsites; l++)
 	{
-		const int offset_phys_aux = (l == 0 ? 2 : 1);
-
-		if (ttns->a[l].ndim != ttns->topology.num_neighbors[l] + offset_phys_aux) {
+		if (ttns->a[l].ndim != 1 + ttns->topology.num_neighbors[l] + (l == nsites - 1 ? 1 : 0)) {
 			return false;
 		}
 
@@ -335,18 +329,21 @@ bool ttns_is_consistent(const struct ttns* ttns)
 				}
 			}
 		}
-		// auxiliary axis of site 0
+
+		// auxiliary axis of last site
+		if (l == nsites - 1)
 		{
-			if (ttns->a[0].ndim <= 1) {
+			if (ttns->a[l].ndim <= 1) {
 				return false;
 			}
-			if (ttns->a[0].dim_logical[1] != 1) {
+			int i = ttns->a[l].ndim - 1;
+			if (ttns->a[l].dim_logical[i] != 1) {
 				return false;
 			}
-			if (ttns->a[0].axis_dir[1] != TENSOR_AXIS_IN) {
+			if (ttns->a[l].axis_dir[i] != TENSOR_AXIS_IN) {
 				return false;
 			}
-			if (axis_desc[0][1].type != TTNS_TENSOR_AXIS_AUXILIARY) {
+			if (axis_desc[l][i].type != TTNS_TENSOR_AXIS_AUXILIARY) {
 				return false;
 			}
 		}
@@ -411,7 +408,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 ///
 long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 {
-	assert(ttns->a[i_site].ndim == ttns->topology.num_neighbors[i_site] + (i_site == 0 ? 2 : 1));
+	assert(ttns->a[i_site].ndim == 1 + ttns->topology.num_neighbors[i_site] + (i_site == ttns->topology.num_nodes - 1 ? 1 : 0));
 
 	// count virtual bonds preceeding physical axis
 	int n = 0;
@@ -439,19 +436,13 @@ int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int
 {
 	assert(0 <= i_site  && i_site  < topology->num_nodes);
 	assert(0 <= i_neigh && i_neigh < topology->num_nodes);
+	assert(i_site != i_neigh);
 
 	for (int n = 0; n < topology->num_neighbors[i_site]; n++)
 	{
-		const int k = topology->neighbor_map[i_site][n];
-		if (k == i_neigh)
+		if (topology->neighbor_map[i_site][n] == i_neigh)
 		{
-			if (k < i_site) {
-				return n;
-			}
-			else {
-				const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-				return n + offset_phys_aux;
-			}
+			return (i_neigh < i_site ? n : n + 1);
 		}
 	}
 
@@ -533,8 +524,6 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, const struct block_sparse_tensor* restrict psi,
 	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* restrict inner_bonds)
 {
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
 	int i_ax_p = -1;
 
 	struct block_sparse_tensor psi_envs;
@@ -544,7 +533,7 @@ void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, co
 		const int k = topology->neighbor_map[i_site][n];
 		assert(k != i_site);
 
-		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (k < i_site ? n : n + 1);
 
 		if (k == i_parent)
 		{
@@ -670,19 +659,12 @@ void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int 
 {
 	assert(0 <= i_site && i_site < topology->num_nodes);
 
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-	const int ndim = topology->num_neighbors[i_site] + offset_phys_aux;
+	const int ndim = 1 + topology->num_neighbors[i_site] + (i_site == topology->num_nodes - 1 ? 1 : 0);
 
-	// set to default values
+	// physical axis description; all entries but one will be overwritten
 	for (int i = 0; i < ndim; i++) {
 		desc[i].type  = TTNS_TENSOR_AXIS_PHYSICAL;
 		desc[i].index = i_site;
-	}
-
-	// auxiliary axis of site 0 (special case)
-	if (i_site == 0) {
-		desc[1].type = TTNS_TENSOR_AXIS_AUXILIARY;
-		desc[1].index = i_site;
 	}
 
 	// virtual bonds to neighbors
@@ -693,8 +675,14 @@ void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int 
 		}
 		int k = topology->neighbor_map[i_site][n];
 		assert(k != i_site);
-		desc[k < i_site ? n : n + offset_phys_aux].type  = TTNS_TENSOR_AXIS_VIRTUAL;
-		desc[k < i_site ? n : n + offset_phys_aux].index = k;
+		desc[k < i_site ? n : n + 1].type  = TTNS_TENSOR_AXIS_VIRTUAL;
+		desc[k < i_site ? n : n + 1].index = k;
+	}
+
+	// auxiliary axis of last site
+	if (i_site == topology->num_nodes - 1) {
+		desc[ndim - 1].type = TTNS_TENSOR_AXIS_AUXILIARY;
+		desc[ndim - 1].index = i_site;
 	}
 }
 
@@ -713,8 +701,6 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 		return 0;
 	}
 
-	const int offset_phys_aux = (i_site == 0 ? 2 : 1);
-
 	struct block_sparse_tensor* u_list = ct_malloc(ttns->topology.num_neighbors[i_site] * sizeof(struct block_sparse_tensor));
 	for (int n = 0; n < ttns->topology.num_neighbors[i_site]; n++)
 	{
@@ -725,7 +711,7 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 		}
 
 		// corresponding tensor axis index
-		const int i_ax = (i_child < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (i_child < i_site ? n : n + 1);
 
 		struct block_sparse_tensor a_mat;
 		struct block_sparse_tensor_axis_matricization_info mat_info;
@@ -767,7 +753,7 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 		}
 
 		// corresponding tensor axis index
-		const int i_ax = (k < i_site ? n : n + offset_phys_aux);
+		const int i_ax = (k < i_site ? n : n + 1);
 
 		// apply u^\dagger to the core tensor
 		conjugate_block_sparse_tensor(&u_list[n]);
@@ -1014,41 +1000,24 @@ void ttns_to_statevector(const struct ttns* ttns, struct block_sparse_tensor* ve
 	struct ttns_contracted_subtree contracted;
 	ttns_contract_subtree(ttns, i_root, -1, &contracted);
 	assert(contracted.tensor.ndim == nsites + 1);  // including auxiliary axis
-	assert(contracted.axis_desc[0].index == 0 && contracted.axis_desc[0].type == TTNS_TENSOR_AXIS_PHYSICAL);
-	assert(contracted.axis_desc[1].index == 0 && contracted.axis_desc[1].type == TTNS_TENSOR_AXIS_AUXILIARY);
-	for (int l = 1; l < ttns->nsites_physical; l++) {
+	for (int l = 0; l < nsites; l++) {
 		// sites must be ordered after subtree contraction
-		assert(contracted.axis_desc[1 + l].index == l && contracted.axis_desc[1 + l].type == TTNS_TENSOR_AXIS_PHYSICAL);
+		assert(contracted.axis_desc[l].type == TTNS_TENSOR_AXIS_PHYSICAL);
+		assert(contracted.axis_desc[l].index == l);
 	}
+	assert(contracted.axis_desc[nsites].type == TTNS_TENSOR_AXIS_AUXILIARY);
+	assert(contracted.axis_desc[nsites].index == nsites - 1);
 	ct_free(contracted.axis_desc);
 
-	// temporarily flip first physical and auxiliary axis
-	struct block_sparse_tensor ctensor_flip_aux;
-	{
-		int* perm = ct_malloc(contracted.tensor.ndim * sizeof(int));
-		perm[0] = 1;
-		perm[1] = 0;
-		for (int i = 2; i < contracted.tensor.ndim; i++) {
-			perm[i] = i;
-		}
-		transpose_block_sparse_tensor(perm, &contracted.tensor, &ctensor_flip_aux);
-		ct_free(perm);
-	}
-	delete_block_sparse_tensor(&contracted.tensor);
-
-	while (ctensor_flip_aux.ndim > 2)
+	*vec = contracted.tensor;  // copy internal data pointers
+	while (vec->ndim > 2)
 	{
 		// flatten pairs of physical axes
 		struct block_sparse_tensor t;
-		block_sparse_tensor_flatten_axes(&ctensor_flip_aux, 1, TENSOR_AXIS_OUT, &t);
-		delete_block_sparse_tensor(&ctensor_flip_aux);
-		ctensor_flip_aux = t;  // copy internal data pointers
-		assert(ctensor_flip_aux.dim_logical[0] == 1);  // auxiliary axis
+		block_sparse_tensor_flatten_axes(vec, 0, TENSOR_AXIS_OUT, &t);
+		delete_block_sparse_tensor(vec);
+		*vec = t;  // copy internal data pointers
 	}
-	assert(ctensor_flip_aux.ndim == 2);
-
-	// undo flip and store resulting tensor in 'vec'
-	const int perm[2] = { 1, 0 };
-	transpose_block_sparse_tensor(perm, &ctensor_flip_aux, vec);
-	delete_block_sparse_tensor(&ctensor_flip_aux);
+	assert(vec->ndim == 2);
+	assert(vec->dim_logical[1] == 1);  // auxiliary axis
 }

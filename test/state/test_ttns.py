@@ -78,7 +78,7 @@ def ttns_compress_data():
                 dims.append(len(qbonds[(j, i)]))
                 qnums.append(qbonds[(j, i)])  # outward direction
         dims.append(d[i])
-        qnums.append(qsite[i] - (qnum_sector if i == 0 else 0))
+        qnums.append(qsite[i] - (qnum_sector if i == len(d) - 1 else 0))
         for j in neighs[i]:
             if j > i:
                 dims.append(len(qbonds[(i, j)]))

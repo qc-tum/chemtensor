@@ -183,30 +183,35 @@ char* test_bug_flow_update_basis_leaf()
 	// topology variants
 	for (int m = 0; m < 3; m++)
 	{
-		// m == 0: current site index < neighboring (parent) site index, and auxiliary axis attached to current site tensor
-		// m == 1: current site index < neighboring (parent) site index, without auxiliary axis
-		// m == 2: current site index > neighboring (parent) site index, without auxiliary axis
+		// m == 0: current site index < neighboring (parent) site index, without auxiliary axis
+		// m == 1: current site index > neighboring (parent) site index, without auxiliary axis
+		// m == 2: current site index > neighboring (parent) site index, and auxiliary axis attached to current site tensor
 
 		// tree topology:
 		//
-		// (m+2)%3
-		//    │
-		//    │
 		// (m+1)%3
+		//    │
+		//    │
+		// (m+2)%3
 		//    │
 		//    │
 		//    m
 		//
 		int neigh[3][2] = {
-			{ (m + 1) % 3, -1 },
-			{  m, (m + 2) % 3 },
-			{ (m + 1) % 3, -1 },
+			{ (m + 2) % 3, -1 },
+			{ (m + 2) % 3, -1 },
+			{  m, (m + 1) % 3 },
 		};
+		if (neigh[2][0] > neigh[2][1]) {
+			int tmp = neigh[2][0];
+			neigh[2][0] = neigh[2][1];
+			neigh[2][1] = tmp;
+		}
 		int* neighbor_map[3] = {
 			neigh[(3 - m) % 3], neigh[(4 - m) % 3], neigh[(5 - m) % 3],
 		};
 		int num_neighbors[3] = { 1, 1, 1 };
-		num_neighbors[(m + 1) % 3] = 2;
+		num_neighbors[(m + 2) % 3] = 2;
 		struct abstract_graph topology = {
 			.neighbor_map  = neighbor_map,
 			.num_neighbors = num_neighbors,
@@ -218,18 +223,13 @@ char* test_bug_flow_update_basis_leaf()
 		qnumber* qbond_op    = ct_malloc(dim_bond_op * sizeof(qnumber));
 		if (m == 0)
 		{
-			memcpy(qbond_state, qbond_state_base, dim_bond_state * sizeof(qnumber));
-			memcpy(qbond_op,    qbond_op_base,    dim_bond_op    * sizeof(qnumber));
-		}
-		else if (m == 1)
-		{
 			// absorb quantum number sector in virtual bond
 			for (long i = 0; i < dim_bond_state; i++) {
 				qbond_state[i] = qbond_state_base[i] + qnum_sector;
 			}
 			memcpy(qbond_op, qbond_op_base, dim_bond_op * sizeof(qnumber));
 		}
-		else
+		else if (m == 1)
 		{
 			// absorb quantum number sector in virtual bond, and flip sign due to reversed bond direction
 			for (long i = 0; i < dim_bond_state; i++) {
@@ -239,58 +239,64 @@ char* test_bug_flow_update_basis_leaf()
 				qbond_op[i] = -qbond_op_base[i];
 			}
 		}
+		else
+		{
+			// flip sign due to reversed bond direction
+			for (long i = 0; i < dim_bond_state; i++) {
+				qbond_state[i] = -qbond_state_base[i];
+			}
+			for (long i = 0; i < dim_bond_op; i++) {
+				qbond_op[i] = -qbond_op_base[i];
+			}
+		}
 
 		// local tensor of initial quantum state
 		struct block_sparse_tensor a_state_0;
 		{
+			// read dense tensor from disk
 			struct dense_tensor a_state_0_dns;
+			const long dim_dns[2] = { d, dim_bond_state };
+			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_dns, &a_state_0_dns);
+			if (read_hdf5_dataset(file, "a_state_0", hdf5_dcomplex_id, a_state_0_dns.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
 
 			if (m == 0)
 			{
-				// read dense tensor from disk
-				const long dim[3] = { d, 1, dim_bond_state };
-				allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &a_state_0_dns);
-				if (read_hdf5_dataset(file, "a_state_0", hdf5_dcomplex_id, a_state_0_dns.data) < 0) {
-					return "reading tensor entries from disk failed";
-				}
-
-				const qnumber qnum_sector_array[1] = { qnum_sector };
-				const qnumber* qnums[3] = { qsite, qnum_sector_array, qbond_state };
-				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
-
-				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
-			}
-			else if (m == 1)
-			{
-				// read dense tensor from disk
-				const long dim[2] = { d, dim_bond_state };
-				allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &a_state_0_dns);
-				if (read_hdf5_dataset(file, "a_state_0", hdf5_dcomplex_id, a_state_0_dns.data) < 0) {
-					return "reading tensor entries from disk failed";
-				}
-
 				const qnumber* qnums[2] = { qsite, qbond_state };
 				const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
 				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
 			}
-			else
+			else if (m == 1)
 			{
-				// read dense tensor from disk
-				struct dense_tensor a_state_0_tp_dns;
-				const long dim[2] = { d, dim_bond_state };
-				allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &a_state_0_tp_dns);
-				if (read_hdf5_dataset(file, "a_state_0", hdf5_dcomplex_id, a_state_0_tp_dns.data) < 0) {
-					return "reading tensor entries from disk failed";
-				}
 				const int perm[2] = { 1, 0 };
-				transpose_dense_tensor(perm, &a_state_0_tp_dns, &a_state_0_dns);
-				delete_dense_tensor(&a_state_0_tp_dns);
+				struct dense_tensor tmp;
+				transpose_dense_tensor(perm, &a_state_0_dns, &tmp);
+				delete_dense_tensor(&a_state_0_dns);
+				a_state_0_dns = tmp;
 
 				const qnumber* qnums[2] = { qbond_state, qsite };
 				const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
+
+				// convert dense to block-sparse tensor
+				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
+			}
+			else
+			{
+				const long dim_aux[3] = { d, 1, dim_bond_state };
+				reshape_dense_tensor(3, dim_aux, &a_state_0_dns);
+
+				const int perm[3] = { 2, 0, 1 };
+				struct dense_tensor tmp;
+				transpose_dense_tensor(perm, &a_state_0_dns, &tmp);
+				delete_dense_tensor(&a_state_0_dns);
+				a_state_0_dns = tmp;
+
+				const qnumber qnum_sector_array[1] = { qnum_sector };
+				const qnumber* qnums[3] = { qbond_state, qsite, qnum_sector_array };
+				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
 				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
@@ -309,17 +315,16 @@ char* test_bug_flow_update_basis_leaf()
 		// local tensor of operator
 		struct block_sparse_tensor a_op;
 		{
+			// read dense tensor from disk
 			struct dense_tensor a_op_dns;
+			const long dim[3] = { d, d, dim_bond_op };
+			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &a_op_dns);
+			if (read_hdf5_dataset(file, "a_op", hdf5_dcomplex_id, a_op_dns.data) < 0) {
+				return "reading tensor entries from disk failed";
+			}
 
-			if (m <= 1)
+			if (m == 0)
 			{
-				// read dense tensor from disk
-				const long dim[3] = { d, d, dim_bond_op };
-				allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &a_op_dns);
-				if (read_hdf5_dataset(file, "a_op", hdf5_dcomplex_id, a_op_dns.data) < 0) {
-					return "reading tensor entries from disk failed";
-				}
-
 				const qnumber* qnums[3] = { qsite, qsite, qbond_op };
 				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 
@@ -328,17 +333,11 @@ char* test_bug_flow_update_basis_leaf()
 			}
 			else
 			{
-				// read dense tensor from disk
-				struct dense_tensor a_op_tp_dns;
-				const long dim[3] = { d, d, dim_bond_op };
-				allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &a_op_tp_dns);
-				if (read_hdf5_dataset(file, "a_op", hdf5_dcomplex_id, a_op_tp_dns.data) < 0) {
-					return "reading tensor entries from disk failed";
-				}
-
 				const int perm[3] = { 2, 0, 1 };
-				transpose_dense_tensor(perm, &a_op_tp_dns, &a_op_dns);
-				delete_dense_tensor(&a_op_tp_dns);
+				struct dense_tensor tmp;
+				transpose_dense_tensor(perm, &a_op_dns, &tmp);
+				delete_dense_tensor(&a_op_dns);
+				a_op_dns = tmp;
 
 				const qnumber* qnums[3] = { qbond_op, qsite, qsite };
 				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
@@ -369,9 +368,9 @@ char* test_bug_flow_update_basis_leaf()
 
 			const qnumber* qnums[3] = { qbond_state, qbond_op, qbond_state };
 			const enum tensor_axis_direction axis_dir[3] = {
-				m <= 1 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
-				m <= 1 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
-				m <= 1 ? TENSOR_AXIS_IN  : TENSOR_AXIS_OUT,
+				m == 0 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
+				m == 0 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
+				m == 0 ? TENSOR_AXIS_IN  : TENSOR_AXIS_OUT,
 			};
 
 			// convert dense to block-sparse tensor
@@ -397,8 +396,8 @@ char* test_bug_flow_update_basis_leaf()
 
 			const qnumber* qnums[2] = { qbond_state, qbond_state };
 			const enum tensor_axis_direction axis_dir[2] = {
-				m <= 1 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
-				m <= 1 ? TENSOR_AXIS_IN  : TENSOR_AXIS_OUT,
+				m == 0 ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN,
+				m == 0 ? TENSOR_AXIS_IN  : TENSOR_AXIS_OUT,
 			};
 
 			// convert dense to block-sparse tensor
@@ -432,7 +431,7 @@ char* test_bug_flow_update_basis_leaf()
 
 		struct block_sparse_tensor avg_bonds_augmented[3] = { 0 };
 		struct block_sparse_tensor augment_maps[3] = { 0 };
-		bug_flow_update_basis(&op, m, (m + 1) % 3, NULL, &env_parent, &s0, &prefactor, dt, &y, avg_bonds_augmented, augment_maps);
+		bug_flow_update_basis(&op, m, (m + 2) % 3, NULL, &env_parent, &s0, &prefactor, dt, &y, avg_bonds_augmented, augment_maps);
 
 		// local reference tensor of updated quantum state
 		struct dense_tensor a_state_1_ref;
@@ -442,17 +441,8 @@ char* test_bug_flow_update_basis_leaf()
 			if (get_hdf5_dataset_dims(file, "a_state_1", dim_file) < 0) {
 				return "obtaining dimensions of reference tensor failed";
 			}
-			long dim[3];
-			dim[0] = dim_file[0];
-			if (m == 0) {
-				// include dummy auxiliary axis
-				dim[1] = 1;
-				dim[2] = dim_file[1];
-			}
-			else {
-				dim[1] = dim_file[1];
-			}
-			allocate_dense_tensor(CT_DOUBLE_COMPLEX, m == 0 ? 3 : 2, dim, &a_state_1_ref);
+			const long dim[3] = { dim_file[0], m < 2 ? dim_file[1] : 1, m < 2 ? 0 : dim_file[1] };  // include potential dummy auxiliary axis
+			allocate_dense_tensor(CT_DOUBLE_COMPLEX, m == 2 ? 3 : 2, dim, &a_state_1_ref);
 			if (read_hdf5_dataset(file, "a_state_1", hdf5_dcomplex_id, a_state_1_ref.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
@@ -467,7 +457,7 @@ char* test_bug_flow_update_basis_leaf()
 
 			struct dense_tensor u;
 			dense_tensor_dot(&a_state_1_ref, TENSOR_AXIS_RANGE_LEADING,
-				&a_state_dns, m <= 1 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, m == 0 ? 2 : 1, &u);
+				&a_state_dns, m <= 1 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, m == 2 ? 2 : 1, &u);
 			if (!dense_tensor_is_isometry(&u, 1e-14, true)) {
 				return "expecting an isometric overlap matrix";
 			}
