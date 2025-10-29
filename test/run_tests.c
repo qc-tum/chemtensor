@@ -75,6 +75,7 @@ char* test_mps_split_tensor_svd();
 char* test_mps_to_statevector();
 char* test_save_mps();
 char* test_ttns_vdot();
+char* test_ttns_orthonormalize_qr();
 char* test_ttns_compress();
 char* test_queue();
 char* test_linked_list();
@@ -190,6 +191,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_mps_to_statevector),
 		TEST_FUNCTION_ENTRY(test_save_mps),
 		TEST_FUNCTION_ENTRY(test_ttns_vdot),
+		TEST_FUNCTION_ENTRY(test_ttns_orthonormalize_qr),
 		TEST_FUNCTION_ENTRY(test_ttns_compress),
 		TEST_FUNCTION_ENTRY(test_queue),
 		TEST_FUNCTION_ENTRY(test_linked_list),

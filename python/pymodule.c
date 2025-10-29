@@ -5,10 +5,15 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include "mps.h"
+#include "op_chain.h"
+#include "mpo.h"
+#include "ttns.h"
 #include "ttno.h"
 #include "hamiltonian.h"
 #include "dmrg.h"
 #include "gradient.h"
+#include "bug.h"
 #include "aligned_memory.h"
 
 
@@ -154,13 +159,13 @@ static PyMethodDef PyMPS_methods[] = {
 		.ml_name  = "bond_quantum_numbers",
 		.ml_meth  = (PyCFunction)PyMPS_bond_quantum_numbers,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Return the quantum numbers of the i-th virtual bond."
+		.ml_doc   = "Return the quantum numbers of the i-th virtual bond.",
 	},
 	{
 		.ml_name  = "to_statevector",
 		.ml_meth  = (PyCFunction)PyMPS_to_statevector,
 		.ml_flags = METH_NOARGS,
-		.ml_doc   = "Construct the vector representation of the matrix product state on the full Hilbert space."
+		.ml_doc   = "Construct the vector representation of the matrix product state on the full Hilbert space.",
 	},
 	{
 		0  // sentinel
@@ -718,13 +723,13 @@ static PyMethodDef PyMPO_methods[] = {
 		.ml_name  = "bond_quantum_numbers",
 		.ml_meth  = (PyCFunction)PyMPO_bond_quantum_numbers,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Return the quantum numbers of the i-th virtual bond."
+		.ml_doc   = "Return the quantum numbers of the i-th virtual bond.",
 	},
 	{
 		.ml_name  = "to_matrix",
 		.ml_meth  = (PyCFunction)PyMPO_to_matrix,
 		.ml_flags = METH_NOARGS,
-		.ml_doc   = "Construct the (dense) matrix representation of the matrix product operator on the full Hilbert space."
+		.ml_doc   = "Construct the (dense) matrix representation of the matrix product operator on the full Hilbert space.",
 	},
 	{
 		0  // sentinel
@@ -1032,6 +1037,408 @@ static PyTypeObject PyMPOType = {
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Python TTNS object.
+///
+typedef struct
+{
+	PyObject_HEAD
+	struct ttns ttns;
+}
+PyTTNSObject;
+
+
+static PyObject* PyTTNS_new(PyTypeObject* type, PyObject* Py_UNUSED(args), PyObject* Py_UNUSED(kwds))
+{
+	PyTTNSObject* self = (PyTTNSObject*)type->tp_alloc(type, 0);
+	if (self != NULL) {
+		memset(&self->ttns, 0, sizeof(self->ttns));
+	}
+	return (PyObject*)self;
+}
+
+
+static void PyTTNS_dealloc(PyTTNSObject* self)
+{
+	if (self->ttns.a != NULL) {
+		// assuming that the TTNS has been initialized
+		delete_ttns(&self->ttns);
+	}
+	Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+
+static PyObject* PyTTNS_local_dimension(PyTTNSObject* self, PyObject* args)
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttns.topology.num_nodes;
+
+	int i;
+	if (!PyArg_ParseTuple(args, "i", &i)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: local_dimension(i: int)");
+		return NULL;
+	}
+	if (i < 0 || i >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'i' is out of range");
+		return NULL;
+	}
+
+	return PyLong_FromLong(ttns_local_dimension(&self->ttns, i));
+}
+
+
+static PyObject* PyTTNS_bond_dim(PyTTNSObject* self, PyObject* args)
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttns.topology.num_nodes;
+
+	int i, j;
+	if (!PyArg_ParseTuple(args, "ii", &i, &j)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_dim(i: int, j: int)");
+		return NULL;
+	}
+	if (i == j) {
+		PyErr_SetString(PyExc_ValueError, "site indices cannot be equal");
+		return NULL;
+	}
+	if (i < 0 || i >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'i' is out of range");
+		return NULL;
+	}
+	if (j < 0 || j >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'j' is out of range");
+		return NULL;
+	}
+	bool is_neighbor = false;
+	for (int n = 0; n < self->ttns.topology.num_neighbors[i]; n++) {
+		if (self->ttns.topology.neighbor_map[i][n] == j) {
+			is_neighbor = true;
+			break;
+		}
+	}
+	if (!is_neighbor) {
+		char msg[1024];
+		sprintf(msg, "sites '%i' and '%i' are not neighbors in the tree topology", i, j);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	const int i_ax = ttns_tensor_bond_axis_index(&self->ttns.topology, i, j);
+	if (i_ax == -1) {
+		PyErr_SetString(PyExc_ValueError, "internal error finding bond axis index");
+		return NULL;
+	}
+	assert(0 <= i_ax && i_ax < self->ttns.a[i].ndim);
+
+	return PyLong_FromLong(self->ttns.a[i].dim_logical[i_ax]);
+}
+
+
+static PyObject* PyTTNS_bond_quantum_numbers(PyTTNSObject* self, PyObject* args)
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttns.topology.num_nodes;
+
+	int i, j;
+	if (!PyArg_ParseTuple(args, "ii", &i, &j)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bond_quantum_numbers(i: int, j: int)");
+		return NULL;
+	}
+	if (i == j) {
+		PyErr_SetString(PyExc_ValueError, "site indices cannot be equal");
+		return NULL;
+	}
+	if (i < 0 || i >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'i' is out of range");
+		return NULL;
+	}
+	if (j < 0 || j >= nsites) {
+		PyErr_SetString(PyExc_ValueError, "site index 'j' is out of range");
+		return NULL;
+	}
+	bool is_neighbor = false;
+	for (int n = 0; n < self->ttns.topology.num_neighbors[i]; n++) {
+		if (self->ttns.topology.neighbor_map[i][n] == j) {
+			is_neighbor = true;
+			break;
+		}
+	}
+	if (!is_neighbor) {
+		char msg[1024];
+		sprintf(msg, "sites '%i' and '%i' are not neighbors in the tree topology", i, j);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	const int i_ax = ttns_tensor_bond_axis_index(&self->ttns.topology, i, j);
+	if (i_ax == -1) {
+		PyErr_SetString(PyExc_ValueError, "internal error finding bond axis index");
+		return NULL;
+	}
+	assert(0 <= i_ax && i_ax < self->ttns.a[i].ndim);
+
+	const long bond_dim = self->ttns.a[i].dim_logical[i_ax];
+	PyObject* list = PyList_New(bond_dim);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+	const qnumber* qnums = self->ttns.a[i].qnums_logical[i_ax];
+	for (long k = 0; k < bond_dim; k++) {
+		if (PyList_SetItem(list, k, PyLong_FromLong(qnums[k])) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
+static PyObject* PyTTNS_to_statevector(PyTTNSObject* self, PyObject* Py_UNUSED(args))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	// return vector representation of TTNS as dense NumPy array
+	struct block_sparse_tensor vsparse;
+	ttns_to_statevector(&self->ttns, &vsparse);
+	// convert to dense tensor
+	struct dense_tensor v;
+	block_sparse_to_dense_tensor(&vsparse, &v);
+	delete_block_sparse_tensor(&vsparse);
+
+	// dummy virtual bond dimension is retained
+	assert(v.ndim == 2);
+	assert(v.dim[1] == 1);
+
+	npy_intp dims[1] = { v.dim[0] };
+	PyArrayObject* py_v = (PyArrayObject*)PyArray_SimpleNew(1, dims, numeric_to_numpy_type(v.dtype));
+	if (py_v == NULL) {
+		delete_dense_tensor(&v);
+		PyErr_SetString(PyExc_RuntimeError, "error creating NumPy vector");
+		return NULL;
+	}
+	memcpy(PyArray_DATA(py_v), v.data, dense_tensor_num_elements(&v) * sizeof_numeric_type(v.dtype));
+
+	delete_dense_tensor(&v);
+
+	return (PyObject*)py_v;
+}
+
+
+static PyMethodDef PyTTNS_methods[] = {
+	{
+		.ml_name  = "local_dimension",
+		.ml_meth  = (PyCFunction)PyTTNS_local_dimension,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the local physical dimension at a site.",
+	},
+	{
+		.ml_name  = "bond_dim",
+		.ml_meth  = (PyCFunction)PyTTNS_bond_dim,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the dimension of the virtual bond between two neighboring sites.",
+	},
+	{
+		.ml_name  = "bond_quantum_numbers",
+		.ml_meth  = (PyCFunction)PyTTNS_bond_quantum_numbers,
+		.ml_flags = METH_VARARGS,
+		.ml_doc   = "Return the quantum numbers of the virtual bond between two neighboring sites.",
+	},
+	{
+		.ml_name  = "to_statevector",
+		.ml_meth  = (PyCFunction)PyTTNS_to_statevector,
+		.ml_flags = METH_NOARGS,
+		.ml_doc   = "Construct the vector representation of the tree tensor networks state on the full Hilbert space.",
+	},
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyObject* PyTTNS_quantum_number_sector(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(ttns_quantum_number_sector(&self->ttns));
+}
+
+
+static PyObject* PyTTNS_nsites(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttns.nsites_physical + self->ttns.nsites_branching);
+}
+
+
+static PyObject* PyTTNS_nsites_physical(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttns.nsites_physical);
+}
+
+
+static PyObject* PyTTNS_nsites_branching(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(self->ttns.nsites_branching);
+}
+
+
+static PyObject* PyTTNS_max_bond_dim(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyLong_FromLong(ttns_maximum_bond_dimension(&self->ttns));
+}
+
+
+static PyObject* PyTTNS_a(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	const int nsites = self->ttns.topology.num_nodes;
+
+	PyObject* list = PyList_New(nsites);
+	if (list == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "create list");
+		return NULL;
+	}
+
+	for (int i = 0; i < nsites; i++)
+	{
+		struct dense_tensor ai;
+		block_sparse_to_dense_tensor(&self->ttns.a[i], &ai);
+
+		npy_intp* dims = ct_malloc(ai.ndim * sizeof(npy_intp));
+		for (int j = 0; j < ai.ndim; j++) {
+			dims[j] = ai.dim[j];
+		}
+		PyArrayObject* py_ai = (PyArrayObject*)PyArray_SimpleNew(ai.ndim, dims, numeric_to_numpy_type(ai.dtype));
+		ct_free(dims);
+		if (py_ai == NULL) {
+			delete_dense_tensor(&ai);
+			PyErr_SetString(PyExc_RuntimeError, "error creating NumPy array");
+			return NULL;
+		}
+		memcpy(PyArray_DATA(py_ai), ai.data, dense_tensor_num_elements(&ai) * sizeof_numeric_type(ai.dtype));
+
+		delete_dense_tensor(&ai);
+
+		if (PyList_SetItem(list, i, (PyObject*)py_ai) < 0) {
+			Py_DECREF(list);
+			PyErr_SetString(PyExc_RuntimeError, "set list item");
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
+
+static struct PyGetSetDef PyTTNS_getset[] = {
+	{
+		.name    = "quantum_number_sector",
+		.get     = (getter)PyTTNS_quantum_number_sector,
+		.set     = NULL,
+		.doc     = "quantum number sector",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites",
+		.get     = (getter)PyTTNS_nsites,
+		.set     = NULL,
+		.doc     = "number of sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites_physical",
+		.get     = (getter)PyTTNS_nsites_physical,
+		.set     = NULL,
+		.doc     = "number of physical sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "nsites_branching",
+		.get     = (getter)PyTTNS_nsites_branching,
+		.set     = NULL,
+		.doc     = "number of branching sites",
+		.closure = NULL,
+	},
+	{
+		.name    = "max_bond_dim",
+		.get     = (getter)PyTTNS_max_bond_dim,
+		.set     = NULL,
+		.doc     = "maximum virtual bond dimension",
+		.closure = NULL,
+	},
+	{
+		.name    = "a",
+		.get     = (getter)PyTTNS_a,
+		.set     = NULL,
+		.doc     = "local tensors",
+		.closure = NULL,
+	},
+	{
+		0  // sentinel
+	},
+};
+
+
+static PyTypeObject PyTTNSType = {
+	.ob_base      = PyVarObject_HEAD_INIT(NULL, 0)
+	.tp_name      = "chemtensor.TTNS",
+	.tp_doc       = PyDoc_STR("TTNS object"),
+	.tp_basicsize = sizeof(PyTTNSObject),
+	.tp_itemsize  = 0,
+	.tp_flags     = Py_TPFLAGS_DEFAULT,
+	.tp_new       = PyTTNS_new,
+	.tp_init      = NULL,
+	.tp_dealloc   = (destructor)PyTTNS_dealloc,
+	.tp_methods   = PyTTNS_methods,
+	.tp_getset    = PyTTNS_getset,
+};
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Python TTNO object.
 ///
 typedef struct
@@ -1215,19 +1622,19 @@ static PyMethodDef PyTTNO_methods[] = {
 		.ml_name  = "bond_dim",
 		.ml_meth  = (PyCFunction)PyTTNO_bond_dim,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Return the dimension of the virtual bond between two neighboring sites."
+		.ml_doc   = "Return the dimension of the virtual bond between two neighboring sites.",
 	},
 	{
 		.ml_name  = "bond_quantum_numbers",
 		.ml_meth  = (PyCFunction)PyTTNO_bond_quantum_numbers,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Return the quantum numbers of the virtual bond between two neighboring sites."
+		.ml_doc   = "Return the quantum numbers of the virtual bond between two neighboring sites.",
 	},
 	{
 		.ml_name  = "to_matrix",
 		.ml_meth  = (PyCFunction)PyTTNO_to_matrix,
 		.ml_flags = METH_NOARGS,
-		.ml_doc   = "Construct the (dense) matrix representation of the matrix product operator on the full Hilbert space."
+		.ml_doc   = "Construct the (dense) matrix representation of the matrix product operator on the full Hilbert space.",
 	},
 	{
 		0  // sentinel
@@ -1694,6 +2101,237 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 	}
 
 	Py_DECREF(py_qsite);
+
+	return (PyObject*)py_psi;
+}
+
+
+static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	// data type
+	const char* dtype_string;
+	// number of physical lattice sites
+	int nsites_physical;
+	// neighbor map for tree topology
+	PyObject* py_obj_tree_neighbors;
+	// physical quantum numbers at each site
+	PyObject* py_obj_qsites;
+	// quantum number sector
+	qnumber qnum_sector;
+	// maximum virtual bond dimension
+	long max_vdim = 64;
+	// random number generator seed (for filling tensor entries)
+	uint64_t rng_seed = 42;
+	// whether to normalize the state
+	int normalize = 1;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siOOi|llp", kwlist,
+			&dtype_string,
+			&nsites_physical,
+			&py_obj_tree_neighbors,
+			&py_obj_qsites,
+			&qnum_sector,
+			&max_vdim,
+			&rng_seed,
+			&normalize)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
+		return NULL;
+	}
+
+	// data type
+	enum numeric_type dtype;
+	if ((strcmp(dtype_string, "float32") == 0)
+	 || (strcmp(dtype_string, "float") == 0)) {
+		dtype = CT_SINGLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "float64") == 0)
+	      || (strcmp(dtype_string, "double") == 0)) {
+		dtype = CT_DOUBLE_REAL;
+	}
+	else if ((strcmp(dtype_string, "complex64") == 0) ||
+	         (strcmp(dtype_string, "float complex") == 0)) {
+		dtype = CT_SINGLE_COMPLEX;
+	}
+	else if ((strcmp(dtype_string, "complex128") == 0)
+	      || (strcmp(dtype_string, "double complex") == 0)) {
+		dtype = CT_DOUBLE_COMPLEX;
+	}
+	else {
+		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+		return NULL;
+	}
+
+	if (nsites_physical <= 0) {
+		char msg[1024];
+		sprintf(msg, "'nsites_physical' must be a positive integer, received %i", nsites_physical);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// retrieve topology
+	struct abstract_graph topology;
+	if (!PySequence_Check(py_obj_tree_neighbors)) {
+		PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'tree_neighbors' as a sequence");
+		return NULL;
+	}
+	topology.num_nodes = (int)PySequence_Length(py_obj_tree_neighbors);
+	if (topology.num_nodes < nsites_physical) {
+		PyErr_SetString(PyExc_ValueError, "length of 'tree_neighbors' must be the overall number of sites (physical and branching)");
+		return NULL;
+	}
+	topology.neighbor_map  = ct_malloc(topology.num_nodes * sizeof(int*));
+	topology.num_neighbors = ct_malloc(topology.num_nodes * sizeof(int));
+	for (int l = 0; l < topology.num_nodes; l++)
+	{
+		PyObject* py_neighbors = PySequence_GetItem(py_obj_tree_neighbors, l);
+		if (!PySequence_Check(py_neighbors)) {
+			PyErr_SetString(PyExc_SyntaxError, "cannot interpret entry of 'tree_neighbors' as a sequence");
+			return NULL;
+		}
+
+		topology.num_neighbors[l] = (int)PySequence_Length(py_neighbors);
+		topology.neighbor_map[l]  = ct_malloc(topology.num_neighbors[l] * sizeof(int));
+
+		for (int i = 0; i < topology.num_neighbors[l]; i++)
+		{
+			PyObject* py_neigh = PySequence_GetItem(py_neighbors, i);
+			if (!PyLong_Check(py_neigh)) {
+				PyErr_SetString(PyExc_SyntaxError, "cannot interpret item in neighbor list inside 'tree_neighbors' as an integer");
+				return NULL;
+			}
+			topology.neighbor_map[l][i] = (int)PyLong_AsLong(py_neigh);
+
+			Py_DECREF(py_neigh);
+		}
+
+		Py_DECREF(py_neighbors);
+	}
+	if (!abstract_graph_is_consistent(&topology)) {
+		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a consistent graph; note that list of neighbors must be sorted");
+		return NULL;
+	}
+	if (!abstract_graph_is_connected_tree(&topology)) {
+		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a connected tree");
+		return NULL;
+	}
+
+	// local physical dimensions and quantum numbers
+	long* d;
+	qnumber** qsite;
+	{
+		if (!PySequence_Check(py_obj_qsites)) {
+			PyErr_SetString(PyExc_SyntaxError, "cannot interpret 'qsites' as a sequence");
+			return NULL;
+		}
+
+		const int nsites = (int)PySequence_Length(py_obj_qsites);
+		if (nsites != topology.num_nodes) {
+			PyErr_SetString(PyExc_SyntaxError, "length of 'qsites' must agree with number of nodes in tree topology");
+			return NULL;
+		}
+
+		d     = ct_malloc(nsites * sizeof(long));
+		qsite = ct_malloc(nsites * sizeof(qnumber*));
+
+		for (int l = 0; l < nsites; l++)
+		{
+			PyObject* py_obj_local_qsite = PySequence_GetItem(py_obj_qsites, l);
+
+			// convert 'py_obj_local_qsite' to a NumPy array
+			PyArrayObject* py_local_qsite = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_local_qsite, NPY_INT, 1, 1);
+			if (py_local_qsite == NULL) {
+				char msg[1024];
+				sprintf(msg, "converting %i-th entry of 'qsites' to a NumPy array with integer entries failed", l);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_obj_local_qsite);
+				return NULL;
+			}
+
+			d[l] = PyArray_DIM(py_local_qsite, 0);
+			if (d[l] == 0) {
+				char msg[1024];
+				sprintf(msg, "%i-th entry of 'qsites' cannot be an empty list", l);
+				PyErr_SetString(PyExc_ValueError, msg);
+				Py_DECREF(py_local_qsite);
+				Py_DECREF(py_obj_local_qsite);
+				return NULL;
+			}
+
+			qsite[l] = ct_malloc(d[l] * sizeof(qnumber));
+			memcpy(qsite[l], PyArray_DATA(py_local_qsite), d[l] * sizeof(qnumber));
+
+			Py_DECREF(py_local_qsite);
+			Py_DECREF(py_obj_local_qsite);
+
+			// consistency checks for branching sites
+			if (l >= nsites_physical)
+			{
+				if (d[l] != 1) {
+					char msg[1024];
+					sprintf(msg, "local dimension for branching sites must be 1 (dummy physical dimension), received %li for site %i", d[l], l);
+					PyErr_SetString(PyExc_ValueError, msg);
+					return NULL;
+				}
+				if (qsite[l][0] != 0) {
+					char msg[1024];
+					sprintf(msg, "local quantum number for branching sites must be 0, received an invalid number for site %i", l);
+					PyErr_SetString(PyExc_ValueError, msg);
+					return NULL;
+				}
+			}
+		}
+	}
+
+	if (max_vdim <= 0) {
+		char msg[1024];
+		sprintf(msg, "'max_vdim' must be a positive integer, received %li", max_vdim);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	struct rng_state rng_state;
+	seed_rng_state(rng_seed, &rng_state);
+
+	PyTTNSObject* py_psi = (PyTTNSObject*)PyTTNS_new(&PyTTNSType, NULL, NULL);
+	if (py_psi == NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "error creating PyTTNS object");
+		return NULL;
+	}
+	// actually construct the random TTNS
+	construct_random_ttns(dtype, nsites_physical, &topology, d, (const qnumber**)qsite, qnum_sector, max_vdim, &rng_state, &py_psi->ttns);
+
+	for (int l = 0; l < topology.num_nodes; l++) {
+		ct_free(qsite[l]);
+	}
+	ct_free(qsite);
+	ct_free(d);
+
+	if (!ttns_is_consistent(&py_psi->ttns)) {
+		PyErr_SetString(PyExc_RuntimeError, "internal consistency check of TTNS failed");
+		return NULL;
+	}
+
+	if (normalize)
+	{
+		// select site with maximum number of neighbors as root for orthonormalization
+		int i_root = 0;
+		for (int l = 1; l < topology.num_nodes; l++) {
+			if (topology.num_neighbors[l] > topology.num_neighbors[i_root]) {
+				i_root = l;
+			}
+		}
+
+		double nrm = ttns_orthonormalize_qr(i_root, &py_psi->ttns);
+		if (nrm == 0) {
+			// initial norm zero indicates that quantum numbers are likely incompatible
+			PyErr_SetString(PyExc_RuntimeError, "cannot normalize the TTNS for the provided quantum numbers");
+			return NULL;
+		}
+	}
+
+	delete_abstract_graph(&topology);
 
 	return (PyObject*)py_psi;
 }
@@ -2777,12 +3415,146 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 	}
 	memcpy(PyArray_DATA(py_dcoeff), dcoeff, py_op->assembly.num_coeffs * sizeof_numeric_type(py_op->assembly.dtype));
 
-
 	ct_free(dcoeff);
 	ct_free(avr);
 
-
 	return PyTuple_Pack(2, py_avr, py_dcoeff);
+}
+
+
+#include <inttypes.h>
+//________________________________________________________________________________________________________________________
+///
+/// \brief Perform a Basis-Update and Galerkin (BUG) rank-adaptive tree tensor network integration step
+/// for a Schrödinger differential equation with Hamiltonian given as TTNO.
+/// The 'state' is updated in-place.
+///
+static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kwargs)
+{
+	// TTNS representing the state, will be updated in-place
+	PyTTNSObject* py_state;
+	// TTNO representing the operator
+	PyTTNOObject* py_op;
+	// site index of the logical tree root node
+	int i_root;
+	// prefactor of the right side
+	PyObject* py_prefactor;
+	// time step
+	double dt;
+	// relative compression tolerance
+	double rel_tol_compress = 1e-5;
+	// maximum bond dimension
+	long max_vdim = (1UL << (8 * sizeof(long) - 1)) - 1;
+
+	// parse input arguments
+	char* kwlist[] = { "", "", "", "", "", "rel_tol_compress", "max_vdim", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOiOd|dl", kwlist,
+			&py_state,
+			&py_op,
+			&i_root,
+			&py_prefactor,
+			&dt,
+			&rel_tol_compress,
+			&max_vdim)) {
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: bug_tree_time_step(state: TTNS, op: TTNO, i_root: int, prefactor, dt: float, rel_tol_compress=1e-5, max_vdim=int_max)");
+		return NULL;
+	}
+	if (py_state->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS 'state' has not been initialized yet");
+		return NULL;
+	}
+	if (py_op->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO 'op' has not been initialized yet");
+		return NULL;
+	}
+	if (!abstract_graph_equal(&py_state->ttns.topology, &py_op->ttno.topology)) {
+		PyErr_SetString(PyExc_ValueError, "site topologies of 'state' and 'op' do not agree");
+		return NULL;
+	}
+	if (py_state->ttns.a[0].dtype != py_op->ttno.a[0].dtype) {
+		PyErr_SetString(PyExc_ValueError, "numeric data types of 'state' and 'op' do not agree");
+		return NULL;
+	}
+	if (i_root < 0 || i_root >= py_state->ttns.topology.num_nodes) {
+		char msg[1024];
+		sprintf(msg, "site index i_root = %i is out of range", i_root);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	// ensure that variable size is large enough to store any numeric type
+	dcomplex prefactor;
+	{
+		switch (py_state->ttns.a[0].dtype)
+		{
+			case CT_SINGLE_REAL:
+			{
+				float p = (float)PyFloat_AsDouble(py_prefactor);
+				if (PyErr_Occurred()) {
+					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a float value");
+					return NULL;
+				}
+				*((float*)&prefactor) = p;
+				break;
+			}
+			case CT_DOUBLE_REAL:
+			{
+				double p = PyFloat_AsDouble(py_prefactor);
+				if (PyErr_Occurred()) {
+					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a double value");
+					return NULL;
+				}
+				*((double*)&prefactor) = p;
+				break;
+			}
+			case CT_SINGLE_COMPLEX:
+			{
+				Py_complex p = PyComplex_AsCComplex(py_prefactor);
+				if (PyErr_Occurred()) {
+					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a complex number");
+					return NULL;
+				}
+				scomplex p_single = CMPLXF((float)p.real, (float)p.imag);
+				*((scomplex*)&prefactor) = p_single;
+				break;
+			}
+			case CT_DOUBLE_COMPLEX:
+			{
+				Py_complex p = PyComplex_AsCComplex(py_prefactor);
+				if (PyErr_Occurred()) {
+					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a complex number");
+					return NULL;
+				}
+				*((Py_complex*)&prefactor) = p;
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				PyErr_SetString(PyExc_RuntimeError, "internal data type error");
+				return NULL;
+			}
+		}
+	}
+	if (rel_tol_compress < 0) {
+		char msg[1024];
+		sprintf(msg, "'rel_tol_compress' must be non-negative, received %g", rel_tol_compress);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (max_vdim <= 0) {
+		char msg[1024];
+		sprintf(msg, "'max_vdim' must be a positive integer, received %li", max_vdim);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	int ret = bug_tree_time_step(&py_op->ttno, i_root, &prefactor, dt, rel_tol_compress, max_vdim, &py_state->ttns);
+	if (ret < 0) {
+		PyErr_SetString(PyExc_RuntimeError, "bug_tree_time_step failed internally");
+		return NULL;
+	}
+
+	Py_RETURN_NONE;
 }
 
 
@@ -2818,6 +3590,12 @@ static PyMethodDef methods[] = {
 		.ml_meth  = (PyCFunction)Py_construct_random_mps,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc   = "Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_mps(dtype, nsites, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
+	},
+	{
+		.ml_name  = "construct_random_ttns",
+		.ml_meth  = (PyCFunction)Py_construct_random_ttns,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc   = "Construct a tree tensor network state with random normal tensor entries, given the tree topology, an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
 	},
 	{
 		.ml_name  = "construct_ising_1d_mpo",
@@ -2880,6 +3658,12 @@ static PyMethodDef methods[] = {
 		.ml_doc   = "Compute the value and gradient of `<chi | op | psi>` with respect to the internal MPO coefficients.\nSyntax: operator_average_coefficient_gradient(op: MPO, psi: MPS: chi: MPS)",
 	},
 	{
+		.ml_name  = "bug_tree_time_step",
+		.ml_meth  = (PyCFunction)Py_bug_tree_time_step,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc   = "Perform a Basis-Update and Galerkin (BUG) rank-adaptive tree tensor network integration step.\nSyntax: bug_tree_time_step(state: TTNS, op: TTNO, i_root: int, prefactor, dt: float, rel_tol_compress=1e-5, max_vdim=int_max)",
+	},
+	{
 		.ml_name  = "get_max_openmp_threads",
 		.ml_meth  = Py_get_max_openmp_threads,
 		.ml_flags = METH_NOARGS,
@@ -2918,6 +3702,9 @@ PyMODINIT_FUNC PyInit_chemtensor_pymodule(void)
 	if (PyType_Ready(&PyMPOType) < 0) {
 		return NULL;
 	}
+	if (PyType_Ready(&PyTTNSType) < 0) {
+		return NULL;
+	}
 	if (PyType_Ready(&PyTTNOType) < 0) {
 		return NULL;
 	}
@@ -2947,6 +3734,14 @@ PyMODINIT_FUNC PyInit_chemtensor_pymodule(void)
 	Py_INCREF(&PyMPOType);
 	if (PyModule_AddObject(m, "MPO", (PyObject*)&PyMPOType) < 0) {
 		Py_DECREF(&PyMPOType);
+		Py_DECREF(m);
+		return NULL;
+	}
+
+	// register TTNS type
+	Py_INCREF(&PyTTNSType);
+	if (PyModule_AddObject(m, "TTNS", (PyObject*)&PyTTNSType) < 0) {
+		Py_DECREF(&PyTTNSType);
 		Py_DECREF(m);
 		return NULL;
 	}

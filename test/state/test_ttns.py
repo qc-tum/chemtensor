@@ -13,6 +13,100 @@ def single_mode_product(a, t, i: int):
     return t
 
 
+def ttns_orthonormalize_qr_data():
+
+    # random number generator
+    rng = np.random.default_rng(381)
+
+    # tree topology:
+    #
+    #  5
+    #   ╲
+    #    ╲
+    #     8     1     0
+    #      ╲   ╱     ╱
+    #       ╲ ╱     ╱
+    #  4 ─── 3 ─── 7
+    #        │      ╲
+    #        │       ╲
+    #        6        2
+    #
+    neighs = (
+        (7,),             # neighbors of site 0
+        (3,),             # neighbors of site 1
+        (7,),             # neighbors of site 2
+        (1, 4, 6, 7, 8),  # neighbors of site 3
+        (3,),             # neighbors of site 4
+        (8,),             # neighbors of site 5
+        (3,),             # neighbors of site 6
+        (0, 2, 3),        # neighbors of site 7
+        (3, 5),           # neighbors of site 8
+    )
+
+    nsites_physical = 7
+
+    # local physical dimensions
+    d = [2, 3, 2, 1, 5, 3, 4, 1, 1]
+
+    # physical quantum numbers
+    qsite = ([rng.integers(-1, 2, size=di) for di in d[:nsites_physical]]
+                + [np.zeros(di, dtype=int) for di in d[nsites_physical:]])
+    # overall quantum number sector
+    qnum_sector = 2
+
+    # virtual bond quantum numbers
+    qbonds = {}
+    qbonds[(0, 7)] = rng.integers(-1, 2, size=13)
+    qbonds[(1, 3)] = rng.integers(-2, 3, size=23)
+    qbonds[(2, 7)] = rng.integers(-1, 2, size=18)
+    qbonds[(3, 4)] = rng.integers(-1, 2, size= 7)
+    qbonds[(3, 6)] = rng.integers(-1, 2, size= 4)
+    qbonds[(3, 7)] = rng.integers(-1, 2, size=17)
+    qbonds[(3, 8)] = rng.integers(-1, 2, size=12)
+    qbonds[(5, 8)] = rng.integers(-1, 2, size=20)
+
+    # random local tensors
+    alist = []
+    for i in range(len(d)):
+        dims  = []
+        qnums = []
+        for j in neighs[i]:
+            if j < i:
+                dims.append(len(qbonds[(j, i)]))
+                qnums.append(qbonds[(j, i)])  # outward direction
+        dims.append(d[i])
+        qnums.append(qsite[i] - (qnum_sector if i == len(d) - 1 else 0))
+        for j in neighs[i]:
+            if j > i:
+                dims.append(len(qbonds[(i, j)]))
+                qnums.append(-qbonds[(i, j)])  # inward direction
+        a = ptn.crandn(dims, rng) / np.sqrt(np.prod(dims))
+        # enforce sparsity pattern according to quantum numbers
+        ptn.enforce_qsparsity(a, qnums)
+        for c, j in enumerate(neighs[i]):
+            i_ax = (c if j < i else c + 1)
+            # imitate small entanglement by multiplying bonds with small scaling factors
+            s = np.exp(-10*(rng.uniform(size=a.shape[i_ax])))
+            s /= np.linalg.norm(s)
+            a = single_mode_product(np.diag(s), a, i_ax)
+        # rescale to achieve norm of order 1
+        a *= 15 / np.linalg.norm(a)
+        # sparsity pattern should not lead to zero tensors
+        assert np.linalg.norm(a) > 0
+        # convert tensor entries to single precision
+        a = a.astype(np.complex64)
+        alist.append(a)
+
+    with h5py.File("data/test_ttns_orthonormalize_qr.hdf5", "w") as file:
+        for i, qdi in enumerate(qsite):
+            file.attrs[f"qsite{i}"] = qdi
+        file.attrs["qnum_sector"] = qnum_sector
+        for ij, qbond in qbonds.items():
+            file.attrs[f"qbond{ij[0]}{ij[1]}"] = qbond
+        for i, a in enumerate(alist):
+            file[f"a{i}"] = a
+
+
 def ttns_compress_data():
 
     # random number generator
@@ -109,6 +203,7 @@ def ttns_compress_data():
 
 
 def main():
+    ttns_orthonormalize_qr_data()
     ttns_compress_data()
 
 

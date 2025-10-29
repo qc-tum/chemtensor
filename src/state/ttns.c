@@ -129,6 +129,28 @@ void delete_ttns(struct ttns* ttns)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Copy a tree tensor network state and its block sparse tensors.
+///
+void copy_ttns(const struct ttns* restrict src, struct ttns* restrict dst)
+{
+	dst->nsites_physical  = src->nsites_physical;
+	dst->nsites_branching = src->nsites_branching;
+
+	// tree topology
+	copy_abstract_graph(&src->topology, &dst->topology);
+
+	// copy tensors at each site
+	const int nsites = src->topology.num_nodes;
+	assert(nsites == src->nsites_physical + src->nsites_branching);
+	dst->a = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
+	for (int l = 0; l < nsites; l++) {
+		copy_block_sparse_tensor(&src->a[l], &dst->a[l]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Convert an edge tuple index (i, j) to a linear virtual bond array index.
 ///
 static inline int edge_to_bond_index(const int nsites, const int i, const int j)
@@ -430,6 +452,34 @@ long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Get the maximum virtual bond dimension of the TTNS.
+///
+long ttns_maximum_bond_dimension(const struct ttns* ttns)
+{
+	// return 1 for the special case that the TTNS topology consists of a single site only
+	long m = 1;
+
+	for (int l = 0; l < ttns->topology.num_nodes; l++)
+	{
+		for (int n = 0; n < ttns->topology.num_neighbors[l]; n++)
+		{
+			const int k = ttns->topology.neighbor_map[l][n];
+			assert(k != l);
+
+			// virtual bond axis index
+			const int i_ax = (k < l ? n : n + 1);
+
+			assert(i_ax < ttns->a[l].ndim);
+			m = lmax(m, ttns->a[l].dim_logical[i_ax]);
+		}
+	}
+
+	return m;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Get the tensor axis index of the virtual bond at site 'i_site' to neighbor 'i_neigh'.
 ///
 int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int i_site, const int i_neigh)
@@ -684,6 +734,95 @@ void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int 
 		desc[ndim - 1].type = TTNS_TENSOR_AXIS_AUXILIARY;
 		desc[ndim - 1].index = i_site;
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Orthonormalize (a subtree of) the TTNS in-place using QR decompositions,
+/// and return the normalization factor if 'i_site' is the root node (i.e., 'i_parent' == -1).
+/// 'i_parent' is the parent node index (or -1 if no parent exists).
+///
+static double ttns_orthonormalize_qr_subtree(const int i_site, const int i_parent, struct ttns* ttns, struct block_sparse_tensor* r)
+{
+	int i_ax_p = -1;
+
+	for (int n = 0; n < ttns->topology.num_neighbors[i_site]; n++)
+	{
+		const int k = ttns->topology.neighbor_map[i_site][n];
+		assert(k != i_site);
+
+		// corresponding tensor axis index
+		const int i_ax = (k < i_site ? n : n + 1);
+
+		if (k == i_parent)
+		{
+			i_ax_p = i_ax;
+			continue;
+		}
+
+		struct block_sparse_tensor r_child;
+		ttns_orthonormalize_qr_subtree(k, i_site, ttns, &r_child);
+
+		struct block_sparse_tensor tmp;
+		block_sparse_tensor_multiply_axis(&ttns->a[i_site], i_ax, &r_child, TENSOR_AXIS_RANGE_TRAILING, &tmp);
+		delete_block_sparse_tensor(&ttns->a[i_site]);
+		ttns->a[i_site] = tmp;  // copy internal data pointers
+
+		delete_block_sparse_tensor(&r_child);
+	}
+
+	if (i_parent == -1)
+	{
+		assert(i_ax_p == -1);
+
+		double nrm = block_sparse_tensor_norm2(&ttns->a[i_site]);
+
+		if (numeric_real_type(ttns->a[i_site].dtype) == CT_DOUBLE_REAL)
+		{
+			const double alpha = 1. / nrm;
+			rscale_block_sparse_tensor(&alpha, &ttns->a[i_site]);
+		}
+		else
+		{
+			assert(numeric_real_type(ttns->a[i_site].dtype) == CT_SINGLE_REAL);
+			const float alpha = (float)(1. / nrm);
+			rscale_block_sparse_tensor(&alpha, &ttns->a[i_site]);
+		}
+
+		// note: 'r' is not modified
+
+		return nrm;
+	}
+
+	assert(i_ax_p != -1);
+
+	struct block_sparse_tensor ai_mat;
+	struct block_sparse_tensor_axis_matricization_info mat_info;
+	block_sparse_tensor_matricize_axis(&ttns->a[i_site], i_ax_p, 1, -ttns->a[i_site].axis_dir[i_ax_p], &ai_mat, &mat_info);
+	delete_block_sparse_tensor(&ttns->a[i_site]);
+
+	// perform QR decomposition
+	struct block_sparse_tensor q;
+	block_sparse_tensor_qr(&ai_mat, QR_REDUCED, &q, r);
+	delete_block_sparse_tensor(&ai_mat);
+
+	// updated site-local tensor is the reshaped 'q'
+	block_sparse_tensor_dematricize_axis(&q, &mat_info, &ttns->a[i_site]);
+	delete_block_sparse_tensor(&q);
+	delete_block_sparse_tensor_axis_matricization_info(&mat_info);
+
+	return 1;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Orthonormalize the TTNS in-place using QR decompositions, and return the normalization factor.
+///
+double ttns_orthonormalize_qr(const int i_root, struct ttns* ttns)
+{
+	return ttns_orthonormalize_qr_subtree(i_root, -1, ttns, NULL);
 }
 
 

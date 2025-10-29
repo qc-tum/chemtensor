@@ -20,12 +20,13 @@ Features
 --------
 - Matrix product state and operator structures
 - Represent common Hamiltonians as MPOs, including molecular Hamiltonians
-- General MPO construction with optimized bond dimensions from a list of operator chains
+- General MPO and TTNO construction with optimized bond dimensions from a list of operator chains
 - Block-sparse tensors based on additive quantum number conservation to implement abelian symmetries
 - Single- and two-site DMRG algorithm
 - Gradient computation with respect to MPO parameters
 - Tensor hypercontraction form of molecular Hamiltonians
-- Tree tensor network topologies (work in progress)
+- Tree tensor network topologies
+- Basis-Update and Galerkin (BUG) rank-adaptive time integration
 - Non-abelian symmetries (work in progress)
 
 

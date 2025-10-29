@@ -35,6 +35,8 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 
 void delete_ttns(struct ttns* ttns);
 
+void copy_ttns(const struct ttns* restrict src, struct ttns* restrict dst);
+
 void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
 
 bool ttns_is_consistent(const struct ttns* ttns);
@@ -45,6 +47,8 @@ bool ttns_is_consistent(const struct ttns* ttns);
 
 
 long ttns_local_dimension(const struct ttns* ttns, const int i_site);
+
+long ttns_maximum_bond_dimension(const struct ttns* ttns);
 
 int ttns_tensor_bond_axis_index(const struct abstract_graph* topology, const int i_site, const int i_neigh);
 
@@ -101,6 +105,14 @@ struct ttns_tensor_axis_desc
 };
 
 void ttns_tensor_get_axis_desc(const struct abstract_graph* topology, const int i_site, struct ttns_tensor_axis_desc* desc);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// orthonormalization
+
+double ttns_orthonormalize_qr(const int i_root, struct ttns* ttns);
 
 
 //________________________________________________________________________________________________________________________
