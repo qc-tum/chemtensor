@@ -1,6 +1,7 @@
 #include <math.h>
 #include "block_sparse_tensor.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_block_sparse_tensor_copy()

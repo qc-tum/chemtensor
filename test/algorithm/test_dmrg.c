@@ -3,6 +3,7 @@
 #include "dmrg.h"
 #include "chain_ops.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_dmrg_singlesite()

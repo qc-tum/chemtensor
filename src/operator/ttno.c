@@ -2,6 +2,7 @@
 /// \brief Tree tensor network operator (TTNO) data structure and functions.
 
 #include <math.h>
+#include <stdio.h>
 #include "ttno.h"
 #include "abstract_graph.h"
 #include "aligned_memory.h"

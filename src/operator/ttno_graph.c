@@ -1,6 +1,7 @@
 /// \file ttno_graph.c
 /// \brief Tree tensor network operator (TTNO) graph internal data structure.
 
+#include <stdio.h>
 #include "ttno_graph.h"
 #include "hash_table.h"
 #include "linked_list.h"

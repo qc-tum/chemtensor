@@ -21,6 +21,10 @@ Gradients
 ---------
 .. doxygenfile:: gradient.h
 
+BUG integration
+---------------
+.. doxygenfile:: bug.h
+
 Tensor hypercontraction
 -----------------------
 .. doxygenfile:: thc.h 

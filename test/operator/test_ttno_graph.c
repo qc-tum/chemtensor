@@ -1,6 +1,7 @@
 #include "ttno_graph.h"
 #include "ttno.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))

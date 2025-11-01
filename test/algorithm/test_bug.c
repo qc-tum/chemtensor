@@ -1,7 +1,9 @@
 #include <math.h>
+#include <stdio.h>
 #include "bug.h"
 #include "tree_ops.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))

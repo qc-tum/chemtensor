@@ -2,6 +2,7 @@
 #include <complex.h>
 #include "dense_tensor.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_tensor_index_to_offset()

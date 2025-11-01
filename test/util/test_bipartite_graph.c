@@ -1,5 +1,6 @@
 #include "bipartite_graph.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_bipartite_graph_maximum_cardinality_matching()

@@ -1,6 +1,7 @@
 /// \file mpo_graph.c
 /// \brief MPO graph internal data structure for generating MPO representations.
 
+#include <stdio.h>
 #include <assert.h>
 #include "mpo_graph.h"
 #include "hash_table.h"

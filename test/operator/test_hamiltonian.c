@@ -1,5 +1,6 @@
 #include "hamiltonian.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_ising_1d_mpo()

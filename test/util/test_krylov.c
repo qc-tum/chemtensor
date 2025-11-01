@@ -3,7 +3,7 @@
 #include <cblas.h>
 #include "krylov.h"
 #include "aligned_memory.h"
-#include "util.h"
+#include "hdf5_util.h"
 
 
 static void multiply_matrix_vector_d(const ct_long n, const void* restrict data, const double* restrict v, double* restrict ret)

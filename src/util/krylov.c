@@ -4,6 +4,7 @@
 #include <complex.h>
 #include <assert.h>
 #include <cblas.h>
+#include <stdio.h>
 #include "lapack_ct.h"
 #include "krylov.h"
 #include "aligned_memory.h"

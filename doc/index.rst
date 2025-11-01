@@ -23,6 +23,7 @@ Examples using the Python interface:
     examples/basic_dmrg_fermi_hubbard
     examples/water_molecule
     examples/operator_average
+    examples/bug_integration
 
 
 Python API

@@ -7,6 +7,7 @@
 #include "aligned_memory.h"
 #include "rng.h"
 #include "timing.h"
+#include "hdf5_util.h"
 
 
 int main()

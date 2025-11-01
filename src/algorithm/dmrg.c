@@ -1,6 +1,7 @@
 /// \file dmrg.c
 /// \brief DMRG algorithm.
 
+#include <stdio.h>
 #include "dmrg.h"
 #include "chain_ops.h"
 #include "krylov.h"

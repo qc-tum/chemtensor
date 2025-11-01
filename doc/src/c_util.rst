@@ -37,6 +37,10 @@ Random number generation
 ------------------------
 .. doxygenfile:: rng.h
 
+HDF5 utility functions
+------------------------
+.. doxygenfile:: hdf5_util.h
+
 Timing utility functions
 ------------------------
 .. doxygenfile:: timing.h

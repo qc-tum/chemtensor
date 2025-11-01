@@ -4,6 +4,7 @@
 #include "mpo.h"
 #include "aligned_memory.h"
 #include "numerical_gradient.h"
+#include "hdf5_util.h"
 
 
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))

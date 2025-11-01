@@ -1,5 +1,6 @@
 #include "thc.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_apply_thc_spin_molecular_hamiltonian()

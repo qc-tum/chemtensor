@@ -2,6 +2,7 @@
 #include "bond_ops.h"
 #include "util.h"
 #include "aligned_memory.h"
+#include "hdf5_util.h"
 
 
 char* test_retained_bond_indices()
