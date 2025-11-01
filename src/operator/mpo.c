@@ -30,7 +30,7 @@ void delete_mpo_assembly(struct mpo_assembly* assembly)
 ///
 /// \brief Allocate memory for a matrix product operator. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
-void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
+void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -44,7 +44,7 @@ void allocate_mpo(const enum numeric_type dtype, const int nsites, const long d,
 
 	for (int i = 0; i < nsites; i++)
 	{
-		const long dim[4] = { dim_bonds[i], d, d, dim_bonds[i + 1] };
+		const ct_long dim[4] = { dim_bonds[i], d, d, dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 		const qnumber* qnums[4] = { qbonds[i], qsite, qsite, qbonds[i + 1] };
 		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &mpo->a[i]);
@@ -60,7 +60,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 {
 	assert(assembly->graph.nsites >= 1);
 	assert(assembly->d >= 1);
-	const long d = assembly->d;
+	const ct_long d = assembly->d;
 	mpo->nsites = assembly->graph.nsites;
 	mpo->d = assembly->d;
 
@@ -74,7 +74,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 	for (int l = 0; l < assembly->graph.nsites; l++)
 	{
 		// accumulate entries in a dense tensor first
-		const long dim_a_loc[4] = { assembly->graph.num_verts[l], d, d, assembly->graph.num_verts[l + 1] };
+		const ct_long dim_a_loc[4] = { assembly->graph.num_verts[l], d, d, assembly->graph.num_verts[l + 1] };
 		struct dense_tensor a_loc;
 		allocate_dense_tensor(assembly->dtype, 4, dim_a_loc, &a_loc);
 
@@ -91,15 +91,15 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 			assert(0 <= edge->vids[1] && edge->vids[1] < assembly->graph.num_verts[l + 1]);
 
 			// add entries of local operator 'op' to 'a_loc' (supporting multiple edges between same pair of nodes)
-			const long index_start[4] = { edge->vids[0], 0, 0, edge->vids[1] };
-			long offset = tensor_index_to_offset(a_loc.ndim, a_loc.dim, index_start);
+			const ct_long index_start[4] = { edge->vids[0], 0, 0, edge->vids[1] };
+			ct_long offset = tensor_index_to_offset(a_loc.ndim, a_loc.dim, index_start);
 			switch (a_loc.dtype)
 			{
 				case CT_SINGLE_REAL:
 				{
 					float* al_data = a_loc.data;
 					const float* op_data = op.data;
-					for (long j = 0; j < d*d; j++, offset += a_loc.dim[3])
+					for (ct_long j = 0; j < d*d; j++, offset += a_loc.dim[3])
 					{
 						al_data[offset] += op_data[j];
 					}
@@ -109,7 +109,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 				{
 					double* al_data = a_loc.data;
 					const double* op_data = op.data;
-					for (long j = 0; j < d*d; j++, offset += a_loc.dim[3])
+					for (ct_long j = 0; j < d*d; j++, offset += a_loc.dim[3])
 					{
 						al_data[offset] += op_data[j];
 					}
@@ -119,7 +119,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 				{
 					scomplex* al_data = a_loc.data;
 					const scomplex* op_data = op.data;
-					for (long j = 0; j < d*d; j++, offset += a_loc.dim[3])
+					for (ct_long j = 0; j < d*d; j++, offset += a_loc.dim[3])
 					{
 						al_data[offset] += op_data[j];
 					}
@@ -129,7 +129,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 				{
 					dcomplex* al_data = a_loc.data;
 					const dcomplex* op_data = op.data;
-					for (long j = 0; j < d*d; j++, offset += a_loc.dim[3])
+					for (ct_long j = 0; j < d*d; j++, offset += a_loc.dim[3])
 					{
 						al_data[offset] += op_data[j];
 					}

@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <stdbool.h>
+#include "util.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -12,10 +14,30 @@
 ///
 /// For half-integer quantum numbers like spins, we store the physical quantum number times 2 to avoid rounding issues.
 ///
-typedef int qnumber;
+typedef int32_t qnumber;
 
 
-bool qnumber_all_equal(const long n, const qnumber* restrict qnums0, const qnumber* restrict qnums1);
+bool qnumber_all_equal(const ct_long n, const qnumber* restrict qnums0, const qnumber* restrict qnums1);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Minimum of two quantum numbers.
+///
+static inline qnumber qmin(const qnumber a, const qnumber b)
+{
+	return (a <= b) ? a : b;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Maximum of two quantum numbers.
+///
+static inline qnumber qmax(const qnumber a, const qnumber b)
+{
+	return (a >= b) ? a : b;
+}
 
 
 //________________________________________________________________________________________________________________________
@@ -58,4 +80,4 @@ enum tensor_axis_direction
 };
 
 
-void qnumber_outer_sum(const int sign0, const qnumber* restrict qnums0, const long n0, const int sign1, const qnumber* restrict qnums1, const long n1, qnumber* restrict ret);
+void qnumber_outer_sum(const int sign0, const qnumber* restrict qnums0, const ct_long n0, const int sign1, const qnumber* restrict qnums1, const ct_long n1, qnumber* restrict ret);

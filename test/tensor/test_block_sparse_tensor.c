@@ -13,7 +13,7 @@ char* test_block_sparse_tensor_copy()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	const int ndim = 4;
-	const long dims[4] = { 5, 13, 4, 7 };
+	const ct_long dims[4] = { 5, 13, 4, 7 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -79,7 +79,7 @@ char* test_block_sparse_tensor_get_block()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	const int ndim = 5;
-	const long dims[5] = { 7, 4, 11, 5, 7 };
+	const ct_long dims[5] = { 7, 4, 11, 5, 7 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -108,9 +108,9 @@ char* test_block_sparse_tensor_get_block()
 	struct block_sparse_tensor t;
 	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
 
-	const long nblocks = integer_product(t.dim_blocks, t.ndim);
-	long* index_block = ct_calloc(t.ndim, sizeof(long));
-	for (long k = 0; k < nblocks; k++, next_tensor_index(t.ndim, t.dim_blocks, index_block))
+	const ct_long nblocks = integer_product(t.dim_blocks, t.ndim);
+	ct_long* index_block = ct_calloc(t.ndim, sizeof(ct_long));
+	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(t.ndim, t.dim_blocks, index_block))
 	{
 		// probe whether quantum numbers in 't' sum to zero
 		qnumber qsum = 0;
@@ -170,7 +170,7 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 
 	const int ndim = 7;
 	const int ndim_trace = 2;
-	const long dims[7] = { 7, 4, 3, 2, 5, 7, 4 };
+	const ct_long dims[7] = { 7, 4, 3, 2, 5, 7, 4 };
 
 	// read dense tensor from disk
 	struct dense_tensor t_dns;
@@ -249,7 +249,7 @@ char* test_block_sparse_tensor_norm2()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	const int ndim = 4;
-	const long dims[4] = { 4, 6, 13, 5 };
+	const ct_long dims[4] = { 4, 6, 13, 5 };
 
 	// read dense tensor from disk
 	struct dense_tensor t_dns;
@@ -315,7 +315,7 @@ char* test_block_sparse_tensor_invert_axis_quantum_numbers()
 	}
 
 	const int ndim = 4;
-	const long dim[4] = { 13, 8, 11, 10 };
+	const ct_long dim[4] = { 13, 8, 11, 10 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -389,7 +389,7 @@ char* test_block_sparse_tensor_transpose()
 	}
 
 	const int ndim = 4;
-	const long dim[4] = { 5, 4, 11, 7 };
+	const ct_long dim[4] = { 5, 4, 11, 7 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -398,7 +398,7 @@ char* test_block_sparse_tensor_transpose()
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor t_tp_ref;
-	const long dim_ref[4] = { 4, 7, 11, 5 };
+	const ct_long dim_ref[4] = { 4, 7, 11, 5 };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &t_tp_ref);
 	if (read_hdf5_dataset(file, "t_tp", H5T_NATIVE_DOUBLE, t_tp_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -462,7 +462,7 @@ char* test_block_sparse_tensor_reshape()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	const int ndim = 5;
-	const long dim[5] = { 5, 7, 4, 11, 3 };
+	const ct_long dim[5] = { 5, 7, 4, 11, 3 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -498,7 +498,7 @@ char* test_block_sparse_tensor_reshape()
 	block_sparse_tensor_flatten_axes(&t, i_ax, new_axis_dir, &t_flat);
 
 	// reshape original dense tensor, as reference
-	const long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
+	const ct_long dim_reshape[4] = { 5, 7 * 4, 11, 3 };
 	reshape_dense_tensor(ndim - 1, dim_reshape, &t_dns);
 
 	// compare
@@ -550,7 +550,7 @@ char* test_block_sparse_tensor_matricize_axis()
 	}
 
 	const int ndim = 4;
-	const long dim[4] = { 7, 6, 4, 11 };
+	const ct_long dim[4] = { 7, 6, 4, 11 };
 
 	// read dense tensor from disk
 	struct dense_tensor t_dns;
@@ -597,7 +597,7 @@ char* test_block_sparse_tensor_matricize_axis()
 
 				// read reference matrix from disk
 				struct dense_tensor mat_ref;
-				long dim_mat_ref[2] = { dim[i_ax_tns], 1 };
+				ct_long dim_mat_ref[2] = { dim[i_ax_tns], 1 };
 				for (int i = 0; i < ndim; i++) {
 					if (i != i_ax_tns) {
 						dim_mat_ref[1] *= dim[i];
@@ -663,7 +663,7 @@ char* test_block_sparse_tensor_slice()
 	}
 
 	const int ndim = 4;
-	const long dim[4] = { 6, 7, 11, 13 };
+	const ct_long dim[4] = { 6, 7, 11, 13 };
 
 	// read dense tensor from disk
 	struct dense_tensor t_dns;
@@ -693,8 +693,8 @@ char* test_block_sparse_tensor_slice()
 	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
 
 	// slicing indices
-	const long nind = 17;
-	long *ind = ct_malloc(nind * sizeof(long));
+	const ct_long nind = 17;
+	ct_long *ind = ct_malloc(nind * sizeof(ct_long));
 	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
 		return "reading slice indices from disk failed";
 	}
@@ -705,7 +705,7 @@ char* test_block_sparse_tensor_slice()
 
 	// read reference tensor from disk
 	struct dense_tensor s_ref;
-	const long dim_s_ref[4] = { 6, 7, nind, 13 };
+	const ct_long dim_s_ref[4] = { 6, 7, nind, 13 };
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, dim_s_ref, &s_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", H5T_NATIVE_FLOAT, s_ref.data) < 0) {
@@ -744,7 +744,7 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 	}
 
 	const int ndim = 4;
-	const long dim[4] = { 4, 7, 3, 11 };
+	const ct_long dim[4] = { 4, 7, 3, 11 };
 
 	// read dense tensor from disk
 	struct dense_tensor s_dns;
@@ -777,7 +777,7 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 	{
 		// load vector from disk
 		struct dense_tensor t;
-		const long tdim[1] = { i == 0 ? dim[0] : dim[ndim - 1] };
+		const ct_long tdim[1] = { i == 0 ? dim[0] : dim[ndim - 1] };
 		allocate_dense_tensor(CT_SINGLE_REAL, 1, tdim, &t);
 		// read values from disk
 		char varname[1024];
@@ -837,7 +837,7 @@ char* test_block_sparse_tensor_multiply_axis()
 	{
 		// read dense tensor from disk
 		struct dense_tensor s_dns;
-		const long s_dim[4] = { 7, 4, 11, 5 };
+		const ct_long s_dim[4] = { 7, 4, 11, 5 };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, s_dim, &s_dns);
 		if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -876,7 +876,7 @@ char* test_block_sparse_tensor_multiply_axis()
 		char varname[1024];
 
 		struct dense_tensor t_dns;
-		const long t_dim[2][3] = { { 11, 6, 9 }, { 8, 3, 11 } };
+		const ct_long t_dim[2][3] = { { 11, 6, 9 }, { 8, 3, 11 } };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, t_dim[i], &t_dns);
 		sprintf(varname, "t%i", i);
 		if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, t_dns.data) < 0) {
@@ -919,7 +919,7 @@ char* test_block_sparse_tensor_multiply_axis()
 
 		// reference tensor
 		struct dense_tensor r_ref;
-		const long r_ref_dim[2][5] = { { 7, 4, 6, 9, 5 }, { 7, 4, 8, 3, 5 } };
+		const ct_long r_ref_dim[2][5] = { { 7, 4, 6, 9, 5 }, { 7, 4, 8, 3, 5 } };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, r_ref_dim[i], &r_ref);
 		char varname[1024];
 		sprintf(varname, "r%i", i);
@@ -958,7 +958,7 @@ char* test_block_sparse_tensor_concatenate()
 	const int num_tensors = 5;
 
 	struct block_sparse_tensor tlist[5];
-	const long dims[5][4] = {
+	const ct_long dims[5][4] = {
 		{ 13, 17, 11, 7 },
 		{ 13,  4, 11, 7 },
 		{ 13, 12, 11, 7 },
@@ -1006,7 +1006,7 @@ char* test_block_sparse_tensor_concatenate()
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
-	const long refdim[4] = { 13, 55, 11, 7 };
+	const ct_long refdim[4] = { 13, 55, 11, 7 };
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, refdim, &r_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r", H5T_NATIVE_FLOAT, r_ref.data) < 0) {
@@ -1040,7 +1040,7 @@ char* test_block_sparse_tensor_block_diag()
 	const int num_tensors = 6;
 
 	struct block_sparse_tensor tlist[6];
-	const long dims[6][5] = {
+	const ct_long dims[6][5] = {
 		{ 4,  2,  5,  7,  1 },
 		{ 4, 11,  5,  4,  3 },
 		{ 4,  3,  5, 10,  5 },
@@ -1089,7 +1089,7 @@ char* test_block_sparse_tensor_block_diag()
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
-	const long refdim[5] = { 4, 26, 5, 27, 28 };
+	const ct_long refdim[5] = { 4, 26, 5, 27, 28 };
 	allocate_dense_tensor(CT_SINGLE_REAL, 5, refdim, &r_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r", H5T_NATIVE_FLOAT, r_ref.data) < 0) {
@@ -1124,7 +1124,7 @@ char* test_block_sparse_tensor_dot()
 
 	const int ndim = 8;       // overall number of involved dimensions
 	const int ndim_mult = 3;  // number of to-be contracted dimensions
-	const long dims[8] = { 4, 11, 5, 7, 6, 13, 3, 5 };
+	const ct_long dims[8] = { 4, 11, 5, 7, 6, 13, 3, 5 };
 
 	// read dense tensors from disk
 	struct dense_tensor s_dns;
@@ -1138,7 +1138,7 @@ char* test_block_sparse_tensor_dot()
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor r_ref;
-	const long rdim_ref[5] = { 4, 11, 13, 3, 5 };
+	const ct_long rdim_ref[5] = { 4, 11, 13, 3, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, rdim_ref, &r_ref);
 	if (read_hdf5_dataset(file, "r", hdf5_dcomplex_id, r_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -1246,7 +1246,7 @@ char* test_block_sparse_tensor_qr()
 	{
 		// read dense tensor from disk
 		struct dense_tensor a_dns;
-		const long dim[2] = { 173, 105 };
+		const ct_long dim[2] = { 173, 105 };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &a_dns);
 		char varname[1024];
 		sprintf(varname, "a%i", c);
@@ -1330,7 +1330,7 @@ char* test_block_sparse_tensor_rq()
 	{
 		// read dense tensor from disk
 		struct dense_tensor a_dns;
-		const long dim[2] = { 163, 115 };
+		const ct_long dim[2] = { 163, 115 };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &a_dns);
 		char varname[1024];
 		sprintf(varname, "a%i", c);
@@ -1414,7 +1414,7 @@ char* test_block_sparse_tensor_svd()
 	{
 		// read dense tensor from disk
 		struct dense_tensor a_dns;
-		const long dim[2] = { 167, 98 };
+		const ct_long dim[2] = { 167, 98 };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &a_dns);
 		char varname[1024];
 		sprintf(varname, "a%i", c);
@@ -1509,7 +1509,7 @@ char* test_block_sparse_tensor_augment_identity_blocks()
 	}
 
 	const int ndim = 2;
-	const long dims[2] = { 37, 21 };
+	const ct_long dims[2] = { 37, 21 };
 
 	// read dense tensor from disk
 	struct dense_tensor t_dns;
@@ -1553,7 +1553,7 @@ char* test_block_sparse_tensor_augment_identity_blocks()
 			if (get_hdf5_dataset_dims(file, varname, dim_file) < 0) {
 				return "obtaining dimensions of reference tensor failed";
 			}
-			const long dim_ref[2] = { dim_file[0], dim_file[1] };
+			const ct_long dim_ref[2] = { dim_file[0], dim_file[1] };
 			allocate_dense_tensor(CT_DOUBLE_REAL, ndim, dim_ref, &t_ext_ref);
 			if (read_hdf5_dataset(file, varname, H5T_NATIVE_DOUBLE, t_ext_ref.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -1595,7 +1595,7 @@ char* test_block_sparse_tensor_serialize()
 	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
 	const int ndim = 4;
-	const long dims[4] = { 11, 3, 5, 8 };
+	const ct_long dims[4] = { 11, 3, 5, 8 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -1625,7 +1625,7 @@ char* test_block_sparse_tensor_serialize()
 	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
 
 	// serialize
-	const long nelem = block_sparse_tensor_num_elements_blocks(&t);
+	const ct_long nelem = block_sparse_tensor_num_elements_blocks(&t);
 	scomplex* entries = ct_malloc(nelem * sizeof(scomplex));
 	block_sparse_tensor_serialize_entries(&t, entries);
 
@@ -1668,7 +1668,7 @@ char* test_block_sparse_tensor_get_entry()
 	}
 
 	const int ndim = 4;
-	const long dims[4] = { 7, 6, 13, 4 };
+	const ct_long dims[4] = { 7, 6, 13, 4 };
 
 	// read dense tensors from disk
 	struct dense_tensor t_dns;
@@ -1704,10 +1704,10 @@ char* test_block_sparse_tensor_get_entry()
 	// reconstruct dense tensor entry-by-entry
 	struct dense_tensor t_reconstr;
 	allocate_dense_tensor(t.dtype, t.ndim, t.dim_logical, &t_reconstr);
-	long* index = ct_calloc(t.ndim, sizeof(long));
-	const long nelem = dense_tensor_num_elements(&t_reconstr);
+	ct_long* index = ct_calloc(t.ndim, sizeof(ct_long));
+	const ct_long nelem = dense_tensor_num_elements(&t_reconstr);
 	float* tdata = t_reconstr.data;
-	for (long k = 0; k < nelem; k++, next_tensor_index(t_reconstr.ndim, t_reconstr.dim, index))
+	for (ct_long k = 0; k < nelem; k++, next_tensor_index(t_reconstr.ndim, t_reconstr.dim, index))
 	{
 		float* pentry = block_sparse_tensor_get_entry(&acc, index);
 		if (pentry != NULL) {

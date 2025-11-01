@@ -24,7 +24,7 @@ struct local_hamiltonian_data
 ///
 /// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
 ///
-static void apply_local_hamiltonian_wrapper_d(const long n, const void* restrict data, const double* restrict v, double* restrict ret)
+static void apply_local_hamiltonian_wrapper_d(const ct_long n, const void* restrict data, const double* restrict v, double* restrict ret)
 {
 	// suppress unused parameter warning
 	#ifdef NDEBUG
@@ -53,7 +53,7 @@ static void apply_local_hamiltonian_wrapper_d(const long n, const void* restrict
 ///
 /// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
 ///
-static void apply_local_hamiltonian_wrapper_z(const long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret)
+static void apply_local_hamiltonian_wrapper_z(const ct_long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret)
 {
 	// suppress unused parameter warning
 	#ifdef NDEBUG
@@ -225,7 +225,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 		{
 			// dummy tensor at site "-1"
 			struct block_sparse_tensor t;
-			const long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
+			const ct_long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
 			const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 			qnumber qzero[1] = { 0 };
 			const qnumber* qnums[3] = { psi->a[0].qnums_logical[0], qzero, psi->a[0].qnums_logical[0] };
@@ -258,7 +258,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 /// \brief Run the two-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
 /// The input 'psi' is used as starting state and is updated in-place during the optimization.
 ///
-int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const long max_vdim,
+int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const ct_long max_vdim,
 	struct mps* psi, double* restrict en_sweeps, double* restrict entropy)
 {
 	// number of lattice sites
@@ -313,7 +313,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 			}
 
 			// split optimized two-site MPS tensor into two tensors
-			const long d_pair[2] = { psi->d, psi->d };
+			const ct_long d_pair[2] = { psi->d, psi->d };
 			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
 			struct trunc_info info;
 			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &info);
@@ -345,7 +345,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 			}
 
 			// split optimized two-site MPS tensor into two tensors
-			const long d_pair[2] = { psi->d, psi->d };
+			const ct_long d_pair[2] = { psi->d, psi->d };
 			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
 			struct trunc_info info;
 			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &info);
@@ -365,7 +365,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 		{
 			// dummy tensor at site "-1"
 			struct block_sparse_tensor t;
-			const long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
+			const ct_long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
 			const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 			qnumber qzero[1] = { 0 };
 			const qnumber* qnums[3] = { psi->a[0].qnums_logical[0], qzero, psi->a[0].qnums_logical[0] };

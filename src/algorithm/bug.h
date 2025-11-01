@@ -21,4 +21,4 @@ void bug_flow_update_connecting_tensor(const struct block_sparse_tensor* op, con
 	struct block_sparse_tensor* restrict c1);
 
 
-int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const void* prefactor, const double dt, const double tol_compress, const long max_vdim, struct ttns* state);
+int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const void* prefactor, const double dt, const double tol_compress, const ct_long max_vdim, struct ttns* state);

@@ -65,7 +65,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 	assembly->num_local_ops = 3;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
-		const long dim[2] = { assembly->d, assembly->d };
+		const ct_long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	const double sz[4] = { 1., 0., 0., -1. };  // Z
@@ -124,7 +124,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 	assembly->num_local_ops = 4;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
-		const long dim[2] = { assembly->d, assembly->d };
+		const ct_long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
@@ -159,7 +159,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 ///
 /// \brief Construct an MPO assembly representation of the Bose-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
 ///
-void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, const double t, const double u, const double mu, struct mpo_assembly* assembly)
+void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const ct_long d, const double t, const double u, const double mu, struct mpo_assembly* assembly)
 {
 	assert(nsites >= 2);
 	assert(d >= 1);
@@ -167,7 +167,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	// physical quantum numbers (particle number)
 	assembly->d = d;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		assembly->qsite[i] = i;
 	}
 
@@ -182,29 +182,29 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const long d, cons
 	assembly->num_local_ops = 5;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
 	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
 	// bosonic creation operator
 	double* b_dag = assembly->opmap[OID_Bd].data;
-	for (long i = 0; i < d - 1; i++) {
+	for (ct_long i = 0; i < d - 1; i++) {
 		b_dag[(i + 1)*d + i] = sqrt(i + 1);
 	}
 	// bosonic annihilation operator
 	double* b_ann = assembly->opmap[OID_B].data;
-	for (long i = 0; i < d - 1; i++) {
+	for (ct_long i = 0; i < d - 1; i++) {
 		b_ann[i*d + (i + 1)] = sqrt(i + 1);
 	}
 	// bosonic number operator
 	double* numop = assembly->opmap[OID_N].data;
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		numop[i*d + i] = i;
 	}
 	// bosonic local interaction operator n (n - 1) / 2
 	double* v_int = assembly->opmap[OID_NI].data;
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		v_int[i*d + i] = i * (i - 1) / 2;
 	}
 
@@ -244,7 +244,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
-	for (long i = 0; i < assembly->d; i++) {
+	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
 	}
 
@@ -252,21 +252,21 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 
 	struct dense_tensor id;
 	{
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &id);
 		dense_tensor_set_identity(&id);
 	}
 	// creation and annihilation operators for a single spin and lattice site
 	struct dense_tensor a_dag;
 	{
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &a_dag);
 		const double data[4] = { 0., 0., 1., 0. };
 		memcpy(a_dag.data, data, sizeof(data));
 	}
 	struct dense_tensor a_ann;
 	{
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &a_ann);
 		const double data[4] = { 0., 1., 0., 0. };
 		memcpy(a_ann.data, data, sizeof(data));
@@ -274,7 +274,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	// number operator
 	struct dense_tensor numop;
 	{
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &numop);
 		const double data[4] = { 0., 0., 0., 1. };
 		memcpy(numop.data, data, sizeof(data));
@@ -282,7 +282,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	// Pauli-Z matrix required for Jordan-Wigner transformation
 	struct dense_tensor z;
 	{
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &z);
 		const double data[4] = { 1.,  0.,  0., -1. };
 		memcpy(z.data, data, sizeof(data));
@@ -290,7 +290,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	// total number operator n_up + n_dn
 	struct dense_tensor n_tot;
 	{
-		const long dim[2] = { 4, 4 };
+		const ct_long dim[2] = { 4, 4 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_tot);
 		const double diag[4] = { 0, 1, 1, 2 };
 		double* data = n_tot.data;
@@ -301,7 +301,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	// local interaction term (n_up - 1/2) (n_dn - 1/2)
 	struct dense_tensor n_int;
 	{
-		const long dim[2] = { 4, 4 };
+		const ct_long dim[2] = { 4, 4 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_int);
 		const double diag[4] = {  0.25, -0.25, -0.25,  0.25 };
 		double* data = n_int.data;
@@ -406,7 +406,7 @@ static void create_molecular_hamiltonian_operator_map(struct dense_tensor* opmap
 	const double z[4]     = { 1.,  0.,  0., -1. };
 
 	for (int i = 0; i < NUM_MOLECULAR_OID; i++) {
-		const long dim[2] = { 2, 2 };
+		const ct_long dim[2] = { 2, 2 };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &opmap[i]);
 	}
 
@@ -2726,7 +2726,7 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
-	for (long i = 0; i < assembly->d; i++) {
+	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
 	}
 
@@ -3108,7 +3108,7 @@ void construct_quadratic_spin_fermionic_mpo_assembly(const int nsites, const dou
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
-	for (long i = 0; i < assembly->d; i++) {
+	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
 	}
 

@@ -417,7 +417,7 @@ static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_si
 /// for a Schrödinger differential equation with Hamiltonian given as TTNO.
 /// The 'state' is updated in-place.
 ///
-int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const void* prefactor, const double dt, const double rel_tol_compress, const long max_vdim, struct ttns* state)
+int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const void* prefactor, const double dt, const double rel_tol_compress, const ct_long max_vdim, struct ttns* state)
 {
 	const int nsites = hamiltonian->topology.num_nodes;
 

@@ -81,14 +81,14 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 	assert(0 <= i_ax_3 && i_ax_3 < ndim && i_ax_3 != eid);
 	assert(0 <= i_ax_4 && i_ax_4 < ndim && i_ax_4 != eid);
 
-	long capacity = data_yoga->charge_sectors.nsec + 16;
+	ct_long capacity = data_yoga->charge_sectors.nsec + 16;
 	struct su2_tensor_sector* sectors_simple = ct_malloc(capacity * sizeof(struct su2_tensor_sector));
-	long nsec_simple = 0;
+	ct_long nsec_simple = 0;
 
 	qnumber* jlist_alt = ct_malloc(ndim * sizeof(qnumber));
 
 	bool* marked = ct_calloc(data_yoga->charge_sectors.nsec, sizeof(bool));
-	for (long c = 0; c < data_yoga->charge_sectors.nsec; c++)
+	for (ct_long c = 0; c < data_yoga->charge_sectors.nsec; c++)
 	{
 		if (marked[c]) {
 			continue;
@@ -114,7 +114,7 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 		assert((j1 + j3 + jx_curr) % 2 == 0);
 
 		const int n = (jx_max - jx_min) / 2 + 1;
-		long* idx = ct_malloc(n * sizeof(long));
+		ct_long* idx = ct_malloc(n * sizeof(ct_long));
 
 		for (int j = 0; j < n; j++)
 		{
@@ -202,14 +202,14 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 	// copy data into output arrays
 	allocate_charge_sectors(nsec_simple, ndim, &data_simple->charge_sectors);
 	data_simple->degensors = ct_malloc(nsec_simple * sizeof(struct dense_tensor*));
-	for (long c = 0; c < nsec_simple; c++)
+	for (ct_long c = 0; c < nsec_simple; c++)
 	{
 		memcpy(&data_simple->charge_sectors.jlists[c * ndim], sectors_simple[c].list.jlist, ndim * sizeof(qnumber));
 		data_simple->degensors[c] = sectors_simple[c].degensor;
 	}
 
 	// clean up
-	for (long c = 0; c < nsec_simple; c++) {
+	for (ct_long c = 0; c < nsec_simple; c++) {
 		delete_su2_irreducible_list(&sectors_simple[c].list);
 	}
 	ct_free(sectors_simple);

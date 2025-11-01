@@ -35,7 +35,7 @@ int main()
 	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
 	// maximum allowed MPS bond dimension
-	const long max_vdim = 32;
+	const ct_long max_vdim = 32;
 
 	// construct MPO representation of Hamiltonian
 	struct mpo hamiltonian;

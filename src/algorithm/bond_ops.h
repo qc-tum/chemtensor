@@ -7,7 +7,7 @@
 #include "block_sparse_tensor.h"
 
 
-double von_neumann_entropy(const double* sigma, const long n);
+double von_neumann_entropy(const double* sigma, const ct_long n);
 
 
 //________________________________________________________________________________________________________________________
@@ -28,14 +28,14 @@ struct trunc_info
 ///
 struct index_list
 {
-	long* ind;  //!< indices
-	long num;   //!< number of indices
+	ct_long* ind;  //!< indices
+	ct_long num;   //!< number of indices
 };
 
 void delete_index_list(struct index_list* list);
 
 
-void retained_bond_indices(const double* sigma, const long n, const double tol, const bool relative_thresh, const long max_vdim,
+void retained_bond_indices(const double* sigma, const ct_long n, const double tol, const bool relative_thresh, const ct_long max_vdim,
 	struct index_list* list, struct trunc_info* info);
 
 
@@ -51,8 +51,8 @@ enum singular_value_distr
 
 
 int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
-	const double tol, const bool relative_thresh, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	const double tol, const bool relative_thresh, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
 	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);
 
-int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const long max_vdim,
+int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const ct_long max_vdim,
 	struct block_sparse_tensor* restrict u, struct trunc_info* info);

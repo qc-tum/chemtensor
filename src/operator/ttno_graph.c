@@ -1327,7 +1327,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 	assert(graph->topology.num_nodes == graph->nsites_physical + graph->nsites_branching);
 
 	// local dimension
-	const long d = opmap[0].dim[0];
+	const ct_long d = opmap[0].dim[0];
 
 	// construct blocks for connections to child nodes
 	struct ttno_graph_contracted_subtree* children = ct_malloc(graph->topology.num_neighbors[i_site] * sizeof(struct ttno_graph_contracted_subtree));
@@ -1497,7 +1497,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		for (int j = 0; j < contracted->nsites; j++) {
 			perm[contracted->nsites + j] = contracted->nsites + perm[j];
 		}
-		long* dim = ct_malloc(2 * contracted->nsites * sizeof(long));
+		ct_long* dim = ct_malloc(2 * contracted->nsites * sizeof(ct_long));
 		for (int j = 0; j < contracted->nsites; j++) {
 			dim[j] = (contracted->i_sites[j] < graph->nsites_physical ? d : 1);
 			dim[contracted->nsites + j] = dim[j];
@@ -1505,7 +1505,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 		for (int i = 0; i < contracted->nblocks; i++)
 		{
 			assert(contracted->blocks[i].ndim == 2);
-			const long orig_dim[2] = { contracted->blocks[i].dim[0], contracted->blocks[i].dim[1] };
+			const ct_long orig_dim[2] = { contracted->blocks[i].dim[0], contracted->blocks[i].dim[1] };
 
 			reshape_dense_tensor(2 * contracted->nsites, dim, &contracted->blocks[i]);
 

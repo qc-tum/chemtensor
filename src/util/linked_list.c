@@ -205,7 +205,7 @@ bool linked_list_is_consistent(const struct linked_list* list)
 		return false;
 	}
 
-	long count = 1;
+	ct_long count = 1;
 	const struct linked_list_node* node = list->head;
 	while (node->next != NULL)
 	{

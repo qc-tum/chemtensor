@@ -67,7 +67,7 @@
 // Substitute of lapack.h in case this header file is not available (e.g., on some older Linux distributions).
 
 #include <stdlib.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 
 #ifndef LAPACK_GLOBAL

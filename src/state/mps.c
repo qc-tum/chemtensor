@@ -14,7 +14,7 @@
 ///
 /// \brief Allocate an "empty" matrix product state, without the actual tensors.
 ///
-void allocate_empty_mps(const int nsites, const long d, const qnumber* qsite, struct mps* mps)
+void allocate_empty_mps(const int nsites, const ct_long d, const qnumber* qsite, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -32,13 +32,13 @@ void allocate_empty_mps(const int nsites, const long d, const qnumber* qsite, st
 ///
 /// \brief Allocate memory for a matrix product state. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
-void allocate_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct mps* mps)
+void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mps* mps)
 {
 	allocate_empty_mps(nsites, d, qsite, mps);
 
 	for (int i = 0; i < nsites; i++)
 	{
-		const long dim[3] = { dim_bonds[i], d, dim_bonds[i + 1] };
+		const ct_long dim[3] = { dim_bonds[i], d, dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		const qnumber* qnums[3] = { qbonds[i], qsite, qbonds[i + 1] };
 		allocate_block_sparse_tensor(dtype, 3, dim, axis_dir, qnums, &mps->a[i]);
@@ -107,14 +107,14 @@ void move_mps_data(struct mps* restrict src, struct mps* restrict dst)
 ///
 /// \brief Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.
 ///
-void construct_random_mps(const enum numeric_type dtype, const int nsites, const long d, const qnumber* qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct mps* mps)
+void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
 
 	// virtual bond quantum numbers
-	long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+	ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+	qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	// dummy left virtual bond; set quantum number to zero
 	dim_bonds[0] = 1;
 	qbonds[0] = ct_malloc(sizeof(qnumber));
@@ -127,7 +127,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 	for (int l = 1; l < (nsites + 1) / 2; l++)
 	{
 		// enumerate all combinations of left bond quantum numbers and local physical quantum numbers
-		const long dim_full = dim_bonds[l - 1] * d;
+		const ct_long dim_full = dim_bonds[l - 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		qnumber_outer_sum(1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
@@ -139,7 +139,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 			// randomly select quantum numbers
 			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
 			rand_choice(dim_full, max_vdim, rng_state, idx);
-			for (long i = 0; i < max_vdim; i++) {
+			for (ct_long i = 0; i < max_vdim; i++) {
 				qbonds[l][i] = qnums_full[idx[i]];
 			}
 			ct_free(idx);
@@ -150,7 +150,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 	for (int l = nsites - 1; l >= (nsites + 1) / 2; l--)
 	{
 		// enumerate all combinations of right bond quantum numbers and local physical quantum numbers
-		const long dim_full = dim_bonds[l + 1] * d;
+		const ct_long dim_full = dim_bonds[l + 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		qnumber_outer_sum(1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
@@ -162,7 +162,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 			// randomly select quantum numbers
 			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
 			rand_choice(dim_full, max_vdim, rng_state, idx);
-			for (long i = 0; i < max_vdim; i++) {
+			for (ct_long i = 0; i < max_vdim; i++) {
 				qbonds[l][i] = qnums_full[idx[i]];
 			}
 			ct_free(idx);
@@ -182,7 +182,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 	for (int l = 0; l < nsites; l++)
 	{
 		// logical number of entries in MPS tensor
-		const long nelem = integer_product(mps->a[l].dim_logical, mps->a[l].ndim);
+		const ct_long nelem = integer_product(mps->a[l].dim_logical, mps->a[l].ndim);
 		// ensure that 'alpha' is large enough to store any numeric type
 		dcomplex alpha;
 		assert(mps->a[l].dtype == dtype);
@@ -343,7 +343,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 	// initialize 'r'
 	struct block_sparse_tensor r;
 	{
-		const long dim[4] = { 1, 1, 1, 1 };
+		const ct_long dim[4] = { 1, 1, 1, 1 };
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN, TENSOR_AXIS_OUT };
 		const qnumber* qnums[4] = {
 			psi->a[psi->nsites - 1].qnums_logical[2],
@@ -477,8 +477,8 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 		copy_block_sparse_tensor(&chi->a[0], &ret->a[0]);
 
 		// add individual dense tensors
-		const long nblocks = integer_product(ret->a[0].dim_blocks, ret->a[0].ndim);
-		for (long k = 0; k < nblocks; k++)
+		const ct_long nblocks = integer_product(ret->a[0].dim_blocks, ret->a[0].ndim);
+		for (ct_long k = 0; k < nblocks; k++)
 		{
 			struct dense_tensor* a = psi->a[0].blocks[k];
 			struct dense_tensor* b = ret->a[0].blocks[k];
@@ -533,7 +533,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	assert(a_next->ndim == 3);
 
 	// save original logical dimensions and quantum numbers for later splitting
-	const long dim_logical_left[2] = { a->dim_logical[0], a->dim_logical[1] };
+	const ct_long dim_logical_left[2] = { a->dim_logical[0], a->dim_logical[1] };
 	qnumber* qnums_logical_left[2];
 	for (int i = 0; i < 2; i++)
 	{
@@ -580,7 +580,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	assert(a_prev->ndim == 3);
 
 	// save original logical dimensions and quantum numbers for later splitting
-	const long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
+	const ct_long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
 	qnumber* qnums_logical_right[2];
 	for (int i = 0; i < 2; i++)
 	{
@@ -639,7 +639,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		assert(mps->a[i].dim_logical[2] == 1);
 
 		// create a dummy "tail" tensor
-		const long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
+		const ct_long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
 		const enum tensor_axis_direction axis_dir_tail[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_tail[1] = { 0 };
 		const qnumber* qnums_tail[3] = { mps->a[i].qnums_logical[2], qsite_tail, mps->a[i].qnums_logical[2] };
@@ -712,7 +712,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		assert(mps->a[0].dim_logical[0] == 1);
 
 		// create a dummy "head" tensor
-		const long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
+		const ct_long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
 		const enum tensor_axis_direction axis_dir_head[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_head[1] = { 0 };
 		const qnumber* qnums_head[3] = { mps->a[0].qnums_logical[0], qsite_head, mps->a[0].qnums_logical[0] };
@@ -778,13 +778,13 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 ///
 /// \brief Left-orthonormalize a local MPS site tensor by a SVD with truncation, and update tensor at next site.
 ///
-int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, const bool renormalize, struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next, struct trunc_info* info)
+int mps_local_orthonormalize_left_svd(const double tol, const ct_long max_vdim, const bool renormalize, struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next, struct trunc_info* info)
 {
 	assert(a->ndim == 3);
 	assert(a_next->ndim == 3);
 
 	// save original logical dimensions and quantum numbers for later splitting
-	const long dim_logical_left[2] = { a->dim_logical[0], a->dim_logical[1] };
+	const ct_long dim_logical_left[2] = { a->dim_logical[0], a->dim_logical[1] };
 	qnumber* qnums_logical_left[2];
 	for (int i = 0; i < 2; i++)
 	{
@@ -829,13 +829,13 @@ int mps_local_orthonormalize_left_svd(const double tol, const long max_vdim, con
 ///
 /// \brief Right-orthonormalize a local MPS site tensor by a SVD with truncation, and update tensor at previous site.
 ///
-int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, const bool renormalize, struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev, struct trunc_info* info)
+int mps_local_orthonormalize_right_svd(const double tol, const ct_long max_vdim, const bool renormalize, struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev, struct trunc_info* info)
 {
 	assert(a->ndim == 3);
 	assert(a_prev->ndim == 3);
 
 	// save original logical dimensions and quantum numbers for later splitting
-	const long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
+	const ct_long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
 	qnumber* qnums_logical_right[2];
 	for (int i = 0; i < 2; i++)
 	{
@@ -882,7 +882,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const long max_vdim, co
 ///
 /// Returns original norm and scaling factor due to compression.
 ///
-int mps_compress(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthonormalization_mode mode,
 	struct mps* mps, double* restrict norm, double* restrict trunc_scale, struct trunc_info* info)
 {
 	const bool renormalize = false;
@@ -905,7 +905,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 		assert(mps->a[i].dim_logical[2] == 1);
 
 		// create a dummy "tail" tensor
-		const long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
+		const ct_long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
 		const enum tensor_axis_direction axis_dir_tail[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_tail[1] = { 0 };
 		const qnumber* qnums_tail[3] = { mps->a[i].qnums_logical[2], qsite_tail, mps->a[i].qnums_logical[2] };
@@ -999,7 +999,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 		assert(mps->a[0].dim_logical[0] == 1);
 
 		// create a dummy "head" tensor
-		const long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
+		const ct_long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
 		const enum tensor_axis_direction axis_dir_head[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_head[1] = { 0 };
 		const qnumber* qnums_head[3] = { mps->a[0].qnums_logical[0], qsite_head, mps->a[0].qnums_logical[0] };
@@ -1085,7 +1085,7 @@ int mps_compress(const double tol, const long max_vdim, const enum mps_orthonorm
 ///
 /// The rescaling is applied to the first tensor for right orthonormalization and to the last tensor for left orthonormalization.
 ///
-int mps_compress_rescale(const double tol, const long max_vdim, const enum mps_orthonormalization_mode mode,
+int mps_compress_rescale(const double tol, const ct_long max_vdim, const enum mps_orthonormalization_mode mode,
 	struct mps* mps, double* trunc_scale, struct trunc_info* info)
 {
 	double norm;
@@ -1133,8 +1133,8 @@ int mps_compress_rescale(const double tol, const long max_vdim, const enum mps_o
 /// \brief Split a MPS tensor with dimension `D0 x d0*d1 x D2` into two MPS tensors
 /// with dimensions `D0 x d0 x D1` and `D1 x d1 x D2`, respectively, using SVD.
 ///
-int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const long d[2], const qnumber* new_qsite[2],
-	const double tol, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const ct_long d[2], const qnumber* new_qsite[2],
+	const double tol, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
 	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info)
 {
 	assert(a->ndim == 3);
@@ -1285,7 +1285,7 @@ int save_mps(const char* filename, const struct mps* mps)
 		// write dense tensor data to file
 		hid_t dtype_store = numeric_to_hdf5_dtype(bst->dtype, true);
 		hid_t dtype_input = numeric_to_hdf5_dtype(bst->dtype, false);
-		// copy entry-by-entry to ensure correct conversion from 'long' to 'hsize_t'
+		// copy entry-by-entry to ensure correct conversion from 'ct_long' to 'hsize_t'
 		hsize_t* dims = ct_malloc(dt.ndim * sizeof(hsize_t));
 		for (int j = 0; j < dt.ndim; j++) {
 			dims[j] = dt.dim[j];
@@ -1347,7 +1347,7 @@ int load_mps(const char* filename, struct mps* mps)
 		return -1;
 	}
 	// local physical dimension of each site
-	long d;
+	ct_long d;
 	{
 		hsize_t dim[1];
 		if (get_hdf5_attribute_dims(file, "qsite", dim) < 0)
@@ -1373,8 +1373,8 @@ int load_mps(const char* filename, struct mps* mps)
 	}
 
 	// virtual bond quantum numbers
-	long* dim_bonds = ct_malloc((nsites + 1) * sizeof(long));
-	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+	ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+	qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
 		char varname[128];

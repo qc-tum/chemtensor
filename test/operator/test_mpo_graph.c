@@ -13,11 +13,11 @@ char* test_mpo_graph_from_opchains_basic()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 	// number of sites
 	const int nsites = 5;
 
-	const long dim_full = ipow(d, nsites);
+	const ct_long dim_full = ipow(d, nsites);
 
 	const int nchains = 6;
 	int oids[6][5] = {
@@ -67,7 +67,7 @@ char* test_mpo_graph_from_opchains_basic()
 	// read local operator map from disk
 	const int num_local_ops = 12;
 	struct dense_tensor opmap_tensor;
-	const long dim_opmt[3] = { num_local_ops, d, d };
+	const ct_long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
@@ -77,7 +77,7 @@ char* test_mpo_graph_from_opchains_basic()
 	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
@@ -93,7 +93,7 @@ char* test_mpo_graph_from_opchains_basic()
 
 	// reference matrix representation
 	struct dense_tensor a_ref;
-	const long dim_a_ref[2] = { dim_full, dim_full };
+	const ct_long dim_a_ref[2] = { dim_full, dim_full };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_ref, &a_ref);
 	if (read_hdf5_dataset(file, "mat", hdf5_dcomplex_id, a_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -106,7 +106,7 @@ char* test_mpo_graph_from_opchains_basic()
 
 	// sum matrix representations of individual operator chains
 	struct dense_tensor a_chains;
-	const long dim_a_chains[2] = { dim_full, dim_full };
+	const ct_long dim_a_chains[2] = { dim_full, dim_full };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
@@ -148,11 +148,11 @@ char* test_mpo_graph_from_opchains_advanced()
 	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
 	// local physical dimension
-	const long d = 4;
+	const ct_long d = 4;
 	// number of sites
 	const int nsites = 5;
 
-	const long dim_full = ipow(d, nsites);
+	const ct_long dim_full = ipow(d, nsites);
 
 	const int nchains = 7;
 	struct op_chain* chains = ct_malloc(nchains * sizeof(struct op_chain));
@@ -206,7 +206,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	// read local operator map from disk
 	const int num_local_ops = 17;
 	struct dense_tensor opmap_tensor;
-	const long dim_opmt[3] = { num_local_ops, d, d };
+	const ct_long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", hdf5_scomplex_id, opmap_tensor.data) < 0) {
@@ -216,7 +216,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &opmap[i]);
 		const scomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(scomplex));
@@ -235,7 +235,7 @@ char* test_mpo_graph_from_opchains_advanced()
 
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor a_chains;
-	const long dim_a_chains[2] = { dim_full, dim_full };
+	const ct_long dim_a_chains[2] = { dim_full, dim_full };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{

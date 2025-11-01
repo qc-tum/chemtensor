@@ -17,7 +17,7 @@
 struct dense_tensor
 {
 	void* data;               //!< data entries, array of dimension dim[0] x ... x dim[ndim-1]
-	long* dim;                //!< dimensions (width, height, ...)
+	ct_long* dim;             //!< dimensions (width, height, ...)
 	enum numeric_type dtype;  //!< numeric data type
 	int ndim;                 //!< number of dimensions (degree)
 };
@@ -28,7 +28,7 @@ struct dense_tensor
 
 // allocation and construction
 
-void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, struct dense_tensor* restrict t);
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, struct dense_tensor* restrict t);
 
 void delete_dense_tensor(struct dense_tensor* t);
 
@@ -39,9 +39,9 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 ///
 /// \brief Calculate the number of elements of a dense tensor.
 ///
-static inline long dense_tensor_num_elements(const struct dense_tensor* t)
+static inline ct_long dense_tensor_num_elements(const struct dense_tensor* t)
 {
-	long nelem = integer_product(t->dim, t->ndim);
+	ct_long nelem = integer_product(t->dim, t->ndim);
 	assert(nelem > 0);
 
 	return nelem;
@@ -52,10 +52,10 @@ static inline long dense_tensor_num_elements(const struct dense_tensor* t)
 ///
 /// \brief Convert tensor index to data offset.
 ///
-static inline long tensor_index_to_offset(const int ndim, const long* restrict dim, const long* restrict index)
+static inline ct_long tensor_index_to_offset(const int ndim, const ct_long* restrict dim, const ct_long* restrict index)
 {
-	long offset = 0;
-	long dimfac = 1;
+	ct_long offset = 0;
+	ct_long dimfac = 1;
 	for (int i = ndim - 1; i >= 0; i--)
 	{
 		offset += dimfac * index[i];
@@ -70,9 +70,9 @@ static inline long tensor_index_to_offset(const int ndim, const long* restrict d
 ///
 /// \brief Convert data offset to tensor index.
 ///
-static inline void offset_to_tensor_index(const int ndim, const long* restrict dim, const long offset, long* restrict index)
+static inline void offset_to_tensor_index(const int ndim, const ct_long* restrict dim, const ct_long offset, ct_long* restrict index)
 {
-	long n = offset;
+	ct_long n = offset;
 	for (int i = ndim - 1; i >= 0; i--)
 	{
 		index[i] = n % dim[i];
@@ -85,7 +85,7 @@ static inline void offset_to_tensor_index(const int ndim, const long* restrict d
 ///
 /// \brief Compute the lexicographically next tensor index.
 ///
-static inline void next_tensor_index(const int ndim, const long* restrict dim, long* restrict index)
+static inline void next_tensor_index(const int ndim, const ct_long* restrict dim, ct_long* restrict index)
 {
 	for (int i = ndim - 1; i >= 0; i--)
 	{
@@ -125,7 +125,7 @@ void scale_dense_tensor(const void* alpha, struct dense_tensor* t);
 
 void rscale_dense_tensor(const void* alpha, struct dense_tensor* t);
 
-void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* t);
+void reshape_dense_tensor(const int ndim, const ct_long* dim, struct dense_tensor* t);
 
 void conjugate_dense_tensor(struct dense_tensor* t);
 
@@ -151,9 +151,9 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 // slicing
 
-void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r);
+void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r);
 
-void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r);
+void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________
@@ -161,7 +161,7 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 // padding
 
-void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* restrict pad_before, const long* restrict pad_after, struct dense_tensor* restrict r);
+void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long* restrict pad_before, const ct_long* restrict pad_after, struct dense_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________
@@ -253,7 +253,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 // extract a sub-block
 
-void dense_tensor_block(const struct dense_tensor* restrict t, const long* restrict sdim, const long* restrict* idx, struct dense_tensor* restrict r);
+void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* restrict sdim, const ct_long* restrict* idx, struct dense_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________

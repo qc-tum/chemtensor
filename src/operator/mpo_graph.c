@@ -769,7 +769,7 @@ void mpo_graph_to_matrix(const struct mpo_graph* mpo_graph, const struct dense_t
 
 	// initial 1x1 tensor
 	blocks[0] = ct_malloc(sizeof(struct dense_tensor));
-	const long dim_init[2] = { 1, 1 };
+	const ct_long dim_init[2] = { 1, 1 };
 	allocate_dense_tensor(dtype, 2, dim_init, blocks[0]);
 	dense_tensor_set_identity(blocks[0]);
 

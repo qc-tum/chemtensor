@@ -5,6 +5,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include <stdint.h>
 #include "mps.h"
 #include "op_chain.h"
 #include "mpo.h"
@@ -100,7 +101,7 @@ static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
 		return NULL;
 	}
 
-	const long bond_dim = mps_bond_dim(&self->mps, i);
+	const ct_long bond_dim = mps_bond_dim(&self->mps, i);
 	const qnumber* qnums = (i < self->mps.nsites) ? self->mps.a[i].qnums_logical[0] : self->mps.a[self->mps.nsites - 1].qnums_logical[2];
 
 	PyObject* list = PyList_New(bond_dim);
@@ -108,7 +109,7 @@ static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	for (long j = 0; j < bond_dim; j++) {
+	for (ct_long j = 0; j < bond_dim; j++) {
 		if (PyList_SetItem(list, j, PyLong_FromLong(qnums[j])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -196,7 +197,7 @@ static PyObject* PyMPS_qsite(PyMPSObject* self, void* Py_UNUSED(closure))
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	for (long i = 0; i < self->mps.d; i++) {
+	for (ct_long i = 0; i < self->mps.d; i++) {
 		if (PyList_SetItem(list, i, PyLong_FromLong(self->mps.qsite[i])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -664,7 +665,7 @@ static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
 		return NULL;
 	}
 
-	const long bond_dim = mpo_bond_dim(&self->mpo, i);
+	const ct_long bond_dim = mpo_bond_dim(&self->mpo, i);
 	const qnumber* qnums = (i < self->mpo.nsites) ? self->mpo.a[i].qnums_logical[0] : self->mpo.a[self->mpo.nsites - 1].qnums_logical[3];
 
 	PyObject* list = PyList_New(bond_dim);
@@ -672,7 +673,7 @@ static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	for (long j = 0; j < bond_dim; j++) {
+	for (ct_long j = 0; j < bond_dim; j++) {
 		if (PyList_SetItem(list, j, PyLong_FromLong(qnums[j])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -760,7 +761,7 @@ static PyObject* PyMPO_qsite(PyMPOObject* self, void* Py_UNUSED(closure))
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	for (long i = 0; i < self->mpo.d; i++) {
+	for (ct_long i = 0; i < self->mpo.d; i++) {
 		if (PyList_SetItem(list, i, PyLong_FromLong(self->mpo.qsite[i])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -1188,14 +1189,14 @@ static PyObject* PyTTNS_bond_quantum_numbers(PyTTNSObject* self, PyObject* args)
 	}
 	assert(0 <= i_ax && i_ax < self->ttns.a[i].ndim);
 
-	const long bond_dim = self->ttns.a[i].dim_logical[i_ax];
+	const ct_long bond_dim = self->ttns.a[i].dim_logical[i_ax];
 	PyObject* list = PyList_New(bond_dim);
 	if (list == NULL) {
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
 	const qnumber* qnums = self->ttns.a[i].qnums_logical[i_ax];
-	for (long k = 0; k < bond_dim; k++) {
+	for (ct_long k = 0; k < bond_dim; k++) {
 		if (PyList_SetItem(list, k, PyLong_FromLong(qnums[k])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -1665,7 +1666,7 @@ static PyObject* PyTTNO_qsite(PyTTNOObject* self, void* Py_UNUSED(closure))
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	for (long i = 0; i < self->ttno.d; i++) {
+	for (ct_long i = 0; i < self->ttno.d; i++) {
 		if (PyList_SetItem(list, i, PyLong_FromLong(self->ttno.qsite[i])) < 0) {
 			Py_DECREF(list);
 			PyErr_SetString(PyExc_RuntimeError, "set list item");
@@ -2000,7 +2001,7 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 	// quantum number sector
 	qnumber qnum_sector;
 	// maximum virtual bond dimension
-	long max_vdim = 256;
+	ct_long max_vdim = 256;
 	// random number generator seed (for filling tensor entries)
 	uint64_t rng_seed = 42;
 	// whether to normalize the state
@@ -2067,7 +2068,7 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 		Py_DECREF(py_qsite);
 		return NULL;
 	}
-	const long d = PyArray_DIM(py_qsite, 0);
+	const ct_long d = PyArray_DIM(py_qsite, 0);
 	if (d == 0) {
 		PyErr_SetString(PyExc_ValueError, "'qsite' cannot be an empty list");
 		Py_DECREF(py_qsite);
@@ -2119,7 +2120,7 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 	// quantum number sector
 	qnumber qnum_sector;
 	// maximum virtual bond dimension
-	long max_vdim = 64;
+	ct_long max_vdim = 64;
 	// random number generator seed (for filling tensor entries)
 	uint64_t rng_seed = 42;
 	// whether to normalize the state
@@ -2218,7 +2219,7 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 	}
 
 	// local physical dimensions and quantum numbers
-	long* d;
+	ct_long* d;
 	qnumber** qsite;
 	{
 		if (!PySequence_Check(py_obj_qsites)) {
@@ -2232,7 +2233,7 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 			return NULL;
 		}
 
-		d     = ct_malloc(nsites * sizeof(long));
+		d     = ct_malloc(nsites * sizeof(ct_long));
 		qsite = ct_malloc(nsites * sizeof(qnumber*));
 
 		for (int l = 0; l < nsites; l++)
@@ -2408,7 +2409,7 @@ static PyObject* Py_construct_bose_hubbard_1d_mpo(PyObject* Py_UNUSED(self), PyO
 	// number of lattice sites
 	int nsites;
 	// physical dimension per site (maximal occupancy is d - 1)
-	long d;
+	ct_long d;
 	// Hamiltonian parameters
 	double t, u, mu;
 
@@ -2547,15 +2548,15 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 		return NULL;
 	}
 
-	const long nsites = (long)PyArray_DIM(py_tkin, 0);
-	long dim_tkin[2] = { nsites, nsites };
+	const ct_long nsites = (ct_long)PyArray_DIM(py_tkin, 0);
+	ct_long dim_tkin[2] = { nsites, nsites };
 	struct dense_tensor tkin = {
 		.data  = PyArray_DATA(py_tkin),
 		.dim   = dim_tkin,
 		.dtype = CT_DOUBLE_REAL,
 		.ndim  = 2,
 	};
-	long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	struct dense_tensor vint = {
 		.data  = PyArray_DATA(py_vint),
 		.dim   = dim_vint,
@@ -2656,15 +2657,15 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 		return NULL;
 	}
 
-	const long nsites = (long)PyArray_DIM(py_tkin, 0);
-	long dim_tkin[2] = { nsites, nsites };
+	const ct_long nsites = (ct_long)PyArray_DIM(py_tkin, 0);
+	ct_long dim_tkin[2] = { nsites, nsites };
 	struct dense_tensor tkin = {
 		.data  = PyArray_DATA(py_tkin),
 		.dim   = dim_tkin,
 		.dtype = CT_DOUBLE_REAL,
 		.ndim  = 2,
 	};
-	long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	struct dense_tensor vint = {
 		.data  = PyArray_DATA(py_vint),
 		.dim   = dim_vint,
@@ -2747,7 +2748,7 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	}
 
 	// local physical dimension and quantum numbers
-	long d;
+	ct_long d;
 	qnumber* qsite;
 	{
 		// convert 'py_obj_qsite' to a NumPy array
@@ -2803,7 +2804,7 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 			return NULL;
 		}
 
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(dtype, 2, dim, &opmap[i]);
 		memcpy(opmap[i].data, PyArray_DATA(py_op), d * d * sizeof_numeric_type(dtype));
 
@@ -3033,7 +3034,7 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	}
 
 	// local physical dimension and quantum numbers
-	long d;
+	ct_long d;
 	qnumber* qsite;
 	{
 		// convert 'py_obj_qsite' to a NumPy array
@@ -3089,7 +3090,7 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 			return NULL;
 		}
 
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(dtype, 2, dim, &opmap[i]);
 		memcpy(opmap[i].data, PyArray_DATA(py_op), d * d * sizeof_numeric_type(dtype));
 
@@ -3228,7 +3229,7 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	// SVD splitting tolerance
 	double tol_split = 1e-10;
 	// maximum virtual bond dimension of MPS
-	long max_vdim = 256;
+	ct_long max_vdim = 256;
 	// quantum number sector of the to-be optimized MPS
 	qnumber qnum_sector = 0;
 	// random number generator seed (for filling tensor entries of initial MPS)
@@ -3422,7 +3423,6 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 }
 
 
-#include <inttypes.h>
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Perform a Basis-Update and Galerkin (BUG) rank-adaptive tree tensor network integration step
@@ -3444,7 +3444,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 	// relative compression tolerance
 	double rel_tol_compress = 1e-5;
 	// maximum bond dimension
-	long max_vdim = (1UL << (8 * sizeof(long) - 1)) - 1;
+	ct_long max_vdim = INT64_MAX;
 
 	// parse input arguments
 	char* kwlist[] = { "", "", "", "", "", "rel_tol_compress", "max_vdim", NULL };

@@ -35,16 +35,16 @@ int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const st
 struct charge_sectors
 {
 	qnumber* jlists;  //!< matrix of 'j' quantum numbers times 2, of dimension nsec x ndim; must be sorted lexicographically
-	long nsec;        //!< number of sectors (configurations)
+	ct_long nsec;     //!< number of sectors (configurations)
 	int ndim;         //!< number of dimensions ('j' quantum numbers in each configuration)
 };
 
-void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors);
+void allocate_charge_sectors(const ct_long nsec, const int ndim, struct charge_sectors* sectors);
 
 void copy_charge_sectors(const struct charge_sectors* src, struct charge_sectors* dst);
 
 void delete_charge_sectors(struct charge_sectors* sectors);
 
-long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
+ct_long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
 
 bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct charge_sectors* restrict t);

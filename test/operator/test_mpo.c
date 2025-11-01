@@ -18,7 +18,7 @@ char* test_mpo_from_assembly()
 	// number of lattice sites
 	const int nsites = 5;
 	// local physical dimension
-	const long d = 4;
+	const ct_long d = 4;
 
 	const qnumber qsite[4] = { -1, 0, 2, 0 };
 
@@ -109,7 +109,7 @@ char* test_mpo_from_assembly()
 	// read local operator map from disk
 	const int num_local_ops = 15;
 	struct dense_tensor opmap_tensor;
-	const long dim_opmt[3] = { num_local_ops, d, d };
+	const ct_long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
@@ -119,7 +119,7 @@ char* test_mpo_from_assembly()
 	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
@@ -148,7 +148,7 @@ char* test_mpo_from_assembly()
 		return "internal MPO consistency check failed";
 	}
 
-	const long dim_bonds[6] = { 1, 2, 1, 2, 2, 1 };
+	const ct_long dim_bonds[6] = { 1, 2, 1, 2, 2, 1 };
 	for (int i = 0; i < nsites + 1; i++) {
 		if (mpo_bond_dim(&mpo, i) != dim_bonds[i]) {
 			return "MPO virtual bond dimension does not match reference";
@@ -163,7 +163,7 @@ char* test_mpo_from_assembly()
 	struct dense_tensor mat_ref;
 	mpo_graph_to_matrix(&graph, opmap, coeffmap, CT_DOUBLE_COMPLEX, &mat_ref);
 	// include dummy virtual bond dimensions
-	const long dim_mat_graph[4] = { 1, mat_ref.dim[0], mat_ref.dim[1], 1};
+	const ct_long dim_mat_graph[4] = { 1, mat_ref.dim[0], mat_ref.dim[1], 1};
 	reshape_dense_tensor(4, dim_mat_graph, &mat_ref);
 
 	// compare

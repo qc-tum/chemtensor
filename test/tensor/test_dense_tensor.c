@@ -7,13 +7,13 @@
 char* test_tensor_index_to_offset()
 {
 	const int ndim = 5;
-	const long dim[5] = { 7, 1, 6, 2, 11 };
+	const ct_long dim[5] = { 7, 1, 6, 2, 11 };
 
-	const long n = integer_product(dim, ndim);
-	long index_iter[5] = { 0 };
-	for (long k = 0; k < n; k++, next_tensor_index(ndim, dim, index_iter))
+	const ct_long n = integer_product(dim, ndim);
+	ct_long index_iter[5] = { 0 };
+	for (ct_long k = 0; k < n; k++, next_tensor_index(ndim, dim, index_iter))
 	{
-		long index_comp[5];
+		ct_long index_comp[5];
 		offset_to_tensor_index(ndim, dim, k, index_comp);
 
 		for (int i = 0; i < ndim; i++) {
@@ -37,7 +37,7 @@ char* test_dense_tensor_trace()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	struct dense_tensor t;
-	const long tdim[3] = { 5, 5, 5 };
+	const ct_long tdim[3] = { 5, 5, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, tdim, &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
@@ -81,7 +81,7 @@ char* test_dense_tensor_cyclic_partial_trace()
 	const int ndim_trace = 2;
 
 	struct dense_tensor t;
-	const long tdim[7] = { 5, 2, 3, 4, 1, 5, 2 };
+	const ct_long tdim[7] = { 5, 2, 3, 4, 1, 5, 2 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, ndim, tdim, &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
@@ -127,7 +127,7 @@ char* test_dense_tensor_transpose()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[10] = { 1, 4, 5, 1, 1, 2, 1, 3, 1, 7 };
+	const ct_long dim[10] = { 1, 4, 5, 1, 1, 2, 1, 3, 1, 7 };
 	allocate_dense_tensor(CT_SINGLE_REAL, ndim, dim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
@@ -140,7 +140,7 @@ char* test_dense_tensor_transpose()
 	transpose_dense_tensor(perm, &t, &t_tp);
 
 	// reference tensor
-	const long refdim[10] = { 1, 1, 5, 1, 1, 7, 2, 3, 1, 4 };
+	const ct_long refdim[10] = { 1, 1, 5, 1, 1, 7, 2, 3, 1, 4 };
 	struct dense_tensor t_tp_ref;
 	allocate_dense_tensor(CT_SINGLE_REAL, ndim, refdim, &t_tp_ref);
 	// read values from disk
@@ -175,15 +175,15 @@ char* test_dense_tensor_slice()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[5] = { 2, 7, 3, 5, 4 };
+	const ct_long dim[5] = { 2, 7, 3, 5, 4 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim, &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	// read indices from disk
-	const long nind = 10;
-	long *ind = ct_malloc(nind * sizeof(long));
+	const ct_long nind = 10;
+	ct_long *ind = ct_malloc(nind * sizeof(ct_long));
 	if (read_hdf5_attribute(file, "ind", H5T_NATIVE_LONG, ind) < 0) {
 		return "reading slice indices from disk failed";
 	}
@@ -193,7 +193,7 @@ char* test_dense_tensor_slice()
 
 	// read reference tensor from disk
 	struct dense_tensor s_ref;
-	const long dim_ref[5] = { 2, 10, 3, 5, 4 };
+	const ct_long dim_ref[5] = { 2, 10, 3, 5, 4 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim_ref, &s_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s_ref.data) < 0) {
@@ -227,21 +227,21 @@ char* test_dense_tensor_pad_zeros()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long tdim[4] = { 2, 5, 1, 4 };
+	const ct_long tdim[4] = { 2, 5, 1, 4 };
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
-	const long pad_before[4] = { 0, 3, 2, 0 };
-	const long pad_after[4]  = { 1, 0, 7, 0 };
+	const ct_long pad_before[4] = { 0, 3, 2, 0 };
+	const ct_long pad_after[4]  = { 1, 0, 7, 0 };
 
 	struct dense_tensor t_pad;
 	dense_tensor_pad_zeros(&t, pad_before, pad_after, &t_pad);
 
 	// reference tensor
-	const long refdim[4] = {
+	const ct_long refdim[4] = {
 		pad_before[0] + tdim[0] + pad_after[0],
 		pad_before[1] + tdim[1] + pad_after[1],
 		pad_before[2] + tdim[2] + pad_after[2],
@@ -280,7 +280,7 @@ char* test_dense_tensor_multiply_pointwise()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long tdim[3] = { 2, 6, 5 };
+	const ct_long tdim[3] = { 2, 6, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
@@ -304,7 +304,7 @@ char* test_dense_tensor_multiply_pointwise()
 		dense_tensor_multiply_pointwise(&t, &s, i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &t_mult_s);
 
 		// reference tensors for checking
-		const long refdim[3] = { 2, 6, 5 };
+		const ct_long refdim[3] = { 2, 6, 5 };
 		struct dense_tensor t_mult_s_ref;
 		allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, refdim, &t_mult_s_ref);
 		// read values from disk
@@ -343,7 +343,7 @@ char* test_dense_tensor_multiply_axis()
 
 	// create tensor 's'
 	struct dense_tensor s;
-	const long sdim[4] = { 3, 8, 5, 7 };
+	const ct_long sdim[4] = { 3, 8, 5, 7 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
@@ -352,7 +352,7 @@ char* test_dense_tensor_multiply_axis()
 
 	// create tensor 't0'
 	struct dense_tensor t0;
-	const long t0_dim[3] = { 6, 4, 5 };
+	const ct_long t0_dim[3] = { 6, 4, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t0_dim,  &t0);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t0", hdf5_scomplex_id, t0.data) < 0) {
@@ -366,7 +366,7 @@ char* test_dense_tensor_multiply_axis()
 	dense_tensor_multiply_axis(&s, i_ax, &t0, TENSOR_AXIS_RANGE_TRAILING, &r0);
 
 	// reference tensor
-	const long r0_ref_dim[5] = { 3, 8, 6, 4, 7 };
+	const ct_long r0_ref_dim[5] = { 3, 8, 6, 4, 7 };
 	struct dense_tensor r0_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r0_ref_dim, &r0_ref);
 	// read values from disk
@@ -381,7 +381,7 @@ char* test_dense_tensor_multiply_axis()
 
 	// create tensor 't1'
 	struct dense_tensor t1;
-	const long t1_dim[3] = { 5, 2, 6 };
+	const ct_long t1_dim[3] = { 5, 2, 6 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t1_dim,  &t1);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t1", hdf5_scomplex_id, t1.data) < 0) {
@@ -393,7 +393,7 @@ char* test_dense_tensor_multiply_axis()
 	dense_tensor_multiply_axis(&s, i_ax, &t1, TENSOR_AXIS_RANGE_LEADING, &r1);
 
 	// reference tensor
-	const long r1_ref_dim[5] = { 3, 8, 2, 6, 7 };
+	const ct_long r1_ref_dim[5] = { 3, 8, 2, 6, 7 };
 	struct dense_tensor r1_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r1_ref_dim, &r1_ref);
 	// read values from disk
@@ -433,7 +433,7 @@ char* test_dense_tensor_dot()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long tdim[5] = { 2, 11, 3, 4, 5 };
+	const ct_long tdim[5] = { 2, 11, 3, 4, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
@@ -442,7 +442,7 @@ char* test_dense_tensor_dot()
 
 	// create another tensor 's'
 	struct dense_tensor s;
-	const long sdim[4] = { 4, 5, 7, 6 };
+	const ct_long sdim[4] = { 4, 5, 7, 6 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s.data) < 0) {
@@ -450,7 +450,7 @@ char* test_dense_tensor_dot()
 	}
 
 	// reference tensor for checking
-	const long refdim[5] = { 2, 11, 3, 7, 6 };
+	const ct_long refdim[5] = { 2, 11, 3, 7, 6 };
 	struct dense_tensor t_dot_s_ref;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
@@ -523,7 +523,7 @@ char* test_dense_tensor_dot_update()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[5] = { 2, 11, 3, 4, 5 };
+	const ct_long dim[5] = { 2, 11, 3, 4, 5 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, dim, &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_scomplex_id, t.data) < 0) {
@@ -532,7 +532,7 @@ char* test_dense_tensor_dot_update()
 
 	// create another tensor 's'
 	struct dense_tensor s;
-	const long sdim[4] = { 4, 5, 7, 6 };
+	const ct_long sdim[4] = { 4, 5, 7, 6 };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
@@ -540,7 +540,7 @@ char* test_dense_tensor_dot_update()
 	}
 
 	// reference tensor for checking
-	const long refdim[5] = { 2, 11, 3, 7, 6 };
+	const ct_long refdim[5] = { 2, 11, 3, 7, 6 };
 	struct dense_tensor t_dot_s_ref;
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, refdim, &t_dot_s_ref);
 	// read values from disk
@@ -572,7 +572,7 @@ char* test_dense_tensor_dot_update()
 
 			// multiply tensors and update 't_dot_s' with result
 			struct dense_tensor t_dot_s;
-			const long t_dot_s_dim[5] = { 2, 11, 3, 7, 6 };
+			const ct_long t_dot_s_dim[5] = { 2, 11, 3, 7, 6 };
 			allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, t_dot_s_dim, &t_dot_s);
 			// read values from disk
 			if (read_hdf5_dataset(file, "t_dot_s_0", hdf5_scomplex_id, t_dot_s.data) < 0) {
@@ -616,7 +616,7 @@ char* test_dense_tensor_kronecker_product()
 
 	// create tensor 's'
 	struct dense_tensor s;
-	const long sdim[4] = { 6, 5, 7, 2 };
+	const ct_long sdim[4] = { 6, 5, 7, 2 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, sdim, &s);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s.data) < 0) {
@@ -625,7 +625,7 @@ char* test_dense_tensor_kronecker_product()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long tdim[4] = { 3, 11, 2, 5 };
+	const ct_long tdim[4] = { 3, 11, 2, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, tdim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
@@ -637,7 +637,7 @@ char* test_dense_tensor_kronecker_product()
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
-	const long refdim[4] = { 18, 55, 14, 10 };
+	const ct_long refdim[4] = { 18, 55, 14, 10 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, refdim, &r_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r", hdf5_dcomplex_id, r_ref.data) < 0) {
@@ -726,7 +726,7 @@ char* test_dense_tensor_concatenate()
 	const int num_tensors = 3;
 
 	struct dense_tensor tlist[3];
-	const long dims[3][4] = {
+	const ct_long dims[3][4] = {
 		{ 5, 8, 7, 3 },
 		{ 5, 8, 9, 3 },
 		{ 5, 8, 2, 3 },
@@ -748,7 +748,7 @@ char* test_dense_tensor_concatenate()
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
-	const long refdim[4] = { 5, 8, 18, 3 };
+	const ct_long refdim[4] = { 5, 8, 18, 3 };
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, refdim, &r_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r", H5T_NATIVE_FLOAT, r_ref.data) < 0) {
@@ -782,7 +782,7 @@ char* test_dense_tensor_block_diag()
 	const int num_tensors = 3;
 
 	struct dense_tensor tlist[3];
-	const long dims[3][5] = {
+	const ct_long dims[3][5] = {
 		{ 5, 8, 7, 3, 4 },
 		{ 8, 2, 7, 4, 4 },
 		{ 6, 1, 7, 9, 4 },
@@ -804,7 +804,7 @@ char* test_dense_tensor_block_diag()
 
 	// load reference values from disk
 	struct dense_tensor r_ref;
-	const long refdim[5] = { 19, 11, 7, 16, 4 };
+	const ct_long refdim[5] = { 19, 11, 7, 16, 4 };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 5, refdim, &r_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r", H5T_NATIVE_DOUBLE, r_ref.data) < 0) {
@@ -857,7 +857,7 @@ char* test_dense_tensor_qr()
 
 				// matrix 'a'
 				struct dense_tensor a;
-				const long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
+				const ct_long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
 				allocate_dense_tensor(dtypes[t], 2, dim, &a);
 				// read values from disk
 				char varname[1024];
@@ -891,10 +891,10 @@ char* test_dense_tensor_qr()
 				}
 
 				// 'r' must be upper triangular
-				const long k = lmin(dim[0], dim[1]);
+				const ct_long k = lmin(dim[0], dim[1]);
 				void* zero_vec = ct_calloc(k, sizeof_numeric_type(r.dtype));
-				const long l = (mode == QR_REDUCED ? k : dim[0]);
-				for (long i = 0; i < l; i++) {
+				const ct_long l = (mode == QR_REDUCED ? k : dim[0]);
+				for (ct_long i = 0; i < l; i++) {
 					if (uniform_distance(r.dtype, lmin(i, dim[1]), (int8_t*)r.data + (i*dim[1])*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
 						return "R matrix is not upper triangular";
 					}
@@ -945,7 +945,7 @@ char* test_dense_tensor_rq()
 
 				// matrix 'a'
 				struct dense_tensor a;
-				const long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
+				const ct_long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
 				allocate_dense_tensor(dtypes[t], 2, dim, &a);
 				// read values from disk
 				char varname[1024];
@@ -979,12 +979,12 @@ char* test_dense_tensor_rq()
 				}
 
 				// 'r' must be upper triangular (referenced from the bottom right entry)
-				const long k = lmin(dim[0], dim[1]);
-				const long l = (mode == QR_REDUCED ? k : dim[1]);
+				const ct_long k = lmin(dim[0], dim[1]);
+				const ct_long l = (mode == QR_REDUCED ? k : dim[1]);
 				void* zero_vec = ct_calloc(l, sizeof_numeric_type(r.dtype));
-				const long rshift_row = lmax(dim[0] - l, 0);
-				const long rshift_col = lmax(l - dim[0], 0);
-				for (long i = rshift_row; i < dim[0]; i++) {
+				const ct_long rshift_row = lmax(dim[0] - l, 0);
+				const ct_long rshift_col = lmax(l - dim[0], 0);
+				for (ct_long i = rshift_row; i < dim[0]; i++) {
 					if (uniform_distance(r.dtype, rshift_col + (i - rshift_row), (int8_t*)r.data + i*l*sizeof_numeric_type(r.dtype), zero_vec) != 0) {
 						return "R matrix is not upper triangular";
 					}
@@ -1029,7 +1029,7 @@ char* test_dense_tensor_eigh()
 
 		// matrix 'a'
 		struct dense_tensor a;
-		const long dim[2] = { 7, 7 };
+		const ct_long dim[2] = { 7, 7 };
 		allocate_dense_tensor(dtypes[j], 2, dim, &a);
 		// read values from disk
 		char varname[1024];
@@ -1104,7 +1104,7 @@ char* test_dense_tensor_svd()
 
 			// matrix 'a'
 			struct dense_tensor a;
-			const long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
+			const ct_long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
 			allocate_dense_tensor(dtypes[j], 2, dim, &a);
 			// read values from disk
 			char varname[1024];
@@ -1164,21 +1164,21 @@ char* test_dense_tensor_block()
 
 	// create tensor 't'
 	struct dense_tensor t;
-	const long dim[4] = { 2, 3, 4, 5 };
+	const ct_long dim[4] = { 2, 3, 4, 5 };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, dim,  &t);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
-	const long bdim[4] = { 1, 2, 4, 3 };
+	const ct_long bdim[4] = { 1, 2, 4, 3 };
 
 	// indices along each dimension
-	const long idx0[1] = { 1 };
-	const long idx1[2] = { 0, 2 };
-	const long idx2[4] = { 0, 1, 2, 3 };
-	const long idx3[3] = { 1, 4, 4 }; // index 4 appears twice
-	const long *idx[4] = { idx0, idx1, idx2, idx3 };
+	const ct_long idx0[1] = { 1 };
+	const ct_long idx1[2] = { 0, 2 };
+	const ct_long idx2[4] = { 0, 1, 2, 3 };
+	const ct_long idx3[3] = { 1, 4, 4 }; // index 4 appears twice
+	const ct_long *idx[4] = { idx0, idx1, idx2, idx3 };
 
 	struct dense_tensor b;
 	dense_tensor_block(&t, bdim, idx, &b);

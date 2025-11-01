@@ -17,7 +17,7 @@ struct ttno_assembly
 	struct dense_tensor* opmap;      //!< local operator map (look-up table)
 	void* coeffmap;                  //!< coefficient map (look-up table)
 	qnumber* qsite;                  //!< physical quantum numbers at each site
-	long d;                          //!< local physical dimension of each site
+	ct_long d;                       //!< local physical dimension of each site
 	enum numeric_type dtype;         //!< data type of local operators and coefficients
 	int num_local_ops;               //!< number of local operators (length of 'opmap' array)
 	int num_coeffs;                  //!< number of coefficients (length of 'coeffmap' array)
@@ -36,7 +36,7 @@ struct ttno
 	struct block_sparse_tensor* a;   //!< tensors associated with sites, with interleaved physical and virtual bond dimensions (ordered by site indices)
 	struct abstract_graph topology;  //!< logical tree topology; nodes correspond to physical and branching sites
 	qnumber* qsite;                  //!< physical quantum numbers at each site
-	long d;                          //!< local physical dimension of each site
+	ct_long d;                       //!< local physical dimension of each site
 	int nsites_physical;             //!< number of physical sites
 	int nsites_branching;            //!< number of branching sites
 };
@@ -47,11 +47,11 @@ struct ttno
 
 // allocation and construction
 
-void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const long* dim_bonds, const qnumber** qbonds, struct ttno* ttno);
+void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct ttno* ttno);
 
 void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno);
 
-void construct_random_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long d, const qnumber* qsite, const long max_vdim, struct rng_state* rng_state, struct ttno* ttno);
+void construct_random_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const qnumber* qsite, const ct_long max_vdim, struct rng_state* rng_state, struct ttno* ttno);
 
 void delete_ttno(struct ttno* ttno);
 

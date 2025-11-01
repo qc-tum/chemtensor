@@ -15,7 +15,7 @@
 ///
 /// \brief Allocate memory for a dense tensor, and initialize the data entries with zeros.
 ///
-void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, struct dense_tensor* restrict t)
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, struct dense_tensor* restrict t)
 {
 	t->dtype = dtype;
 
@@ -24,8 +24,8 @@ void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const 
 
 	if (ndim > 0)
 	{
-		t->dim = ct_malloc(ndim * sizeof(long));
-		memcpy(t->dim, dim, ndim * sizeof(long));
+		t->dim = ct_malloc(ndim * sizeof(ct_long));
+		memcpy(t->dim, dim, ndim * sizeof(ct_long));
 	}
 	else    // ndim == 0
 	{
@@ -33,7 +33,7 @@ void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const 
 		t->dim = NULL;
 	}
 
-	const long nelem = dense_tensor_num_elements(t);
+	const ct_long nelem = dense_tensor_num_elements(t);
 	// dimensions must be strictly positive
 	assert(nelem > 0);
 	t->data = ct_calloc(nelem, sizeof_numeric_type(dtype));
@@ -66,7 +66,7 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 {
 	allocate_dense_tensor(src->dtype, src->ndim, src->dim, dst);
 
-	const long nelem = dense_tensor_num_elements(src);
+	const ct_long nelem = dense_tensor_num_elements(src);
 
 	memcpy(dst->data, src->data, nelem * sizeof_numeric_type(src->dtype));
 }
@@ -79,11 +79,11 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 {
 	assert(t->ndim >= 1);
-	const long n = t->dim[0];
+	const ct_long n = t->dim[0];
 
 	// geometric sum: stride = 1 + n + n*n + ...
-	long stride = 1;
-	long dp = 1;
+	ct_long stride = 1;
+	ct_long dp = 1;
 	for (int i = 1; i < t->ndim; i++)
 	{
 		assert(t->dim[i] == n);
@@ -97,7 +97,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 		{
 			float tr = 0;
 			const float* data = t->data;
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				tr += data[j * stride];
 			}
@@ -108,7 +108,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 		{
 			double tr = 0;
 			const double* data = t->data;
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				tr += data[j * stride];
 			}
@@ -119,7 +119,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 		{
 			scomplex tr = 0;
 			const scomplex* data = t->data;
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				tr += data[j * stride];
 			}
@@ -130,7 +130,7 @@ void dense_tensor_trace(const struct dense_tensor* t, void* ret)
 		{
 			dcomplex tr = 0;
 			const dcomplex* data = t->data;
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				tr += data[j * stride];
 			}
@@ -184,8 +184,8 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 		assert(t->dim[ndim_trace + i] == r->dim[i]);
 	}
 
-	const long stride = integer_product(t->dim, ndim_trace);
-	const long nr = dense_tensor_num_elements(r);
+	const ct_long stride = integer_product(t->dim, ndim_trace);
+	const ct_long nr = dense_tensor_num_elements(r);
 
 	switch (t->dtype)
 	{
@@ -193,9 +193,9 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 		{
 			const float* tdata = t->data;
 			float* rdata = r->data;
-			for (long k = 0; k < stride; k++)
+			for (ct_long k = 0; k < stride; k++)
 			{
-				for (long j = 0; j < nr; j++)
+				for (ct_long j = 0; j < nr; j++)
 				{
 					rdata[j] += tdata[(k*nr + j)*stride + k];
 				}
@@ -206,9 +206,9 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 		{
 			const double* tdata = t->data;
 			double* rdata = r->data;
-			for (long k = 0; k < stride; k++)
+			for (ct_long k = 0; k < stride; k++)
 			{
-				for (long j = 0; j < nr; j++)
+				for (ct_long j = 0; j < nr; j++)
 				{
 					rdata[j] += tdata[(k*nr + j)*stride + k];
 				}
@@ -219,9 +219,9 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 		{
 			const scomplex* tdata = t->data;
 			scomplex* rdata = r->data;
-			for (long k = 0; k < stride; k++)
+			for (ct_long k = 0; k < stride; k++)
 			{
-				for (long j = 0; j < nr; j++)
+				for (ct_long j = 0; j < nr; j++)
 				{
 					rdata[j] += tdata[(k*nr + j)*stride + k];
 				}
@@ -232,9 +232,9 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 		{
 			const dcomplex* tdata = t->data;
 			dcomplex* rdata = r->data;
-			for (long k = 0; k < stride; k++)
+			for (ct_long k = 0; k < stride; k++)
 			{
-				for (long j = 0; j < nr; j++)
+				for (ct_long j = 0; j < nr; j++)
 				{
 					rdata[j] += tdata[(k*nr + j)*stride + k];
 				}
@@ -258,7 +258,7 @@ void dense_tensor_cyclic_partial_trace_update(const struct dense_tensor* t, cons
 ///
 double dense_tensor_norm2(const struct dense_tensor* t)
 {
-	const long nelem = dense_tensor_num_elements(t);
+	const ct_long nelem = dense_tensor_num_elements(t);
 
 	switch (t->dtype)
 	{
@@ -366,7 +366,7 @@ void rscale_dense_tensor(const void* alpha, struct dense_tensor* t)
 ///
 /// \brief Reshape dimensions, i.e., interpret as tensor of different dimension with the same number of elements.
 ///
-void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* t)
+void reshape_dense_tensor(const int ndim, const ct_long* dim, struct dense_tensor* t)
 {
 	// consistency check: number of elements must not change
 	assert(integer_product(dim, ndim) == dense_tensor_num_elements(t));
@@ -374,8 +374,8 @@ void reshape_dense_tensor(const int ndim, const long* dim, struct dense_tensor* 
 	// new dimensions
 	t->ndim = ndim;
 	ct_free(t->dim);
-	t->dim = ct_malloc(ndim * sizeof(long));
-	memcpy(t->dim, dim, ndim * sizeof(long));
+	t->dim = ct_malloc(ndim * sizeof(ct_long));
+	memcpy(t->dim, dim, ndim * sizeof(ct_long));
 }
 
 
@@ -397,9 +397,9 @@ void conjugate_dense_tensor(struct dense_tensor* t)
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			const long nelem = dense_tensor_num_elements(t);
+			const ct_long nelem = dense_tensor_num_elements(t);
 			scomplex* data = t->data;
-			for (long i = 0; i < nelem; i++)
+			for (ct_long i = 0; i < nelem; i++)
 			{
 				data[i] = conjf(data[i]);
 			}
@@ -407,9 +407,9 @@ void conjugate_dense_tensor(struct dense_tensor* t)
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			const long nelem = dense_tensor_num_elements(t);
+			const ct_long nelem = dense_tensor_num_elements(t);
 			dcomplex* data = t->data;
-			for (long i = 0; i < nelem; i++)
+			for (ct_long i = 0; i < nelem; i++)
 			{
 				data[i] = conj(data[i]);
 			}
@@ -433,7 +433,7 @@ void dense_tensor_flatten_axes(struct dense_tensor* t, const int i_ax)
 	assert(0 <= i_ax && i_ax + 1 < t->ndim);
 
 	// new dimensions
-	long* new_dim = ct_malloc((t->ndim - 1) * sizeof(long));
+	ct_long* new_dim = ct_malloc((t->ndim - 1) * sizeof(ct_long));
 	for (int i = 0; i < i_ax; i++) {
 		new_dim[i] = t->dim[i];
 	}
@@ -453,11 +453,11 @@ void dense_tensor_flatten_axes(struct dense_tensor* t, const int i_ax)
 void dense_tensor_set_identity(struct dense_tensor* t)
 {
 	assert(t->ndim >= 1);
-	const long n = t->dim[0];
+	const ct_long n = t->dim[0];
 
 	// geometric sum: stride = 1 + n + n*n + ...
-	long stride = 1;
-	long dp = 1;
+	ct_long stride = 1;
+	ct_long dp = 1;
 	for (int i = 1; i < t->ndim; i++)
 	{
 		assert(t->dim[i] == n);
@@ -472,7 +472,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 		{
 			float* data = t->data;
 			memset(data, 0, n*dp * sizeof(float));
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				data[j*stride] = 1;
 			}
@@ -482,7 +482,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 		{
 			double* data = t->data;
 			memset(data, 0, n*dp * sizeof(double));
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				data[j*stride] = 1;
 			}
@@ -492,7 +492,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 		{
 			scomplex* data = t->data;
 			memset(data, 0, n*dp * sizeof(scomplex));
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				data[j*stride] = 1;
 			}
@@ -502,7 +502,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 		{
 			dcomplex* data = t->data;
 			memset(data, 0, n*dp * sizeof(dcomplex));
-			for (long j = 0; j < n; j++)
+			for (ct_long j = 0; j < n; j++)
 			{
 				data[j*stride] = 1;
 			}
@@ -523,7 +523,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 ///
 void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct dense_tensor* t)
 {
-	const long nelem = dense_tensor_num_elements(t);
+	const ct_long nelem = dense_tensor_num_elements(t);
 
 	switch (t->dtype)
 	{
@@ -532,7 +532,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			float* data = t->data;
 			const float a = *((float*)alpha);
 			const float s = *((float*)shift);
-			for (long j = 0; j < nelem; j++) {
+			for (ct_long j = 0; j < nelem; j++) {
 				data[j] = a * randnf(rng_state) + s;
 			}
 			break;
@@ -542,7 +542,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			double* data = t->data;
 			const double a = *((double*)alpha);
 			const double s = *((double*)shift);
-			for (long j = 0; j < nelem; j++) {
+			for (ct_long j = 0; j < nelem; j++) {
 				data[j] = a * randn(rng_state) + s;
 			}
 			break;
@@ -552,7 +552,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			scomplex* data = t->data;
 			const scomplex a = *((scomplex*)alpha);
 			const scomplex s = *((scomplex*)shift);
-			for (long j = 0; j < nelem; j++) {
+			for (ct_long j = 0; j < nelem; j++) {
 				data[j] = a * crandnf(rng_state) + s;
 			}
 			break;
@@ -562,7 +562,7 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 			dcomplex* data = t->data;
 			const dcomplex a = *((dcomplex*)alpha);
 			const dcomplex s = *((dcomplex*)shift);
-			for (long j = 0; j < nelem; j++) {
+			for (ct_long j = 0; j < nelem; j++) {
 				data[j] = a * crandn(rng_state) + s;
 			}
 			break;
@@ -582,9 +582,9 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 ///
 struct dimension_permutation
 {
-	long* dim;  //!< dimensions
-	int* perm;  //!< permutation
-	int ndim;   //!< number of dimensions (degree)
+	ct_long* dim;  //!< dimensions
+	int* perm;     //!< permutation
+	int ndim;      //!< number of dimensions (degree)
 };
 
 
@@ -617,7 +617,7 @@ static void squeeze_dimensions(const struct dimension_permutation* restrict dp, 
 	}
 
 	// effective dimensions
-	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(long));
+	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(ct_long));
 	for (int i = 0; i < dp->ndim; i++) {
 		if (dp->dim[i] != 1) {
 			dp_eff->dim[axis_map[i]] = dp->dim[i];
@@ -670,7 +670,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 	assert(dp_eff->ndim >= 1);
 
 	// effective dimensions
-	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(long));
+	dp_eff->dim = ct_malloc(dp_eff->ndim * sizeof(ct_long));
 	for (int i = 0; i < dp_eff->ndim; i++) {
 		dp_eff->dim[i] = 1;
 	}
@@ -730,7 +730,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	#endif
 
 	// dimensions of new tensor 'r'
-	long* rdim = ct_malloc(t->ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
 	for (int i = 0; i < t->ndim; i++) {
 		rdim[i] = t->dim[perm[i]];
 	}
@@ -755,7 +755,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	ct_free(dp_squeeze.dim);
 
 	// effective dimensions of 'r'
-	long* rdim_eff = ct_malloc(dp_eff.ndim * sizeof(long));
+	ct_long* rdim_eff = ct_malloc(dp_eff.ndim * sizeof(ct_long));
 	for (int i = 0; i < dp_eff.ndim; i++) {
 		rdim_eff[i] = dp_eff.dim[dp_eff.perm[i]];
 	}
@@ -769,32 +769,32 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 		}
 	}
 	assert(ax_r_last != -1);
-	const long stride = integer_product(rdim_eff + ax_r_last + 1, dp_eff.ndim - ax_r_last - 1);
+	const ct_long stride = integer_product(rdim_eff + ax_r_last + 1, dp_eff.ndim - ax_r_last - 1);
 
-	const long nelem = integer_product(dp_eff.dim, dp_eff.ndim);
+	const ct_long nelem = integer_product(dp_eff.dim, dp_eff.ndim);
 	assert(nelem == dense_tensor_num_elements(t));
 
-	long* index_t = ct_calloc(dp_eff.ndim,  sizeof(long));
-	long* index_r = ct_malloc(dp_eff.ndim * sizeof(long));
+	ct_long* index_t = ct_calloc(dp_eff.ndim,  sizeof(ct_long));
+	ct_long* index_r = ct_malloc(dp_eff.ndim * sizeof(ct_long));
 
-	for (long ot = 0; ot < nelem; ot += dp_eff.dim[dp_eff.ndim - 1])
+	for (ct_long ot = 0; ot < nelem; ot += dp_eff.dim[dp_eff.ndim - 1])
 	{
 		// map index of tensor 't' to index of tensor 'r'
 		for (int i = 0; i < dp_eff.ndim; i++) {
 			index_r[i] = index_t[dp_eff.perm[i]];
 		}
 		// convert back to offset of tensor 'r'
-		const long or = tensor_index_to_offset(dp_eff.ndim, rdim_eff, index_r);
+		const ct_long or = tensor_index_to_offset(dp_eff.ndim, rdim_eff, index_r);
 
 		// main copy loop
-		const long n = dp_eff.dim[dp_eff.ndim - 1];
+		const ct_long n = dp_eff.dim[dp_eff.ndim - 1];
 		switch (t->dtype)
 		{
 			case CT_SINGLE_REAL:
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       rdata =       (float*)r->data + or;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
 				}
@@ -804,7 +804,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       rdata =       (double*)r->data + or;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
 				}
@@ -814,7 +814,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       rdata =       (scomplex*)r->data + or;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
 				}
@@ -824,7 +824,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       rdata =       (dcomplex*)r->data + or;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					rdata[j*stride] = tdata[j];
 				}
@@ -871,13 +871,13 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 /// Indices 'ind' can be duplicate and need not be sorted.
 /// Memory will be allocated for 'r'.
 ///
-void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r)
+void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r)
 {
 	assert(0 <= i_ax && i_ax < t->ndim);
 	assert(nind > 0);
 
-	long* rdim = ct_malloc(t->ndim * sizeof(long));
-	memcpy(rdim, t->dim, t->ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
+	memcpy(rdim, t->dim, t->ndim * sizeof(ct_long));
 	rdim[i_ax] = nind;
 	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
 	ct_free(rdim);
@@ -893,21 +893,21 @@ void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, c
 /// Indices 'ind' can be duplicate and need not be sorted.
 /// 'r' must have been allocated beforehand.
 ///
-void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct dense_tensor* restrict r)
+void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r)
 {
 	assert(0 <= i_ax && i_ax < t->ndim);
 	assert(nind > 0);
 	assert(r->dim[i_ax] == nind);
 
 	// leading dimension of 't' and 'r'
-	const long ld = integer_product(t->dim, i_ax);
+	const ct_long ld = integer_product(t->dim, i_ax);
 	// trailing dimension of 't' and 'r'
-	const long td = integer_product(&t->dim[i_ax + 1], t->ndim - (i_ax + 1));
+	const ct_long td = integer_product(&t->dim[i_ax + 1], t->ndim - (i_ax + 1));
 
-	const long stride = td * sizeof_numeric_type(t->dtype);
-	for (long j = 0; j < ld; j++)
+	const ct_long stride = td * sizeof_numeric_type(t->dtype);
+	for (ct_long j = 0; j < ld; j++)
 	{
-		for (long k = 0; k < nind; k++)
+		for (ct_long k = 0; k < nind; k++)
 		{
 			assert(0 <= ind[k] && ind[k] < t->dim[i_ax]);
 			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
@@ -921,7 +921,7 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 ///
 /// \brief Pad a tensor with zeros according to the specified leading and trailing padding width for each axis.
 ///
-void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* restrict pad_before, const long* restrict pad_after, struct dense_tensor* restrict r)
+void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long* restrict pad_before, const ct_long* restrict pad_after, struct dense_tensor* restrict r)
 {
 	int ndim_eff = 0;
 	for (int i = 0; i < t->ndim; i++)
@@ -938,7 +938,7 @@ void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* r
 	}
 
 	// dimensions of new tensor
-	long* rdim = ct_malloc(t->ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
 	for (int i = 0; i < t->ndim; i++) {
 		rdim[i] = pad_before[i] + t->dim[i] + pad_after[i];
 	}
@@ -948,20 +948,20 @@ void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const long* r
 	ct_free(rdim);
 
 	// leading dimensions
-	const long ld = integer_product(t->dim, ndim_eff - 1);
+	const ct_long ld = integer_product(t->dim, ndim_eff - 1);
 	// trailing dimensions times data type size
-	const long tdd = integer_product(&t->dim[ndim_eff], t->ndim - ndim_eff) * sizeof_numeric_type(t->dtype);
+	const ct_long tdd = integer_product(&t->dim[ndim_eff], t->ndim - ndim_eff) * sizeof_numeric_type(t->dtype);
 
-	const long stride = t->dim[ndim_eff - 1] * tdd;
+	const ct_long stride = t->dim[ndim_eff - 1] * tdd;
 
-	long* index_t = ct_calloc(ndim_eff, sizeof(long));
-	long* index_r = ct_calloc(ndim_eff, sizeof(long));
-	for (long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, t->dim, index_t))
+	ct_long* index_t = ct_calloc(ndim_eff, sizeof(ct_long));
+	ct_long* index_r = ct_calloc(ndim_eff, sizeof(ct_long));
+	for (ct_long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, t->dim, index_t))
 	{
 		for (int i = 0; i < ndim_eff; i++) {
 			index_r[i] = pad_before[i] + index_t[i];
 		}
-		const long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
+		const ct_long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
 		memcpy((int8_t*)r->data + or * tdd,
 		       (int8_t*)t->data + ot * stride, stride);
 	}
@@ -981,7 +981,7 @@ void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tens
 	// data types must agree
 	assert(s->dtype == t->dtype);
 
-	const long nelem = dense_tensor_num_elements(s);
+	const ct_long nelem = dense_tensor_num_elements(s);
 
 	assert(s->ndim == t->ndim);
 	assert(nelem == dense_tensor_num_elements(t));
@@ -1061,8 +1061,8 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 			assert(t->dim[i] == s->dim[i]);
 		}
 
-		const long nt = dense_tensor_num_elements(t);
-		const long tds = integer_product(&s->dim[t->ndim], ndim_diff);
+		const ct_long nt = dense_tensor_num_elements(t);
+		const ct_long tds = integer_product(&s->dim[t->ndim], ndim_diff);
 
 		switch (s->dtype)
 		{
@@ -1071,9 +1071,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				const float* sdata = s->data;
 				const float* tdata = t->data;
 				float*       rdata = r->data;
-				for (long j = 0; j < nt; j++)
+				for (ct_long j = 0; j < nt; j++)
 				{
-					for (long k = 0; k < tds; k++)
+					for (ct_long k = 0; k < tds; k++)
 					{
 						rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 					}
@@ -1085,9 +1085,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				const double* sdata = s->data;
 				const double* tdata = t->data;
 				double*       rdata = r->data;
-				for (long j = 0; j < nt; j++)
+				for (ct_long j = 0; j < nt; j++)
 				{
-					for (long k = 0; k < tds; k++)
+					for (ct_long k = 0; k < tds; k++)
 					{
 						rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 					}
@@ -1101,9 +1101,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				if (t->dtype == CT_SINGLE_COMPLEX)
 				{
 					const scomplex* tdata = t->data;
-					for (long j = 0; j < nt; j++)
+					for (ct_long j = 0; j < nt; j++)
 					{
-						for (long k = 0; k < tds; k++)
+						for (ct_long k = 0; k < tds; k++)
 						{
 							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 						}
@@ -1113,9 +1113,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				{
 					assert(t->dtype == CT_SINGLE_REAL);
 					const float* tdata = t->data;
-					for (long j = 0; j < nt; j++)
+					for (ct_long j = 0; j < nt; j++)
 					{
-						for (long k = 0; k < tds; k++)
+						for (ct_long k = 0; k < tds; k++)
 						{
 							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 						}
@@ -1130,9 +1130,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				if (t->dtype == CT_DOUBLE_COMPLEX)
 				{
 					const dcomplex* tdata = t->data;
-					for (long j = 0; j < nt; j++)
+					for (ct_long j = 0; j < nt; j++)
 					{
-						for (long k = 0; k < tds; k++)
+						for (ct_long k = 0; k < tds; k++)
 						{
 							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 						}
@@ -1142,9 +1142,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				{
 					assert(t->dtype == CT_DOUBLE_REAL);
 					const double* tdata = t->data;
-					for (long j = 0; j < nt; j++)
+					for (ct_long j = 0; j < nt; j++)
 					{
-						for (long k = 0; k < tds; k++)
+						for (ct_long k = 0; k < tds; k++)
 						{
 							rdata[j*tds + k] = sdata[j*tds + k] * tdata[j];
 						}
@@ -1168,8 +1168,8 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 			assert(t->dim[i] == s->dim[ndim_diff + i]);
 		}
 
-		const long nt = dense_tensor_num_elements(t);
-		const long lds = integer_product(s->dim, ndim_diff);
+		const ct_long nt = dense_tensor_num_elements(t);
+		const ct_long lds = integer_product(s->dim, ndim_diff);
 
 		switch (s->dtype)
 		{
@@ -1178,9 +1178,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				const float* sdata = s->data;
 				const float* tdata = t->data;
 				float*       rdata = r->data;
-				for (long j = 0; j < lds; j++)
+				for (ct_long j = 0; j < lds; j++)
 				{
-					for (long k = 0; k < nt; k++)
+					for (ct_long k = 0; k < nt; k++)
 					{
 						rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 					}
@@ -1192,9 +1192,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				const double* sdata = s->data;
 				const double* tdata = t->data;
 				double*       rdata = r->data;
-				for (long j = 0; j < lds; j++)
+				for (ct_long j = 0; j < lds; j++)
 				{
-					for (long k = 0; k < nt; k++)
+					for (ct_long k = 0; k < nt; k++)
 					{
 						rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 					}
@@ -1208,9 +1208,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				if (t->dtype == CT_SINGLE_COMPLEX)
 				{
 					const scomplex* tdata = t->data;
-					for (long j = 0; j < lds; j++)
+					for (ct_long j = 0; j < lds; j++)
 					{
-						for (long k = 0; k < nt; k++)
+						for (ct_long k = 0; k < nt; k++)
 						{
 							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 						}
@@ -1220,9 +1220,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				{
 					assert(t->dtype == CT_SINGLE_REAL);
 					const float* tdata = t->data;
-					for (long j = 0; j < lds; j++)
+					for (ct_long j = 0; j < lds; j++)
 					{
-						for (long k = 0; k < nt; k++)
+						for (ct_long k = 0; k < nt; k++)
 						{
 							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 						}
@@ -1237,9 +1237,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				if (t->dtype == CT_DOUBLE_COMPLEX)
 				{
 					const dcomplex* tdata = t->data;
-					for (long j = 0; j < lds; j++)
+					for (ct_long j = 0; j < lds; j++)
 					{
-						for (long k = 0; k < nt; k++)
+						for (ct_long k = 0; k < nt; k++)
 						{
 							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 						}
@@ -1249,9 +1249,9 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 				{
 					assert(t->dtype == CT_DOUBLE_REAL);
 					const double* tdata = t->data;
-					for (long j = 0; j < lds; j++)
+					for (ct_long j = 0; j < lds; j++)
 					{
-						for (long k = 0; k < nt; k++)
+						for (ct_long k = 0; k < nt; k++)
 						{
 							rdata[j*nt + k] = sdata[j*nt + k] * tdata[k];
 						}
@@ -1286,10 +1286,10 @@ void dense_tensor_multiply_axis(const struct dense_tensor* restrict s, const int
 
 	// allocate output tensor
 	{
-		long* rdim = ct_malloc((s->ndim + t->ndim - 2) * sizeof(long));
-		memcpy( rdim, s->dim, i_ax * sizeof(long));
-		memcpy(&rdim[i_ax], &t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 1 : 0], (t->ndim - 1) * sizeof(long));
-		memcpy(&rdim[i_ax + t->ndim - 1], &s->dim[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(long));
+		ct_long* rdim = ct_malloc((s->ndim + t->ndim - 2) * sizeof(ct_long));
+		memcpy( rdim, s->dim, i_ax * sizeof(ct_long));
+		memcpy(&rdim[i_ax], &t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 1 : 0], (t->ndim - 1) * sizeof(ct_long));
+		memcpy(&rdim[i_ax + t->ndim - 1], &s->dim[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(ct_long));
 		allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2, rdim, r);
 		ct_free(rdim);
 	}
@@ -1329,19 +1329,19 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 	}
 
 	// outer dimension of 's' and 'r' as a matrix
-	const long dim_outer = integer_product(s->dim, i_ax);
+	const ct_long dim_outer = integer_product(s->dim, i_ax);
 	// inner dimension of 's' as a matrix
-	const long dim_inner_s = integer_product(&s->dim[i_ax], s->ndim - i_ax);
+	const ct_long dim_inner_s = integer_product(&s->dim[i_ax], s->ndim - i_ax);
 	// inner dimension of 'r' as a matrix
-	const long dim_inner_r = integer_product(&r->dim[i_ax], r->ndim - i_ax);
+	const ct_long dim_inner_r = integer_product(&r->dim[i_ax], r->ndim - i_ax);
 	// trailing dimension of 't' as a matrix
-	const long tdt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? integer_product(&t->dim[1], t->ndim - 1) : t->dim[t->ndim - 1]);
+	const ct_long tdt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? integer_product(&t->dim[1], t->ndim - 1) : t->dim[t->ndim - 1]);
 
 	const int transa = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
 
-	const long m = integer_product(&r->dim[i_ax], t->ndim - 1);
-	const long k = s->dim[i_ax];
-	const long n = integer_product(&s->dim[i_ax + 1], s->ndim - i_ax - 1);
+	const ct_long m = integer_product(&r->dim[i_ax], t->ndim - 1);
+	const ct_long k = s->dim[i_ax];
+	const ct_long n = integer_product(&s->dim[i_ax + 1], s->ndim - i_ax - 1);
 
 	switch (s->dtype)
 	{
@@ -1349,7 +1349,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 		{
 			const float* sdata = s->data;
 			float*       rdata = r->data;
-			for (long j = 0; j < dim_outer; j++)
+			for (ct_long j = 0; j < dim_outer; j++)
 			{
 				cblas_sgemm(CblasRowMajor, transa, CblasNoTrans, m, n, k, *((float*)alpha), t->data, tdt, &sdata[j*dim_inner_s], n, *((float*)beta), &rdata[j*dim_inner_r], n);
 			}
@@ -1359,7 +1359,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 		{
 			const double* sdata = s->data;
 			double*       rdata = r->data;
-			for (long j = 0; j < dim_outer; j++)
+			for (ct_long j = 0; j < dim_outer; j++)
 			{
 				cblas_dgemm(CblasRowMajor, transa, CblasNoTrans, m, n, k, *((double*)alpha), t->data, tdt, &sdata[j*dim_inner_s], n, *((double*)beta), &rdata[j*dim_inner_r], n);
 			}
@@ -1369,7 +1369,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 		{
 			const scomplex* sdata = s->data;
 			scomplex*       rdata = r->data;
-			for (long j = 0; j < dim_outer; j++)
+			for (ct_long j = 0; j < dim_outer; j++)
 			{
 				cblas_cgemm(CblasRowMajor, transa, CblasNoTrans, m, n, k, alpha, t->data, tdt, &sdata[j*dim_inner_s], n, beta, &rdata[j*dim_inner_r], n);
 			}
@@ -1379,7 +1379,7 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 		{
 			const dcomplex* sdata = s->data;
 			dcomplex*       rdata = r->data;
-			for (long j = 0; j < dim_outer; j++)
+			for (ct_long j = 0; j < dim_outer; j++)
 			{
 				cblas_zgemm(CblasRowMajor, transa, CblasNoTrans, m, n, k, alpha, t->data, tdt, &sdata[j*dim_inner_s], n, beta, &rdata[j*dim_inner_r], n);
 			}
@@ -1416,7 +1416,7 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 
 	// dimensions of new tensor 'r'
 	const int ndimr = s->ndim + t->ndim - 2*ndim_mult;
-	long* rdim = ct_malloc(ndimr * sizeof(long));
+	ct_long* rdim = ct_malloc(ndimr * sizeof(ct_long));
 	const int offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	const int offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
 	for (int i = 0; i < s->ndim - ndim_mult; i++)
@@ -1435,22 +1435,22 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
 
 	// leading dimension of 's' as a matrix
-	const long lds = integer_product(s->dim, nlds);
+	const ct_long lds = integer_product(s->dim, nlds);
 	// trailing dimension of 's' as a matrix
-	const long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
+	const ct_long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
 
 	// leading dimension of 't' as a matrix
-	const long ldt = integer_product(t->dim, nldt);
+	const ct_long ldt = integer_product(t->dim, nldt);
 	// trailing dimension of 't' as a matrix
-	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
+	const ct_long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
 	const int transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
 	const int transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
 
 	// matrix-matrix multiplication
-	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
-	const long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
-	const long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
+	const ct_long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
+	const ct_long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
+	const ct_long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
 	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
 	switch (s->dtype)
 	{
@@ -1526,22 +1526,22 @@ void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restr
 	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
 
 	// leading dimension of 's' as a matrix
-	const long lds = integer_product(s->dim, nlds);
+	const ct_long lds = integer_product(s->dim, nlds);
 	// trailing dimension of 's' as a matrix
-	const long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
+	const ct_long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
 
 	// leading dimension of 't' as a matrix
-	const long ldt = integer_product(t->dim, nldt);
+	const ct_long ldt = integer_product(t->dim, nldt);
 	// trailing dimension of 't' as a matrix
-	const long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
+	const ct_long tdt = integer_product(&t->dim[nldt], t->ndim - nldt);
 
 	const int transa = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
 	const int transb = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasNoTrans : CblasTrans);
 
 	// matrix-matrix multiplication
-	const long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
-	const long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
-	const long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
+	const ct_long m = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
+	const ct_long n = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? tdt : ldt);
+	const ct_long k = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? lds : tds);
 	assert(k == (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ldt : tdt));
 	switch (s->dtype)
 	{
@@ -1636,7 +1636,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	}
 
 	// interleave dimensions of 's' and 't'
-	long* rdim_il = ct_malloc((s->ndim + t->ndim) * sizeof(long));
+	ct_long* rdim_il = ct_malloc((s->ndim + t->ndim) * sizeof(ct_long));
 	for (int i = 0; i < s->ndim; i++)
 	{
 		rdim_il[2*i  ] = s->dim[i];
@@ -1645,17 +1645,17 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	allocate_dense_tensor(s->dtype, s->ndim + t->ndim, rdim_il, r);
 	ct_free(rdim_il);
 
-	long* index_s = ct_calloc(s->ndim, sizeof(long));
-	long* index_t = ct_calloc(t->ndim, sizeof(long));
-	long* index_r = ct_calloc(r->ndim, sizeof(long));
+	ct_long* index_s = ct_calloc(s->ndim, sizeof(ct_long));
+	ct_long* index_t = ct_calloc(t->ndim, sizeof(ct_long));
+	ct_long* index_r = ct_calloc(r->ndim, sizeof(ct_long));
 
-	const long last_dim_s = s->dim[s->ndim - 1];
-	const long last_dim_t = t->dim[t->ndim - 1];
+	const ct_long last_dim_s = s->dim[s->ndim - 1];
+	const ct_long last_dim_t = t->dim[t->ndim - 1];
 
-	const long nelem = dense_tensor_num_elements(r);
+	const ct_long nelem = dense_tensor_num_elements(r);
 
 	// advance index of tensor 'r' by last_dim_s*last_dim_t elements in each iteration
-	for (long or = 0; or < nelem; or += last_dim_s*last_dim_t, next_tensor_index(r->ndim - 2, r->dim, index_r))
+	for (ct_long or = 0; or < nelem; or += last_dim_s*last_dim_t, next_tensor_index(r->ndim - 2, r->dim, index_r))
 	{
 		// decode indices for 's' and 't'
 		for (int i = 0; i < s->ndim; i++)
@@ -1663,8 +1663,8 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 			index_s[i] = index_r[2*i  ];
 			index_t[i] = index_r[2*i+1];
 		}
-		const long os = tensor_index_to_offset(s->ndim, s->dim, index_s);
-		const long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
+		const ct_long os = tensor_index_to_offset(s->ndim, s->dim, index_s);
+		const ct_long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 
 		// outer product; r->data must have been initialized with zeros
 		switch (s->dtype)
@@ -1704,7 +1704,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 	ct_free(index_s);
 
 	// actual dimensions of 'r'
-	long* rdim = ct_malloc(s->ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(s->ndim * sizeof(ct_long));
 	for (int i = 0; i < s->ndim; i++)
 	{
 		rdim[i] = s->dim[i] * t->dim[i];
@@ -1732,11 +1732,11 @@ void dense_tensor_concatenate(const struct dense_tensor* restrict tlist, const i
 	}
 
 	// dimensions of new tensor
-	long dim_concat = 0;
+	ct_long dim_concat = 0;
 	for (int j = 0; j < num_tensors; j++) {
 		dim_concat += tlist[j].dim[i_ax];
 	}
-	long* rdim = ct_malloc(tlist[0].ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(tlist[0].ndim * sizeof(ct_long));
 	for (int i = 0; i < tlist[0].ndim; i++)
 	{
 		rdim[i] = (i == i_ax ? dim_concat : tlist[0].dim[i]);
@@ -1778,7 +1778,7 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 			}
 		}
 	}
-	long dim_concat = 0;
+	ct_long dim_concat = 0;
 	for (int j = 0; j < num_tensors; j++) {
 		dim_concat += tlist[j].dim[i_ax];
 	}
@@ -1789,16 +1789,16 @@ void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, co
 	#endif
 
 	// leading dimensions
-	const long ld = integer_product(r->dim, i_ax);
+	const ct_long ld = integer_product(r->dim, i_ax);
 	// trailing dimensions times data type size
-	const long tdd = integer_product(&r->dim[i_ax + 1], r->ndim - (i_ax + 1)) * sizeof_numeric_type(r->dtype);
+	const ct_long tdd = integer_product(&r->dim[i_ax + 1], r->ndim - (i_ax + 1)) * sizeof_numeric_type(r->dtype);
 
-	long offset = 0;
+	ct_long offset = 0;
 	for (int j = 0; j < num_tensors; j++)
 	{
-		const long stride = tlist[j].dim[i_ax] * tdd;
+		const ct_long stride = tlist[j].dim[i_ax] * tdd;
 
-		for (long i = 0; i < ld; i++) {
+		for (ct_long i = 0; i < ld; i++) {
 			memcpy((int8_t*)r->data + (i * r->dim[i_ax] + offset) * tdd,
 			       (int8_t*)tlist[j].data + i * stride, stride);
 		}
@@ -1835,11 +1835,11 @@ void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const in
 	}
 
 	// dimensions of new tensor
-	long* rdim = ct_malloc(ndim * sizeof(long));
+	ct_long* rdim = ct_malloc(ndim * sizeof(ct_long));
 	for (int i = 0; i < ndim; i++)
 	{
 		if (i_ax_indicator[i]) {
-			long dsum = 0;
+			ct_long dsum = 0;
 			for (int j = 0; j < num_tensors; j++) {
 				dsum += tlist[j].dim[i];
 			}
@@ -1899,7 +1899,7 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 	for (int i = 0; i < r->ndim; i++)
 	{
 		if (i_ax_indicator[i]) {
-			long dsum = 0;
+			ct_long dsum = 0;
 			for (int j = 0; j < num_tensors; j++) {
 				dsum += tlist[j].dim[i];
 			}
@@ -1921,28 +1921,28 @@ void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, con
 	assert(ndim_eff >= 1);
 
 	// trailing dimensions times data type size
-	const long tdd = integer_product(&r->dim[ndim_eff], r->ndim - ndim_eff) * sizeof_numeric_type(r->dtype);
+	const ct_long tdd = integer_product(&r->dim[ndim_eff], r->ndim - ndim_eff) * sizeof_numeric_type(r->dtype);
 
-	long* offset = ct_calloc(ndim_eff, sizeof(long));
+	ct_long* offset = ct_calloc(ndim_eff, sizeof(ct_long));
 
-	long* index_t = ct_calloc(ndim_eff, sizeof(long));
-	long* index_r = ct_calloc(ndim_eff, sizeof(long));
+	ct_long* index_t = ct_calloc(ndim_eff, sizeof(ct_long));
+	ct_long* index_r = ct_calloc(ndim_eff, sizeof(ct_long));
 
 	for (int j = 0; j < num_tensors; j++)
 	{
 		// leading dimensions
-		const long ld = integer_product(tlist[j].dim, ndim_eff - 1);
+		const ct_long ld = integer_product(tlist[j].dim, ndim_eff - 1);
 
-		const long stride = tlist[j].dim[ndim_eff - 1] * tdd;
+		const ct_long stride = tlist[j].dim[ndim_eff - 1] * tdd;
 
-		memset(index_t, 0, ndim_eff * sizeof(long));
-		for (long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, tlist[j].dim, index_t))
+		memset(index_t, 0, ndim_eff * sizeof(ct_long));
+		for (ct_long ot = 0; ot < ld; ot++, next_tensor_index(ndim_eff - 1, tlist[j].dim, index_t))
 		{
 			for (int i = 0; i < ndim_eff; i++) {
 				index_r[i] = offset[i] + index_t[i];
 				assert(index_r[i] < r->dim[i]);
 			}
-			const long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
+			const ct_long or = tensor_index_to_offset(ndim_eff, r->dim, index_r);
 			memcpy((int8_t*)r->data + or * tdd,
 			       (int8_t*)tlist[j].data + ot * stride, stride);
 		}
@@ -1970,12 +1970,12 @@ int dense_tensor_qr(const struct dense_tensor* restrict a, const enum qr_mode mo
 	// require a matrix
 	assert(a->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long l = (mode == QR_REDUCED ? lmin(m, n) : m);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long l = (mode == QR_REDUCED ? lmin(m, n) : m);
 
-	const long dim_q[2] = { m, l };
-	const long dim_r[2] = { l, n };
+	const ct_long dim_q[2] = { m, l };
+	const ct_long dim_r[2] = { l, n };
 	allocate_dense_tensor(a->dtype, 2, dim_q, q);
 	allocate_dense_tensor(a->dtype, 2, dim_r, r);
 
@@ -1997,10 +1997,10 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 	assert(q->ndim == 2);
 	assert(r->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long k = lmin(m, n);
-	const long l = (mode == QR_REDUCED ? k : m);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long k = lmin(m, n);
+	const ct_long l = (mode == QR_REDUCED ? k : m);
 
 	assert(q->dim[0] == m);
 	assert(q->dim[1] == l);
@@ -2018,8 +2018,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy 'a' into 't'
 			const float* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[i + m*j] = adata[i*n + j];
 				}
@@ -2051,13 +2051,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			float* rdata = r->data;
-			for (long i = 0; i < l; i++)
+			for (ct_long i = 0; i < l; i++)
 			{
-				const long numzero = lmin(i, n);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = lmin(i, n);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = numzero; j < n; j++) {
+				for (ct_long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2088,8 +2088,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				float* qdata = q->data;
-				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < l; j++) {
+				for (ct_long i = 0; i < m; i++) {
+					for (ct_long j = 0; j < l; j++) {
 						// column-major order for 't'
 						qdata[i*l + j] = t[i + m*j];
 					}
@@ -2110,8 +2110,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy 'a' into 't'
 			const double* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[i + m*j] = adata[i*n + j];
 				}
@@ -2143,13 +2143,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			double* rdata = r->data;
-			for (long i = 0; i < l; i++)
+			for (ct_long i = 0; i < l; i++)
 			{
-				const long numzero = lmin(i, n);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = lmin(i, n);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = numzero; j < n; j++) {
+				for (ct_long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2180,8 +2180,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				double* qdata = q->data;
-				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < l; j++) {
+				for (ct_long i = 0; i < m; i++) {
+					for (ct_long j = 0; j < l; j++) {
 						// column-major order for 't'
 						qdata[i*l + j] = t[i + m*j];
 					}
@@ -2202,8 +2202,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy 'a' into 't'
 			const scomplex* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[i + m*j] = adata[i*n + j];
 				}
@@ -2235,13 +2235,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			scomplex* rdata = r->data;
-			for (long i = 0; i < l; i++)
+			for (ct_long i = 0; i < l; i++)
 			{
-				const long numzero = lmin(i, n);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = lmin(i, n);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = numzero; j < n; j++) {
+				for (ct_long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2272,8 +2272,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				scomplex* qdata = q->data;
-				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < l; j++) {
+				for (ct_long i = 0; i < m; i++) {
+					for (ct_long j = 0; j < l; j++) {
 						// column-major order for 't'
 						qdata[i*l + j] = t[i + m*j];
 					}
@@ -2294,8 +2294,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy 'a' into 't'
 			const dcomplex* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[i + m*j] = adata[i*n + j];
 				}
@@ -2327,13 +2327,13 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			dcomplex* rdata = r->data;
-			for (long i = 0; i < l; i++)
+			for (ct_long i = 0; i < l; i++)
 			{
-				const long numzero = lmin(i, n);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = lmin(i, n);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*n + j] = 0;
 				}
-				for (long j = numzero; j < n; j++) {
+				for (ct_long j = numzero; j < n; j++) {
 					// column-major order for 't'
 					rdata[i*n + j] = t[i + m*j];
 				}
@@ -2364,8 +2364,8 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				dcomplex* qdata = q->data;
-				for (long i = 0; i < m; i++) {
-					for (long j = 0; j < l; j++) {
+				for (ct_long i = 0; i < m; i++) {
+					for (ct_long j = 0; j < l; j++) {
 						// column-major order for 't'
 						qdata[i*l + j] = t[i + m*j];
 					}
@@ -2397,12 +2397,12 @@ int dense_tensor_rq(const struct dense_tensor* restrict a, const enum qr_mode mo
 	// require a matrix
 	assert(a->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long l = (mode == QR_REDUCED ? lmin(m, n) : n);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long l = (mode == QR_REDUCED ? lmin(m, n) : n);
 
-	const long dim_r[2] = { m, l };
-	const long dim_q[2] = { l, n };
+	const ct_long dim_r[2] = { m, l };
+	const ct_long dim_q[2] = { l, n };
 	allocate_dense_tensor(a->dtype, 2, dim_r, r);
 	allocate_dense_tensor(a->dtype, 2, dim_q, q);
 
@@ -2424,10 +2424,10 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 	assert(r->ndim == 2);
 	assert(q->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long k = lmin(m, n);
-	const long l = (mode == QR_REDUCED ? k : n);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long k = lmin(m, n);
+	const ct_long l = (mode == QR_REDUCED ? k : n);
 
 	assert(r->dim[0] == m);
 	assert(r->dim[1] == l);
@@ -2441,15 +2441,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 			float* tau = ct_malloc(k * sizeof(float));
 
 			// temporary matrix 't' using column-major order
-			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			const ct_long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
 			float* t = ct_calloc(ldt * n, sizeof(float));  // initialize with zeros to avoid NaN check issues
-			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
-			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+			const ct_long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const ct_long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
 
 			// copy 'a' into 't'
 			const float* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
@@ -2482,15 +2482,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			float* rdata = r->data;
-			const long rshift_row = lmax(m - l, 0);
-			const long rshift_col = lmax(l - m, 0);
-			for (long i = 0; i < m; i++)
+			const ct_long rshift_row = lmax(m - l, 0);
+			const ct_long rshift_col = lmax(l - m, 0);
+			for (ct_long i = 0; i < m; i++)
 			{
-				const long numzero = rshift_col + lmax(i - rshift_row, 0);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = rshift_col + lmax(i - rshift_row, 0);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < l; j++) {
+				for (ct_long j = numzero; j < l; j++) {
 					// column-major order for 't'
 					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
@@ -2522,8 +2522,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				float* qdata = q->data;
-				for (long i = 0; i < l; i++) {
-					for (long j = 0; j < n; j++) {
+				for (ct_long i = 0; i < l; i++) {
+					for (ct_long j = 0; j < n; j++) {
 						// column-major order for 't'
 						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
@@ -2540,15 +2540,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 			double* tau = ct_malloc(k * sizeof(double));
 
 			// temporary matrix 't' using column-major order
-			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			const ct_long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
 			double* t = ct_calloc(ldt * n, sizeof(double));  // initialize with zeros to avoid NaN check issues
-			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
-			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+			const ct_long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const ct_long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
 
 			// copy 'a' into 't'
 			const double* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
@@ -2581,15 +2581,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			double* rdata = r->data;
-			const long rshift_row = lmax(m - l, 0);
-			const long rshift_col = lmax(l - m, 0);
-			for (long i = 0; i < m; i++)
+			const ct_long rshift_row = lmax(m - l, 0);
+			const ct_long rshift_col = lmax(l - m, 0);
+			for (ct_long i = 0; i < m; i++)
 			{
-				const long numzero = rshift_col + lmax(i - rshift_row, 0);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = rshift_col + lmax(i - rshift_row, 0);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < l; j++) {
+				for (ct_long j = numzero; j < l; j++) {
 					// column-major order for 't'
 					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
@@ -2621,8 +2621,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				double* qdata = q->data;
-				for (long i = 0; i < l; i++) {
-					for (long j = 0; j < n; j++) {
+				for (ct_long i = 0; i < l; i++) {
+					for (ct_long j = 0; j < n; j++) {
 						// column-major order for 't'
 						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
@@ -2639,15 +2639,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 			scomplex* tau = ct_malloc(k * sizeof(scomplex));
 
 			// temporary matrix 't' using column-major order
-			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			const ct_long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
 			scomplex* t = ct_calloc(ldt * n, sizeof(scomplex));  // initialize with zeros to avoid NaN check issues
-			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
-			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+			const ct_long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const ct_long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
 
 			// copy 'a' into 't'
 			const scomplex* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
@@ -2680,15 +2680,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			scomplex* rdata = r->data;
-			const long rshift_row = lmax(m - l, 0);
-			const long rshift_col = lmax(l - m, 0);
-			for (long i = 0; i < m; i++)
+			const ct_long rshift_row = lmax(m - l, 0);
+			const ct_long rshift_col = lmax(l - m, 0);
+			for (ct_long i = 0; i < m; i++)
 			{
-				const long numzero = rshift_col + lmax(i - rshift_row, 0);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = rshift_col + lmax(i - rshift_row, 0);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < l; j++) {
+				for (ct_long j = numzero; j < l; j++) {
 					// column-major order for 't'
 					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
@@ -2720,8 +2720,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				scomplex* qdata = q->data;
-				for (long i = 0; i < l; i++) {
-					for (long j = 0; j < n; j++) {
+				for (ct_long i = 0; i < l; i++) {
+					for (ct_long j = 0; j < n; j++) {
 						// column-major order for 't'
 						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
@@ -2738,15 +2738,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 			dcomplex* tau = ct_malloc(k * sizeof(dcomplex));
 
 			// temporary matrix 't' using column-major order
-			const long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
+			const ct_long ldt = (mode == QR_REDUCED ? m : lmax(m, n));  // leading dimension of 't'
 			dcomplex* t = ct_calloc(ldt * n, sizeof(dcomplex));  // initialize with zeros to avoid NaN check issues
-			const long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
-			const long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
+			const ct_long tshift_row = (mode == QR_REDUCED ? 0 : lmax(n - m, 0));
+			const ct_long tshift_col = (mode == QR_REDUCED ? lmax(n - m, 0) : 0);
 
 			// copy 'a' into 't'
 			const dcomplex* adata = a->data;
-			for (long i = 0; i < m; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < m; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					t[tshift_row + i + ldt*j] = adata[i*n + j];
 				}
@@ -2779,15 +2779,15 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 			// copy entries in upper triangular part into 'r' matrix
 			dcomplex* rdata = r->data;
-			const long rshift_row = lmax(m - l, 0);
-			const long rshift_col = lmax(l - m, 0);
-			for (long i = 0; i < m; i++)
+			const ct_long rshift_row = lmax(m - l, 0);
+			const ct_long rshift_col = lmax(l - m, 0);
+			for (ct_long i = 0; i < m; i++)
 			{
-				const long numzero = rshift_col + lmax(i - rshift_row, 0);
-				for (long j = 0; j < numzero; j++) {
+				const ct_long numzero = rshift_col + lmax(i - rshift_row, 0);
+				for (ct_long j = 0; j < numzero; j++) {
 					rdata[i*l + j] = 0;
 				}
-				for (long j = numzero; j < l; j++) {
+				for (ct_long j = numzero; j < l; j++) {
 					// column-major order for 't'
 					rdata[i*l + j] = t[tshift_row + i + ldt*(tshift_col + j)];
 				}
@@ -2819,8 +2819,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				}
 				// copy entries into 'q'
 				dcomplex* qdata = q->data;
-				for (long i = 0; i < l; i++) {
-					for (long j = 0; j < n; j++) {
+				for (ct_long i = 0; i < l; i++) {
+					for (ct_long j = 0; j < n; j++) {
 						// column-major order for 't'
 						qdata[i*n + j] = t[rshift_row + i + ldt*j];
 					}
@@ -2855,7 +2855,7 @@ int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor
 	assert(a->ndim == 2);
 	assert(a->dim[0] == a->dim[1]);
 
-	const long dim_lambda[1]  = { a->dim[0] };
+	const ct_long dim_lambda[1]  = { a->dim[0] };
 	allocate_dense_tensor(a->dtype, a->ndim, a->dim, u);
 	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_lambda, lambda);
 
@@ -2879,7 +2879,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 	assert(lambda->ndim == 1);
 
 	assert(a->dim[0] == a->dim[1]);
-	const long n = a->dim[0];
+	const ct_long n = a->dim[0];
 
 	assert(u->dim[0] == n);
 	assert(u->dim[1] == n);
@@ -2921,8 +2921,8 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 			// convert from column-major to row-major ordering
 			float* udata = u->data;
-			for (long i = 0; i < n; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < n; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					udata[i*n + j] = t[i + n*j];
 				}
@@ -2966,8 +2966,8 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 			// convert from column-major to row-major ordering
 			double* udata = u->data;
-			for (long i = 0; i < n; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < n; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					udata[i*n + j] = t[i + n*j];
 				}
@@ -2982,7 +2982,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// copy 'a' into 't' (as temporary matrix using column-major order)
 			scomplex* t = ct_malloc(n*n * sizeof(scomplex));
 			memcpy(t, a->data, n*n * sizeof(scomplex));
-			for (long i = 0; i < n*n; i++) {
+			for (ct_long i = 0; i < n*n; i++) {
 				t[i] = conjf(t[i]);
 			}
 
@@ -3019,8 +3019,8 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 			// convert from column-major to row-major ordering
 			scomplex* udata = u->data;
-			for (long i = 0; i < n; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < n; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					udata[i*n + j] = t[i + n*j];
 				}
@@ -3035,7 +3035,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// copy 'a' into 't' (as temporary matrix using column-major order)
 			dcomplex* t = ct_malloc(n*n * sizeof(dcomplex));
 			memcpy(t, a->data, n*n * sizeof(dcomplex));
-			for (long i = 0; i < n*n; i++) {
+			for (ct_long i = 0; i < n*n; i++) {
 				t[i] = conj(t[i]);
 			}
 
@@ -3072,8 +3072,8 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 			// convert from column-major to row-major ordering
 			dcomplex* udata = u->data;
-			for (long i = 0; i < n; i++) {
-				for (long j = 0; j < n; j++) {
+			for (ct_long i = 0; i < n; i++) {
+				for (ct_long j = 0; j < n; j++) {
 					// column-major order for 't'
 					udata[i*n + j] = t[i + n*j];
 				}
@@ -3104,13 +3104,13 @@ int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor*
 	// require a matrix
 	assert(a->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long k = lmin(m, n);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long k = lmin(m, n);
 
-	const long dim_u[2]  = { m, k };
-	const long dim_s[1]  = { k };
-	const long dim_vh[2] = { k, n };
+	const ct_long dim_u[2]  = { m, k };
+	const ct_long dim_s[1]  = { k };
+	const ct_long dim_vh[2] = { k, n };
 	allocate_dense_tensor(a->dtype, 2, dim_u, u);
 	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_s, s);
 	allocate_dense_tensor(a->dtype, 2, dim_vh, vh);
@@ -3135,9 +3135,9 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 	assert( s->ndim == 1);
 	assert(vh->ndim == 2);
 
-	const long m = a->dim[0];
-	const long n = a->dim[1];
-	const long k = lmin(m, n);
+	const ct_long m = a->dim[0];
+	const ct_long n = a->dim[1];
+	const ct_long k = lmin(m, n);
 
 	assert( u->dim[0] == m);
 	assert( u->dim[1] == k);
@@ -3409,7 +3409,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 /// \brief Extract the sub-block with dimensions 'bdim' by taking elements indexed by 'idx' along each dimension
 /// from the original tensor 't'; the degree remains the same as in 't'.
 ///
-void dense_tensor_block(const struct dense_tensor* restrict t, const long* restrict bdim, const long* restrict* idx, struct dense_tensor* restrict b)
+void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* restrict bdim, const ct_long* restrict* idx, struct dense_tensor* restrict b)
 {
 	// create new tensor 'b' of same data type and degree as 't'
 	allocate_dense_tensor(t->dtype, t->ndim, bdim, b);
@@ -3421,10 +3421,10 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 		return;
 	}
 
-	const long nelem = dense_tensor_num_elements(b);
+	const ct_long nelem = dense_tensor_num_elements(b);
 
-	long* index_t = ct_calloc(t->ndim, sizeof(long));
-	long* index_b = ct_calloc(b->ndim, sizeof(long));
+	ct_long* index_t = ct_calloc(t->ndim, sizeof(ct_long));
+	ct_long* index_b = ct_calloc(b->ndim, sizeof(ct_long));
 
 	// map first index of tensor 'b' to index of tensor 't', except for last dimension (will be handled in copy loop)
 	for (int i = 0; i < t->ndim - 1; i++)
@@ -3433,22 +3433,22 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 		index_t[i] = idx[i][0];
 	}
 	// convert back to offset of tensor 't'
-	long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
+	ct_long ot = tensor_index_to_offset(t->ndim, t->dim, index_t);
 
-	const long* last_idx = idx[b->ndim - 1];
+	const ct_long* last_idx = idx[b->ndim - 1];
 
-	for (long ob = 0; ob < nelem; ob += b->dim[b->ndim - 1])
+	for (ct_long ob = 0; ob < nelem; ob += b->dim[b->ndim - 1])
 	{
 		// main copy loop along last dimension
 		// (treating last dimension separately to avoid calling index conversion function for each single element)
-		const long n = b->dim[b->ndim - 1];
+		const ct_long n = b->dim[b->ndim - 1];
 		switch (t->dtype)
 		{
 			case CT_SINGLE_REAL:
 			{
 				const float* tdata = (const float*)t->data + ot;
 				float*       bdata =       (float*)b->data + ob;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
 				}
@@ -3458,7 +3458,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const double* tdata = (const double*)t->data + ot;
 				double*       bdata =       (double*)b->data + ob;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
 				}
@@ -3468,7 +3468,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const scomplex* tdata = (const scomplex*)t->data + ot;
 				scomplex*       bdata =       (scomplex*)b->data + ob;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
 				}
@@ -3478,7 +3478,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const long* restr
 			{
 				const dcomplex* tdata = (const dcomplex*)t->data + ot;
 				dcomplex*       bdata =       (dcomplex*)b->data + ob;
-				for (long j = 0; j < n; j++)
+				for (ct_long j = 0; j < n; j++)
 				{
 					bdata[j] = tdata[last_idx[j]];
 				}
@@ -3532,7 +3532,7 @@ bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct d
 	}
 
 	// compare entries
-	const long nelem = dense_tensor_num_elements(s);
+	const ct_long nelem = dense_tensor_num_elements(s);
 	if (uniform_distance(s->dtype, nelem, s->data, t->data) > tol) {
 		return false;
 	}
@@ -3549,14 +3549,14 @@ bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct d
 ///
 bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol)
 {
-	const long nelem = dense_tensor_num_elements(t);
+	const ct_long nelem = dense_tensor_num_elements(t);
 
 	switch (t->dtype)
 	{
 		case CT_SINGLE_REAL:
 		{
 			const float* data = t->data;
-			for (long i = 0; i < nelem; i++) {
+			for (ct_long i = 0; i < nelem; i++) {
 				if (fabsf(data[i]) > tol) {
 					return false;
 				}
@@ -3566,7 +3566,7 @@ bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol)
 		case CT_DOUBLE_REAL:
 		{
 			const double* data = t->data;
-			for (long i = 0; i < nelem; i++) {
+			for (ct_long i = 0; i < nelem; i++) {
 				if (fabs(data[i]) > tol) {
 					return false;
 				}
@@ -3576,7 +3576,7 @@ bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol)
 		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* data = t->data;
-			for (long i = 0; i < nelem; i++) {
+			for (ct_long i = 0; i < nelem; i++) {
 				if (cabsf(data[i]) > tol) {
 					return false;
 				}
@@ -3586,7 +3586,7 @@ bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol)
 		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* data = t->data;
-			for (long i = 0; i < nelem; i++) {
+			for (ct_long i = 0; i < nelem; i++) {
 				if (cabs(data[i]) > tol) {
 					return false;
 				}
@@ -3622,13 +3622,13 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 	}
 
 	// entries
-	const long n = t->dim[0] * t->dim[1];
+	const ct_long n = t->dim[0] * t->dim[1];
 	switch (t->dtype)
 	{
 		case CT_SINGLE_REAL:
 		{
 			const float* data = t->data;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				const float ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
 				if (fabsf(data[i] - ref) > tol) {
@@ -3640,7 +3640,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 		case CT_DOUBLE_REAL:
 		{
 			const double* data = t->data;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				const double ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
 				if (fabs(data[i] - ref) > tol) {
@@ -3652,7 +3652,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* data = t->data;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				const scomplex ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
 				if (cabsf(data[i] - ref) > tol) {
@@ -3664,7 +3664,7 @@ bool dense_tensor_is_identity(const struct dense_tensor* t, const double tol)
 		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* data = t->data;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				const dcomplex ref = (i % (t->dim[0] + 1) == 0 ? 1 : 0);
 				if (cabs(data[i] - ref) > tol) {
@@ -3707,8 +3707,8 @@ bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol
 		case CT_SINGLE_REAL:
 		{
 			const float* data = t->data;
-			for (long i = 0; i < t->dim[0]; i++) {
-				for (long j = i + 1; j < t->dim[1]; j++) {
+			for (ct_long i = 0; i < t->dim[0]; i++) {
+				for (ct_long j = i + 1; j < t->dim[1]; j++) {
 					if (fabsf(data[i*t->dim[1] + j] - data[j*t->dim[1] + i]) > tol) {
 						return false;
 					}
@@ -3719,8 +3719,8 @@ bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol
 		case CT_DOUBLE_REAL:
 		{
 			const double* data = t->data;
-			for (long i = 0; i < t->dim[0]; i++) {
-				for (long j = i + 1; j < t->dim[1]; j++) {
+			for (ct_long i = 0; i < t->dim[0]; i++) {
+				for (ct_long j = i + 1; j < t->dim[1]; j++) {
 					if (fabs(data[i*t->dim[1] + j] - data[j*t->dim[1] + i]) > tol) {
 						return false;
 					}
@@ -3731,8 +3731,8 @@ bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol
 		case CT_SINGLE_COMPLEX:
 		{
 			const scomplex* data = t->data;
-			for (long i = 0; i < t->dim[0]; i++) {
-				for (long j = i; j < t->dim[1]; j++) {
+			for (ct_long i = 0; i < t->dim[0]; i++) {
+				for (ct_long j = i; j < t->dim[1]; j++) {
 					if (cabsf(data[i*t->dim[1] + j] - conjf(data[j*t->dim[1] + i])) > tol) {
 						return false;
 					}
@@ -3743,8 +3743,8 @@ bool dense_tensor_is_self_adjoint(const struct dense_tensor* t, const double tol
 		case CT_DOUBLE_COMPLEX:
 		{
 			const dcomplex* data = t->data;
-			for (long i = 0; i < t->dim[0]; i++) {
-				for (long j = i; j < t->dim[1]; j++) {
+			for (ct_long i = 0; i < t->dim[0]; i++) {
+				for (ct_long j = i; j < t->dim[1]; j++) {
 					if (cabs(data[i*t->dim[1] + j] - conj(data[j*t->dim[1] + i])) > tol) {
 						return false;
 					}

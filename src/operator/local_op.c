@@ -53,7 +53,7 @@ void construct_local_operator(const struct local_op_ref* opics, const int nopics
 	if (opics[0].oid == OID_NOP)
 	{
 		// construct dummy identity operator
-		const long dim[2] = { 1, 1 };
+		const ct_long dim[2] = { 1, 1 };
 		allocate_dense_tensor(opmap[0].dtype, 2, dim, op);
 		dense_tensor_set_identity(op);
 		// scale by weight factor

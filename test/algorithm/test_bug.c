@@ -43,7 +43,7 @@ static void local_opchains_to_ttno_graph(const struct op_chain* lopchains, const
 ///
 /// \brief Construct a TTNO assembly representation of the Bose-Hubbard Hamiltonian with nearest-neighbor hopping on a one-dimensional lattice.
 ///
-static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_physical, const long d, const double t, const double u, const double mu, const struct abstract_graph* topology, struct ttno_assembly* assembly)
+static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_physical, const ct_long d, const double t, const double u, const double mu, const struct abstract_graph* topology, struct ttno_assembly* assembly)
 {
 	assert(nsites_physical >= 2);
 	assert(d >= 1);
@@ -51,7 +51,7 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 	// physical quantum numbers (particle number)
 	assembly->d = d;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		assembly->qsite[i] = i;
 	}
 
@@ -66,29 +66,29 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 	assembly->num_local_ops = 5;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
-		const long dim[2] = { assembly->d, assembly->d };
+		const ct_long dim[2] = { assembly->d, assembly->d };
 		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
 	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
 	// bosonic creation operator
 	dcomplex* b_dag = assembly->opmap[OID_Bd].data;
-	for (long i = 0; i < d - 1; i++) {
+	for (ct_long i = 0; i < d - 1; i++) {
 		b_dag[(i + 1)*d + i] = sqrt(i + 1);
 	}
 	// bosonic annihilation operator
 	dcomplex* b_ann = assembly->opmap[OID_B].data;
-	for (long i = 0; i < d - 1; i++) {
+	for (ct_long i = 0; i < d - 1; i++) {
 		b_ann[i*d + (i + 1)] = sqrt(i + 1);
 	}
 	// bosonic number operator
 	dcomplex* numop = assembly->opmap[OID_N].data;
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		numop[i*d + i] = i;
 	}
 	// bosonic local interaction operator n (n - 1) / 2
 	dcomplex* v_int = assembly->opmap[OID_NI].data;
-	for (long i = 0; i < d; i++) {
+	for (ct_long i = 0; i < d; i++) {
 		v_int[i*d + i] = i * (i - 1) / 2;
 	}
 
@@ -115,7 +115,7 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 }
 
 
-static inline int read_quantum_numbers(const hid_t file, const char* varname, long* dim, qnumber** qnums)
+static inline int read_quantum_numbers(const hid_t file, const char* varname, ct_long* dim, qnumber** qnums)
 {
 	hsize_t qdims[1];
 	if (get_hdf5_attribute_dims(file, varname, qdims) < 0) {
@@ -146,7 +146,7 @@ char* test_bug_flow_update_basis_leaf()
 	const int nsites_branching = 0;
 
 	// local physical dimension
-	long d;
+	ct_long d;
 
 	qnumber* qsite;
 	if (read_quantum_numbers(file, "qsite", &d, &qsite) < 0) {
@@ -158,13 +158,13 @@ char* test_bug_flow_update_basis_leaf()
 		return "reading quantum number sector from disk failed";
 	}
 
-	long dim_bond_state;
+	ct_long dim_bond_state;
 	qnumber* qbond_state_base;
 	if (read_quantum_numbers(file, "qbond_state", &dim_bond_state, &qbond_state_base) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
 
-	long dim_bond_op;
+	ct_long dim_bond_op;
 	qnumber* qbond_op_base;
 	if (read_quantum_numbers(file, "qbond_op", &dim_bond_op, &qbond_op_base) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
@@ -224,7 +224,7 @@ char* test_bug_flow_update_basis_leaf()
 		if (m == 0)
 		{
 			// absorb quantum number sector in virtual bond
-			for (long i = 0; i < dim_bond_state; i++) {
+			for (ct_long i = 0; i < dim_bond_state; i++) {
 				qbond_state[i] = qbond_state_base[i] + qnum_sector;
 			}
 			memcpy(qbond_op, qbond_op_base, dim_bond_op * sizeof(qnumber));
@@ -232,20 +232,20 @@ char* test_bug_flow_update_basis_leaf()
 		else if (m == 1)
 		{
 			// absorb quantum number sector in virtual bond, and flip sign due to reversed bond direction
-			for (long i = 0; i < dim_bond_state; i++) {
+			for (ct_long i = 0; i < dim_bond_state; i++) {
 				qbond_state[i] = -(qbond_state_base[i] + qnum_sector);
 			}
-			for (long i = 0; i < dim_bond_op; i++) {
+			for (ct_long i = 0; i < dim_bond_op; i++) {
 				qbond_op[i] = -qbond_op_base[i];
 			}
 		}
 		else
 		{
 			// flip sign due to reversed bond direction
-			for (long i = 0; i < dim_bond_state; i++) {
+			for (ct_long i = 0; i < dim_bond_state; i++) {
 				qbond_state[i] = -qbond_state_base[i];
 			}
-			for (long i = 0; i < dim_bond_op; i++) {
+			for (ct_long i = 0; i < dim_bond_op; i++) {
 				qbond_op[i] = -qbond_op_base[i];
 			}
 		}
@@ -255,7 +255,7 @@ char* test_bug_flow_update_basis_leaf()
 		{
 			// read dense tensor from disk
 			struct dense_tensor a_state_0_dns;
-			const long dim_dns[2] = { d, dim_bond_state };
+			const ct_long dim_dns[2] = { d, dim_bond_state };
 			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_dns, &a_state_0_dns);
 			if (read_hdf5_dataset(file, "a_state_0", hdf5_dcomplex_id, a_state_0_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -285,7 +285,7 @@ char* test_bug_flow_update_basis_leaf()
 			}
 			else
 			{
-				const long dim_aux[3] = { d, 1, dim_bond_state };
+				const ct_long dim_aux[3] = { d, 1, dim_bond_state };
 				reshape_dense_tensor(3, dim_aux, &a_state_0_dns);
 
 				const int perm[3] = { 2, 0, 1 };
@@ -317,7 +317,7 @@ char* test_bug_flow_update_basis_leaf()
 		{
 			// read dense tensor from disk
 			struct dense_tensor a_op_dns;
-			const long dim[3] = { d, d, dim_bond_op };
+			const ct_long dim[3] = { d, d, dim_bond_op };
 			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &a_op_dns);
 			if (read_hdf5_dataset(file, "a_op", hdf5_dcomplex_id, a_op_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -360,7 +360,7 @@ char* test_bug_flow_update_basis_leaf()
 		{
 			// read dense tensor from disk
 			struct dense_tensor env_parent_dns;
-			const long dim[3] = { dim_bond_state, dim_bond_op, dim_bond_state };
+			const ct_long dim[3] = { dim_bond_state, dim_bond_op, dim_bond_state };
 			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &env_parent_dns);
 			if (read_hdf5_dataset(file, "env_parent", hdf5_dcomplex_id, env_parent_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -388,7 +388,7 @@ char* test_bug_flow_update_basis_leaf()
 		{
 			// read dense tensor from disk
 			struct dense_tensor s0_dns;
-			const long dim[2] = { dim_bond_state, dim_bond_state };
+			const ct_long dim[2] = { dim_bond_state, dim_bond_state };
 			allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &s0_dns);
 			if (read_hdf5_dataset(file, "s0", hdf5_dcomplex_id, s0_dns.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -441,7 +441,7 @@ char* test_bug_flow_update_basis_leaf()
 			if (get_hdf5_dataset_dims(file, "a_state_1", dim_file) < 0) {
 				return "obtaining dimensions of reference tensor failed";
 			}
-			const long dim[3] = { dim_file[0], m < 2 ? dim_file[1] : 1, m < 2 ? 0 : dim_file[1] };  // include potential dummy auxiliary axis
+			const ct_long dim[3] = { dim_file[0], m < 2 ? dim_file[1] : 1, m < 2 ? 0 : dim_file[1] };  // include potential dummy auxiliary axis
 			allocate_dense_tensor(CT_DOUBLE_COMPLEX, m == 2 ? 3 : 2, dim, &a_state_1_ref);
 			if (read_hdf5_dataset(file, "a_state_1", hdf5_dcomplex_id, a_state_1_ref.data) < 0) {
 				return "reading tensor entries from disk failed";
@@ -531,7 +531,7 @@ char* test_bug_flow_update_connecting_tensor()
 	assert(abstract_graph_is_connected_tree(&topology));
 
 	// local physical dimension
-	long d;
+	ct_long d;
 
 	// physical and virtual bond quantum numbers
 
@@ -540,43 +540,43 @@ char* test_bug_flow_update_connecting_tensor()
 		return "reading physical quantum numbers from disk failed";
 	}
 
-	long dim_bond02_state;
+	ct_long dim_bond02_state;
 	qnumber* qbond02_state;
 	if (read_quantum_numbers(file, "qbond02_state", &dim_bond02_state, &qbond02_state) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond12_state;
+	ct_long dim_bond12_state;
 	qnumber* qbond12_state;
 	if (read_quantum_numbers(file, "qbond12_state", &dim_bond12_state, &qbond12_state) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond23_state;
+	ct_long dim_bond23_state;
 	qnumber* qbond23_state;
 	if (read_quantum_numbers(file, "qbond23_state", &dim_bond23_state, &qbond23_state) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond24_state;
+	ct_long dim_bond24_state;
 	qnumber* qbond24_state;
 	if (read_quantum_numbers(file, "qbond24_state", &dim_bond24_state, &qbond24_state) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
 
-	long dim_bond02_op;
+	ct_long dim_bond02_op;
 	qnumber* qbond02_op;
 	if (read_quantum_numbers(file, "qbond02_op", &dim_bond02_op, &qbond02_op) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond12_op;
+	ct_long dim_bond12_op;
 	qnumber* qbond12_op;
 	if (read_quantum_numbers(file, "qbond12_op", &dim_bond12_op, &qbond12_op) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond23_op;
+	ct_long dim_bond23_op;
 	qnumber* qbond23_op;
 	if (read_quantum_numbers(file, "qbond23_op", &dim_bond23_op, &qbond23_op) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
 	}
-	long dim_bond24_op;
+	ct_long dim_bond24_op;
 	qnumber* qbond24_op;
 	if (read_quantum_numbers(file, "qbond24_op", &dim_bond24_op, &qbond24_op) < 0) {
 		return "reading virtual bond quantum numbers from disk failed";
@@ -597,7 +597,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor c0_dns;
-		const long dim[5] = { dim_bond02_state, dim_bond12_state, d, dim_bond23_state, dim_bond24_state };
+		const ct_long dim[5] = { dim_bond02_state, dim_bond12_state, d, dim_bond23_state, dim_bond24_state };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, dim, &c0_dns);
 		if (read_hdf5_dataset(file, "c0", hdf5_dcomplex_id, c0_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -622,7 +622,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor a_op_dns;
-		const long dim[6] = { dim_bond02_op, dim_bond12_op, d, d, dim_bond23_op, dim_bond24_op };
+		const ct_long dim[6] = { dim_bond02_op, dim_bond12_op, d, d, dim_bond23_op, dim_bond24_op };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 6, dim, &a_op_dns);
 		if (read_hdf5_dataset(file, "a_op", hdf5_dcomplex_id, a_op_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -647,7 +647,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor avg_bond_dns;
-		const long dim[3] = { dim_bond02_state, dim_bond02_op, dim_bond02_state };
+		const ct_long dim[3] = { dim_bond02_state, dim_bond02_op, dim_bond02_state };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &avg_bond_dns);
 		if (read_hdf5_dataset(file, "avg02", hdf5_dcomplex_id, avg_bond_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -670,7 +670,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor avg_bond_dns;
-		const long dim[3] = { dim_bond12_state, dim_bond12_op, dim_bond12_state };
+		const ct_long dim[3] = { dim_bond12_state, dim_bond12_op, dim_bond12_state };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &avg_bond_dns);
 		if (read_hdf5_dataset(file, "avg12", hdf5_dcomplex_id, avg_bond_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -693,7 +693,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor avg_bond_dns;
-		const long dim[3] = { dim_bond23_state, dim_bond23_op, dim_bond23_state };
+		const ct_long dim[3] = { dim_bond23_state, dim_bond23_op, dim_bond23_state };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &avg_bond_dns);
 		if (read_hdf5_dataset(file, "avg23", hdf5_dcomplex_id, avg_bond_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -717,7 +717,7 @@ char* test_bug_flow_update_connecting_tensor()
 	{
 		// read dense tensor from disk
 		struct dense_tensor env_parent_dns;
-		const long dim[3] = { dim_bond24_state, dim_bond24_op, dim_bond24_state };
+		const ct_long dim[3] = { dim_bond24_state, dim_bond24_op, dim_bond24_state };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim, &env_parent_dns);
 		if (read_hdf5_dataset(file, "env_parent", hdf5_dcomplex_id, env_parent_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -749,7 +749,7 @@ char* test_bug_flow_update_connecting_tensor()
 		if (get_hdf5_dataset_dims(file, "c1", dim_file) < 0) {
 			return "obtaining dimensions of reference tensor failed";
 		}
-		const long dim[5] = { dim_file[0], dim_file[1], dim_file[2], dim_file[3], dim_file[4] };
+		const ct_long dim[5] = { dim_file[0], dim_file[1], dim_file[2], dim_file[3], dim_file[4] };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, dim, &c1_ref);
 		if (read_hdf5_dataset(file, "c1", hdf5_dcomplex_id, c1_ref.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -800,7 +800,7 @@ char* test_bug_tree_time_step()
 	const int nsites_branching = 1;
 	const int nsites = nsites_physical + nsites_branching;
 	// local physical dimension
-	const long d = 2;
+	const ct_long d = 2;
 
 	// tree topology:
 	//
@@ -872,7 +872,7 @@ char* test_bug_tree_time_step()
 	struct ttns state;
 	{
 		// local physical dimensions and quantum numbers
-		const long d_list[9] = { d, d, d, d, d, d, d, d, 1 };
+		const ct_long d_list[9] = { d, d, d, d, d, d, d, d, 1 };
 		const qnumber qsite_phys[2] = { 0, 1 };
 		const qnumber qsite_branch[1]  = { 0 };
 		const qnumber* qsite[9] = {
@@ -885,8 +885,8 @@ char* test_bug_tree_time_step()
 		}
 
 		// virtual bond dimensions and quantum numbers
-		long* dim_bonds  = ct_calloc(nsites*nsites, sizeof(long));
-		qnumber** qbonds = ct_calloc(nsites*nsites, sizeof(qnumber*));
+		ct_long* dim_bonds = ct_calloc(nsites*nsites, sizeof(ct_long));
+		qnumber** qbonds   = ct_calloc(nsites*nsites, sizeof(qnumber*));
 		for (int l = 0; l < nsites; l++)
 		{
 			for (int n = 0; n < topology.num_neighbors[l]; n++)
@@ -962,7 +962,7 @@ char* test_bug_tree_time_step()
 	if (read_hdf5_attribute(file, "rel_tol", H5T_NATIVE_DOUBLE, &rel_tol_compress) < 0) {
 		return "reading relative compression tolerance from disk failed";
 	}
-	const long max_vdim = 1024;
+	const ct_long max_vdim = 1024;
 	int nsteps;
 	if (read_hdf5_attribute(file, "nsteps", H5T_NATIVE_INT, &nsteps) < 0) {
 		return "reading number of time steps from disk failed";
@@ -982,7 +982,7 @@ char* test_bug_tree_time_step()
 
 	// read reference vector from disk
 	struct dense_tensor vec_ref;
-	long dim_vec_ref[2] = { ipow(d, nsites_physical), 1 };  // include (dummy) auxiliary second dimension
+	ct_long dim_vec_ref[2] = { ipow(d, nsites_physical), 1 };  // include (dummy) auxiliary second dimension
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_vec_ref, &vec_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "y", hdf5_dcomplex_id, vec_ref.data) < 0) {

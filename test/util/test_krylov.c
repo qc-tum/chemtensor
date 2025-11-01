@@ -6,7 +6,7 @@
 #include "util.h"
 
 
-static void multiply_matrix_vector_d(const long n, const void* restrict data, const double* restrict v, double* restrict ret)
+static void multiply_matrix_vector_d(const ct_long n, const void* restrict data, const double* restrict v, double* restrict ret)
 {
 	const double* a = (double*)data;
 
@@ -15,7 +15,7 @@ static void multiply_matrix_vector_d(const long n, const void* restrict data, co
 }
 
 
-static void multiply_matrix_vector_z(const long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret)
+static void multiply_matrix_vector_z(const ct_long n, const void* restrict data, const dcomplex* restrict v, dcomplex* restrict ret)
 {
 	const dcomplex* a = (dcomplex*)data;
 
@@ -34,7 +34,7 @@ char* test_lanczos_iteration_d()
 	}
 
 	// "large" matrix dimension
-	const long n = 319;
+	const ct_long n = 319;
 
 	// maximum number of iterations
 	const int maxiter = 24;
@@ -114,7 +114,7 @@ char* test_lanczos_iteration_z()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	// "large" matrix dimension
-	const long n = 173;
+	const ct_long n = 173;
 
 	// maximum number of iterations
 	const int maxiter = 24;
@@ -193,7 +193,7 @@ char* test_eigensystem_krylov_symmetric()
 	}
 
 	// "large" matrix dimension
-	const long n = 197;
+	const ct_long n = 197;
 
 	// maximum number of iterations
 	const int maxiter = 35;
@@ -239,13 +239,13 @@ char* test_eigensystem_krylov_symmetric()
 	for (int i = 0; i < numeig; i++)
 	{
 		double dv0 = 0;
-		for (long j = 0; j < n; j++)
+		for (ct_long j = 0; j < n; j++)
 		{
 			dv0 = fmax(dv0, fabs(u_ritz[j*numeig + i] - u_ritz_ref[j*numeig + i]));
 		}
 		// include (-1) factor
 		double dv1 = 0;
-		for (long j = 0; j < n; j++)
+		for (ct_long j = 0; j < n; j++)
 		{
 			dv1 = fmax(dv1, fabs(u_ritz[j*numeig + i] + u_ritz_ref[j*numeig + i]));
 		}
@@ -278,7 +278,7 @@ char* test_eigensystem_krylov_hermitian()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	// "large" matrix dimension
-	const long n = 185;
+	const ct_long n = 185;
 
 	// maximum number of iterations
 	const int maxiter = 37;
@@ -324,13 +324,13 @@ char* test_eigensystem_krylov_hermitian()
 	for (int i = 0; i < numeig; i++)
 	{
 		double dv0 = 0;
-		for (long j = 0; j < n; j++)
+		for (ct_long j = 0; j < n; j++)
 		{
 			dv0 = fmax(dv0, cabs(u_ritz[j*numeig + i] - u_ritz_ref[j*numeig + i]));
 		}
 		// include (-1) factor
 		double dv1 = 0;
-		for (long j = 0; j < n; j++)
+		for (ct_long j = 0; j < n; j++)
 		{
 			dv1 = fmax(dv1, cabs(u_ritz[j*numeig + i] + u_ritz_ref[j*numeig + i]));
 		}

@@ -17,7 +17,7 @@
 ///
 /// \brief Perform a "matrix free" Lanczos iteration for real-valued double precision vectors.
 ///
-void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* restrict adata, const double* restrict vstart, const int maxiter,
+void lanczos_iteration_d(const ct_long n, lanczos_linear_func_d afunc, const void* restrict adata, const double* restrict vstart, const int maxiter,
 	double* restrict alpha, double* restrict beta, double* restrict v, int* restrict numiter)
 {
 	double* w = ct_malloc(n * sizeof(double));
@@ -38,12 +38,12 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 
 		// w = w' - alpha_j v_j - beta_j v_{j-1}
 		if (j > 0) {
-			for (long i = 0; i < n; i++) {
+			for (ct_long i = 0; i < n; i++) {
 				w[i] -= alpha[j] * v[j*n + i] + beta[j - 1] * v[(j - 1)*n + i];
 			}
 		}
 		else {
-			for (long i = 0; i < n; i++) {
+			for (ct_long i = 0; i < n; i++) {
 				w[i] -= alpha[j] * v[j*n + i];
 			}
 		}
@@ -62,7 +62,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 		// v_{j+1} = w / beta[j+1]
 		assert(beta[j] > 0);
 		const double inv_beta = 1 / beta[j];
-		for (long i = 0; i < n; i++)
+		for (ct_long i = 0; i < n; i++)
 		{
 			v[(j + 1)*n + i] = inv_beta * w[i];
 		}
@@ -89,7 +89,7 @@ void lanczos_iteration_d(const long n, lanczos_linear_func_d afunc, const void* 
 ///
 /// \brief Perform a "matrix free" Lanczos iteration for complex-valued double precision vectors.
 ///
-void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* restrict adata, const dcomplex* restrict vstart, const int maxiter,
+void lanczos_iteration_z(const ct_long n, lanczos_linear_func_z afunc, const void* restrict adata, const dcomplex* restrict vstart, const int maxiter,
 	double* restrict alpha, double* restrict beta, dcomplex* restrict v, int* restrict numiter)
 {
 	dcomplex* w = ct_malloc(n * sizeof(dcomplex));
@@ -112,12 +112,12 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 
 		// w = w' - alpha_j v_j - beta_j v_{j-1}
 		if (j > 0) {
-			for (long i = 0; i < n; i++) {
+			for (ct_long i = 0; i < n; i++) {
 				w[i] -= alpha[j] * v[j*n + i] + beta[j - 1] * v[(j - 1)*n + i];
 			}
 		}
 		else {
-			for (long i = 0; i < n; i++) {
+			for (ct_long i = 0; i < n; i++) {
 				w[i] -= alpha[j] * v[j*n + i];
 			}
 		}
@@ -136,7 +136,7 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 		// v_{j+1} = w / beta[j+1]
 		assert(beta[j] > 0);
 		const double inv_beta = 1 / beta[j];
-		for (long i = 0; i < n; i++)
+		for (ct_long i = 0; i < n; i++)
 		{
 			v[(j + 1)*n + i] = inv_beta * w[i];
 		}
@@ -165,7 +165,7 @@ void lanczos_iteration_z(const long n, lanczos_linear_func_z afunc, const void* 
 ///
 /// \brief Compute Krylov subspace approximation of eigenvalues and vectors, real symmetric case.
 ///
-int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, const void* restrict adata,
+int eigensystem_krylov_symmetric(const ct_long n, lanczos_linear_func_d afunc, const void* restrict adata,
 	const double* restrict vstart, const int maxiter, const int numeig,
 	double* restrict lambda, double* restrict u_ritz)
 {
@@ -214,7 +214,7 @@ int eigensystem_krylov_symmetric(const long n, lanczos_linear_func_d afunc, cons
 ///
 /// \brief Compute Krylov subspace approximation of eigenvalues and vectors, complex Hermitian case.
 ///
-int eigensystem_krylov_hermitian(const long n, lanczos_linear_func_z afunc, const void* restrict adata,
+int eigensystem_krylov_hermitian(const ct_long n, lanczos_linear_func_z afunc, const void* restrict adata,
 	const dcomplex* restrict vstart, const int maxiter, const int numeig,
 	double* restrict lambda, dcomplex* restrict u_ritz)
 {

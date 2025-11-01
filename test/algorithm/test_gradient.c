@@ -66,13 +66,13 @@ char* test_operator_average_coefficient_gradient()
 	// number of lattice sites
 	const int nsites = 4;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	const qnumber qsite[3] = { -1, 1, 0 };
 
 	// virtual bond quantum numbers for 'psi'
-	const long dim_bonds_psi[5] = { 1, 8, 23, 9, 1 };
+	const ct_long dim_bonds_psi[5] = { 1, 8, 23, 9, 1 };
 	qnumber** qbonds_psi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -85,7 +85,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	// virtual bond quantum numbers for 'chi'
-	const long dim_bonds_chi[5] = { 1, 11, 15, 5, 1 };
+	const ct_long dim_bonds_chi[5] = { 1, 11, 15, 5, 1 };
 	qnumber** qbonds_chi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -229,7 +229,7 @@ char* test_operator_average_coefficient_gradient()
 	// read local operator map from disk
 	const int num_local_ops = 10;
 	struct dense_tensor opmap_tensor;
-	const long dim_opmt[3] = { num_local_ops, d, d };
+	const ct_long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", hdf5_scomplex_id, opmap_tensor.data) < 0) {
@@ -239,7 +239,7 @@ char* test_operator_average_coefficient_gradient()
 	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &opmap[i]);
 		const scomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(scomplex));

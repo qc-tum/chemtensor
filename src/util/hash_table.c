@@ -10,7 +10,7 @@
 ///
 /// \brief Initialize and allocate memory for a hash table
 ///
-void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const long num_buckets, struct hash_table* ht)
+void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const ct_long num_buckets, struct hash_table* ht)
 {
 	ht->key_equal   = key_equal;
 	ht->hash_func   = hash_func;
@@ -29,7 +29,7 @@ void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_
 ///
 void delete_hash_table(struct hash_table* ht, void (*free_func)(void*))
 {
-	for (long i = 0; i < ht->num_buckets; i++)
+	for (ct_long i = 0; i < ht->num_buckets; i++)
 	{
 		struct hash_table_entry* entry = ht->buckets[i];
 		while (entry != NULL)
@@ -56,7 +56,7 @@ void delete_hash_table(struct hash_table* ht, void (*free_func)(void*))
 void* hash_table_insert(struct hash_table* ht, void* key, void* val)
 {
 	// compute bucket index of 'key'
-	const long i = ht->hash_func(key) % ht->num_buckets;
+	const ct_long i = ht->hash_func(key) % ht->num_buckets;
 
 	// p_entry is whatever was pointing at entry
 	struct hash_table_entry** p_entry = &ht->buckets[i];
@@ -96,7 +96,7 @@ void* hash_table_insert(struct hash_table* ht, void* key, void* val)
 void* hash_table_get(const struct hash_table* ht, void* key)
 {
 	// compute bucket index of 'key'
-	const long i = ht->hash_func(key) % ht->num_buckets;
+	const ct_long i = ht->hash_func(key) % ht->num_buckets;
 
 	struct hash_table_entry* entry;
 	for (entry = ht->buckets[i]; entry != NULL; entry = entry->next)
@@ -118,7 +118,7 @@ void* hash_table_get(const struct hash_table* ht, void* key)
 void* hash_table_remove(struct hash_table* ht, void* key)
 {
 	// compute bucket index of 'key'
-	const long i = ht->hash_func(key) % ht->num_buckets;
+	const ct_long i = ht->hash_func(key) % ht->num_buckets;
 
 	// p_entry is whatever was pointing at current entry
 	struct hash_table_entry** p_entry = &ht->buckets[i];
@@ -155,7 +155,7 @@ void init_hash_table_iterator(const struct hash_table* table, struct hash_table_
 	iter->table = table;
 
 	// find first non-empty bucket
-	long i;
+	ct_long i;
 	for (i = 0; i < table->num_buckets; i++) {
 		if (table->buckets[i] != NULL) {
 			break;

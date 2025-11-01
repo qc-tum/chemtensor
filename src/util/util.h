@@ -4,10 +4,14 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <hdf5.h>
 #include "numeric.h"
-#include "qnumber.h"
+
+
+/// \brief Universal "long" integer, used for tensor dimensions.
+typedef int64_t ct_long;
 
 
 //________________________________________________________________________________________________________________________
@@ -34,7 +38,7 @@ static inline int imax(const int a, const int b)
 ///
 /// \brief Minimum of two long integers.
 ///
-static inline long lmin(const long a, const long b)
+static inline ct_long lmin(const ct_long a, const ct_long b)
 {
 	return (a <= b) ? a : b;
 }
@@ -44,27 +48,7 @@ static inline long lmin(const long a, const long b)
 ///
 /// \brief Maximum of two long integers.
 ///
-static inline long lmax(const long a, const long b)
-{
-	return (a >= b) ? a : b;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Minimum of two quantum numbers.
-///
-static inline qnumber qmin(const qnumber a, const qnumber b)
-{
-	return (a <= b) ? a : b;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Maximum of two quantum numbers.
-///
-static inline qnumber qmax(const qnumber a, const qnumber b)
+static inline ct_long lmax(const ct_long a, const ct_long b)
 {
 	return (a >= b) ? a : b;
 }
@@ -84,10 +68,10 @@ static inline double square(const double x)
 //
 
 
-long integer_product(const long* x, const int n);
+ct_long integer_product(const ct_long* x, const int n);
 
 
-long ipow(long base, int exp);
+ct_long ipow(ct_long base, int exp);
 
 
 //________________________________________________________________________________________________________________________
@@ -101,10 +85,10 @@ bool is_identity_permutation(const int* perm, const int n);
 //
 
 
-double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y);
+double uniform_distance(const enum numeric_type dtype, const ct_long n, const void* restrict x, const void* restrict y);
 
 
-double norm2(const enum numeric_type dtype, const long n, const void* x);
+double norm2(const enum numeric_type dtype, const ct_long n, const void* x);
 
 
 //________________________________________________________________________________________________________________________
@@ -126,7 +110,7 @@ herr_t read_hdf5_attribute(const hid_t file, const char* name, hid_t mem_type, v
 
 herr_t write_hdf5_scalar_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const void* data);
 
-herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const long length, const void* data);
+herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const ct_long length, const void* data);
 
 hid_t construct_hdf5_single_complex_dtype(const bool storage);
 

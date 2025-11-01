@@ -16,7 +16,7 @@ char* test_retained_bond_indices()
 	if (get_hdf5_dataset_dims(file, "sigma", sigma_dims)) {
 		return "reading number of singular values from disk failed";
 	}
-	const long n = sigma_dims[0];
+	const ct_long n = sigma_dims[0];
 	double* sigma = ct_malloc(n * sizeof(double));
 	if (read_hdf5_dataset(file, "sigma", H5T_NATIVE_DOUBLE, sigma) < 0) {
 		return "reading singular values from disk failed";
@@ -33,7 +33,7 @@ char* test_retained_bond_indices()
 	if (get_hdf5_dataset_dims(file, "ind", ind_ref_dims)) {
 		return "reading number of reference indices from disk failed";
 	}
-	long* ind_ref = ct_malloc(ind_ref_dims[0] * sizeof(long));
+	ct_long* ind_ref = ct_malloc(ind_ref_dims[0] * sizeof(ct_long));
 	if (read_hdf5_dataset(file, "ind", H5T_NATIVE_LONG, ind_ref) < 0) {
 		return "reading reference indices from disk failed";
 	}
@@ -51,10 +51,10 @@ char* test_retained_bond_indices()
 	{
 		struct index_list list;
 		struct trunc_info info;
-		retained_bond_indices(sigma, n, i == 0 ? tol : 1e-5, true, i == 0 ? n : (long)ind_ref_dims[0], &list, &info);
+		retained_bond_indices(sigma, n, i == 0 ? tol : 1e-5, true, i == 0 ? n : (ct_long)ind_ref_dims[0], &list, &info);
 
 		// compare indices
-		if (list.num != (long)ind_ref_dims[0]) {
+		if (list.num != (ct_long)ind_ref_dims[0]) {
 			return "number of retained singular values does not match reference";
 		}
 		for (int i = 0; i < list.num; i++) {
@@ -92,8 +92,8 @@ char* test_split_block_sparse_matrix_svd()
 
 	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
-	const long dim[2] = { 181, 191 };
-	const long max_vdim = 200;
+	const ct_long dim[2] = { 181, 191 };
+	const ct_long max_vdim = 200;
 
 	// read dense tensor from disk
 	struct dense_tensor a_dns;
@@ -127,7 +127,7 @@ char* test_split_block_sparse_matrix_svd()
 		return "reading tolerance from disk failed";
 	}
 
-	long num_retained_ref;
+	ct_long num_retained_ref;
 	if (read_hdf5_attribute(file, "num_retained", H5T_NATIVE_LONG, &num_retained_ref) < 0) {
 		return "reading number of retained singular values from disk failed";
 	}
@@ -210,8 +210,8 @@ char* test_split_block_sparse_matrix_svd()
 
 char* test_split_block_sparse_matrix_svd_zero()
 {
-	const long dim[2] = { 7, 5 };
-	const long max_vdim = 10;
+	const ct_long dim[2] = { 7, 5 };
+	const ct_long max_vdim = 10;
 
 	// incompatible axis direction and quantum number combination
 	enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };

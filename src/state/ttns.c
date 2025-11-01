@@ -11,7 +11,7 @@
 ///
 /// \brief Allocate memory for a tree tensor network state. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
 ///
-void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
+void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -37,7 +37,7 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 
 		const int ndim = 1 + ttns->topology.num_neighbors[l] + (l == nsites - 1 ? 1 : 0);  // last term counts auxiliary dimension
 
-		long* dim = ct_calloc(ndim, sizeof(long));
+		ct_long* dim = ct_calloc(ndim, sizeof(ct_long));
 		enum tensor_axis_direction* axis_dir = ct_calloc(ndim, sizeof(enum tensor_axis_direction));
 		const qnumber** qnums = ct_calloc(ndim, sizeof(qnumber*));
 
@@ -164,7 +164,7 @@ static inline int edge_to_bond_index(const int nsites, const int i, const int j)
 ///
 /// \brief Construct a tree tensor network state with random normal tensor entries, given a maximum virtual bond dimension.
 ///
-void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const long* d, const qnumber** qsite, const qnumber qnum_sector, const long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
+void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -182,8 +182,8 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 	assert(sd[0].i_node == i_root);
 
 	// virtual bond dimensions and quantum numbers
-	long* dim_bonds  = ct_calloc(nsites * nsites, sizeof(long));
-	qnumber** qbonds = ct_calloc(nsites * nsites, sizeof(qnumber*));
+	ct_long* dim_bonds = ct_calloc(nsites * nsites, sizeof(ct_long));
+	qnumber** qbonds   = ct_calloc(nsites * nsites, sizeof(qnumber*));
 
 	// iterate over sites by decreasing distance from root (omitting the root node itself)
 	for (int l = nsites - 1; l > 0; l--)
@@ -203,12 +203,12 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 		}
 
 		// enumerate all combinations of bond quantum numbers to more distant nodes and local physical quantum numbers
-		long dim_full = d[i_site];
+		ct_long dim_full = d[i_site];
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
 		memcpy(qnums_full, qsite[i_site], d[i_site] * sizeof(qnumber));
 		// auxiliary axis of last site contains overall quantum number sector
 		if (i_site == nsites - 1) {
-			for (long i = 0; i < d[i_site]; i++) {
+			for (ct_long i = 0; i < d[i_site]; i++) {
 				qnums_full[i] -= qnum_sector;
 			}
 		}
@@ -234,7 +234,7 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 				qnumber* qnums_select = ct_malloc(max_vdim * sizeof(qnumber));
 				uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
 				rand_choice(dim_full, max_vdim, rng_state, idx);
-				for (long i = 0; i < max_vdim; i++) {
+				for (ct_long i = 0; i < max_vdim; i++) {
 					qnums_select[i] = qnums_full[idx[i]];
 				}
 				ct_free(idx);
@@ -250,7 +250,7 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 		assert(qbonds[ib] == NULL);
 		if (i_parent < i_site) {
 			// tensor axis direction points outwards -> flip sign
-			for (long i = 0; i < dim_full; i++) {
+			for (ct_long i = 0; i < dim_full; i++) {
 				qnums_full[i] *= -1;
 			}
 		}
@@ -278,7 +278,7 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 	for (int l = 0; l < nsites; l++)
 	{
 		// logical number of entries in TTNS tensor
-		const long nelem = integer_product(ttns->a[l].dim_logical, ttns->a[l].ndim);
+		const ct_long nelem = integer_product(ttns->a[l].dim_logical, ttns->a[l].ndim);
 		// ensure that 'alpha' is large enough to store any numeric type
 		dcomplex alpha;
 		assert(ttns->a[l].dtype == dtype);
@@ -428,7 +428,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 ///
 /// \brief Get the local physical dimension at 'i_site'.
 ///
-long ttns_local_dimension(const struct ttns* ttns, const int i_site)
+ct_long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 {
 	assert(ttns->a[i_site].ndim == 1 + ttns->topology.num_neighbors[i_site] + (i_site == ttns->topology.num_nodes - 1 ? 1 : 0));
 
@@ -454,10 +454,10 @@ long ttns_local_dimension(const struct ttns* ttns, const int i_site)
 ///
 /// \brief Get the maximum virtual bond dimension of the TTNS.
 ///
-long ttns_maximum_bond_dimension(const struct ttns* ttns)
+ct_long ttns_maximum_bond_dimension(const struct ttns* ttns)
 {
 	// return 1 for the special case that the TTNS topology consists of a single site only
-	long m = 1;
+	ct_long m = 1;
 
 	for (int l = 0; l < ttns->topology.num_nodes; l++)
 	{
@@ -832,7 +832,7 @@ double ttns_orthonormalize_qr(const int i_root, struct ttns* ttns)
 /// 'i_parent' is the parent node index (or -1 if no parent exists).
 /// \returns 0 on success, a negative integer otherwise
 ///
-static int ttns_compress_subtree(const int i_site, const int i_parent, const double tol, const bool relative_thresh, const long max_vdim, struct ttns* ttns)
+static int ttns_compress_subtree(const int i_site, const int i_parent, const double tol, const bool relative_thresh, const ct_long max_vdim, struct ttns* ttns)
 {
 	if (ttns->topology.num_neighbors[i_site] <= 1)
 	{
@@ -916,7 +916,7 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 /// \brief Recursively compress the tree from the specified root node to the leaves.
 /// \returns 0 on success, a negative integer otherwise
 ///
-int ttns_compress(const int i_root, const double tol, const bool relative_thresh, const long max_vdim, struct ttns* ttns)
+int ttns_compress(const int i_root, const double tol, const bool relative_thresh, const ct_long max_vdim, struct ttns* ttns)
 {
 	return ttns_compress_subtree(i_root, -1, tol, relative_thresh, max_vdim, ttns);
 }

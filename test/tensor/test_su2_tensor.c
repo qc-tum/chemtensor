@@ -58,13 +58,13 @@ char* test_su2_tensor_fmove()
 	};
 
 	// degeneracy dimensions, indexed by 'j' quantum numbers
-	//                      j:  0  1  2  3  4  5
-	const long dim_degen0[] = { 6, 0, 3          };
-	const long dim_degen1[] = { 0, 0, 0, 7, 0, 4 };
-	const long dim_degen2[] = { 0, 8, 0, 3       };
-	const long dim_degen3[] = { 0, 0, 9, 0, 2    };
-	const long dim_degen4[] = { 5, 0, 3          };
-	const long* dim_degen[] = {
+	//                         j:  0  1  2  3  4  5
+	const ct_long dim_degen0[] = { 6, 0, 3          };
+	const ct_long dim_degen1[] = { 0, 0, 0, 7, 0, 4 };
+	const ct_long dim_degen2[] = { 0, 8, 0, 3       };
+	const ct_long dim_degen3[] = { 0, 0, 9, 0, 2    };
+	const ct_long dim_degen4[] = { 5, 0, 3          };
+	const ct_long* dim_degen[] = {
 		dim_degen0,
 		dim_degen1,
 		dim_degen2,
@@ -88,7 +88,7 @@ char* test_su2_tensor_fmove()
 	// fill degeneracy tensors with random entries
 	struct rng_state rng_state;
 	seed_rng_state(39, &rng_state);
-	for (long c = 0; c < t.charge_sectors.nsec; c++)
+	for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 	{
 		// corresponding "degeneracy" tensor
 		struct dense_tensor* d = t.degensors[c];
@@ -218,12 +218,12 @@ char* test_su2_tensor_reverse_axis_simple()
 			};
 
 			// degeneracy dimensions, indexed by 'j' quantum numbers
-			//                      j:  0  1  2  3  4  5
-			const long dim_degen0[] = { 0, 0, 3          };
-			const long dim_degen1[] = { 3, 0, 4          };
-			const long dim_degen2[] = { 0, 5, 0, 2       };
-			const long dim_degen3[] = { 0, 7, 0, 0, 0, 8 };
-			const long* dim_degen[] = {
+			//                         j:  0  1  2  3  4  5
+			const ct_long dim_degen0[] = { 0, 0, 3          };
+			const ct_long dim_degen1[] = { 3, 0, 4          };
+			const ct_long dim_degen2[] = { 0, 5, 0, 2       };
+			const ct_long dim_degen3[] = { 0, 7, 0, 0, 0, 8 };
+			const ct_long* dim_degen[] = {
 				dim_degen0,
 				dim_degen1,
 				dim_degen2,
@@ -253,7 +253,7 @@ char* test_su2_tensor_reverse_axis_simple()
 			// fill degeneracy tensors with random entries
 			struct rng_state rng_state;
 			seed_rng_state(40, &rng_state);
-			for (long c = 0; c < t.charge_sectors.nsec; c++)
+			for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 			{
 				// corresponding "degeneracy" tensor
 				struct dense_tensor* d = t.degensors[c];
@@ -486,10 +486,10 @@ char* test_su2_tensor_reverse_axis_simple()
 				};
 
 				// degeneracy dimensions, indexed by 'j' quantum numbers
-				//                      j:  0  1  2
-				const long dim_degen0[] = { 0, 0, 3 };
-				const long dim_degen1[] = { 0, 0, 3 };
-				const long* dim_degen[] = {
+				//                         j:  0  1  2
+				const ct_long dim_degen0[] = { 0, 0, 3 };
+				const ct_long dim_degen1[] = { 0, 0, 3 };
+				const ct_long* dim_degen[] = {
 					dim_degen0,
 					dim_degen1,
 				};
@@ -512,10 +512,10 @@ char* test_su2_tensor_reverse_axis_simple()
 				};
 
 				// degeneracy dimensions, indexed by 'j' quantum numbers
-				//                      j:  0  1  2  3
-				const long dim_degen0[] = { 0, 5, 0, 2 };
-				const long dim_degen1[] = { 0, 5, 0, 2 };
-				const long* dim_degen[] = {
+				//                         j:  0  1  2  3
+				const ct_long dim_degen0[] = { 0, 5, 0, 2 };
+				const ct_long dim_degen1[] = { 0, 5, 0, 2 };
+				const ct_long* dim_degen[] = {
 					dim_degen0,
 					dim_degen1,
 				};
@@ -538,7 +538,7 @@ char* test_su2_tensor_reverse_axis_simple()
 			}
 
 			// set "degeneracy" tensors to scaled identities
-			for (long c = 0; c < u_cup.charge_sectors.nsec; c++)
+			for (ct_long c = 0; c < u_cup.charge_sectors.nsec; c++)
 			{
 				struct dense_tensor* d = u_cup.degensors[c];
 				assert(d != NULL);
@@ -595,10 +595,10 @@ char* test_su2_tensor_reverse_axis_simple()
 				};
 
 				// degeneracy dimensions, indexed by 'j' quantum numbers
-				//                      j:  0  1  2  3  4  5
-				const long dim_degen0[] = { 0, 7, 0, 0, 0, 8 };
-				const long dim_degen1[] = { 0, 7, 0, 0, 0, 8 };
-				const long* dim_degen[] = {
+				//                         j:  0  1  2  3  4  5
+				const ct_long dim_degen0[] = { 0, 7, 0, 0, 0, 8 };
+				const ct_long dim_degen1[] = { 0, 7, 0, 0, 0, 8 };
+				const ct_long* dim_degen[] = {
 					dim_degen0,
 					dim_degen1,
 				};
@@ -623,10 +623,10 @@ char* test_su2_tensor_reverse_axis_simple()
 				};
 
 				// degeneracy dimensions, indexed by 'j' quantum numbers
-				//                      j:  0
-				const long dim_degen0[] = { 1 };
-				const long dim_degen1[] = { 1 };
-				const long* dim_degen[] = {
+				//                         j:  0
+				const ct_long dim_degen0[] = { 1 };
+				const ct_long dim_degen1[] = { 1 };
+				const ct_long* dim_degen[] = {
 					dim_degen0,
 					dim_degen1,
 				};
@@ -649,7 +649,7 @@ char* test_su2_tensor_reverse_axis_simple()
 			}
 
 			// set "degeneracy" tensors to scaled identities
-			for (long c = 0; c < u_cap.charge_sectors.nsec; c++)
+			for (ct_long c = 0; c < u_cap.charge_sectors.nsec; c++)
 			{
 				struct dense_tensor* d = u_cap.degensors[c];
 				assert(d != NULL);
@@ -674,10 +674,10 @@ char* test_su2_tensor_reverse_axis_simple()
 
 		// all entries should be 0, 1 or -1
 		{
-			const long nelem = dense_tensor_num_elements(&omega_dns);
+			const ct_long nelem = dense_tensor_num_elements(&omega_dns);
 			const scomplex* data = omega_dns.data;
 			const float tol = 1e-5;
-			for (long i = 0; i < nelem; i++) {
+			for (ct_long i = 0; i < nelem; i++) {
 				if ((cabsf(data[i]) > tol) && (cabsf(data[i] - 1) > tol) && (cabsf(data[i] + 1) > tol)) {
 					return "'cup' tensor has unexpected entry not equal to 0, 1 or -1";
 				}
@@ -724,8 +724,8 @@ char* test_su2_tensor_reverse_axis_simple()
 			qnumber jlist_del2[7];
 			memcpy(jlist_del1, &t.charge_sectors.jlists[2*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
 			memcpy(jlist_del2, &t.charge_sectors.jlists[5*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
-			const long idx1 = charge_sector_index(&t.charge_sectors, jlist_del1);
-			const long idx2 = charge_sector_index(&t.charge_sectors, jlist_del2);
+			const ct_long idx1 = charge_sector_index(&t.charge_sectors, jlist_del1);
+			const ct_long idx2 = charge_sector_index(&t.charge_sectors, jlist_del2);
 			if (!dense_tensor_is_zero(t.degensors[idx1], 0.)) {
 				return "expecting a zero degeneracy tensor in SU(2) tensor";
 			}
@@ -808,12 +808,12 @@ char* test_su2_tensor_fuse_axes()
 		};
 
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                      j:  0  1  2  3  4  5
-		const long dim_degen0[] = { 0, 0, 3          };
-		const long dim_degen1[] = { 3, 0, 4          };
-		const long dim_degen2[] = { 0, 5, 0, 2       };
-		const long dim_degen3[] = { 0, 7, 0, 0, 0, 8 };
-		const long* dim_degen[] = {
+		//                         j:  0  1  2  3  4  5
+		const ct_long dim_degen0[] = { 0, 0, 3          };
+		const ct_long dim_degen1[] = { 3, 0, 4          };
+		const ct_long dim_degen2[] = { 0, 5, 0, 2       };
+		const ct_long dim_degen3[] = { 0, 7, 0, 0, 0, 8 };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 			dim_degen2,
@@ -843,7 +843,7 @@ char* test_su2_tensor_fuse_axes()
 		// fill degeneracy tensors with random entries
 		struct rng_state rng_state;
 		seed_rng_state(41, &rng_state);
-		for (long c = 0; c < t.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 		{
 			// corresponding "degeneracy" tensor
 			struct dense_tensor* d = t.degensors[c];
@@ -909,11 +909,11 @@ char* test_su2_tensor_fuse_axes()
 		};
 
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                       j:  0   1   2   3   4   5   6   7
-		const long dim_degen0[] = {  0, 49,  0, 60,  0, 56,  0, 32 };  // 49 = 3*7 + 4*7, 60 = 4*7 + 4*8, 56 = 3*8 + 4*8
-		const long dim_degen1[] = {  3,  0,  4                     };
-		const long dim_degen2[] = {  0,  7,  0,  0,  0,  8         };
-		const long* dim_degen[] = {
+		//                          j:  0   1   2   3   4   5   6   7
+		const ct_long dim_degen0[] = {  0, 49,  0, 60,  0, 56,  0, 32 };  // 49 = 3*7 + 4*7, 60 = 4*7 + 4*8, 56 = 3*8 + 4*8
+		const ct_long dim_degen1[] = {  3,  0,  4                     };
+		const ct_long dim_degen2[] = {  0,  7,  0,  0,  0,  8         };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 			dim_degen2,
@@ -931,7 +931,7 @@ char* test_su2_tensor_fuse_axes()
 			return "expecting at least one charge sector in SU(2) tensor";
 		}
 
-		for (long c = 0; c < u_fuse.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < u_fuse.charge_sectors.nsec; c++)
 		{
 			// current 'j' quantum numbers
 			const qnumber* jlist = &u_fuse.charge_sectors.jlists[c * u_fuse.charge_sectors.ndim];
@@ -944,10 +944,10 @@ char* test_su2_tensor_fuse_axes()
 
 			// set "degeneracy" tensor to (padded) identity
 			struct dense_tensor identity;
-			const long dim_id[2] = { d->dim[1]*d->dim[2], d->dim[1]*d->dim[2] };
+			const ct_long dim_id[2] = { d->dim[1]*d->dim[2], d->dim[1]*d->dim[2] };
 			allocate_dense_tensor(d->dtype, 2, dim_id, &identity);
 			dense_tensor_set_identity(&identity);
-			long pb;
+			ct_long pb;
 			if (jlist[0] == 1 && jlist[1] == 2 && jlist[2] == 1) {
 				pb = 3*7;
 			}
@@ -960,7 +960,7 @@ char* test_su2_tensor_fuse_axes()
 			else {
 				pb = 0;
 			}
-			long pa;
+			ct_long pa;
 			if (jlist[0] == 1 && jlist[1] == 0 && jlist[2] == 1) {
 				pa = 4*7;
 			}
@@ -973,8 +973,8 @@ char* test_su2_tensor_fuse_axes()
 			else {
 				pa = 0;
 			}
-			const long pad_before[2] = { pb, 0 };
-			const long pad_after[2]  = { pa, 0 };
+			const ct_long pad_before[2] = { pb, 0 };
+			const ct_long pad_after[2]  = { pa, 0 };
 			struct dense_tensor identity_pad;
 			dense_tensor_pad_zeros(&identity, pad_before, pad_after, &identity_pad);
 			delete_dense_tensor(&identity);
@@ -1019,7 +1019,7 @@ char* test_su2_tensor_fuse_axes()
 			t.outer_irreps[i_ax_0],
 			t.outer_irreps[i_ax_1],
 		};
-		const long* dim_degen[2] = {
+		const ct_long* dim_degen[2] = {
 			t.dim_degen[i_ax_0],
 			t.dim_degen[i_ax_1],
 		};
@@ -1135,12 +1135,12 @@ char* test_su2_tensor_split_axis()
 		};
 
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                       j:  0   1   2   3   4   5
-		const long dim_degen0[] = {  0,  0,  5             };
-		const long dim_degen1[] = {  7,  0,  3             };
-		const long dim_degen2[] = {  0, 57,  0, 42,  0,  8 };  // 57 = 5*7 + 2*7 + 2*4, 42 = 5*4 + 2*7 + 2*4, 8 = 2*4
-		const long dim_degen3[] = {  0,  2,  0,  8         };
-		const long* dim_degen[] = {
+		//                          j:  0   1   2   3   4   5
+		const ct_long dim_degen0[] = {  0,  0,  5             };
+		const ct_long dim_degen1[] = {  7,  0,  3             };
+		const ct_long dim_degen2[] = {  0, 57,  0, 42,  0,  8 };  // 57 = 5*7 + 2*7 + 2*4, 42 = 5*4 + 2*7 + 2*4, 8 = 2*4
+		const ct_long dim_degen3[] = {  0,  2,  0,  8         };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 			dim_degen2,
@@ -1173,7 +1173,7 @@ char* test_su2_tensor_split_axis()
 		// fill degeneracy tensors with random entries
 		struct rng_state rng_state;
 		seed_rng_state(42, &rng_state);
-		for (long c = 0; c < t.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 		{
 			// corresponding "degeneracy" tensor
 			struct dense_tensor* d = t.degensors[c];
@@ -1197,10 +1197,10 @@ char* test_su2_tensor_split_axis()
 			{ .jlist = j1list, .num = ARRLEN(j1list) },
 		};
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                      j:  0  1  2  3
-		const long dim_degen0[] = { 5, 0, 2    };
-		const long dim_degen1[] = { 0, 7, 0, 4 };
-		const long* dim_degen[] = {
+		//                         j:  0  1  2  3
+		const ct_long dim_degen0[] = { 5, 0, 2    };
+		const ct_long dim_degen1[] = { 0, 7, 0, 4 };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 		};
@@ -1290,7 +1290,7 @@ char* test_su2_tensor_split_axis()
 			r.outer_irreps[i_ax_add],
 		};
 		// degeneracy dimensions
-		const long* dim_degen[3] = {
+		const ct_long* dim_degen[3] = {
 			t.dim_degen[i_ax_split],
 			r.dim_degen[i_ax_split],
 			r.dim_degen[i_ax_add],
@@ -1308,7 +1308,7 @@ char* test_su2_tensor_split_axis()
 			return "expecting at least one charge sector in SU(2) tensor";
 		}
 
-		for (long c = 0; c < u_split.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < u_split.charge_sectors.nsec; c++)
 		{
 			// current 'j' quantum numbers
 			const qnumber* jlist = &u_split.charge_sectors.jlists[c * u_split.charge_sectors.ndim];
@@ -1321,11 +1321,11 @@ char* test_su2_tensor_split_axis()
 
 			// set "degeneracy" tensor to (padded) identity
 			struct dense_tensor identity;
-			const long dim_id[2] = { d->dim[1]*d->dim[2], d->dim[1]*d->dim[2] };
+			const ct_long dim_id[2] = { d->dim[1]*d->dim[2], d->dim[1]*d->dim[2] };
 			allocate_dense_tensor(d->dtype, 2, dim_id, &identity);
 			dense_tensor_set_identity(&identity);
-			long pb = 0;
-			long pa = 0;
+			ct_long pb = 0;
+			ct_long pa = 0;
 			for (int k = 0; k < u_split.outer_irreps[1].num; k++)
 			{
 				const qnumber j0 = u_split.outer_irreps[1].jlist[k];
@@ -1347,8 +1347,8 @@ char* test_su2_tensor_split_axis()
 					}
 				}
 			}
-			const long pad_before[2] = { pb, 0 };
-			const long pad_after[2]  = { pa, 0 };
+			const ct_long pad_before[2] = { pb, 0 };
+			const ct_long pad_after[2]  = { pa, 0 };
 			struct dense_tensor identity_pad;
 			dense_tensor_pad_zeros(&identity, pad_before, pad_after, &identity_pad);
 			delete_dense_tensor(&identity);
@@ -1461,12 +1461,12 @@ char* test_su2_tensor_contract_simple()
 		};
 
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                      j:  0  1  2  3
-		const long dim_degen0[] = { 0, 4, 0, 2 };
-		const long dim_degen1[] = { 0, 0, 0, 3 };
-		const long dim_degen2[] = { 5, 0, 2    };
-		const long dim_degen3[] = { 0, 0, 7    };
-		const long* dim_degen[] = {
+		//                         j:  0  1  2  3
+		const ct_long dim_degen0[] = { 0, 4, 0, 2 };
+		const ct_long dim_degen1[] = { 0, 0, 0, 3 };
+		const ct_long dim_degen2[] = { 5, 0, 2    };
+		const ct_long dim_degen3[] = { 0, 0, 7    };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 			dim_degen2,
@@ -1486,7 +1486,7 @@ char* test_su2_tensor_contract_simple()
 		}
 
 		// fill degeneracy tensors with random entries
-		for (long c = 0; c < s.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < s.charge_sectors.nsec; c++)
 		{
 			// corresponding "degeneracy" tensor
 			struct dense_tensor* d = s.degensors[c];
@@ -1553,13 +1553,13 @@ char* test_su2_tensor_contract_simple()
 		};
 
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		//                      j:  0  1  2  3  4  5
-		const long dim_degen0[] = { 5, 0, 2          };
-		const long dim_degen1[] = { 0, 0, 0, 2, 0, 4 };
-		const long dim_degen2[] = { 0, 0, 0, 3       };
-		const long dim_degen3[] = { 0, 0, 7          };
-		const long dim_degen4[] = { 0, 0, 0, 0, 3    };
-		const long* dim_degen[] = {
+		//                         j:  0  1  2  3  4  5
+		const ct_long dim_degen0[] = { 5, 0, 2          };
+		const ct_long dim_degen1[] = { 0, 0, 0, 2, 0, 4 };
+		const ct_long dim_degen2[] = { 0, 0, 0, 3       };
+		const ct_long dim_degen3[] = { 0, 0, 7          };
+		const ct_long dim_degen4[] = { 0, 0, 0, 0, 3    };
+		const ct_long* dim_degen[] = {
 			dim_degen0,
 			dim_degen1,
 			dim_degen2,
@@ -1580,7 +1580,7 @@ char* test_su2_tensor_contract_simple()
 		}
 
 		// fill degeneracy tensors with random entries
-		for (long c = 0; c < t.charge_sectors.nsec; c++)
+		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 		{
 			// corresponding "degeneracy" tensor
 			struct dense_tensor* d = t.degensors[c];
@@ -1803,12 +1803,12 @@ char* test_su2_tensor_contract_yoga()
 			};
 
 			// degeneracy dimensions, indexed by 'j' quantum numbers
-			//                      j:  0  1  2  3  4  5
-			const long dim_degen0[] = { 0, 4, 0, 0, 0, 2 };
-			const long dim_degen1[] = { 0, 5, 0, 2       };
-			const long dim_degen2[] = { 0, 3, 0, 3       };
-			const long dim_degen3[] = { 0, 7             };
-			const long* dim_degen[] = {
+			//                         j:  0  1  2  3  4  5
+			const ct_long dim_degen0[] = { 0, 4, 0, 0, 0, 2 };
+			const ct_long dim_degen1[] = { 0, 5, 0, 2       };
+			const ct_long dim_degen2[] = { 0, 3, 0, 3       };
+			const ct_long dim_degen3[] = { 0, 7             };
+			const ct_long* dim_degen[] = {
 				dim_degen0,
 				dim_degen1,
 				dim_degen2,
@@ -1836,7 +1836,7 @@ char* test_su2_tensor_contract_yoga()
 			}
 
 			// fill degeneracy tensors with random entries
-			for (long c = 0; c < s.charge_sectors.nsec; c++)
+			for (ct_long c = 0; c < s.charge_sectors.nsec; c++)
 			{
 				// corresponding "degeneracy" tensor
 				struct dense_tensor* d = s.degensors[c];
@@ -1902,12 +1902,12 @@ char* test_su2_tensor_contract_yoga()
 			};
 
 			// degeneracy dimensions, indexed by 'j' quantum numbers
-			//                      j:  0  1  2  3
-			const long dim_degen0[] = { 0, 0, 0, 3 };
-			const long dim_degen1[] = { 3, 0, 4    };
-			const long dim_degen2[] = { 0, 5, 0, 2 };
-			const long dim_degen3[] = { 0, 0, 7    };
-			const long* dim_degen[] = {
+			//                         j:  0  1  2  3
+			const ct_long dim_degen0[] = { 0, 0, 0, 3 };
+			const ct_long dim_degen1[] = { 3, 0, 4    };
+			const ct_long dim_degen2[] = { 0, 5, 0, 2 };
+			const ct_long dim_degen3[] = { 0, 0, 7    };
+			const ct_long* dim_degen[] = {
 				dim_degen0,
 				dim_degen1,
 				dim_degen2,
@@ -1933,7 +1933,7 @@ char* test_su2_tensor_contract_yoga()
 			}
 
 			// fill degeneracy tensors with random entries
-			for (long c = 0; c < t.charge_sectors.nsec; c++)
+			for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 			{
 				// corresponding "degeneracy" tensor
 				struct dense_tensor* d = t.degensors[c];
@@ -2060,12 +2060,12 @@ char* test_su2_to_dense_tensor()
 	};
 
 	// degeneracy dimensions, indexed by 'j' quantum numbers
-	//                      j:  0  1  2  3  4  5
-	const long dim_degen0[] = { 6, 0, 3, 0, 5    };
-	const long dim_degen1[] = { 0, 0, 0, 7, 0, 4 };
-	const long dim_degen2[] = { 0, 8, 0, 0, 0, 1 };
-	const long dim_degen3[] = { 0, 0, 9, 0, 2    };
-	const long* dim_degen[] = {
+	//                         j:  0  1  2  3  4  5
+	const ct_long dim_degen0[] = { 6, 0, 3, 0, 5    };
+	const ct_long dim_degen1[] = { 0, 0, 0, 7, 0, 4 };
+	const ct_long dim_degen2[] = { 0, 8, 0, 0, 0, 1 };
+	const ct_long dim_degen3[] = { 0, 0, 9, 0, 2    };
+	const ct_long* dim_degen[] = {
 		dim_degen0,
 		dim_degen1,
 		dim_degen2,
@@ -2088,7 +2088,7 @@ char* test_su2_to_dense_tensor()
 	// fill degeneracy tensors with random entries
 	struct rng_state rng_state;
 	seed_rng_state(45, &rng_state);
-	for (long c = 0; c < t.charge_sectors.nsec; c++)
+	for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
 	{
 		// corresponding "degeneracy" tensor
 		struct dense_tensor* d = t.degensors[c];
@@ -2111,8 +2111,8 @@ char* test_su2_to_dense_tensor()
 	struct dense_tensor s, r;
 	for (int i = 0; i < ndim_logical; i++)
 	{
-		const long d = su2_tensor_dim_logical_axis(&t, i);
-		const long dim[2] = { d, d };
+		const ct_long d = su2_tensor_dim_logical_axis(&t, i);
+		const ct_long dim[2] = { d, d };
 		struct dense_tensor w;
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &w);
 

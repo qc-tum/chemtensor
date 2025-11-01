@@ -39,16 +39,16 @@ static void ode_func(const double t, const struct block_sparse_tensor* restrict 
 	// square and scale entries of 'k'
 	const double scaling = sin(M_PI * (0.25 + 5*t));
 	// for each block in 'k'...
-	const long nblocks = integer_product(k.dim_blocks, k.ndim);
-	for (long i = 0; i < nblocks; i++)
+	const ct_long nblocks = integer_product(k.dim_blocks, k.ndim);
+	for (ct_long i = 0; i < nblocks; i++)
 	{
 		struct dense_tensor* block = k.blocks[i];
 		if (block == NULL) {
 			continue;
 		}
 		dcomplex* data = block->data;
-		const long nelem = dense_tensor_num_elements(block);
-		for (long j = 0; j < nelem; j++) {
+		const ct_long nelem = dense_tensor_num_elements(block);
+		for (ct_long j = 0; j < nelem; j++) {
 			data[j] = scaling * (data[j] * data[j]);
 		}
 	}
@@ -69,7 +69,7 @@ char* test_runge_kutta_4_block_sparse()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	const int ndim = 3;
-	const long dims[3] = { 14, 13, 17 };
+	const ct_long dims[3] = { 14, 13, 17 };
 
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
@@ -113,7 +113,7 @@ char* test_runge_kutta_4_block_sparse()
 	// tensor defining linear term of ODE
 	struct block_sparse_tensor lintensor;
 	{
-		const long dims_lin[4] = { dims[0], dims[1], dims[0], dims[1] };
+		const ct_long dims_lin[4] = { dims[0], dims[1], dims[0], dims[1] };
 		const enum tensor_axis_direction axis_dir_lin[4] = { axis_dir[0], axis_dir[1], -axis_dir[0], -axis_dir[1] };
 		const qnumber* qnums_lin[4] = { qnums[0], qnums[1], qnums[0], qnums[1] };
 
@@ -135,7 +135,7 @@ char* test_runge_kutta_4_block_sparse()
 	for (int i = 0; i < ndim; i++)
 	{
 		const int i_next = (i + 1) % ndim;
-		const long dims_nonlin[2] = { dims[i_next], dims[i] };
+		const ct_long dims_nonlin[2] = { dims[i_next], dims[i] };
 		const enum tensor_axis_direction axis_dir_nonlin[2] = { axis_dir[i_next], -axis_dir[i] };
 		const qnumber* qnums_nonlin[2] = { qnums[i_next], qnums[i] };
 

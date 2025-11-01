@@ -85,7 +85,7 @@ int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const st
 ///
 /// \brief Allocate a charge sector array.
 ///
-void allocate_charge_sectors(const long nsec, const int ndim, struct charge_sectors* sectors)
+void allocate_charge_sectors(const ct_long nsec, const int ndim, struct charge_sectors* sectors)
 {
 	sectors->jlists = ct_malloc(nsec * ndim * sizeof(qnumber));
 	sectors->nsec = nsec;
@@ -120,7 +120,7 @@ void delete_charge_sectors(struct charge_sectors* sectors)
 /// \brief Find the index of charge sector 'jlist', assuming that the list of charge sectors is sorted.
 /// Returns -1 if charge sector cannot be found.
 ///
-long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist)
+ct_long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist)
 {
 	const struct su2_irreducible_list target = {
 		.jlist = (qnumber*)jlist,  // cast to avoid compiler warning; we do not modify 'jlist'
@@ -128,14 +128,14 @@ long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jl
 	};
 
 	// search interval: [lower, upper)
-	long lower = 0;
-	long upper = sectors->nsec;
+	ct_long lower = 0;
+	ct_long upper = sectors->nsec;
 	while (true)
 	{
 		if (lower >= upper) {
 			return -1;
 		}
-		const long i = (lower + upper) / 2;
+		const ct_long i = (lower + upper) / 2;
 		const struct su2_irreducible_list current = {
 			.jlist = &sectors->jlists[i * sectors->ndim],
 			.num   = sectors->ndim,
@@ -171,7 +171,7 @@ bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct 
 		return false;
 	}
 
-	for (long i = 0; i < s->nsec * s->ndim; i++) {
+	for (ct_long i = 0; i < s->nsec * s->ndim; i++) {
 		if (s->jlists[i] != t->jlists[i]) {
 			return false;
 		}

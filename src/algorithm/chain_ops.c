@@ -24,7 +24,7 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 
 	const enum numeric_type dtype = a->dtype;
 
-	const long dim[6] = { 1, 1, 1, 1, 1, 1 };
+	const ct_long dim[6] = { 1, 1, 1, 1, 1, 1 };
 	const enum tensor_axis_direction axis_dir[6] = {
 		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN,
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,  TENSOR_AXIS_OUT,
@@ -63,7 +63,7 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 
 	const enum numeric_type dtype = a->dtype;
 
-	const long dim[6] = { 1, 1, 1, 1, 1, 1 };
+	const ct_long dim[6] = { 1, 1, 1, 1, 1, 1 };
 	const enum tensor_axis_direction axis_dir[6] = {
 		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN,
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,  TENSOR_AXIS_OUT,

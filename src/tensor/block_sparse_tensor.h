@@ -18,8 +18,8 @@
 struct block_sparse_tensor
 {
 	struct dense_tensor** blocks;           //!< dense blocks, array of size dim_blocks[0] x ... x dim_blocks[ndim-1]; contains NULL pointers for non-conserved quantum numbers
-	long* dim_blocks;                       //!< block dimensions
-	long* dim_logical;                      //!< logical dimensions of the overall tensor
+	ct_long* dim_blocks;                    //!< block dimensions
+	ct_long* dim_logical;                   //!< logical dimensions of the overall tensor
 	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
 	qnumber** qnums_blocks;                 //!< block quantum numbers along each dimension (must be sorted and pairwise different)
 	qnumber** qnums_logical;                //!< logical quantum numbers along each dimension (not necessarily sorted, can be duplicate)
@@ -33,7 +33,7 @@ struct block_sparse_tensor
 
 // allocation and construction
 
-void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t);
+void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t);
 
 void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t);
 
@@ -108,7 +108,7 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 
 void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r);
 
-void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const ct_long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________
@@ -117,7 +117,7 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 ///
 struct block_sparse_tensor_flatten_axes_record
 {
-	long dim_logical[2];                     //!< logical dimensions
+	ct_long dim_logical[2];                  //!< logical dimensions
 	enum tensor_axis_direction axis_dir[2];  //!< tensor axis directions
 	qnumber* qnums_logical[2];               //!< logical quantum numbers
 };
@@ -150,7 +150,7 @@ void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* rest
 
 // slicing
 
-void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, const int i_ax, const long* ind, const long nind, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct block_sparse_tensor* restrict r);
 
 
 //________________________________________________________________________________________________________________________
@@ -215,7 +215,7 @@ void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tenso
 
 // (de)serialization
 
-long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t);
+ct_long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t);
 
 void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries);
 
@@ -231,8 +231,8 @@ void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, cons
 struct block_sparse_tensor_entry_accessor
 {
 	const struct block_sparse_tensor* tensor;  //!< reference to tensor
-	long** index_map_blocks;                   //!< map from logical index to corresponding block index
-	long** index_map_block_entries;            //!< map from logical index to corresponding block entry index
+	ct_long** index_map_blocks;                //!< map from logical index to corresponding block index
+	ct_long** index_map_block_entries;         //!< map from logical index to corresponding block entry index
 };
 
 
@@ -240,4 +240,4 @@ void create_block_sparse_tensor_entry_accessor(const struct block_sparse_tensor*
 
 void delete_block_sparse_tensor_entry_accessor(struct block_sparse_tensor_entry_accessor* acc);
 
-void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_accessor* acc, const long* index);
+void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_accessor* acc, const ct_long* index);

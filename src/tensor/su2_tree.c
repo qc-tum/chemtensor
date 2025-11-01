@@ -584,7 +584,7 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 
 	// copy charge sectors to output array
 	allocate_charge_sectors(charges.size, ndim, sectors);
-	long i = 0;
+	ct_long i = 0;
 	struct linked_list_node* node = charges.head;
 	while (node != NULL)
 	{
@@ -785,10 +785,10 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 
 	// merge the charge sectors of the fuse and split trees
 	struct su2_irreducible_list* merged_sectors = ct_malloc(sectors_fuse.nsec * sectors_split.nsec * sizeof(struct su2_irreducible_list));
-	long c = 0;
-	for (long j = 0; j < sectors_fuse.nsec; j++)
+	ct_long c = 0;
+	for (ct_long j = 0; j < sectors_fuse.nsec; j++)
 	{
-		for (long k = 0; k < sectors_split.nsec; k++)
+		for (ct_long k = 0; k < sectors_split.nsec; k++)
 		{
 			// quantum number at common root edge must match
 			if (sectors_fuse.jlists[j * tree->ndim + i_ax_shared] == sectors_split.jlists[k * tree->ndim + i_ax_shared])
@@ -814,7 +814,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 
 	// copy data into output array
 	allocate_charge_sectors(c, tree->ndim, sectors);
-	for (long i = 0; i < c; i++)
+	for (ct_long i = 0; i < c; i++)
 	{
 		memcpy(&sectors->jlists[i * tree->ndim], merged_sectors[i].jlist, tree->ndim * sizeof(qnumber));
 		ct_free(merged_sectors[i].jlist);

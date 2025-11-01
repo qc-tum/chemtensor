@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include "util.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -26,7 +27,7 @@ struct linked_list
 {
 	struct linked_list_node* head;  //!< pointer to head node
 	struct linked_list_node* tail;  //!< pointer to tail node
-	long size;                      //!< number of entries
+	ct_long size;                   //!< number of entries
 };
 
 

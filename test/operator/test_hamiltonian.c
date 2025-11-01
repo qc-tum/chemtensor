@@ -29,7 +29,7 @@ char* test_ising_1d_mpo()
 	}
 
 	for (int i = 0; i <= nsites; i++) {
-		const long bdim_ref = (i == 0 || i == nsites ? 1 : 3);
+		const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : 3);
 		if (mpo_bond_dim(&ising_1d_mpo, i) != bdim_ref) {
 			return "virtual bond dimension of MPO representation of Ising Hamiltonian does not match reference";
 		}
@@ -43,7 +43,7 @@ char* test_ising_1d_mpo()
 	if (get_hdf5_dataset_dims(file, "ising_1d_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor ising_1d_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &ising_1d_mat_ref);
 	// read values from disk
@@ -94,7 +94,7 @@ char* test_heisenberg_xxz_1d_mpo()
 	}
 
 	for (int i = 0; i <= nsites; i++) {
-		const long bdim_ref = (i == 0 || i == nsites ? 1 : (i == 1 || i == nsites - 1 ? 4 : 5));
+		const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : (i == 1 || i == nsites - 1 ? 4 : 5));
 		if (mpo_bond_dim(&heisenberg_xxz_1d_mpo, i) != bdim_ref) {
 			return "virtual bond dimension of MPO representation of Heisenberg XXZ Hamiltonian does not match reference";
 		}
@@ -108,7 +108,7 @@ char* test_heisenberg_xxz_1d_mpo()
 	if (get_hdf5_dataset_dims(file, "heisenberg_xxz_1d_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor heisenberg_xxz_1d_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &heisenberg_xxz_1d_mat_ref);
 	// read values from disk
@@ -143,7 +143,7 @@ char* test_bose_hubbard_1d_mpo()
 	const int nsites = 5;
 
 	// physical dimension per site (maximal occupancy is d - 1)
-	const long d = 3;
+	const ct_long d = 3;
 
 	// Hamiltonian parameters
 	const double t  =  7./10;
@@ -162,7 +162,7 @@ char* test_bose_hubbard_1d_mpo()
 	}
 
 	for (int i = 0; i <= nsites; i++) {
-		const long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
+		const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
 		if (mpo_bond_dim(&bose_hubbard_1d_mpo, i) != bdim_ref) {
 			return "virtual bond dimension of MPO representation of Bose-Hubbard Hamiltonian does not match reference";
 		}
@@ -176,7 +176,7 @@ char* test_bose_hubbard_1d_mpo()
 	if (get_hdf5_dataset_dims(file, "bose_hubbard_1d_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor bose_hubbard_1d_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &bose_hubbard_1d_mat_ref);
 	// read values from disk
@@ -227,7 +227,7 @@ char* test_fermi_hubbard_1d_mpo()
 	}
 
 	for (int i = 0; i <= nsites; i++) {
-		const long bdim_ref = (i == 0 || i == nsites ? 1 : 6);
+		const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : 6);
 		if (mpo_bond_dim(&fermi_hubbard_1d_mpo, i) != bdim_ref) {
 			return "virtual bond dimension of MPO representation of Fermi-Hubbard Hamiltonian does not match reference";
 		}
@@ -241,7 +241,7 @@ char* test_fermi_hubbard_1d_mpo()
 	if (get_hdf5_dataset_dims(file, "fermi_hubbard_1d_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor fermi_hubbard_1d_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &fermi_hubbard_1d_mat_ref);
 	// read values from disk
@@ -277,13 +277,13 @@ char* test_molecular_hamiltonian_mpo()
 
 	// Hamiltonian coefficients
 	struct dense_tensor tkin;
-	const long dim_tkin[2] = { nmodes, nmodes };
+	const ct_long dim_tkin[2] = { nmodes, nmodes };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 		return "reading kinetic hopping coefficients from disk failed";
 	}
 	struct dense_tensor vint;
-	const long dim_vint[4] = { nmodes, nmodes, nmodes, nmodes };
+	const ct_long dim_vint[4] = { nmodes, nmodes, nmodes, nmodes };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_vint, &vint);
 	if (read_hdf5_dataset(file, "vint", H5T_NATIVE_DOUBLE, vint.data) < 0) {
 		return "reading interaction potential coefficients from disk failed";
@@ -321,7 +321,7 @@ char* test_molecular_hamiltonian_mpo()
 	if (get_hdf5_dataset_dims(file, "molecular_hamiltonian_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor molecular_hamiltonian_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &molecular_hamiltonian_mat_ref);
 	// read values from disk
@@ -364,13 +364,13 @@ char* test_spin_molecular_hamiltonian_mpo()
 
 	// Hamiltonian coefficients
 	struct dense_tensor tkin;
-	const long dim_tkin[2] = { nsites, nsites };
+	const ct_long dim_tkin[2] = { nsites, nsites };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 		return "reading kinetic hopping coefficients from disk failed";
 	}
 	struct dense_tensor vint;
-	const long dim_vint[4] = { nsites, nsites, nsites, nsites };
+	const ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_vint, &vint);
 	if (read_hdf5_dataset(file, "vint", H5T_NATIVE_DOUBLE, vint.data) < 0) {
 		return "reading interaction potential coefficients from disk failed";
@@ -395,7 +395,7 @@ char* test_spin_molecular_hamiltonian_mpo()
 	if (get_hdf5_dataset_dims(file, "molecular_hamiltonian_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor molecular_hamiltonian_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &molecular_hamiltonian_mat_ref);
 	// read values from disk
@@ -453,7 +453,7 @@ char* test_quadratic_fermionic_mpo()
 	}
 
 	for (int i = 0; i <= nsites; i++) {
-		const long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
+		const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
 		if (mpo_bond_dim(&quadratic_fermionic_mpo, i) != bdim_ref) {
 			return "virtual bond dimension of quadratic fermionic MPO does not match reference";
 		}
@@ -467,7 +467,7 @@ char* test_quadratic_fermionic_mpo()
 	if (get_hdf5_dataset_dims(file, "quadratic_fermionic_mat", dims_ref_hsize) < 0) {
 		return "obtaining dimensions of reference operator failed";
 	}
-	const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 	struct dense_tensor quadratic_fermionic_mat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &quadratic_fermionic_mat_ref);
 	// read values from disk
@@ -527,7 +527,7 @@ char* test_quadratic_spin_fermionic_mpo()
 		}
 
 		for (int i = 0; i <= nsites; i++) {
-			const long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
+			const ct_long bdim_ref = (i == 0 || i == nsites ? 1 : 4);
 			if (mpo_bond_dim(&quadratic_spin_fermionic_mpo, i) != bdim_ref) {
 				return "virtual bond dimension of quadratic spin fermionic MPO does not match reference";
 			}
@@ -543,7 +543,7 @@ char* test_quadratic_spin_fermionic_mpo()
 		if (get_hdf5_dataset_dims(file, varname, dims_ref_hsize) < 0) {
 			return "obtaining dimensions of reference operator failed";
 		}
-		const long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
+		const ct_long dim_ref[4] = { 1, dims_ref_hsize[0], dims_ref_hsize[1], 1 };  // include dummy virtual bond dimensions
 		struct dense_tensor quadratic_spin_fermionic_mat_ref;
 		allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &quadratic_spin_fermionic_mat_ref);
 		// read values from disk

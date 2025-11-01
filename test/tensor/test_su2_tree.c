@@ -66,7 +66,7 @@ char* test_su2_tree_enumerate_charge_sectors()
 	}
 
 	// compare
-	if ((long)dims_ref[0] != sectors.nsec) {
+	if ((ct_long)dims_ref[0] != sectors.nsec) {
 		return "number of charge sectors does not agree with reference";
 	}
 	if ((int)dims_ref[1] != sectors.ndim) {
@@ -167,7 +167,7 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors()
 	}
 
 	// compare
-	if ((long)dims_ref[0] != sectors.nsec) {
+	if ((ct_long)dims_ref[0] != sectors.nsec) {
 		return "number of charge sectors does not agree with reference";
 	}
 	if ((int)dims_ref[1] != sectors.ndim) {

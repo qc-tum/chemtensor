@@ -52,7 +52,7 @@ char* test_ttns_vdot()
 	assert(abstract_graph_is_connected_tree(&topology));
 
 	// local physical dimensions and quantum numbers
-	const long d[8] = { 3, 1, 7, 2, 4, 1, 1, 1 };
+	const ct_long d[8] = { 3, 1, 7, 2, 4, 1, 1, 1 };
 	const qnumber qsite0[3] = { 1, 2, -1 };
 	const qnumber qsite1[1] = { -3 };
 	const qnumber qsite2[7] = { 2, 1, 4, 0, 3, 1, 0 };
@@ -201,7 +201,7 @@ char* test_ttns_orthonormalize_qr()
 		assert(abstract_graph_is_connected_tree(&topology));
 
 		// local physical dimensions and quantum numbers
-		long* d = ct_malloc(nsites * sizeof(long));
+		ct_long* d = ct_malloc(nsites * sizeof(ct_long));
 		qnumber** qsite = ct_malloc(nsites * sizeof(qnumber*));
 		for (int l = 0; l < nsites; l++)
 		{
@@ -227,8 +227,8 @@ char* test_ttns_orthonormalize_qr()
 		}
 
 		// virtual bond dimensions and quantum numbers
-		long* dim_bonds  = ct_calloc(nsites * nsites, sizeof(long));
-		qnumber** qbonds = ct_calloc(nsites * nsites, sizeof(qnumber*));
+		ct_long* dim_bonds = ct_calloc(nsites * nsites, sizeof(ct_long));
+		qnumber** qbonds   = ct_calloc(nsites * nsites, sizeof(qnumber*));
 		for (int l = 0; l < nsites; l++)
 		{
 			for (int i = 0; i < topology.num_neighbors[l]; i++)
@@ -406,7 +406,7 @@ char* test_ttns_compress()
 	assert(abstract_graph_is_connected_tree(&topology));
 
 	// local physical dimensions and quantum numbers
-	long* d = ct_malloc(nsites * sizeof(long));
+	ct_long* d = ct_malloc(nsites * sizeof(ct_long));
 	qnumber** qsite = ct_malloc(nsites * sizeof(qnumber*));
 	for (int l = 0; l < nsites; l++)
 	{
@@ -432,8 +432,8 @@ char* test_ttns_compress()
 	}
 
 	// virtual bond dimensions and quantum numbers
-	long* dim_bonds  = ct_calloc(nsites * nsites, sizeof(long));
-	qnumber** qbonds = ct_calloc(nsites * nsites, sizeof(qnumber*));
+	ct_long* dim_bonds = ct_calloc(nsites * nsites, sizeof(ct_long));
+	qnumber** qbonds   = ct_calloc(nsites * nsites, sizeof(qnumber*));
 	for (int l = 0; l < nsites; l++)
 	{
 		for (int i = 0; i < topology.num_neighbors[l]; i++)
@@ -498,7 +498,7 @@ char* test_ttns_compress()
 		// perform compression
 		const int i_root = 3;
 		const double tol_compress = (j == 0 ? 0. : 1e-7);
-		const long max_vdim = 1024;
+		const ct_long max_vdim = 1024;
 		int ret = ttns_compress(i_root, tol_compress, true, max_vdim, &ttns);
 		if (ret < 0) {
 			return "'ttns_compress' failed internally";

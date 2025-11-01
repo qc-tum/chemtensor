@@ -17,7 +17,7 @@ char* test_dmrg_singlesite()
 	// number of lattice sites
 	const int nsites = 7;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -29,8 +29,8 @@ char* test_dmrg_singlesite()
 	struct mpo hamiltonian;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -81,8 +81,8 @@ char* test_dmrg_singlesite()
 	struct mps psi;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -160,8 +160,8 @@ char* test_dmrg_singlesite()
 	struct mps psi_ref;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -241,7 +241,7 @@ char* test_dmrg_twosite()
 	// number of lattice sites
 	const int nsites = 11;
 	// local physical dimension
-	const long d = 2;
+	const ct_long d = 2;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -253,8 +253,8 @@ char* test_dmrg_twosite()
 	struct mpo hamiltonian;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -305,8 +305,8 @@ char* test_dmrg_twosite()
 	struct mps psi;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];
@@ -361,7 +361,7 @@ char* test_dmrg_twosite()
 	if (read_hdf5_attribute(file, "tol_split", H5T_NATIVE_DOUBLE, &tol_split) < 0) {
 		return "reading splitting tolerance from disk failed";
 	}
-	const long max_vdim = ipow(d, nsites / 2);
+	const ct_long max_vdim = ipow(d, nsites / 2);
 	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
 	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
 
@@ -389,8 +389,8 @@ char* test_dmrg_twosite()
 	struct mps psi_ref;
 	{
 		// virtual bond quantum numbers
-		long* dim_bonds  = ct_malloc((nsites + 1) * sizeof(long));
-		qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
+		ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+		qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
 		for (int i = 0; i < nsites + 1; i++)
 		{
 			char varname[1024];

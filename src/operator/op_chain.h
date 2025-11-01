@@ -41,4 +41,4 @@ void op_chain_pad_identities(const struct op_chain* restrict chain, const int ne
 
 // conversion to full matrix (intended for testing)
 
-void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a);
+void op_chain_to_matrix(const struct op_chain* chain, const ct_long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a);

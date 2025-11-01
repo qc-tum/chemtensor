@@ -121,7 +121,7 @@ void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian
 /// \brief Apply a molecular Hamiltonian in tensor hypercontraction representation to a state in MPS form.
 ///
 int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamiltonian* hamiltonian,
-	const struct mps* restrict psi, const double tol, const long max_vdim, struct mps* restrict h_psi)
+	const struct mps* restrict psi, const double tol, const ct_long max_vdim, struct mps* restrict h_psi)
 {
 	const int nsites   = (int)hamiltonian->tkin.dim[0];
 	const int thc_rank = (int)hamiltonian->thc_kernel.dim[0];

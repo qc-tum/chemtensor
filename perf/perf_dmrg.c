@@ -25,14 +25,14 @@ int main()
 			return -1;
 		}
 		struct dense_tensor tkin;
-		const long dim_tkin[2] = { nsites, nsites };
+		const ct_long dim_tkin[2] = { nsites, nsites };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 		if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 			fprintf(stderr, "reading kinetic hopping coefficients from disk failed");
 			return -1;
 		}
 		struct dense_tensor vint;
-		const long dim_vint[4] = { nsites, nsites, nsites, nsites };
+		const ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 		allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_vint, &vint);
 		if (read_hdf5_dataset(file, "vint", H5T_NATIVE_DOUBLE, vint.data) < 0) {
 			fprintf(stderr, "reading interaction potential coefficients from disk failed");
@@ -60,7 +60,7 @@ int main()
 	const qnumber qnum_sector = encode_quantum_number_pair(q_pnum, q_spin);
 
 	// maximum allowed MPS bond dimension
-	const long max_vdim = 512;
+	const ct_long max_vdim = 512;
 
 	// initial state vector as MPS
 	struct mps psi;

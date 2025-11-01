@@ -20,9 +20,9 @@ char* test_ttno_graph_from_opchains()
 	const int nsites_branching = 3;
 	const int nsites = nsites_physical + nsites_branching;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
-	const long dim_full_physical = ipow(d, nsites_physical);
+	const ct_long dim_full_physical = ipow(d, nsites_physical);
 
 	// tree topology:
 	//
@@ -130,7 +130,7 @@ char* test_ttno_graph_from_opchains()
 	// read local operator map from disk
 	const int num_local_ops = 18;
 	struct dense_tensor opmap_tensor;
-	const long dim_opmt[3] = { num_local_ops, d, d };
+	const ct_long dim_opmt[3] = { num_local_ops, d, d };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_opmt, &opmap_tensor);
 	// read values from disk
 	if (read_hdf5_dataset(file, "opmap", hdf5_dcomplex_id, opmap_tensor.data) < 0) {
@@ -140,7 +140,7 @@ char* test_ttno_graph_from_opchains()
 	struct dense_tensor* opmap = ct_malloc(num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < num_local_ops; i++)
 	{
-		const long dim[2] = { d, d };
+		const ct_long dim[2] = { d, d };
 		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim, &opmap[i]);
 		const dcomplex* data = opmap_tensor.data;
 		memcpy(opmap[i].data, &data[i * d*d], d*d * sizeof(dcomplex));
@@ -159,7 +159,7 @@ char* test_ttno_graph_from_opchains()
 
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor mat_ref;
-	const long dim_mat_ref[2] = { dim_full_physical, dim_full_physical };
+	const ct_long dim_mat_ref[2] = { dim_full_physical, dim_full_physical };
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
 	for (int i = 0; i < nchains; i++)
 	{

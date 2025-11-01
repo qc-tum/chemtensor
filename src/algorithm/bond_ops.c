@@ -11,11 +11,11 @@
 ///
 /// \brief Compute the von Neumann entropy of singular values 'sigma'.
 ///
-double von_neumann_entropy(const double* sigma, const long n)
+double von_neumann_entropy(const double* sigma, const ct_long n)
 {
 	double s = 0;
 
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		if (sigma[i] > 0)
 		{
@@ -51,7 +51,7 @@ void delete_index_list(struct index_list* list)
 struct val_idx
 {
 	double v;   //!< value
-	long i;     //!< index
+	ct_long i;  //!< index
 };
 
 
@@ -85,7 +85,7 @@ static int val_idx_compare_value(const void* p1, const void* p2)
 ///
 /// Singular values need not be sorted at input.
 ///
-void retained_bond_indices(const double* sigma, const long n, const double tol, const bool relative_thresh, const long max_vdim,
+void retained_bond_indices(const double* sigma, const ct_long n, const double tol, const bool relative_thresh, const ct_long max_vdim,
 	struct index_list* list, struct trunc_info* info)
 {
 	assert(tol >= 0);
@@ -94,7 +94,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	// store singular values as value-index pairs and sort them by value
 	struct val_idx* s_sort = ct_malloc(n * sizeof(struct val_idx));
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		s_sort[i].v = sigma[i];
 		s_sort[i].i = i;
@@ -103,7 +103,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	// square (and normalize) singular values (we sort them first and start with the smallest value to increase accuracy)
 	double sqsum = 0;
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		s_sort[i].v = square(s_sort[i].v);
 		sqsum += s_sort[i].v;
@@ -122,14 +122,14 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	}
 	if (relative_thresh)
 	{
-		for (long i = 0; i < n; i++)
+		for (ct_long i = 0; i < n; i++)
 		{
 			s_sort[i].v /= sqsum;
 		}
 	}
 
 	// accumulate squares
-	for (long i = 1; i < n; i++)
+	for (ct_long i = 1; i < n; i++)
 	{
 		s_sort[i].v += s_sort[i - 1].v;
 	}
@@ -140,7 +140,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 		info->tol_eff = fmax(tol, s_sort[n - max_vdim - 1].v);
 
 		// set accumulated squares which are cut-off by 'max_vdim' to zero
-		for (long i = 0; i < n - max_vdim; i++)
+		for (ct_long i = 0; i < n - max_vdim; i++)
 		{
 			s_sort[i].v = 0;
 		}
@@ -148,7 +148,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	// restore original ordering of accumulated squares
 	double* accum = ct_malloc(n * sizeof(double));
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		accum[s_sort[i].i] = s_sort[i].v;
 	}
@@ -158,9 +158,9 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 	// indices of accumulated squares larger than tolerance
 	// filter out singular values which are (almost) zero to machine precision
 	const double tol_mzero = fmax(tol, 1e-28);
-	list->ind = ct_malloc(n * sizeof(long));
+	list->ind = ct_malloc(n * sizeof(ct_long));
 	list->num = 0;
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		if (accum[i] > tol_mzero)
 		{
@@ -185,14 +185,14 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 
 	// record norm and von Neumann entropy of retained singular values
 	double* retained = ct_malloc(list->num * sizeof(double));
-	for (long i = 0; i < list->num; i++)
+	for (ct_long i = 0; i < list->num; i++)
 	{
 		retained[i] = sigma[list->ind[i]];
 	}
 	info->norm_sigma = norm2(CT_DOUBLE_REAL, list->num, retained);
 
 	// normalized retained singular values
-	for (long i = 0; i < list->num; i++)
+	for (ct_long i = 0; i < list->num; i++)
 	{
 		retained[i] /= info->norm_sigma;
 	}
@@ -209,7 +209,7 @@ void retained_bond_indices(const double* sigma, const long n, const double tol, 
 /// and truncate small singular values based on the specified tolerance and maximum bond dimension.
 ///
 int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
-	const double tol, const bool relative_thresh, const long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
+	const double tol, const bool relative_thresh, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
 	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info)
 {
 	assert(a->ndim == 2);
@@ -234,7 +234,7 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 		// temporarily convert singular values to double format
 		const float* sdata = s.data;
 		double* sigma = ct_malloc(s.dim[0] * sizeof(double));
-		for (long i = 0; i < s.dim[0]; i++) {
+		for (ct_long i = 0; i < s.dim[0]; i++) {
 			sigma[i] = (double)sdata[i];
 		}
 
@@ -246,7 +246,7 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 	if (retained.num == 0)
 	{
 		// use dummy virtual bond dimension 1
-		const long ind[1] = { 0 };
+		const ct_long ind[1] = { 0 };
 		block_sparse_tensor_slice(&u, 1, ind, 1, a0);
 		delete_block_sparse_tensor(&u);
 		// note: 'vh' is not an isometry in the special case of incompatible quantum numbers in 'a'
@@ -255,7 +255,7 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 
 		// dummy singular value vector with a single entry 0
 		struct dense_tensor s_zero;
-		const long sdim[1] = { 1 };
+		const ct_long sdim[1] = { 1 };
 		allocate_dense_tensor(s.dtype, 1, sdim, &s_zero);
 		delete_dense_tensor(&s);
 
@@ -339,7 +339,7 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 /// \brief Compute the left isometry after splitting a block-sparse matrix by singular value decomposition
 /// and truncating small singular values based on the specified tolerance and maximum bond dimension.
 ///
-int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const long max_vdim,
+int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const ct_long max_vdim,
 	struct block_sparse_tensor* restrict u, struct trunc_info* info)
 {
 	assert(a->ndim == 2);
@@ -365,7 +365,7 @@ int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* res
 		// temporarily convert singular values to double format
 		const float* sdata = s.data;
 		double* sigma = ct_malloc(s.dim[0] * sizeof(double));
-		for (long i = 0; i < s.dim[0]; i++) {
+		for (ct_long i = 0; i < s.dim[0]; i++) {
 			sigma[i] = (double)sdata[i];
 		}
 
@@ -379,7 +379,7 @@ int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* res
 	if (retained.num == 0)
 	{
 		// use dummy virtual bond dimension 1
-		const long ind[1] = { 0 };
+		const ct_long ind[1] = { 0 };
 		block_sparse_tensor_slice(&w, 1, ind, 1, u);
 	}
 	else

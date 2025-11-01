@@ -10,9 +10,9 @@
 char* test_copy_mps()
 {
 	// number of lattice sites
-	const long nsites = 7;
+	const ct_long nsites = 7;
 	// local physical dimension
-	const long d = 4;
+	const ct_long d = 4;
 
 	const qnumber qsite[4] = { 0, 2, 0, -1 };
 
@@ -20,7 +20,7 @@ char* test_copy_mps()
 	seed_rng_state(41, &rng_state);
 
 	struct mps src;
-	const long max_vdim = 16;
+	const ct_long max_vdim = 16;
 	const qnumber qnum_sector = 1;
 	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
 
@@ -50,7 +50,7 @@ char* test_mps_vdot()
 	// number of lattice sites
 	const int nsites = 4;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -59,7 +59,7 @@ char* test_mps_vdot()
 	}
 
 	// virtual bond quantum numbers for 'psi'
-	const long dim_bonds_psi[5] = { 1, 13, 17, 8, 1 };
+	const ct_long dim_bonds_psi[5] = { 1, 13, 17, 8, 1 };
 	qnumber** qbonds_psi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -72,7 +72,7 @@ char* test_mps_vdot()
 	}
 
 	// virtual bond quantum numbers for 'chi'
-	const long dim_bonds_chi[5] = { 1, 15, 20, 11, 1 };
+	const ct_long dim_bonds_chi[5] = { 1, 15, 20, 11, 1 };
 	qnumber** qbonds_chi = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -166,7 +166,7 @@ char* test_mps_vdot()
 
 char* test_mps_add()
 {
-	const long d = 3;
+	const ct_long d = 3;
 	const qnumber qsite[3] = { 1, 0, -2 };
 
 	const int nsites_list[] = { 1, 3, 5, 8, 12 };
@@ -180,7 +180,7 @@ char* test_mps_add()
 
 		struct mps chi, psi;
 		const qnumber qnum_sector = (i % 4);
-		const long max_vdim = 16;
+		const ct_long max_vdim = 16;
 		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
 		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
 
@@ -235,7 +235,7 @@ char* test_mps_orthonormalize_qr()
 	// number of lattice sites
 	const int nsites = 6;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -244,7 +244,7 @@ char* test_mps_orthonormalize_qr()
 	}
 
 	// virtual bond quantum numbers
-	const long dim_bonds[7] = { 1, 4, 11, 9, 7, 3, 1 };
+	const ct_long dim_bonds[7] = { 1, 4, 11, 9, 7, 3, 1 };
 	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -372,7 +372,7 @@ char* test_mps_compress()
 	// number of lattice sites
 	const int nsites = 6;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -381,7 +381,7 @@ char* test_mps_compress()
 	}
 
 	// virtual bond quantum numbers
-	const long dim_bonds[7] = { 1, 23, 75, 102, 83, 30, 1 };
+	const ct_long dim_bonds[7] = { 1, 23, 75, 102, 83, 30, 1 };
 	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -393,7 +393,7 @@ char* test_mps_compress()
 		}
 	}
 
-	const long max_vdim = 1024;
+	const ct_long max_vdim = 1024;
 
 	for (int j = 0; j < 2; j++)  // determines compression tolerance
 	{
@@ -522,10 +522,10 @@ char* test_mps_split_tensor_svd()
 	}
 
 	// local physical dimensions
-	const long d[2] = { 4, 5 };
+	const ct_long d[2] = { 4, 5 };
 	// virtual bond dimensions
-	const long dim_bonds[2] = { 13, 17 };
-	const long max_vdim = 100;
+	const ct_long dim_bonds[2] = { 13, 17 };
+	const ct_long max_vdim = 100;
 
 	// physical quantum numbers
 	qnumber* qsite[2];
@@ -540,9 +540,9 @@ char* test_mps_split_tensor_svd()
 	}
 	// flattened quantum numbers
 	qnumber* qsite_flat = ct_malloc(d[0] * d[1] * sizeof(qnumber));
-	for (long i = 0; i < d[0]; i++)
+	for (ct_long i = 0; i < d[0]; i++)
 	{
-		for (long j = 0; j < d[1]; j++)
+		for (ct_long j = 0; j < d[1]; j++)
 		{
 			qsite_flat[i*d[1] + j] = qsite[0][i] + qsite[1][j];
 		}
@@ -560,7 +560,7 @@ char* test_mps_split_tensor_svd()
 		}
 	}
 
-	const long dim[3] = { dim_bonds[0], d[0]*d[1], dim_bonds[1] };
+	const ct_long dim[3] = { dim_bonds[0], d[0]*d[1], dim_bonds[1] };
 
 	// read dense tensor from disk
 	struct dense_tensor a_pair_dns;
@@ -654,7 +654,7 @@ char* test_mps_to_statevector()
 	// number of lattice sites
 	const int nsites = 5;
 	// local physical dimension
-	const long d = 3;
+	const ct_long d = 3;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -663,7 +663,7 @@ char* test_mps_to_statevector()
 	}
 
 	// virtual bond quantum numbers
-	const long dim_bonds[6] = { 1, 7, 10, 11, 5, 1 };
+	const ct_long dim_bonds[6] = { 1, 7, 10, 11, 5, 1 };
 	qnumber** qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -711,7 +711,7 @@ char* test_mps_to_statevector()
 
 	// read reference state vector from disk
 	struct dense_tensor vec_ref;
-	const long dim_vec_ref[3] = { 1, ipow(d, nsites), 1 };  // include dummy virtual bond dimensions
+	const ct_long dim_vec_ref[3] = { 1, ipow(d, nsites), 1 };  // include dummy virtual bond dimensions
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, dim_vec_ref, &vec_ref);
 	if (read_hdf5_dataset(file, "vec", hdf5_dcomplex_id, vec_ref.data) < 0) {
 		return "reading state vector entries from disk failed";
@@ -742,9 +742,9 @@ char* test_mps_to_statevector()
 char* test_save_mps()
 {
 	 // number of lattice sites
-	const long nsites = 7;
+	const ct_long nsites = 7;
 	// local physical dimension
-	const long d = 4;
+	const ct_long d = 4;
 	// local quantum numbers at each physical site
 	const qnumber qsite[4] = { 0, 2, 0, -1 };
 
@@ -752,7 +752,7 @@ char* test_save_mps()
 	seed_rng_state(43, &rng_state);
 
 	struct mps mps;
-	const long max_vdim = 14;
+	const ct_long max_vdim = 14;
 	const qnumber qnum_sector = 1;
 	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &mps);
 	if (mps_norm(&mps) == 0) {

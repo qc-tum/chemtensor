@@ -13,11 +13,11 @@
 ///
 /// \brief Calculate the product of a list of integer numbers.
 ///
-long integer_product(const long* x, const int n)
+ct_long integer_product(const ct_long* x, const int n)
 {
 	assert(n >= 0); // n == 0 is still reasonable
 
-	long prod = 1;
+	ct_long prod = 1;
 	for (int i = 0; i < n; i++)
 	{
 		prod *= x[i];
@@ -31,11 +31,11 @@ long integer_product(const long* x, const int n)
 ///
 /// \brief Compute the integer power `base^exp`.
 ///
-long ipow(long base, int exp)
+ct_long ipow(ct_long base, int exp)
 {
 	assert(exp >= 0);
 
-	long result = 1;
+	ct_long result = 1;
 	while (exp != 0)
 	{
 		if ((exp & 1) == 1) {
@@ -69,7 +69,7 @@ bool is_identity_permutation(const int* perm, const int n)
 ///
 /// The result is cast to double format (even if the actual entries are of single precision).
 ///
-double uniform_distance(const enum numeric_type dtype, const long n, const void* restrict x, const void* restrict y)
+double uniform_distance(const enum numeric_type dtype, const ct_long n, const void* restrict x, const void* restrict y)
 {
 	switch (dtype)
 	{
@@ -78,7 +78,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			const float* xv = x;
 			const float* yv = y;
 			float d = 0;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				d = fmaxf(d, fabsf(xv[i] - yv[i]));
 			}
@@ -89,7 +89,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			const double* xv = x;
 			const double* yv = y;
 			double d = 0;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				d = fmax(d, fabs(xv[i] - yv[i]));
 			}
@@ -100,7 +100,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			const scomplex* xv = x;
 			const scomplex* yv = y;
 			float d = 0;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				d = fmaxf(d, cabsf(xv[i] - yv[i]));
 			}
@@ -111,7 +111,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 			const dcomplex* xv = x;
 			const dcomplex* yv = y;
 			double d = 0;
-			for (long i = 0; i < n; i++)
+			for (ct_long i = 0; i < n; i++)
 			{
 				d = fmax(d, cabs(xv[i] - yv[i]));
 			}
@@ -131,7 +131,7 @@ double uniform_distance(const enum numeric_type dtype, const long n, const void*
 ///
 /// \brief Euclidean norm of a vector.
 ///
-double norm2(const enum numeric_type dtype, const long n, const void* x)
+double norm2(const enum numeric_type dtype, const ct_long n, const void* x)
 {
 	assert(n >= 0);
 
@@ -404,7 +404,7 @@ herr_t write_hdf5_scalar_attribute(const hid_t file, const char* name, hid_t mem
 ///
 /// \brief Write an HDF5 vector attribute to a file.
 ///
-herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const long length, const void* data)
+herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem_type_store, hid_t mem_type_input, const ct_long length, const void* data)
 {
 	hsize_t dims[1] = { length };
 	hid_t space = H5Screate_simple(1, dims, NULL);

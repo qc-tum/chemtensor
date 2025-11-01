@@ -16,19 +16,19 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 
 	// read coefficient matrices from disk
 	struct dense_tensor tkin;
-	const long dim_tkin[2] = { nsites, nsites };
+	const ct_long dim_tkin[2] = { nsites, nsites };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor thc_kernel;
-	const long dim_thc_kernel[2] = { thc_rank, thc_rank };
+	const ct_long dim_thc_kernel[2] = { thc_rank, thc_rank };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_thc_kernel, &thc_kernel);
 	if (read_hdf5_dataset(file, "thc_kernel", H5T_NATIVE_DOUBLE, thc_kernel.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor thc_transform;
-	const long dim_thc_transform[2] = { nsites, thc_rank };
+	const ct_long dim_thc_transform[2] = { nsites, thc_rank };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_thc_transform, &thc_transform);
 	if (read_hdf5_dataset(file, "thc_transform", H5T_NATIVE_DOUBLE, thc_transform.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -53,7 +53,7 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 	};
 
 	// virtual bond quantum numbers
-	const long psi_dim_bonds[6] = { 1, 19, 39, 41, 23, 1 };
+	const ct_long psi_dim_bonds[6] = { 1, 19, 39, 41, 23, 1 };
 	qnumber** psi_qbonds = ct_malloc((nsites + 1) * sizeof(qnumber*));
 	for (int i = 0; i < nsites + 1; i++)
 	{
@@ -91,7 +91,7 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 
 	// reference vector
 	// include dummy virtual bond dimensions
-	const long dim_h_psi_ref[3] = { 1, ipow(4, nsites), 1 };
+	const ct_long dim_h_psi_ref[3] = { 1, ipow(4, nsites), 1 };
 	struct dense_tensor h_psi_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 3, dim_h_psi_ref, &h_psi_ref);
 	// read values from disk
@@ -102,7 +102,7 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 	for (int j = 0; j < 2; j++)  // determines tolerance
 	{
 		const double tol = (j == 0 ? 0 : 1e-3);
-		const long max_vdim = 1024;
+		const ct_long max_vdim = 1024;
 		struct mps h_psi;
 		if (apply_thc_spin_molecular_hamiltonian(&hamiltonian, &psi, tol, max_vdim, &h_psi) < 0) {
 			return "'apply_thc_spin_molecular_hamiltonian' failed internally";
@@ -151,19 +151,19 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix()
 
 	// read coefficient matrices from disk
 	struct dense_tensor tkin;
-	const long dim_tkin[2] = { nsites, nsites };
+	const ct_long dim_tkin[2] = { nsites, nsites };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_tkin, &tkin);
 	if (read_hdf5_dataset(file, "tkin", H5T_NATIVE_DOUBLE, tkin.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor thc_kernel;
-	const long dim_thc_kernel[2] = { thc_rank, thc_rank };
+	const ct_long dim_thc_kernel[2] = { thc_rank, thc_rank };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_thc_kernel, &thc_kernel);
 	if (read_hdf5_dataset(file, "thc_kernel", H5T_NATIVE_DOUBLE, thc_kernel.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 	struct dense_tensor thc_transform;
-	const long dim_thc_transform[2] = { nsites, thc_rank };
+	const ct_long dim_thc_transform[2] = { nsites, thc_rank };
 	allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim_thc_transform, &thc_transform);
 	if (read_hdf5_dataset(file, "thc_transform", H5T_NATIVE_DOUBLE, thc_transform.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -187,7 +187,7 @@ char* test_thc_spin_molecular_hamiltonian_to_matrix()
 		return "obtaining dimensions of reference Hamiltonian failed";
 	}
 	// include dummy virtual bond dimensions
-	const long dim_ref[4] = { 1, dim_ref_hsize[0], dim_ref_hsize[1], 1 };
+	const ct_long dim_ref[4] = { 1, dim_ref_hsize[0], dim_ref_hsize[1], 1 };
 	struct dense_tensor hmat_ref;
 	allocate_dense_tensor(CT_DOUBLE_REAL, 4, dim_ref, &hmat_ref);
 	// read values from disk

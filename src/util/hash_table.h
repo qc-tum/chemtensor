@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <stdbool.h>
-#include <inttypes.h>
 #include <memory.h>
+#include "util.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -42,12 +43,12 @@ struct hash_table
 	hash_function_type* hash_func;      //!< hash function
 	size_t key_size;                    //!< size of a key, in bytes
 	struct hash_table_entry** buckets;  //!< each bucket is a linked list of entries
-	long num_buckets;                   //!< number of buckets
-	long num_entries;                   //!< number of entries
+	ct_long num_buckets;                //!< number of buckets
+	ct_long num_entries;                //!< number of entries
 };
 
 
-void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const long num_buckets, struct hash_table* ht);
+void create_hash_table(hash_table_key_comp* key_equal, hash_function_type* hash_func, const size_t key_size, const ct_long num_buckets, struct hash_table* ht);
 
 void delete_hash_table(struct hash_table* ht, void (*free_func)(void*));
 
@@ -66,7 +67,7 @@ void* hash_table_remove(struct hash_table* ht, void* key);
 struct hash_table_iterator
 {
 	const struct hash_table* table;  //!< reference to hash table
-	long i_bucket;                   //!< bucket index
+	ct_long i_bucket;                //!< bucket index
 	struct hash_table_entry* entry;  //!< pointer to current entry
 };
 

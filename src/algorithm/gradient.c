@@ -124,14 +124,14 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 					{
 						float* dc = dcoeff;
 						const float* opdata = op->data;
-						for (long x = 0; x < op->dim[0]; x++)
+						for (ct_long x = 0; x < op->dim[0]; x++)
 						{
-							for (long y = 0; y < op->dim[1]; y++)
+							for (ct_long y = 0; y < op->dim[1]; y++)
 							{
 								if (opdata[x*op->dim[1] + y] == 0) {
 									continue;
 								}
-								long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
+								ct_long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
 								float* pentry = block_sparse_tensor_get_entry(&acc, index_dw);
 								if (pentry != NULL) {
 									// accumulate gradient
@@ -145,14 +145,14 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 					{
 						double* dc = dcoeff;
 						const double* opdata = op->data;
-						for (long x = 0; x < op->dim[0]; x++)
+						for (ct_long x = 0; x < op->dim[0]; x++)
 						{
-							for (long y = 0; y < op->dim[1]; y++)
+							for (ct_long y = 0; y < op->dim[1]; y++)
 							{
 								if (opdata[x*op->dim[1] + y] == 0) {
 									continue;
 								}
-								long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
+								ct_long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
 								double* pentry = block_sparse_tensor_get_entry(&acc, index_dw);
 								if (pentry != NULL) {
 									// accumulate gradient
@@ -166,14 +166,14 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 					{
 						scomplex* dc = dcoeff;
 						const scomplex* opdata = op->data;
-						for (long x = 0; x < op->dim[0]; x++)
+						for (ct_long x = 0; x < op->dim[0]; x++)
 						{
-							for (long y = 0; y < op->dim[1]; y++)
+							for (ct_long y = 0; y < op->dim[1]; y++)
 							{
 								if (opdata[x*op->dim[1] + y] == 0) {
 									continue;
 								}
-								long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
+								ct_long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
 								scomplex* pentry = block_sparse_tensor_get_entry(&acc, index_dw);
 								if (pentry != NULL) {
 									// accumulate gradient
@@ -187,14 +187,14 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 					{
 						dcomplex* dc = dcoeff;
 						const dcomplex* opdata = op->data;
-						for (long x = 0; x < op->dim[0]; x++)
+						for (ct_long x = 0; x < op->dim[0]; x++)
 						{
-							for (long y = 0; y < op->dim[1]; y++)
+							for (ct_long y = 0; y < op->dim[1]; y++)
 							{
 								if (opdata[x*op->dim[1] + y] == 0) {
 									continue;
 								}
-								long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
+								ct_long index_dw[4] = { edge->vids[0], x, y, edge->vids[1] };
 								dcomplex* pentry = block_sparse_tensor_get_entry(&acc, index_dw);
 								if (pentry != NULL) {
 									// accumulate gradient

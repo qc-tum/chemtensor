@@ -78,13 +78,13 @@ void op_chain_pad_identities(const struct op_chain* restrict chain, const int ne
 ///
 /// \brief Construct the full matrix representation of the operator chain.
 ///
-void op_chain_to_matrix(const struct op_chain* chain, const long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a)
+void op_chain_to_matrix(const struct op_chain* chain, const ct_long d, const int nsites, const struct dense_tensor* opmap, const void* coeffmap, const enum numeric_type dtype, struct dense_tensor* a)
 {
 	assert(d >= 1);
 
 	// leading identity matrices times coefficient
-	const long d0 = ipow(d, chain->istart);
-	const long dim0[2] = { d0, d0 };
+	const ct_long d0 = ipow(d, chain->istart);
+	const ct_long dim0[2] = { d0, d0 };
 	allocate_dense_tensor(dtype, 2, dim0, a);
 	dense_tensor_set_identity(a);
 	switch (dtype)
@@ -133,8 +133,8 @@ void op_chain_to_matrix(const struct op_chain* chain, const long d, const int ns
 	// trailing identity matrices
 	const int n_trail = nsites - (chain->istart + chain->length);
 	assert(n_trail >= 0);
-	const long d1 = ipow(d, n_trail);
-	const long dim1[2] = { d1, d1 };
+	const ct_long d1 = ipow(d, n_trail);
+	const ct_long dim1[2] = { d1, d1 };
 	struct dense_tensor id_trail;
 	allocate_dense_tensor(dtype, 2, dim1, &id_trail);
 	dense_tensor_set_identity(&id_trail);

@@ -13,7 +13,7 @@ static int* construct_integer(int v)
 static void linked_list_export_integer_array(const struct linked_list* list, int* arr)
 {
 	const struct linked_list_node* node = list->head;
-	long i = 0;
+	ct_long i = 0;
 	while (node != NULL)
 	{
 		arr[i++] = *((int*)node->data);
@@ -22,9 +22,9 @@ static void linked_list_export_integer_array(const struct linked_list* list, int
 }
 
 
-static bool integer_array_equal(const long n, const int* arr1, const int* arr2)
+static bool integer_array_equal(const ct_long n, const int* arr1, const int* arr2)
 {
-	for (long i = 0; i < n; i++)
+	for (ct_long i = 0; i < n; i++)
 	{
 		if (arr1[i] != arr2[i]) {
 			return false;
