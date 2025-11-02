@@ -246,11 +246,11 @@ def construct_fermi_operators(nmodes: int):
         c = sparse.identity(1)
         for j in range(nmodes):
             if j < i:
-                c = sparse.kron(c, I)
+                c = sparse.kron(c, Z)
             elif j == i:
                 c = sparse.kron(c, U)
             else:
-                c = sparse.kron(c, Z)
+                c = sparse.kron(c, I)
         c = sparse.csr_matrix(c)
         c.eliminate_zeros()
         clist.append(c)
