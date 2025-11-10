@@ -75,6 +75,69 @@ void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_ten
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Count the number of non-zero elements of a dense tensor.
+///
+ct_long dense_tensor_num_nonzero_elements(const struct dense_tensor* t)
+{
+	const ct_long nelem = dense_tensor_num_elements(t);
+
+	ct_long nnz = 0;
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* tdata = t->data;
+			for (ct_long i = 0; i < nelem; i++) {
+				if (tdata[i] != 0) {
+					nnz++;
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* tdata = t->data;
+			for (ct_long i = 0; i < nelem; i++) {
+				if (tdata[i] != 0) {
+					nnz++;
+				}
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* tdata = t->data;
+			for (ct_long i = 0; i < nelem; i++) {
+				if (tdata[i] != 0) {
+					nnz++;
+				}
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* tdata = t->data;
+			for (ct_long i = 0; i < nelem; i++) {
+				if (tdata[i] != 0) {
+					nnz++;
+				}
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	return nnz;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the 'trace' of a tensor (generalization of the matrix trace); all dimensions of the tensor must agree.
 ///
 void dense_tensor_trace(const struct dense_tensor* t, void* ret)
@@ -520,7 +583,7 @@ void dense_tensor_set_identity(struct dense_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Fill the entries of a dense tensor with random normal entries.
+/// \brief Fill a dense tensor with random normal entries.
 ///
 void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct dense_tensor* t)
 {

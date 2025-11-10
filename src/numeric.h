@@ -13,10 +13,11 @@
 ///
 enum numeric_type
 {
-	CT_SINGLE_REAL    = 0,  //!< float
-	CT_DOUBLE_REAL    = 1,  //!< double
-	CT_SINGLE_COMPLEX = 2,  //!< float complex
-	CT_DOUBLE_COMPLEX = 3,  //!< double complex
+	CT_SINGLE_REAL       = 0,  //!< float
+	CT_DOUBLE_REAL       = 1,  //!< double
+	CT_SINGLE_COMPLEX    = 2,  //!< float complex
+	CT_DOUBLE_COMPLEX    = 3,  //!< double complex
+	CT_NUM_NUMERIC_TYPES = 4,  //!< number of numeric data types
 };
 
 

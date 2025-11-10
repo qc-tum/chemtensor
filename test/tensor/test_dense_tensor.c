@@ -852,7 +852,7 @@ char* test_dense_tensor_qr()
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
 			// data types
-			for (int t = 0; t < 4; t++)
+			for (int t = 0; t < CT_NUM_NUMERIC_TYPES; t++)
 			{
 				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
 
@@ -940,7 +940,7 @@ char* test_dense_tensor_rq()
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
 			// data types
-			for (int t = 0; t < 4; t++)
+			for (int t = 0; t < CT_NUM_NUMERIC_TYPES; t++)
 			{
 				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
 
@@ -1024,7 +1024,7 @@ char* test_dense_tensor_eigh()
 	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
 
 	// data types
-	for (int j = 0; j < 4; j++)
+	for (int j = 0; j < CT_NUM_NUMERIC_TYPES; j++)
 	{
 		const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
 
@@ -1099,7 +1099,7 @@ char* test_dense_tensor_svd()
 	for (int i = 0; i < 2; i++)
 	{
 		// data types
-		for (int j = 0; j < 4; j++)
+		for (int j = 0; j < CT_NUM_NUMERIC_TYPES; j++)
 		{
 			const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
 

@@ -48,6 +48,9 @@ static inline ct_long dense_tensor_num_elements(const struct dense_tensor* t)
 }
 
 
+ct_long dense_tensor_num_nonzero_elements(const struct dense_tensor* t);
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Convert tensor index to data offset.

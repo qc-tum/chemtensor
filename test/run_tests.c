@@ -53,6 +53,9 @@ char* test_block_sparse_tensor_svd();
 char* test_block_sparse_tensor_augment_identity_blocks();
 char* test_block_sparse_tensor_serialize();
 char* test_block_sparse_tensor_get_entry();
+char* test_sparse_coordinate_tensor_transpose();
+char* test_sparse_coordinate_tensor_dot();
+char* test_sparse_coordinate_to_dense_tensor();
 char* test_clebsch_gordan_coefficients();
 char* test_su2_tree_enumerate_charge_sectors();
 char* test_su2_fuse_split_tree_enumerate_charge_sectors();
@@ -169,6 +172,9 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_augment_identity_blocks),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_serialize),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_get_entry),
+		TEST_FUNCTION_ENTRY(test_sparse_coordinate_tensor_transpose),
+		TEST_FUNCTION_ENTRY(test_sparse_coordinate_tensor_dot),
+		TEST_FUNCTION_ENTRY(test_sparse_coordinate_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_clebsch_gordan_coefficients),
 		TEST_FUNCTION_ENTRY(test_su2_tree_enumerate_charge_sectors),
 		TEST_FUNCTION_ENTRY(test_su2_fuse_split_tree_enumerate_charge_sectors),
