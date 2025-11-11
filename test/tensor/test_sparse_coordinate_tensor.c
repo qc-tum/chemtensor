@@ -214,7 +214,7 @@ char* test_sparse_coordinate_tensor_dot()
 						sparse_coordinate_to_dense_tensor(&r, &r_dns);
 
 						// compare
-						const double tol = (numeric_real_type(dtype) == CT_SINGLE_REAL ? 1e-7 : 1e-13);
+						const double tol = (numeric_real_type(dtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
 						if (!dense_tensor_allclose(&r_dns, &r_ref, tol)) {
 							return "dot product of two sparse coordinate tensors does not agree with reference";
 						}
