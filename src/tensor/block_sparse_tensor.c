@@ -1599,11 +1599,11 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 			continue;
 		}
 
-		ct_long* index_block_r  = ct_malloc(r->ndim * sizeof(ct_long));
+		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
 		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
 
 		// require zero initialization
-		ct_long* index_block_t  = ct_calloc(t->ndim, sizeof(ct_long));
+		ct_long* index_block_t = ct_calloc(t->ndim, sizeof(ct_long));
 		memcpy(index_block_t + ndim_trace, index_block_r, r->ndim * sizeof(ct_long));
 
 		for (ct_long j = 0; j < nblocks_p; j++, next_tensor_index(ndim_trace, t->dim_blocks, index_block_t))

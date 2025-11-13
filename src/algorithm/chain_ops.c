@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <assert.h>
 #include "chain_ops.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -132,29 +133,35 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
-	// undo re-ordering
-	const int perm1[5] = { 2, 0, 1, 3, 4 };
-	transpose_block_sparse_tensor(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
-
-	// TODO: fuse transpositions
 
 	// multiply with conjugated 'b' tensor
-	struct block_sparse_tensor bc;
-	copy_block_sparse_tensor(b, &bc);  // TODO: fuse conjugation with dot product
-	conjugate_block_sparse_tensor(&bc);
-	block_sparse_tensor_reverse_axis_directions(&bc);
-	// temporarily make trailing dimension in 't' the leading dimension
-	const int perm2[5] = { 4, 0, 1, 2, 3 };
-	transpose_block_sparse_tensor(perm2, &t, &s);
-	delete_block_sparse_tensor(&t);
-	block_sparse_tensor_dot(&s, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
+	// undo re-ordering and temporarily make trailing dimension in 's' the leading dimension
+	const int perm1[5] = { 4, 2, 0, 1, 3 };
+	transpose_block_sparse_tensor(perm1, &s, &t);
 	delete_block_sparse_tensor(&s);
-	delete_block_sparse_tensor(&bc);
-	// restore original trailing dimension
-	const int perm3[4] = { 1, 2, 3, 0 };
-	transpose_block_sparse_tensor(perm3, &t, r_next);
+	struct block_sparse_tensor br = *b;  // copy internal data pointers
+	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
+	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
+	block_sparse_tensor_reverse_axis_directions(&br);
+	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	{
+		// TODO: fuse conjugation with dot product
+		struct block_sparse_tensor bc;
+		copy_block_sparse_tensor(&br, &bc);
+		conjugate_block_sparse_tensor(&bc);
+		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, &s);
+		delete_block_sparse_tensor(&bc);
+	}
+	else
+	{
+		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &br, TENSOR_AXIS_RANGE_TRAILING, 2, &s);
+	}
+	ct_free(br.axis_dir);
 	delete_block_sparse_tensor(&t);
+	// restore original trailing dimension
+	const int perm2[4] = { 1, 2, 3, 0 };
+	transpose_block_sparse_tensor(perm2, &s, r_next);
+	delete_block_sparse_tensor(&s);
 }
 
 
@@ -195,13 +202,25 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	assert(l->ndim == 4);
 
 	// multiply with conjugated 'b' tensor
-	struct block_sparse_tensor bc;
-	copy_block_sparse_tensor(b, &bc);  // TODO: fuse conjugation with dot product
-	conjugate_block_sparse_tensor(&bc);
-	block_sparse_tensor_reverse_axis_directions(&bc);
 	struct block_sparse_tensor s;
-	block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_LEADING, 1, &s);
-	delete_block_sparse_tensor(&bc);
+	struct block_sparse_tensor br = *b;  // copy internal data pointers
+	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
+	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
+	block_sparse_tensor_reverse_axis_directions(&br);
+	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	{
+		// TODO: fuse conjugation with dot product
+		struct block_sparse_tensor bc;
+		copy_block_sparse_tensor(&br, &bc);
+		conjugate_block_sparse_tensor(&bc);
+		block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+		delete_block_sparse_tensor(&bc);
+	}
+	else
+	{
+		block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_TRAILING, &br, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+	}
+	ct_free(br.axis_dir);
 
 	// multiply with 'w' tensor
 	// re-order last three dimensions
@@ -211,24 +230,18 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, w, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
-	// undo re-ordering
-	const int perm1[5] = { 0, 1, 3, 4, 2 };
-	transpose_block_sparse_tensor(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
-
-	// TODO: fuse transpositions
 
 	// multiply with 'a' tensor
-	// temporarily make leading dimension in 't' the trailing dimension
-	const int perm2[5] = { 1, 2, 3, 4, 0 };
-	transpose_block_sparse_tensor(perm2, &t, &s);
-	delete_block_sparse_tensor(&t);
-	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_LEADING, &s, TENSOR_AXIS_RANGE_LEADING, 2, &t);
+	// undo re-ordering, and temporarily make leading dimension in 's' the trailing dimension
+	const int perm1[5] = { 1, 3, 4, 2, 0 };
+	transpose_block_sparse_tensor(perm1, &s, &t);
 	delete_block_sparse_tensor(&s);
-	// restore original leading dimension
-	const int perm3[4] = { 3, 0, 1, 2 };
-	transpose_block_sparse_tensor(perm3, &t, l_next);
+	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
+	// restore original leading dimension
+	const int perm2[4] = { 3, 0, 1, 2 };
+	transpose_block_sparse_tensor(perm2, &s, l_next);
+	delete_block_sparse_tensor(&s);
 }
 
 
@@ -421,18 +434,30 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 
 	// multiply with conjugated 'b' tensor
-	struct block_sparse_tensor bc;
-	copy_block_sparse_tensor(b, &bc);  // TODO: fuse conjugation with dot product
-	conjugate_block_sparse_tensor(&bc);
-	block_sparse_tensor_reverse_axis_directions(&bc);
 	// re-order last two dimensions
 	const int perm0[5] = { 0, 1, 2, 4, 3 };
 	struct block_sparse_tensor t;
 	transpose_block_sparse_tensor(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(&bc, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_TRAILING, 1, &s);
+	struct block_sparse_tensor br = *b;  // copy internal data pointers
+	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
+	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
+	block_sparse_tensor_reverse_axis_directions(&br);
+	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	{
+		// TODO: fuse conjugation with dot product
+		struct block_sparse_tensor bc;
+		copy_block_sparse_tensor(&br, &bc);
+		conjugate_block_sparse_tensor(&bc);
+		block_sparse_tensor_dot(&bc, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_TRAILING, 1, &s);
+		delete_block_sparse_tensor(&bc);
+	}
+	else
+	{
+		block_sparse_tensor_dot(&br, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_TRAILING, 1, &s);
+	}
+	ct_free(br.axis_dir);
 	delete_block_sparse_tensor(&t);
-	delete_block_sparse_tensor(&bc);
 
 	// multiply with 'l' tensor
 	// re-order second and third dimension of 'l'
