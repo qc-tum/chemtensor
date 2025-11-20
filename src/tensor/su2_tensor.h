@@ -61,6 +61,8 @@ static inline int su2_tensor_ndim(const struct su2_tensor* t)
 
 ct_long su2_tensor_dim_logical_axis(const struct su2_tensor* t, const int i_ax);
 
+ct_long su2_tensor_num_elements_logical(const struct su2_tensor* t);
+
 
 enum tensor_axis_direction su2_tensor_logical_axis_direction(const struct su2_tensor* t, const int i_ax);
 
@@ -83,8 +85,13 @@ static inline void su2_tensor_flip_trees(struct su2_tensor* t)
 	su2_fuse_split_tree_flip(&t->tree);
 }
 
-
 bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist);
+
+void scale_su2_tensor(const void* alpha, struct su2_tensor* t);
+
+void rscale_su2_tensor(const void* alpha, struct su2_tensor* t);
+
+void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct su2_tensor* t);
 
 
 //________________________________________________________________________________________________________________________

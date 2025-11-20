@@ -89,16 +89,7 @@ char* test_su2_tensor_fmove()
 	// fill degeneracy tensors with random entries
 	struct rng_state rng_state;
 	seed_rng_state(39, &rng_state);
-	for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-	{
-		// corresponding "degeneracy" tensor
-		struct dense_tensor* d = t.degensors[c];
-		assert(d != NULL);
-		assert(d->dtype == t.dtype);
-		assert(d->ndim  == t.ndim_logical);
-
-		dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-	}
+	su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 
 	// convert to full dense tensor, as reference
 	struct dense_tensor t_dns;
@@ -254,16 +245,7 @@ char* test_su2_tensor_reverse_axis_simple()
 			// fill degeneracy tensors with random entries
 			struct rng_state rng_state;
 			seed_rng_state(40, &rng_state);
-			for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-			{
-				// corresponding "degeneracy" tensor
-				struct dense_tensor* d = t.degensors[c];
-				assert(d != NULL);
-				assert(d->dtype == t.dtype);
-				assert(d->ndim  == t.ndim_logical);
-
-				dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-			}
+			su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 		}
 
 		struct su2_tensor t_orig;
@@ -844,16 +826,7 @@ char* test_su2_tensor_fuse_axes()
 		// fill degeneracy tensors with random entries
 		struct rng_state rng_state;
 		seed_rng_state(41, &rng_state);
-		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-		{
-			// corresponding "degeneracy" tensor
-			struct dense_tensor* d = t.degensors[c];
-			assert(d != NULL);
-			assert(d->dtype == t.dtype);
-			assert(d->ndim  == t.ndim_logical);
-
-			dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-		}
+		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 	}
 
 	// fuse axes
@@ -1174,16 +1147,7 @@ char* test_su2_tensor_split_axis()
 		// fill degeneracy tensors with random entries
 		struct rng_state rng_state;
 		seed_rng_state(42, &rng_state);
-		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-		{
-			// corresponding "degeneracy" tensor
-			struct dense_tensor* d = t.degensors[c];
-			assert(d != NULL);
-			assert(d->dtype == t.dtype);
-			assert(d->ndim  == t.ndim_logical);
-
-			dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-		}
+		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 	}
 
 	// split axis
@@ -1487,16 +1451,7 @@ char* test_su2_tensor_contract_simple()
 		}
 
 		// fill degeneracy tensors with random entries
-		for (ct_long c = 0; c < s.charge_sectors.nsec; c++)
-		{
-			// corresponding "degeneracy" tensor
-			struct dense_tensor* d = s.degensors[c];
-			assert(d != NULL);
-			assert(d->dtype == s.dtype);
-			assert(d->ndim  == s.ndim_logical);
-
-			dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-		}
+		su2_tensor_fill_random_normal(numeric_one(s.dtype), numeric_zero(s.dtype), &rng_state, &s);
 	}
 
 	// construct the 't' tensor
@@ -1581,16 +1536,7 @@ char* test_su2_tensor_contract_simple()
 		}
 
 		// fill degeneracy tensors with random entries
-		for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-		{
-			// corresponding "degeneracy" tensor
-			struct dense_tensor* d = t.degensors[c];
-			assert(d != NULL);
-			assert(d->dtype == t.dtype);
-			assert(d->ndim  == t.ndim_logical);
-
-			dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-		}
+		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 	}
 
 	for (int flip = 0; flip < 2; flip++)
@@ -1600,145 +1546,156 @@ char* test_su2_tensor_contract_simple()
 			su2_tensor_flip_trees(&t);
 		}
 
-		// perform contraction
-		const int i_ax_s[3] = { 3, 1, 4 };
-		const int i_ax_t[3] = { 3, 2, 5 };
-		struct su2_tensor r;
-		if (flip == 0) {
-			su2_tensor_contract_simple(&s, i_ax_s, &t, i_ax_t, 3, &r);
-		}
-		else {
-			su2_tensor_contract_simple(&t, i_ax_t, &s, i_ax_s, 3, &r);
-		}
-
-		if (!su2_tensor_is_consistent(&r)) {
-			return "internal consistency check for SU(2) tensor failed";
-		}
-		if (r.ndim_logical != 5) {
-			return "contracted SU(2) tensor does not have expected number of logical dimensions";
-		}
-		if (r.ndim_auxiliary != 1) {
-			return "contracted SU(2) tensor does not have expected number of auxiliary dimensions";
-		}
-
-		// reference SU(2) tree of contracted tensor
-		if (flip == 0)
+		for (int ordering = 0; ordering < 2; ordering++)
 		{
-			// construct the fuse and split tree
-			//
-			//  5   0    1   2
-			//   ╲   ╲  ╱   ╱
-			//    ╲   ╲╱   ╱
-			//     ╲  ╱6  ╱        fuse
-			//      ╲╱   ╱
-			//      7╲  ╱
-			//        ╲╱
-			//        │
-			//        │8
-			//        │
-			//        ╱╲
-			//       ╱  ╲          split
-			//      3    4
-			//
-			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
-			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
-			struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
-			struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
-			struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
-			struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
-			struct su2_tree_node j6  = { .i_ax = 6, .c = { &j0,  &j1  } };
-			struct su2_tree_node j7  = { .i_ax = 7, .c = { &j5,  &j6  } };
-			struct su2_tree_node j8f = { .i_ax = 8, .c = { &j7,  &j2  } };
-			struct su2_tree_node j8s = { .i_ax = 8, .c = { &j3,  &j4  } };
-
-			struct su2_fuse_split_tree tree_ref = { .tree_fuse = &j8f, .tree_split = &j8s, .ndim = 9 };
-			if (!su2_fuse_split_tree_is_consistent(&tree_ref)) {
-				return "internal consistency check for the fuse and split tree failed";
+			// perform contraction
+			const int i_ax_s[3] = { 3, 1, 4 };
+			const int i_ax_t[3] = { 3, 2, 5 };
+			struct su2_tensor r;
+			if (ordering == 0) {
+				su2_tensor_contract_simple(&s, i_ax_s, &t, i_ax_t, 3, &r);
+			}
+			else {
+				su2_tensor_contract_simple(&t, i_ax_t, &s, i_ax_s, 3, &r);
 			}
 
-			if (!su2_fuse_split_tree_equal(&r.tree, &tree_ref)) {
-				return "fuse and split tree of contracted SU(2) tensor does not match reference";
+			if (!su2_tensor_is_consistent(&r)) {
+				return "internal consistency check for SU(2) tensor failed";
 			}
-		}
-		else
-		{
-			// construct the fuse and split tree
-			//
-			//      1    2
-			//       ╲  ╱          fuse
-			//        ╲╱
-			//        │
-			//        │6
-			//        │
-			//        ╱╲
-			//      7╱  ╲
-			//      ╱╲   ╲
-			//     ╱  ╲8  ╲        split
-			//    ╱   ╱╲   ╲
-			//   ╱   ╱  ╲   ╲
-			//  5   3    4   0
-			//
-			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
-			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
-			struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
-			struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
-			struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
-			struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
-			struct su2_tree_node j8  = { .i_ax = 8, .c = { &j3,  &j4  } };
-			struct su2_tree_node j7  = { .i_ax = 7, .c = { &j5,  &j8  } };
-			struct su2_tree_node j6f = { .i_ax = 6, .c = { &j1,  &j2  } };
-			struct su2_tree_node j6s = { .i_ax = 6, .c = { &j7,  &j0  } };
-
-			struct su2_fuse_split_tree tree_ref = { .tree_fuse = &j6f, .tree_split = &j6s, .ndim = 9 };
-			if (!su2_fuse_split_tree_is_consistent(&tree_ref)) {
-				return "internal consistency check for the fuse and split tree failed";
+			if (r.ndim_logical != 5) {
+				return "contracted SU(2) tensor does not have expected number of logical dimensions";
+			}
+			if (r.ndim_auxiliary != 1) {
+				return "contracted SU(2) tensor does not have expected number of auxiliary dimensions";
 			}
 
-			if (!su2_fuse_split_tree_equal(&r.tree, &tree_ref)) {
-				return "fuse and split tree of contracted SU(2) tensor does not match reference";
+			// reference SU(2) tree of contracted tensor
+			if (ordering == 0)
+			{
+				// construct the fuse and split tree
+				//
+				//  5   0    1   2
+				//   ╲   ╲  ╱   ╱
+				//    ╲   ╲╱   ╱
+				//     ╲  ╱6  ╱        fuse
+				//      ╲╱   ╱
+				//      7╲  ╱
+				//        ╲╱
+				//        │
+				//        │8
+				//        │
+				//        ╱╲
+				//       ╱  ╲          split
+				//      3    4
+				//
+				struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+				struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+				struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+				struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+				struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
+				struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
+				struct su2_tree_node j6  = { .i_ax = 6, .c = { &j0,  &j1  } };
+				struct su2_tree_node j7  = { .i_ax = 7, .c = { &j5,  &j6  } };
+				struct su2_tree_node j8f = { .i_ax = 8, .c = { &j7,  &j2  } };
+				struct su2_tree_node j8s = { .i_ax = 8, .c = { &j3,  &j4  } };
+
+				struct su2_fuse_split_tree tree_ref = { .tree_fuse = &j8f, .tree_split = &j8s, .ndim = 9 };
+				if (!su2_fuse_split_tree_is_consistent(&tree_ref)) {
+					return "internal consistency check for the fuse and split tree failed";
+				}
+
+				if (flip == 1) {
+					su2_fuse_split_tree_flip(&tree_ref);
+				}
+
+				if (!su2_fuse_split_tree_equal(&r.tree, &tree_ref)) {
+					return "fuse and split tree of contracted SU(2) tensor does not match reference";
+				}
 			}
+			else  // ordering == 1
+			{
+				// construct the fuse and split tree
+				//
+				//  5   3    4   0
+				//   ╲   ╲  ╱   ╱
+				//    ╲   ╲╱   ╱
+				//     ╲  ╱8  ╱        fuse
+				//      ╲╱   ╱
+				//      7╲  ╱
+				//        ╲╱
+				//        │
+				//        │6
+				//        │
+				//        ╱╲
+				//       ╱  ╲          split
+				//      1    2
+				//
+				struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+				struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+				struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+				struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+				struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
+				struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
+				struct su2_tree_node j8  = { .i_ax = 8, .c = { &j3,  &j4  } };
+				struct su2_tree_node j7  = { .i_ax = 7, .c = { &j5,  &j8  } };
+				struct su2_tree_node j6f = { .i_ax = 6, .c = { &j7,  &j0  } };
+				struct su2_tree_node j6s = { .i_ax = 6, .c = { &j1,  &j2  } };
+
+				struct su2_fuse_split_tree tree_ref = { .tree_fuse = &j6f, .tree_split = &j6s, .ndim = 9 };
+				if (!su2_fuse_split_tree_is_consistent(&tree_ref)) {
+					return "internal consistency check for the fuse and split tree failed";
+				}
+
+				if (flip == 1) {
+					su2_fuse_split_tree_flip(&tree_ref);
+				}
+
+				if (!su2_fuse_split_tree_equal(&r.tree, &tree_ref)) {
+					return "fuse and split tree of contracted SU(2) tensor does not match reference";
+				}
+			}
+
+			// convert to full dense tensors
+			struct dense_tensor s_dns;
+			struct dense_tensor t_dns;
+			struct dense_tensor r_dns;
+			su2_to_dense_tensor(&s, &s_dns);
+			su2_to_dense_tensor(&t, &t_dns);
+			su2_to_dense_tensor(&r, &r_dns);
+
+			if (dense_tensor_is_zero(&s_dns, 0.) || dense_tensor_is_zero(&t_dns, 0.)) {
+				return "to-be contracted SU(2) tensors should not be zero";
+			}
+
+			struct dense_tensor s_dns_perm;
+			struct dense_tensor t_dns_perm;
+			const int perm_s[4] = { 0, 2, 3, 1 };
+			const int perm_t[5] = { 3, 2, 0, 1, 4 };
+			transpose_dense_tensor(perm_s, &s_dns, &s_dns_perm);
+			transpose_dense_tensor(perm_t, &t_dns, &t_dns_perm);
+
+			// contract dense tensors, as reference
+			struct dense_tensor r_dns_ref;
+			if (ordering == 0) {
+				dense_tensor_dot(&s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 2, &r_dns_ref);
+			}
+			else {
+				dense_tensor_dot(&t_dns_perm, TENSOR_AXIS_RANGE_LEADING, &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_ref);
+			}
+
+			// compare
+			if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+				return "tensor resulting from contraction of two SU(2) tensors does not match reference";
+			}
+
+			delete_dense_tensor(&r_dns_ref);
+			delete_dense_tensor(&t_dns_perm);
+			delete_dense_tensor(&s_dns_perm);
+			delete_dense_tensor(&r_dns);
+			delete_dense_tensor(&t_dns);
+			delete_dense_tensor(&s_dns);
+			delete_su2_tensor(&r);
 		}
-
-		// convert to full dense tensors
-		struct dense_tensor s_dns;
-		struct dense_tensor t_dns;
-		struct dense_tensor r_dns;
-		su2_to_dense_tensor(&s, &s_dns);
-		su2_to_dense_tensor(&t, &t_dns);
-		su2_to_dense_tensor(&r, &r_dns);
-
-		if (dense_tensor_is_zero(&s_dns, 0.) || dense_tensor_is_zero(&t_dns, 0.)) {
-			return "to-be contracted SU(2) tensors should not be zero";
-		}
-
-		struct dense_tensor s_dns_perm;
-		struct dense_tensor t_dns_perm;
-		const int perm_s[4] = { 0, 2, 3, 1 };
-		const int perm_t[5] = { 3, 2, 0, 1, 4 };
-		transpose_dense_tensor(perm_s, &s_dns, &s_dns_perm);
-		transpose_dense_tensor(perm_t, &t_dns, &t_dns_perm);
-
-		// contract dense tensors, as reference
-		struct dense_tensor r_dns_ref;
-		if (flip == 0) {
-			dense_tensor_dot(&s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 2, &r_dns_ref);
-		}
-		else {
-			dense_tensor_dot(&t_dns_perm, TENSOR_AXIS_RANGE_LEADING, &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_ref);
-		}
-
-		// compare
-		if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
-			return "tensor resulting from contraction of two SU(2) tensors does not match reference";
-		}
-
-		delete_dense_tensor(&r_dns_ref);
-		delete_dense_tensor(&t_dns_perm);
-		delete_dense_tensor(&s_dns_perm);
-		delete_dense_tensor(&r_dns);
-		delete_dense_tensor(&t_dns);
-		delete_dense_tensor(&s_dns);
-		delete_su2_tensor(&r);
 	}
 
 	delete_su2_tensor(&t);
@@ -1837,16 +1794,7 @@ char* test_su2_tensor_contract_yoga()
 			}
 
 			// fill degeneracy tensors with random entries
-			for (ct_long c = 0; c < s.charge_sectors.nsec; c++)
-			{
-				// corresponding "degeneracy" tensor
-				struct dense_tensor* d = s.degensors[c];
-				assert(d != NULL);
-				assert(d->dtype == s.dtype);
-				assert(d->ndim  == s.ndim_logical);
-
-				dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-			}
+			su2_tensor_fill_random_normal(numeric_one(s.dtype), numeric_zero(s.dtype), &rng_state, &s);
 		}
 
 		// construct an SU(2) tensor 't'
@@ -1934,16 +1882,7 @@ char* test_su2_tensor_contract_yoga()
 			}
 
 			// fill degeneracy tensors with random entries
-			for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-			{
-				// corresponding "degeneracy" tensor
-				struct dense_tensor* d = t.degensors[c];
-				assert(d != NULL);
-				assert(d->dtype == t.dtype);
-				assert(d->ndim  == t.ndim_logical);
-
-				dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-			}
+			su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 		}
 
 		// perform contraction
@@ -2089,16 +2028,7 @@ char* test_su2_to_dense_tensor()
 	// fill degeneracy tensors with random entries
 	struct rng_state rng_state;
 	seed_rng_state(45, &rng_state);
-	for (ct_long c = 0; c < t.charge_sectors.nsec; c++)
-	{
-		// corresponding "degeneracy" tensor
-		struct dense_tensor* d = t.degensors[c];
-		assert(d != NULL);
-		assert(d->dtype == t.dtype);
-		assert(d->ndim  == t.ndim_logical);
-
-		dense_tensor_fill_random_normal(numeric_one(d->dtype), numeric_zero(d->dtype), &rng_state, d);
-	}
+	su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 
 	// convert to full dense tensor
 	struct dense_tensor t_dns;

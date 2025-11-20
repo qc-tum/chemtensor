@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
-#include "su2_irrep_lists.h"
+#include "su2_irreps.h"
 
 
 //________________________________________________________________________________________________________________________

@@ -1,5 +1,5 @@
-/// \file su2_irrep_lists.h
-/// \brief Irreducible 'j' quantum number lists and configurations for SU(2) symmetric tensors.
+/// \file su2_irreps.h
+/// \brief Irreducible 'j' quantum number configurations for SU(2) symmetric tensors.
 
 #pragma once
 
@@ -27,6 +27,11 @@ bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const stru
 
 int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t);
 
+void su2_irreps_tensor_product(
+	const struct su2_irreducible_list* restrict irreps_a, const ct_long* restrict dim_degen_a,
+	const struct su2_irreducible_list* restrict irreps_b, const ct_long* restrict dim_degen_b,
+	struct su2_irreducible_list* restrict irreps_prod, ct_long** restrict dim_degen_prod);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -48,3 +53,23 @@ void delete_charge_sectors(struct charge_sectors* sectors);
 ct_long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
 
 bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct charge_sectors* restrict t);
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Trie (prefix tree) node for irreducible 'j' quantum number configurations (temporary data structure).
+///
+struct su2_irrep_trie_node
+{
+	qnumber* jvals;  //!< irreducible 'j' quantum number values at current level, must be distinct and sorted
+	void** cdata;    //!< pointers to child nodes or data values
+	int length;      //!< length of 'jvals' and 'cdata' arrays
+};
+
+int su2_irrep_trie_num_leaves(const int height, const struct su2_irrep_trie_node* trie);
+
+void** su2_irrep_trie_search_insert(const qnumber* jlist, const int num, struct su2_irrep_trie_node* trie);
+
+void** su2_irrep_trie_enumerate_configurations(const int height, const struct su2_irrep_trie_node* trie, struct charge_sectors* sectors);
+
+void delete_su2_irrep_trie(const int height, struct su2_irrep_trie_node* trie);

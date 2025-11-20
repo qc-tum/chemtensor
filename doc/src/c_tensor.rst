@@ -16,6 +16,6 @@ SU(2) symmetric tensors
 .. doxygenfile:: su2_recoupling.h
 .. doxygenfile:: su2_tree.h
 .. doxygenfile:: su2_graph.h
-.. doxygenfile:: su2_irrep_lists.h
+.. doxygenfile:: su2_irreps.h
 .. doxygenfile:: su2_tensor.h
 .. doxygenfile:: su2_util.h

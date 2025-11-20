@@ -4,7 +4,7 @@
 #pragma once
 
 #include "dense_tensor.h"
-#include "su2_irrep_lists.h"
+#include "su2_irreps.h"
 #include "su2_graph.h"
 
 
