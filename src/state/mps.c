@@ -88,24 +88,6 @@ void copy_mps(const struct mps* restrict src, struct mps* restrict dst)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Move MPS data (without allocating new memory).
-///
-void move_mps_data(struct mps* restrict src, struct mps* restrict dst)
-{
-	dst->nsites = src->nsites;
-	dst->d      = src->d;
-	dst->qsite  = src->qsite;
-	dst->a      = src->a;
-
-	src->nsites = 0;
-	src->d      = 0;
-	src->qsite  = NULL;
-	src->a      = NULL;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.
 ///
 void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps)

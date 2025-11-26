@@ -158,11 +158,11 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 				if (ret < 0) {
 					return ret;
 				}
-				move_mps_data(&tmp, h_psi);
+				*h_psi = tmp;  // copy internal data pointers
 			}
 			else
 			{
-				move_mps_data(&kin_psi, h_psi);
+				*h_psi = kin_psi;  // copy internal data pointers
 			}
 		}
 	}
@@ -207,7 +207,7 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 					if (ret < 0) {
 						return ret;
 					}
-					move_mps_data(&tmp, h_psi);
+					*h_psi = tmp;  // copy internal data pointers
 				}
 
 				delete_mps(&thc1_k_psi);
