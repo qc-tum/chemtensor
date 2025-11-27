@@ -23,7 +23,7 @@ struct thc_spin_molecular_hamiltonian
 };
 
 
-int construct_thc_spin_molecular_hamiltonian(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict thc_kernel, const struct dense_tensor* restrict thc_transform, struct thc_spin_molecular_hamiltonian* hamiltonian);
+int construct_thc_spin_molecular_hamiltonian(const struct dense_tensor* tkin, const struct dense_tensor* thc_kernel, const struct dense_tensor* thc_transform, struct thc_spin_molecular_hamiltonian* hamiltonian);
 
 void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian* hamiltonian);
 
@@ -33,7 +33,7 @@ void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian
 // application to a state in MPS form
 
 int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamiltonian* hamiltonian,
-	const struct mps* restrict psi, const double tol, const ct_long max_vdim, struct mps* restrict h_psi);
+	const struct mps* psi, const double tol, const ct_long max_vdim, struct mps* h_psi);
 
 //________________________________________________________________________________________________________________________
 //

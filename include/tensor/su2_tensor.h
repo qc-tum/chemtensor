@@ -99,7 +99,7 @@ void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct 
 
 // F-move
 
-void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struct su2_tensor* restrict r);
+void su2_tensor_fmove(const struct su2_tensor* t, const int i_ax, struct su2_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -115,9 +115,9 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax);
 
 // axis fusion and splitting
 
-void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, struct su2_tensor* restrict r);
+void su2_tensor_fuse_axes(const struct su2_tensor* t, const int i_ax_0, const int i_ax_1, struct su2_tensor* r);
 
-void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_split, const int i_ax_add, const bool tree_left_child, const struct su2_irreducible_list outer_irreps[2], const ct_long* dim_degen[2], struct su2_tensor* restrict r);
+void su2_tensor_split_axis(const struct su2_tensor* t, const int i_ax_split, const int i_ax_add, const bool tree_left_child, const struct su2_irreducible_list outer_irreps[2], const ct_long* dim_degen[2], struct su2_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -125,9 +125,9 @@ void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_s
 
 // contraction
 
-void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* restrict i_ax_s, const struct su2_tensor* restrict t, const int* restrict i_ax_t, const int ndim_mult, struct su2_tensor* restrict r);
+void su2_tensor_contract_simple(const struct su2_tensor* s, const int* i_ax_s, const struct su2_tensor* t, const int* i_ax_t, const int ndim_mult, struct su2_tensor* r);
 
-void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_ax_s, const struct su2_tensor* restrict t, const int i_ax_t, struct su2_tensor* restrict r);
+void su2_tensor_contract_yoga(const struct su2_tensor* s, const int i_ax_s, const struct su2_tensor* t, const int i_ax_t, struct su2_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -135,7 +135,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 
 // conversion to a dense tensor
 
-void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tensor* restrict t);
+void su2_to_dense_tensor(const struct su2_tensor* s, struct dense_tensor* t);
 
 
 //________________________________________________________________________________________________________________________
@@ -143,4 +143,4 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 
 // comparison
 
-bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_tensor* restrict t, const double tol);
+bool su2_tensor_allclose(const struct su2_tensor* s, const struct su2_tensor* t, const double tol);

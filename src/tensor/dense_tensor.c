@@ -3473,7 +3473,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 /// \brief Extract the sub-block with dimensions 'bdim' by taking elements indexed by 'idx' along each dimension
 /// from the original tensor 't'; the degree remains the same as in 't'.
 ///
-void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* restrict bdim, const ct_long* restrict* idx, struct dense_tensor* restrict b)
+void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* restrict bdim, const ct_long** idx, struct dense_tensor* restrict b)
 {
 	// create new tensor 'b' of same data type and degree as 't'
 	allocate_dense_tensor(t->dtype, t->ndim, bdim, b);

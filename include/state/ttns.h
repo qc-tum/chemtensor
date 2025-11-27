@@ -35,7 +35,7 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 
 void delete_ttns(struct ttns* ttns);
 
-void copy_ttns(const struct ttns* restrict src, struct ttns* restrict dst);
+void copy_ttns(const struct ttns* src, struct ttns* dst);
 
 void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
 
@@ -76,8 +76,8 @@ static inline qnumber ttns_quantum_number_sector(const struct ttns* ttns)
 
 void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret);
 
-void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, const struct block_sparse_tensor* restrict psi,
-	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* restrict inner_bonds);
+void local_ttns_inner_product(const struct block_sparse_tensor* chi, const struct block_sparse_tensor* psi,
+	const struct abstract_graph* topology, const int i_site, const int i_parent, struct block_sparse_tensor* inner_bonds);
 
 double ttns_norm(const struct ttns* psi);
 

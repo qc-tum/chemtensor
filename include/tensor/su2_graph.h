@@ -74,7 +74,7 @@ void delete_su2_graph(struct su2_graph* graph);
 
 bool su2_graph_is_consistent(const struct su2_graph* graph);
 
-bool su2_graph_equal(const struct su2_graph* restrict f, const struct su2_graph* restrict g);
+bool su2_graph_equal(const struct su2_graph* f, const struct su2_graph* g);
 
 
 //________________________________________________________________________________________________________________________
@@ -105,6 +105,6 @@ void su2_graph_yoga_to_simple_subtree(struct su2_graph* graph, const int eid);
 // connecting two graphs
 
 void su2_graph_connect(
-	const struct su2_graph* restrict f, const int* restrict edge_map_f,
-	const struct su2_graph* restrict g, const int* restrict edge_map_g,
-	struct su2_graph* restrict connected_graph);
+	const struct su2_graph* f, const int* edge_map_f,
+	const struct su2_graph* g, const int* edge_map_g,
+	struct su2_graph* connected_graph);

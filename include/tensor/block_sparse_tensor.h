@@ -33,13 +33,13 @@ struct block_sparse_tensor
 
 // allocation and construction
 
-void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t);
+void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* t);
 
-void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t);
+void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* s, struct block_sparse_tensor* t);
 
 void delete_block_sparse_tensor(struct block_sparse_tensor* t);
 
-void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst);
+void copy_block_sparse_tensor(const struct block_sparse_tensor* src, struct block_sparse_tensor* dst);
 
 
 //________________________________________________________________________________________________________________________
@@ -54,7 +54,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 
 // trace and norm
 
-void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* restrict t, const int ndim_trace, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* t, const int ndim_trace, struct block_sparse_tensor* r);
 
 double block_sparse_tensor_norm2(const struct block_sparse_tensor* t);
 
@@ -84,11 +84,11 @@ void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift
 
 // conversion between dense and block-sparse tensors
 
-void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t);
+void block_sparse_to_dense_tensor(const struct block_sparse_tensor* s, struct dense_tensor* t);
 
-void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s);
+void dense_to_block_sparse_tensor(const struct dense_tensor* t, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* s);
 
-void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t, struct block_sparse_tensor* restrict s);
+void dense_to_block_sparse_tensor_entries(const struct dense_tensor* t, struct block_sparse_tensor* s);
 
 
 //________________________________________________________________________________________________________________________
@@ -96,9 +96,9 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 
 // transposition
 
-void transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r);
+void transpose_block_sparse_tensor(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
 
-void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r);
+void conjugate_transpose_block_sparse_tensor(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -106,9 +106,9 @@ void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const str
 
 // reshaping
 
-void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* t, const int i_ax, const enum tensor_axis_direction new_axis_dir, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t, const int i_ax, const ct_long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_split_axis(const struct block_sparse_tensor* t, const int i_ax, const ct_long new_dim_logical[2], const enum tensor_axis_direction new_axis_dir[2], const qnumber* new_qnums_logical[2], struct block_sparse_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -138,11 +138,11 @@ struct block_sparse_tensor_axis_matricization_info
 void delete_block_sparse_tensor_axis_matricization_info(struct block_sparse_tensor_axis_matricization_info* info);
 
 
-void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restrict t, const int i_ax_tns,
+void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* t, const int i_ax_tns,
 	const int i_ax_mat, const enum tensor_axis_direction flattened_axes_dir,
-	struct block_sparse_tensor* restrict mat, struct block_sparse_tensor_axis_matricization_info* info);
+	struct block_sparse_tensor* mat, struct block_sparse_tensor_axis_matricization_info* info);
 
-void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* restrict mat, const struct block_sparse_tensor_axis_matricization_info* info, struct block_sparse_tensor* restrict t);
+void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* mat, const struct block_sparse_tensor_axis_matricization_info* info, struct block_sparse_tensor* t);
 
 
 //________________________________________________________________________________________________________________________
@@ -150,7 +150,7 @@ void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* rest
 
 // slicing
 
-void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_slice(const struct block_sparse_tensor* t, const int i_ax, const ct_long* ind, const ct_long nind, struct block_sparse_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -158,17 +158,17 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 
 // binary operations
 
-void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t);
+void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct block_sparse_tensor* s, struct block_sparse_tensor* t);
 
-void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* s, const struct dense_tensor* t, const enum tensor_axis_range axrange, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* restrict s, const int i_ax, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* s, const int i_ax, const struct block_sparse_tensor* t, const enum tensor_axis_range axrange_t, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_dot(const struct block_sparse_tensor* s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_concatenate(const struct block_sparse_tensor* tlist, const int num_tensors, const int i_ax, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct block_sparse_tensor* restrict r);
+void block_sparse_tensor_block_diag(const struct block_sparse_tensor* tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct block_sparse_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -176,9 +176,9 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 
 // QR and RQ decomposition
 
-int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict q, struct block_sparse_tensor* restrict r);
+int block_sparse_tensor_qr(const struct block_sparse_tensor* a, const enum qr_mode mode, struct block_sparse_tensor* q, struct block_sparse_tensor* r);
 
-int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const enum qr_mode mode, struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict q);
+int block_sparse_tensor_rq(const struct block_sparse_tensor* a, const enum qr_mode mode, struct block_sparse_tensor* r, struct block_sparse_tensor* q);
 
 
 //________________________________________________________________________________________________________________________
@@ -186,7 +186,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 
 // singular value decomposition
 
-int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict u, struct dense_tensor* restrict s, struct block_sparse_tensor* restrict vh);
+int block_sparse_tensor_svd(const struct block_sparse_tensor* a, struct block_sparse_tensor* u, struct dense_tensor* s, struct block_sparse_tensor* vh);
 
 
 //________________________________________________________________________________________________________________________
@@ -194,7 +194,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 
 // comparison
 
-bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, const struct block_sparse_tensor* restrict t, const double tol);
+bool block_sparse_tensor_allclose(const struct block_sparse_tensor* s, const struct block_sparse_tensor* t, const double tol);
 bool dense_block_sparse_tensor_allclose(const struct dense_tensor* s, const struct block_sparse_tensor* t, const double tol);
 
 bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const double tol);
@@ -207,7 +207,7 @@ bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const 
 
 // augmentation
 
-void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tensor* restrict t, const bool transpose, struct block_sparse_tensor* restrict ret);
+void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tensor* t, const bool transpose, struct block_sparse_tensor* ret);
 
 
 //________________________________________________________________________________________________________________________

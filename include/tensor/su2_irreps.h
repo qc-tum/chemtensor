@@ -28,9 +28,9 @@ bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const stru
 int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t);
 
 void su2_irreps_tensor_product(
-	const struct su2_irreducible_list* restrict irreps_a, const ct_long* restrict dim_degen_a,
-	const struct su2_irreducible_list* restrict irreps_b, const ct_long* restrict dim_degen_b,
-	struct su2_irreducible_list* restrict irreps_prod, ct_long** restrict dim_degen_prod);
+	const struct su2_irreducible_list* irreps_a, const ct_long* dim_degen_a,
+	const struct su2_irreducible_list* irreps_b, const ct_long* dim_degen_b,
+	struct su2_irreducible_list* irreps_prod, ct_long** dim_degen_prod);
 
 
 //________________________________________________________________________________________________________________________
@@ -52,7 +52,7 @@ void delete_charge_sectors(struct charge_sectors* sectors);
 
 ct_long charge_sector_index(const struct charge_sectors* sectors, const qnumber* jlist);
 
-bool charge_sectors_equal(const struct charge_sectors* restrict s, const struct charge_sectors* restrict t);
+bool charge_sectors_equal(const struct charge_sectors* s, const struct charge_sectors* t);
 
 
 //________________________________________________________________________________________________________________________

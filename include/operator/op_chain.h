@@ -30,10 +30,10 @@ void allocate_op_chain(const int length, struct op_chain* chain);
 
 void delete_op_chain(struct op_chain* chain);
 
-void copy_op_chain(const struct op_chain* restrict src, struct op_chain* restrict dst);
+void copy_op_chain(const struct op_chain* src, struct op_chain* dst);
 
 
-void op_chain_pad_identities(const struct op_chain* restrict chain, const int new_length, struct op_chain* restrict pad_chain);
+void op_chain_pad_identities(const struct op_chain* chain, const int new_length, struct op_chain* pad_chain);
 
 
 //________________________________________________________________________________________________________________________

@@ -17,7 +17,7 @@
 typedef int32_t qnumber;
 
 
-bool qnumber_all_equal(const ct_long n, const qnumber* restrict qnums0, const qnumber* restrict qnums1);
+bool qnumber_all_equal(const ct_long n, const qnumber* qnums0, const qnumber* qnums1);
 
 
 //________________________________________________________________________________________________________________________
@@ -80,4 +80,4 @@ enum tensor_axis_direction
 };
 
 
-void qnumber_outer_sum(const int sign0, const qnumber* restrict qnums0, const ct_long n0, const int sign1, const qnumber* restrict qnums1, const ct_long n1, qnumber* restrict ret);
+void qnumber_outer_sum(const int sign0, const qnumber* qnums0, const ct_long n0, const int sign1, const qnumber* qnums1, const ct_long n1, qnumber* ret);

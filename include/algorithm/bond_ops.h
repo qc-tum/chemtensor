@@ -50,9 +50,9 @@ enum singular_value_distr
 };
 
 
-int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
+int split_block_sparse_matrix_svd(const struct block_sparse_tensor* a,
 	const double tol, const bool relative_thresh, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
-	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);
+	struct block_sparse_tensor* a0, struct block_sparse_tensor* a1, struct trunc_info* info);
 
-int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* restrict a, const double tol, const bool relative_thresh, const ct_long max_vdim,
-	struct block_sparse_tensor* restrict u, struct trunc_info* info);
+int split_block_sparse_matrix_svd_isometry(const struct block_sparse_tensor* a, const double tol, const bool relative_thresh, const ct_long max_vdim,
+	struct block_sparse_tensor* u, struct trunc_info* info);

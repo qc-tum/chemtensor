@@ -19,4 +19,4 @@ struct su2_tensor_data
 };
 
 
-void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict data_yoga, struct su2_graph* graph, const int eid, struct su2_tensor_data* restrict data_simple);
+void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* data_yoga, struct su2_graph* graph, const int eid, struct su2_tensor_data* data_simple);

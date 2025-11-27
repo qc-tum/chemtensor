@@ -28,11 +28,11 @@ struct dense_tensor
 
 // allocation and construction
 
-void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, struct dense_tensor* restrict t);
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t);
 
 void delete_dense_tensor(struct dense_tensor* t);
 
-void copy_dense_tensor(const struct dense_tensor* restrict src, struct dense_tensor* restrict dst);
+void copy_dense_tensor(const struct dense_tensor* src, struct dense_tensor* dst);
 
 
 //________________________________________________________________________________________________________________________
@@ -55,7 +55,7 @@ ct_long dense_tensor_num_nonzero_elements(const struct dense_tensor* t);
 ///
 /// \brief Convert tensor index to data offset.
 ///
-static inline ct_long tensor_index_to_offset(const int ndim, const ct_long* restrict dim, const ct_long* restrict index)
+static inline ct_long tensor_index_to_offset(const int ndim, const ct_long* dim, const ct_long* index)
 {
 	ct_long offset = 0;
 	ct_long dimfac = 1;
@@ -73,7 +73,7 @@ static inline ct_long tensor_index_to_offset(const int ndim, const ct_long* rest
 ///
 /// \brief Convert data offset to tensor index.
 ///
-static inline void offset_to_tensor_index(const int ndim, const ct_long* restrict dim, const ct_long offset, ct_long* restrict index)
+static inline void offset_to_tensor_index(const int ndim, const ct_long* dim, const ct_long offset, ct_long* index)
 {
 	ct_long n = offset;
 	for (int i = ndim - 1; i >= 0; i--)
@@ -88,7 +88,7 @@ static inline void offset_to_tensor_index(const int ndim, const ct_long* restric
 ///
 /// \brief Compute the lexicographically next tensor index.
 ///
-static inline void next_tensor_index(const int ndim, const ct_long* restrict dim, ct_long* restrict index)
+static inline void next_tensor_index(const int ndim, const ct_long* dim, ct_long* index)
 {
 	for (int i = ndim - 1; i >= 0; i--)
 	{
@@ -144,9 +144,9 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 
 // transposition
 
-void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+void transpose_dense_tensor(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 
-void conjugate_transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+void conjugate_transpose_dense_tensor(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -154,9 +154,9 @@ void conjugate_transpose_dense_tensor(const int* restrict perm, const struct den
 
 // slicing
 
-void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r);
+void dense_tensor_slice(const struct dense_tensor* t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* r);
 
-void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* restrict r);
+void dense_tensor_slice_fill(const struct dense_tensor* t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -164,7 +164,7 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 
 // padding
 
-void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long* restrict pad_before, const ct_long* restrict pad_after, struct dense_tensor* restrict r);
+void dense_tensor_pad_zeros(const struct dense_tensor* t, const ct_long* pad_before, const ct_long* pad_after, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -184,29 +184,29 @@ enum tensor_axis_range
 
 // binary operations
 
-void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* restrict s, struct dense_tensor* restrict t);
+void dense_tensor_scalar_multiply_add(const void* alpha, const struct dense_tensor* s, struct dense_tensor* t);
 
-void dense_tensor_multiply_pointwise(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise(const struct dense_tensor* s, const struct dense_tensor* t, const enum tensor_axis_range axrange, struct dense_tensor* r);
 
-void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange, struct dense_tensor* restrict r);
+void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* s, const struct dense_tensor* t, const enum tensor_axis_range axrange, struct dense_tensor* r);
 
-void dense_tensor_multiply_axis(const struct dense_tensor* restrict s, const int i_ax, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, struct dense_tensor* restrict r);
+void dense_tensor_multiply_axis(const struct dense_tensor* s, const int i_ax, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, struct dense_tensor* r);
 
-void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_tensor* restrict s, const int i_ax, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const void* beta, struct dense_tensor* restrict r);
+void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_tensor* s, const int i_ax, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const void* beta, struct dense_tensor* r);
 
-void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r);
+void dense_tensor_dot(const struct dense_tensor* s, const enum tensor_axis_range axrange_s, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* r);
 
-void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, const void* beta, struct dense_tensor* restrict r);
+void dense_tensor_dot_update(const void* alpha, const struct dense_tensor* s, const enum tensor_axis_range axrange_s, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, const void* beta, struct dense_tensor* r);
 
-void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, struct dense_tensor* restrict r);
+void dense_tensor_kronecker_product(const struct dense_tensor* s, const struct dense_tensor* t, struct dense_tensor* r);
 
-void dense_tensor_concatenate(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r);
+void dense_tensor_concatenate(const struct dense_tensor* tlist, const int num_tensors, const int i_ax, struct dense_tensor* r);
 
-void dense_tensor_concatenate_fill(const struct dense_tensor* restrict tlist, const int num_tensors, const int i_ax, struct dense_tensor* restrict r);
+void dense_tensor_concatenate_fill(const struct dense_tensor* tlist, const int num_tensors, const int i_ax, struct dense_tensor* r);
 
-void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r);
+void dense_tensor_block_diag(const struct dense_tensor* tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* r);
 
-void dense_tensor_block_diag_fill(const struct dense_tensor* restrict tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* restrict r);
+void dense_tensor_block_diag_fill(const struct dense_tensor* tlist, const int num_tensors, const int* i_ax, const int ndim_block, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -221,14 +221,14 @@ enum qr_mode
 };
 
 
-int dense_tensor_qr(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+int dense_tensor_qr(const struct dense_tensor* a, const enum qr_mode mode, struct dense_tensor* q, struct dense_tensor* r);
 
-int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict q, struct dense_tensor* restrict r);
+int dense_tensor_qr_fill(const struct dense_tensor* a, const enum qr_mode mode, struct dense_tensor* q, struct dense_tensor* r);
 
 
-int dense_tensor_rq(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+int dense_tensor_rq(const struct dense_tensor* a, const enum qr_mode mode, struct dense_tensor* r, struct dense_tensor* q);
 
-int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mode mode, struct dense_tensor* restrict r, struct dense_tensor* restrict q);
+int dense_tensor_rq_fill(const struct dense_tensor* a, const enum qr_mode mode, struct dense_tensor* r, struct dense_tensor* q);
 
 
 //________________________________________________________________________________________________________________________
@@ -236,9 +236,9 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 // spectral decomposition
 
-int dense_tensor_eigh(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda);
+int dense_tensor_eigh(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* lambda);
 
-int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict lambda);
+int dense_tensor_eigh_fill(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* lambda);
 
 
 //________________________________________________________________________________________________________________________
@@ -246,9 +246,9 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 // singular value decomposition
 
-int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh);
+int dense_tensor_svd(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* s, struct dense_tensor* vh);
 
-int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh);
+int dense_tensor_svd_fill(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* s, struct dense_tensor* vh);
 
 
 //________________________________________________________________________________________________________________________
@@ -256,7 +256,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 
 // extract a sub-block
 
-void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* restrict sdim, const ct_long* restrict* idx, struct dense_tensor* restrict r);
+void dense_tensor_block(const struct dense_tensor* t, const ct_long* sdim, const ct_long** idx, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -264,7 +264,7 @@ void dense_tensor_block(const struct dense_tensor* restrict t, const ct_long* re
 
 // comparison
 
-bool dense_tensor_allclose(const struct dense_tensor* restrict s, const struct dense_tensor* restrict t, const double tol);
+bool dense_tensor_allclose(const struct dense_tensor* s, const struct dense_tensor* t, const double tol);
 
 bool dense_tensor_is_zero(const struct dense_tensor* t, const double tol);
 

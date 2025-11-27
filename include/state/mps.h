@@ -31,7 +31,7 @@ void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long
 
 void delete_mps(struct mps* mps);
 
-void copy_mps(const struct mps* restrict src, struct mps* restrict dst);
+void copy_mps(const struct mps* src, struct mps* dst);
 
 void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps);
 
@@ -80,21 +80,21 @@ enum mps_orthonormalization_mode
 	MPS_ORTHONORMAL_RIGHT = 1,  //!< right-orthonormal
 };
 
-void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next);
+void mps_local_orthonormalize_qr(struct block_sparse_tensor* a, struct block_sparse_tensor* a_next);
 
-void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev);
+void mps_local_orthonormalize_rq(struct block_sparse_tensor* a, struct block_sparse_tensor* a_prev);
 
 double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_mode mode);
 
 
 int mps_local_orthonormalize_left_svd(const double tol, const ct_long max_vdim, const bool renormalize,
-	struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_next, struct trunc_info* info);
+	struct block_sparse_tensor* a, struct block_sparse_tensor* a_next, struct trunc_info* info);
 
 int mps_local_orthonormalize_right_svd(const double tol, const ct_long max_vdim, const bool renormalize,
-	struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict a_prev, struct trunc_info* info);
+	struct block_sparse_tensor* a, struct block_sparse_tensor* a_prev, struct trunc_info* info);
 
 int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthonormalization_mode mode,
-	struct mps* mps, double* restrict norm, double* restrict trunc_scale, struct trunc_info* info);
+	struct mps* mps, double* norm, double* trunc_scale, struct trunc_info* info);
 
 int mps_compress_rescale(const double tol, const ct_long max_vdim, const enum mps_orthonormalization_mode mode,
 	struct mps* mps, double* trunc_scale, struct trunc_info* info);
@@ -105,12 +105,12 @@ int mps_compress_rescale(const double tol, const ct_long max_vdim, const enum mp
 
 // splitting and merging
 
-int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const ct_long d[2], const qnumber* new_qsite[2],
+int mps_split_tensor_svd(const struct block_sparse_tensor* a, const ct_long d[2], const qnumber* new_qsite[2],
 	const double tol, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
-	struct block_sparse_tensor* restrict a0, struct block_sparse_tensor* restrict a1, struct trunc_info* info);
+	struct block_sparse_tensor* a0, struct block_sparse_tensor* a1, struct trunc_info* info);
 
 
-void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const struct block_sparse_tensor* restrict a1, struct block_sparse_tensor* restrict a);
+void mps_merge_tensor_pair(const struct block_sparse_tensor* a0, const struct block_sparse_tensor* a1, struct block_sparse_tensor* a);
 
 
 //________________________________________________________________________________________________________________________

@@ -58,4 +58,4 @@ void bipartite_graph_maximum_cardinality_matching(const struct bipartite_graph* 
 //
 
 
-void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, bool* restrict u_cover, bool* restrict v_cover);
+void bipartite_graph_minimum_vertex_cover(const struct bipartite_graph* graph, bool* u_cover, bool* v_cover);

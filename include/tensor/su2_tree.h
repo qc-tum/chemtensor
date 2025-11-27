@@ -43,9 +43,9 @@ static inline bool su2_tree_node_is_leaf(const struct su2_tree_node* node)
 	}
 }
 
-bool su2_tree_equal(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t);
+bool su2_tree_equal(const struct su2_tree_node* s, const struct su2_tree_node* t);
 
-bool su2_tree_equal_topology(const struct su2_tree_node* restrict s, const struct su2_tree_node* restrict t);
+bool su2_tree_equal_topology(const struct su2_tree_node* s, const struct su2_tree_node* t);
 
 bool su2_tree_contains_leaf(const struct su2_tree_node* tree, const int i_ax);
 
@@ -69,7 +69,7 @@ void su2_tree_fmove_left(struct su2_tree_node* tree);
 
 void su2_tree_fmove_right(struct su2_tree_node* tree);
 
-double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnumber* restrict jlist, const int* restrict im_leaves, const int im_root);
+double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnumber* jlist, const int* im_leaves, const int im_root);
 
 void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const int ndim, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
 
@@ -97,6 +97,6 @@ void su2_fuse_split_tree_flip(struct su2_fuse_split_tree* tree);
 
 void su2_fuse_split_tree_update_axes_indices(struct su2_fuse_split_tree* tree, const int* axis_map);
 
-double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* restrict jlist, const int* restrict im_leaves);
+double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* jlist, const int* im_leaves);
 
 void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);

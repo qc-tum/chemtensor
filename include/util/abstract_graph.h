@@ -17,14 +17,14 @@ struct abstract_graph
 	int num_nodes;       //!< number of nodes
 };
 
-void copy_abstract_graph(const struct abstract_graph* restrict src, struct abstract_graph* restrict dst);
+void copy_abstract_graph(const struct abstract_graph* src, struct abstract_graph* dst);
 
 void delete_abstract_graph(struct abstract_graph* graph);
 
 bool abstract_graph_is_consistent(const struct abstract_graph* graph);
 
 
-bool abstract_graph_equal(const struct abstract_graph* restrict graph0, const struct abstract_graph* restrict graph1);
+bool abstract_graph_equal(const struct abstract_graph* graph0, const struct abstract_graph* graph1);
 
 
 bool abstract_graph_is_connected_tree(const struct abstract_graph* graph);

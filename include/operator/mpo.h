@@ -69,6 +69,6 @@ static inline ct_long mpo_bond_dim(const struct mpo* mpo, const int i)
 
 // conversion to a matrix (intended for testing)
 
-void mpo_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const struct block_sparse_tensor* restrict a1, struct block_sparse_tensor* restrict a);
+void mpo_merge_tensor_pair(const struct block_sparse_tensor* a0, const struct block_sparse_tensor* a1, struct block_sparse_tensor* a);
 
 void mpo_to_matrix(const struct mpo* mpo, struct block_sparse_tensor* mat);

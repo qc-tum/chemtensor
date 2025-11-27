@@ -27,8 +27,8 @@ void allocate_empty_su2_mps(const int nsites, struct su2_mps* mps);
 
 void allocate_su2_mps(
 	const enum numeric_type dtype, const int nsites,
-	const struct su2_irreducible_list* restrict site_irreps, const ct_long* restrict site_dim_degen,
-	const struct su2_irreducible_list* restrict bond_irreps, const ct_long** restrict bond_dim_degen,
+	const struct su2_irreducible_list* site_irreps, const ct_long* site_dim_degen,
+	const struct su2_irreducible_list* bond_irreps, const ct_long** bond_dim_degen,
 	struct su2_mps* mps);
 
 void delete_su2_mps(struct su2_mps* mps);
@@ -47,9 +47,9 @@ bool su2_mps_is_consistent(const struct su2_mps* mps);
 
 // splitting and merging
 
-void su2_mps_contract_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a);
+void su2_mps_contract_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);
 
-void su2_mps_merge_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a);
+void su2_mps_merge_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);
 
 
 //________________________________________________________________________________________________________________________
