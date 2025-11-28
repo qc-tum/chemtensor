@@ -40,12 +40,12 @@ This downloads and installs a pre-built Python "wheel" from PyPI; see [pypi.org/
 
 Alternatively, you can build the project locally; see the instructions below.
 
-Note that ChemTensor can also run as standalone C code.
+Note that ChemTensor can also run as a standalone C code.
 
 
 Building
 --------
-The code requires the BLAS, LAPACK, HDF5, and Python 3 development libraries with NumPy. These can be installed via 
+The code requires the BLAS, LAPACK, HDF5, and (optionally) Python 3 development libraries with NumPy. These can be installed via 
 - `sudo apt install libblas-dev liblapacke-dev libhdf5-dev python3-dev python3-numpy` (on Ubuntu Linux)
 - `brew install hdf5 python3 numpy` (on arm64 macOS together with the Accelerate framework)
 
@@ -55,7 +55,7 @@ mkdir build_ct && cd build_ct
 cmake ../
 cmake --build .
 ```
-Currently, this will compile the unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
+Currently, this will compile the ChemTensor link library and unit tests, which you can run via `./chemtensor_test`, as well as the demo examples and Python module library.
 
 To build the corresponding Python package directly, ensure that the Python [build](https://pypi.org/project/build/) tool is installed, and run
 ```bash
@@ -74,7 +74,7 @@ Coding style conventions
 - Put curly braces `{ }` after every `if` and `else` (to avoid pitfalls).
 - Left-align pointers throughout: `int* p` instead of `int *p`.
 - Keep the `struct` and `enum` keywords in variable types: `struct foo f;` instead of `typedef struct foo { ... } foo_t; foo_t f;`.
-- Use `const` for function arguments which are not modified by the function.
+- Use `const` for function arguments that are not modified by the function.
 
 
 References
