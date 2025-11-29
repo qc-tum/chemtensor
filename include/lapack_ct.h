@@ -6,6 +6,9 @@
 #ifdef LAPACK_H_AVAILABLE
 
 
+#include <lapack.h>
+
+
 #ifdef __APPLE__
 
 #define lapack_int __LAPACK_int
@@ -57,8 +60,6 @@
 #define LAPACK_zgesvd zgesvd_
 
 #endif  // __APPLE__
-
-#include <lapack.h>
 
 
 #else  // LAPACK_H_AVAILABLE not defined

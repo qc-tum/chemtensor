@@ -32,6 +32,7 @@ find_package(OpenMP)
 
 if (APPLE)
     add_compile_definitions(ACCELERATE_NEW_LAPACK)
+    add_compile_definitions(ACCELERATE_LAPACK_ILP64)
 endif()
 
 set(CHEMTENSOR_INCLUDE_DIRS "include" "include/tensor" "include/state" "include/operator" "include/algorithm" "include/util")
