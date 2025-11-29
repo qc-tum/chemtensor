@@ -5,10 +5,10 @@
 #include <math.h>
 #include <memory.h>
 #include <complex.h>
-#include <cblas.h>
 #include <stdio.h>
-#include "lapack_ct.h"
 #include "dense_tensor.h"
+#include "cblas_ct.h"
+#include "lapack_ct.h"
 #include "aligned_memory.h"
 
 

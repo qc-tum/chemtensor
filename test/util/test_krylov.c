@@ -1,7 +1,7 @@
 #include <math.h>
 #include <complex.h>
-#include <cblas.h>
 #include "krylov.h"
+#include "cblas_ct.h"
 #include "aligned_memory.h"
 #include "hdf5_util.h"
 

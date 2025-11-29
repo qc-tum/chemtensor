@@ -3,9 +3,9 @@
 
 #include <math.h>
 #include <complex.h>
-#include <cblas.h>
 #include <assert.h>
 #include "util.h"
+#include "cblas_ct.h"
 
 
 //________________________________________________________________________________________________________________________

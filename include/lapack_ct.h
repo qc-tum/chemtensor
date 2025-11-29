@@ -1,65 +1,16 @@
-// LAPACK function declarations on various platforms.
+/// \file lapack_ct.h
+/// \brief LAPACK function declarations on various platforms.
 
 #pragma once
+
+
+#ifndef __APPLE__
 
 
 #ifdef LAPACK_H_AVAILABLE
 
 
 #include <lapack.h>
-
-
-#ifdef __APPLE__
-
-#define lapack_int __LAPACK_int
-
-// The following LAPACK function are currently used by chemtensor.
-
-// QR decomposition
-
-#define LAPACK_sgeqrf sgeqrf_
-#define LAPACK_sorgqr sorgqr_
-#define LAPACK_dgeqrf dgeqrf_
-#define LAPACK_dorgqr dorgqr_
-#define LAPACK_cgeqrf cgeqrf_
-#define LAPACK_cungqr cungqr_
-#define LAPACK_zgeqrf zgeqrf_
-#define LAPACK_zungqr zungqr_
-
-// RQ decomposition
-
-#define LAPACK_sgerqf sgerqf_
-#define LAPACK_sorgrq sorgrq_
-#define LAPACK_dgerqf dgerqf_
-#define LAPACK_dorgrq dorgrq_
-#define LAPACK_cgerqf cgerqf_
-#define LAPACK_cungrq cungrq_
-#define LAPACK_zgerqf zgerqf_
-#define LAPACK_zungrq zungrq_
-
-// eigendecomposition of general symmetric matrices
-
-#define LAPACK_dsyev dsyev_
-
-// eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
-
-#define LAPACK_ssyevd ssyevd_
-#define LAPACK_dsyevd dsyevd_
-#define LAPACK_cheevd cheevd_
-#define LAPACK_zheevd zheevd_
-
-// eigendecomposition of symmetric tridiagonal matrices
-
-#define LAPACK_dsteqr dsteqr_
-
-// singular value decomposition of general matrices
-
-#define LAPACK_sgesvd sgesvd_
-#define LAPACK_dgesvd dgesvd_
-#define LAPACK_cgesvd cgesvd_
-#define LAPACK_zgesvd zgesvd_
-
-#endif  // __APPLE__
 
 
 #else  // LAPACK_H_AVAILABLE not defined
@@ -453,6 +404,63 @@ void LAPACK_zgesvd_base(
 #else
 	#define LAPACK_zgesvd(...) LAPACK_zgesvd_base(__VA_ARGS__)
 #endif
+
+
+#endif  // LAPACK_H_AVAILABLE
+
+
+#else  // __APPLE__
+
+
+#include <Accelerate/Accelerate.h>
+
+#define lapack_int __LAPACK_int
+
+// The following LAPACK function are currently used by chemtensor.
+
+// QR decomposition
+
+#define LAPACK_sgeqrf sgeqrf_
+#define LAPACK_sorgqr sorgqr_
+#define LAPACK_dgeqrf dgeqrf_
+#define LAPACK_dorgqr dorgqr_
+#define LAPACK_cgeqrf cgeqrf_
+#define LAPACK_cungqr cungqr_
+#define LAPACK_zgeqrf zgeqrf_
+#define LAPACK_zungqr zungqr_
+
+// RQ decomposition
+
+#define LAPACK_sgerqf sgerqf_
+#define LAPACK_sorgrq sorgrq_
+#define LAPACK_dgerqf dgerqf_
+#define LAPACK_dorgrq dorgrq_
+#define LAPACK_cgerqf cgerqf_
+#define LAPACK_cungrq cungrq_
+#define LAPACK_zgerqf zgerqf_
+#define LAPACK_zungrq zungrq_
+
+// eigendecomposition of general symmetric matrices
+
+#define LAPACK_dsyev dsyev_
+
+// eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
+
+#define LAPACK_ssyevd ssyevd_
+#define LAPACK_dsyevd dsyevd_
+#define LAPACK_cheevd cheevd_
+#define LAPACK_zheevd zheevd_
+
+// eigendecomposition of symmetric tridiagonal matrices
+
+#define LAPACK_dsteqr dsteqr_
+
+// singular value decomposition of general matrices
+
+#define LAPACK_sgesvd sgesvd_
+#define LAPACK_dgesvd dgesvd_
+#define LAPACK_cgesvd cgesvd_
+#define LAPACK_zgesvd zgesvd_
 
 
 #endif

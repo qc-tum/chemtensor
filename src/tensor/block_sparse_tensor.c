@@ -3,8 +3,8 @@
 
 #include <memory.h>
 #include <math.h>
-#include <cblas.h>
 #include "block_sparse_tensor.h"
+#include "cblas_ct.h"
 #include "aligned_memory.h"
 
 
