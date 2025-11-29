@@ -11,7 +11,9 @@
 #include "util.h"
 
 
+#ifndef DBL_EPSILON
 #define DBL_EPSILON 2.2204460492503131e-16
+#endif
 
 
 //________________________________________________________________________________________________________________________
@@ -186,8 +188,9 @@ int eigensystem_krylov_symmetric(const ct_long n, lanczos_linear_func_d afunc, c
 	// diagonalize Hessenberg matrix
 	double* u = ct_malloc(numiter*numiter * sizeof(double));
 	double* work = ct_malloc(imax(1, 2*numiter - 2) * sizeof(double));
+	lapack_int numiterlp = numiter;
 	lapack_int info;
-	LAPACK_dsteqr("I", &numiter, alpha, beta, u, &numiter, work, &info);
+	LAPACK_dsteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
 		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
@@ -235,8 +238,9 @@ int eigensystem_krylov_hermitian(const ct_long n, lanczos_linear_func_z afunc, c
 	// diagonalize Hessenberg matrix
 	double* u = ct_malloc(numiter*numiter * sizeof(double));
 	double* work = ct_malloc(imax(1, 2*numiter - 2) * sizeof(double));
+	lapack_int numiterlp = numiter;
 	lapack_int info;
-	LAPACK_dsteqr("I", &numiter, alpha, beta, u, &numiter, work, &info);
+	LAPACK_dsteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
 		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
