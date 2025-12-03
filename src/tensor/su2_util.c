@@ -11,30 +11,6 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Charge sector and corresponding "degeneracy" tensor of an SU(2) symmetric tensor (temporary data structure).
-///
-struct su2_tensor_sector
-{
-	struct su2_irreducible_list list;  //!< irreducible 'j' quantum number configuration
-	struct dense_tensor* degensor;     //!< corresponding dense "degeneracy" tensor
-};
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Comparison function for sorting.
-///
-static int compare_su2_tensor_sectors(const void* a, const void* b)
-{
-	const struct su2_tensor_sector* x = a;
-	const struct su2_tensor_sector* y = b;
-
-	return compare_su2_irreducible_lists(&x->list, &y->list);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief The two variants of a yoga subtree.
 ///
 enum yoga_tree_variant
@@ -81,9 +57,10 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 	assert(0 <= i_ax_3 && i_ax_3 < ndim && i_ax_3 != eid);
 	assert(0 <= i_ax_4 && i_ax_4 < ndim && i_ax_4 != eid);
 
-	ct_long capacity = data_yoga->charge_sectors.nsec + 16;
-	struct su2_tensor_sector* sectors_simple = ct_malloc(capacity * sizeof(struct su2_tensor_sector));
+	struct su2_irrep_trie_node irrep_trie_simple = { 0 };
+	#ifndef NDEBUG
 	ct_long nsec_simple = 0;
+	#endif
 
 	qnumber* jlist_alt = ct_malloc(ndim * sizeof(qnumber));
 
@@ -141,21 +118,11 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 		{
 			const qnumber jy = jy_min + 2*i;
 
-			if (nsec_simple == capacity)
-			{
-				// re-allocate memory
-				struct su2_tensor_sector* old_sectors = sectors_simple;
-				capacity += 16;
-				sectors_simple = ct_malloc(capacity * sizeof(struct su2_tensor_sector));
-				memcpy(sectors_simple, old_sectors, nsec_simple * sizeof(struct su2_tensor_sector));
-				ct_free(old_sectors);
-			}
+			memcpy(jlist_alt, jlist, ndim * sizeof(qnumber));
+			jlist_alt[eid] = jy;
+			struct dense_tensor** ds = (struct dense_tensor**)su2_irrep_trie_search_insert(jlist_alt, ndim, &irrep_trie_simple);
+			assert((*ds) == NULL);
 
-			allocate_su2_irreducible_list(ndim, &sectors_simple[nsec_simple].list);
-			memcpy(sectors_simple[nsec_simple].list.jlist, jlist, ndim * sizeof(qnumber));
-			sectors_simple[nsec_simple].list.jlist[eid] = jy;
-
-			sectors_simple[nsec_simple].degensor = NULL;
 			for (int j = 0; j < n; j++)
 			{
 				if (idx[j] == -1) {
@@ -167,53 +134,47 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 				const double coeff = (variant == YOGA_TREE_VARIANT_L ?
 					su2_recoupling_coefficient(j1, jx, j4, jy, j3, j2) :
 					su2_recoupling_coefficient(j2, jx, j3, jy, j4, j1));
-				if (sectors_simple[nsec_simple].degensor == NULL)
+				if ((*ds) == NULL)
 				{
-					sectors_simple[nsec_simple].degensor = ct_malloc(sizeof(struct dense_tensor));
-					copy_dense_tensor(data_yoga->degensors[idx[j]], sectors_simple[nsec_simple].degensor);
+					(*ds) = ct_malloc(sizeof(struct dense_tensor));
+					copy_dense_tensor(data_yoga->degensors[idx[j]], (*ds));
 					// 'alpha' can either store a float or double number
 					double alpha;
-					numeric_from_double(coeff, numeric_real_type(sectors_simple[nsec_simple].degensor->dtype), &alpha);
-					rscale_dense_tensor(&alpha, sectors_simple[nsec_simple].degensor);
+					numeric_from_double(coeff, numeric_real_type((*ds)->dtype), &alpha);
+					rscale_dense_tensor(&alpha, (*ds));
 				}
 				else
 				{
 					// ensure that 'alpha' is large enough to store any numeric type
 					dcomplex alpha;
-					numeric_from_double(coeff, sectors_simple[nsec_simple].degensor->dtype, &alpha);
-					dense_tensor_scalar_multiply_add(&alpha, data_yoga->degensors[idx[j]], sectors_simple[nsec_simple].degensor);
+					numeric_from_double(coeff, (*ds)->dtype, &alpha);
+					dense_tensor_scalar_multiply_add(&alpha, data_yoga->degensors[idx[j]], (*ds));
 				}
 			}
-			assert(sectors_simple[nsec_simple].degensor != NULL);
+			assert((*ds) != NULL);
 
+			#ifndef NDEBUG
 			nsec_simple++;
+			#endif
 		}
 
 		ct_free(idx);
 	}
 
 	ct_free(jlist_alt);
-
-	assert(nsec_simple >= data_yoga->charge_sectors.nsec);
-
-	// sort new charge sectors and tensors lexicographically
-	qsort(sectors_simple, nsec_simple, sizeof(struct su2_tensor_sector), compare_su2_tensor_sectors);
-
-	// copy data into output arrays
-	allocate_charge_sectors(nsec_simple, ndim, &data_simple->charge_sectors);
-	data_simple->degensors = ct_malloc(nsec_simple * sizeof(struct dense_tensor*));
-	for (ct_long c = 0; c < nsec_simple; c++)
-	{
-		memcpy(&data_simple->charge_sectors.jlists[c * ndim], sectors_simple[c].list.jlist, ndim * sizeof(qnumber));
-		data_simple->degensors[c] = sectors_simple[c].degensor;
-	}
-
-	// clean up
-	for (ct_long c = 0; c < nsec_simple; c++) {
-		delete_su2_irreducible_list(&sectors_simple[c].list);
-	}
-	ct_free(sectors_simple);
 	ct_free(marked);
+
+	#ifndef NDEBUG
+	assert(nsec_simple >= data_yoga->charge_sectors.nsec);
+	#endif
+
+	// enumerate new charge sectors and tensors lexicographically
+	data_simple->degensors = (struct dense_tensor**)su2_irrep_trie_enumerate_configurations(ndim, &irrep_trie_simple, &data_simple->charge_sectors);
+	#ifndef NDEBUG
+	assert(data_simple->charge_sectors.nsec == nsec_simple);
+	#endif
+
+	delete_su2_irrep_trie(ndim, &irrep_trie_simple);
 
 	// update subtree topology accordingly
 	su2_graph_yoga_to_simple_subtree(graph, eid);

@@ -91,7 +91,17 @@ void scale_su2_tensor(const void* alpha, struct su2_tensor* t);
 
 void rscale_su2_tensor(const void* alpha, struct su2_tensor* t);
 
+void conjugate_su2_tensor(struct su2_tensor* t);
+
 void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct su2_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// transposition
+
+void transpose_su2_tensor(const int* perm, const struct su2_tensor* t, struct su2_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
@@ -144,3 +154,4 @@ void su2_to_dense_tensor(const struct su2_tensor* s, struct dense_tensor* t);
 // comparison
 
 bool su2_tensor_allclose(const struct su2_tensor* s, const struct su2_tensor* t, const double tol);
+bool dense_su2_tensor_allclose(const struct dense_tensor* s, const struct su2_tensor* t, const double tol);

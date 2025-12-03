@@ -313,7 +313,7 @@ bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
 ///
 /// \brief Scale tensor 't' by 'alpha'.
 ///
-/// Data types of all blocks and of 'alpha' must match.
+/// Data types of all "degeneracy" tensors and of 'alpha' must match.
 ///
 void scale_su2_tensor(const void* alpha, struct su2_tensor* t)
 {
@@ -329,7 +329,7 @@ void scale_su2_tensor(const void* alpha, struct su2_tensor* t)
 ///
 /// \brief Scale tensor 't' by a real number 'alpha'.
 ///
-/// Data type precision of all blocks and of 'alpha' must match.
+/// Data type precision of all "degeneracy" tensors and of 'alpha' must match.
 ///
 void rscale_su2_tensor(const void* alpha, struct su2_tensor* t)
 {
@@ -337,6 +337,27 @@ void rscale_su2_tensor(const void* alpha, struct su2_tensor* t)
 	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
 	{
 		rscale_dense_tensor(alpha, t->degensors[c]);
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Elementwise complex conjugation of an SU(2) symmetric tensor.
+///
+/// Function has no effect if entries are real-valued.
+///
+void conjugate_su2_tensor(struct su2_tensor* t)
+{
+	if ((t->dtype == CT_SINGLE_REAL) || (t->dtype == CT_DOUBLE_REAL)) {
+		// no effect
+		return;
+	}
+
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		conjugate_dense_tensor(t->degensors[c]);
 	}
 }
 
@@ -352,6 +373,143 @@ void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct 
 	{
 		dense_tensor_fill_random_normal(alpha, shift, rng_state, t->degensors[c]);
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Charge sector and corresponding "degeneracy" tensor of an SU(2) symmetric tensor (temporary data structure).
+///
+struct su2_tensor_sector
+{
+	struct su2_irreducible_list list;  //!< irreducible 'j' quantum number configuration
+	struct dense_tensor* degensor;     //!< corresponding dense "degeneracy" tensor
+};
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function for sorting.
+///
+static int compare_su2_tensor_sectors(const void* a, const void* b)
+{
+	const struct su2_tensor_sector* x = a;
+	const struct su2_tensor_sector* y = b;
+
+	return compare_su2_irreducible_lists(&x->list, &y->list);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Generalized transpose of a tensor 't' such that
+/// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
+///
+/// 'perm' refers to all dimensions (logical, auxiliary and internal) and must not mix axes types.
+///
+void transpose_su2_tensor(const int* perm, const struct su2_tensor* restrict t, struct su2_tensor* restrict r)
+{
+	const int ndim = su2_tensor_ndim(t);
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+
+	// ensure that 'perm' is a valid permutation
+	#ifndef NDEBUG
+	int* ax_list = ct_calloc(ndim, sizeof(int));
+	for (int i = 0; i < ndim; i++)
+	{
+		assert(0 <= perm[i] && perm[i] < ndim);
+		ax_list[perm[i]] = 1;
+	}
+	for (int i = 0; i < ndim; i++)
+	{
+		assert(ax_list[i] == 1);
+	}
+	ct_free(ax_list);
+	// 'perm' must not mix axes types
+	for (int i = 0; i < t->ndim_logical; i++)
+	{
+		assert(0 <= perm[i] && perm[i] < t->ndim_logical);
+	}
+	for (int i = t->ndim_logical; i < ndim_outer; i++)
+	{
+		assert(t->ndim_logical <= perm[i] && perm[i] < ndim_outer);
+	}
+	for (int i = ndim_outer; i < ndim; i++)
+	{
+		assert(ndim_outer <= perm[i] && perm[i] < ndim);
+	}
+	#endif
+
+	if (is_identity_permutation(perm, ndim))
+	{
+		copy_su2_tensor(t, r);
+		return;
+	}
+
+	r->dtype = t->dtype;
+	r->ndim_logical   = t->ndim_logical;
+	r->ndim_auxiliary = t->ndim_auxiliary;
+
+	copy_su2_fuse_split_tree(&t->tree, &r->tree);
+	int* axis_map = ct_malloc(ndim * sizeof(int));
+	// inverse permutation
+	for (int i = 0; i < ndim; i++) {
+		axis_map[perm[i]] = i;
+	}
+	su2_fuse_split_tree_update_axes_indices(&r->tree, axis_map);
+	ct_free(axis_map);
+
+	// irreducible 'j' quantum numbers on outer axes
+	r->outer_irreps = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
+	for (int i = 0; i < ndim_outer; i++) {
+		copy_su2_irreducible_list(&t->outer_irreps[perm[i]], &r->outer_irreps[i]);
+	}
+
+	r->dim_degen = ct_malloc(r->ndim_logical * sizeof(ct_long*));
+	for (int i = 0; i < r->ndim_logical; i++)
+	{
+		assert(r->outer_irreps[i].num > 0);
+		qnumber j_max = 0;
+		for (int k = 0; k < r->outer_irreps[i].num; k++) {
+			j_max = qmax(j_max, r->outer_irreps[i].jlist[k]);
+		}
+		r->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(ct_long));
+		memcpy(r->dim_degen[i], t->dim_degen[perm[i]], (j_max + 1) * sizeof(ct_long));
+	}
+
+	const ct_long nsec = t->charge_sectors.nsec;
+	struct su2_tensor_sector* sectors_r = ct_malloc(nsec * sizeof(struct su2_tensor_sector));
+	for (ct_long c = 0; c < nsec; c++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist_t = &t->charge_sectors.jlists[c * ndim];
+
+		allocate_su2_irreducible_list(ndim, &sectors_r[c].list);
+		for (int i = 0; i < ndim; i++) {
+			sectors_r[c].list.jlist[i] = jlist_t[perm[i]];
+		}
+		sectors_r[c].degensor = ct_malloc(sizeof(struct dense_tensor));
+		// requiring that 'perm' is an endomorphism of the logical dimensions
+		transpose_dense_tensor(perm, t->degensors[c], sectors_r[c].degensor);
+	}
+
+	// sort permuted charge sectors and tensors lexicographically
+	qsort(sectors_r, nsec, sizeof(struct su2_tensor_sector), compare_su2_tensor_sectors);
+
+	// copy data into output arrays
+	allocate_charge_sectors(nsec, ndim, &r->charge_sectors);
+	r->degensors = ct_malloc(nsec * sizeof(struct dense_tensor*));
+	for (ct_long c = 0; c < nsec; c++)
+	{
+		memcpy(&r->charge_sectors.jlists[c * ndim], sectors_r[c].list.jlist, ndim * sizeof(qnumber));
+		r->degensors[c] = sectors_r[c].degensor;  // copy pointer
+	}
+
+	// clean up
+	for (ct_long c = 0; c < nsec; c++) {
+		delete_su2_irreducible_list(&sectors_r[c].list);
+	}
+	ct_free(sectors_r);
 }
 
 
@@ -1415,6 +1573,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		}
 	}
 	assert(c == s->ndim_logical);
+	const bool perm_s_is_identity = is_identity_permutation(perm_s, s->ndim_logical);
 	int* perm_t = ct_malloc(t->ndim_logical * sizeof(int));
 	c = 0;
 	for (int i = 0; i < ndim_mult; i++) {
@@ -1429,6 +1588,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		}
 	}
 	assert(c == t->ndim_logical);
+	const bool perm_t_is_identity = is_identity_permutation(perm_t, t->ndim_logical);
 	// number of to-be multiplied logical dimensions
 	int ndim_mult_logical = 0;
 	for (int i = 0; i < ndim_mult; i++) {
@@ -1454,7 +1614,12 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 		assert(ds->dtype == s->dtype);
 		assert(ds->ndim  == s->ndim_logical);
 		struct dense_tensor ds_perm;
-		transpose_dense_tensor(perm_s, ds, &ds_perm);
+		if (perm_s_is_identity) {
+			ds_perm = *ds;  // copy internal data pointers
+		}
+		else {
+			transpose_dense_tensor(perm_s, ds, &ds_perm);
+		}
 
 		// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
 		for (int i = 0; i < ndim_s; i++) {
@@ -1485,7 +1650,12 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 			assert(dt->dtype == t->dtype);
 			assert(dt->ndim  == t->ndim_logical);
 			struct dense_tensor dt_perm;
-			transpose_dense_tensor(perm_t, dt, &dt_perm);
+			if (perm_t_is_identity) {
+				dt_perm = *dt;  // copy internal data pointers
+			}
+			else {
+				transpose_dense_tensor(perm_t, dt, &dt_perm);
+			}
 
 			// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
 			for (int i = 0; i < ndim_t; i++) {
@@ -1513,10 +1683,14 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 				dense_tensor_dot_update(numeric_one(s->dtype), &ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, ndim_mult_logical, numeric_one(s->dtype), (*dr));
 			}
 
-			delete_dense_tensor(&dt_perm);
+			if (!perm_t_is_identity) {
+				delete_dense_tensor(&dt_perm);
+			}
 		}
 
-		delete_dense_tensor(&ds_perm);
+		if (!perm_s_is_identity) {
+			delete_dense_tensor(&ds_perm);
+		}
 	}
 
 	r->degensors = (struct dense_tensor**)su2_irrep_trie_enumerate_configurations(ndim_r, &irrep_trie, &r->charge_sectors);
@@ -2070,4 +2244,21 @@ bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_t
 	}
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether a dense and an SU(2) symmetric tensor agree elementwise within tolerance 'tol'.
+///
+bool dense_su2_tensor_allclose(const struct dense_tensor* s, const struct su2_tensor* t, const double tol)
+{
+	struct dense_tensor t_dns;
+	su2_to_dense_tensor(t, &t_dns);
+
+	bool is_close = dense_tensor_allclose(s, &t_dns, tol);
+
+	delete_dense_tensor(&t_dns);
+
+	return is_close;
 }

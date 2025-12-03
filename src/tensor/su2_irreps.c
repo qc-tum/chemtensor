@@ -288,18 +288,12 @@ void** su2_irrep_trie_search_insert(const qnumber* jlist, const int num, struct 
 
 	qnumber* jvals_new = ct_malloc((trie->length + 1) * sizeof(qnumber));
 	void**   cdata_new = ct_malloc((trie->length + 1) * sizeof(void*));
-	for (int k = 0; k < i; k++)
-	{
-		jvals_new[k] = trie->jvals[k];
-		cdata_new[k] = trie->cdata[k];
-	}
+	memcpy(jvals_new, trie->jvals, i * sizeof(qnumber));
+	memcpy(cdata_new, trie->cdata, i * sizeof(void*));
 	jvals_new[i] = jlist[0];
 	cdata_new[i] = NULL;
-	for (int k = i; k < trie->length; k++)
-	{
-		jvals_new[k + 1] = trie->jvals[k];
-		cdata_new[k + 1] = trie->cdata[k];
-	}
+	memcpy(jvals_new + i + 1, trie->jvals + i, (trie->length - i) * sizeof(qnumber));
+	memcpy(cdata_new + i + 1, trie->cdata + i, (trie->length - i) * sizeof(void*));
 	ct_free(trie->jvals);
 	ct_free(trie->cdata);
 	trie->jvals = jvals_new;

@@ -11,6 +11,124 @@
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
 
 
+
+char* test_su2_tensor_transpose()
+{
+	// construct an SU(2) tensor 't'
+	struct su2_tensor t;
+	{
+		const int ndim = 7;
+
+		// construct the fuse and split tree
+		//
+		//  3   1    4
+		//   ╲   ╲  ╱
+		//    ╲   ╲╱       fuse
+		//     ╲  ╱6
+		//      ╲╱
+		//      │
+		//      │5
+		//      │
+		//      ╱╲
+		//     ╱  ╲        split
+		//    2    0
+		//
+		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+		struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+		struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+		struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
+		struct su2_tree_node j6  = { .i_ax = 6, .c = { &j1,  &j4  } };
+		struct su2_tree_node j5f = { .i_ax = 5, .c = { &j3,  &j6  } };
+		struct su2_tree_node j5s = { .i_ax = 5, .c = { &j2,  &j0  } };
+
+		struct su2_fuse_split_tree tree = { .tree_fuse = &j5f, .tree_split = &j5s, .ndim = ndim };
+
+		if (!su2_fuse_split_tree_is_consistent(&tree)) {
+			return "internal consistency check for the fuse and split tree failed";
+		}
+
+		// outer (logical and auxiliary) 'j' quantum numbers
+		qnumber j0list[] = { 2 };
+		qnumber j1list[] = { 0, 2 };
+		qnumber j2list[] = { 1, 5 };
+		qnumber j3list[] = { 1, 3 };  // auxiliary
+		qnumber j4list[] = { 0 };     // auxiliary
+		const struct su2_irreducible_list outer_irreps[5] = {
+			{ .jlist = j0list, .num = ARRLEN(j0list) },
+			{ .jlist = j1list, .num = ARRLEN(j1list) },
+			{ .jlist = j2list, .num = ARRLEN(j2list) },
+			{ .jlist = j3list, .num = ARRLEN(j3list) },
+			{ .jlist = j4list, .num = ARRLEN(j4list) },
+		};
+
+		// degeneracy dimensions, indexed by 'j' quantum numbers
+		//                         j:  0  1  2  3  4  5
+		const ct_long dim_degen0[] = { 0, 0, 7          };
+		const ct_long dim_degen1[] = { 3, 0, 5          };
+		const ct_long dim_degen2[] = { 0, 4, 0, 0, 0, 2 };
+		const ct_long* dim_degen[] = {
+			dim_degen0,
+			dim_degen1,
+			dim_degen2,
+		};
+
+		const int ndim_logical   = 3;
+		const int ndim_auxiliary = 2;
+
+		allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
+
+		// delete some charge sectors
+		qnumber jlist_del1[7];
+		qnumber jlist_del2[7];
+		memcpy(jlist_del1, &t.charge_sectors.jlists[2*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
+		memcpy(jlist_del2, &t.charge_sectors.jlists[7*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
+		su2_tensor_delete_charge_sector(&t, jlist_del1);
+		su2_tensor_delete_charge_sector(&t, jlist_del2);
+
+		if (!su2_tensor_is_consistent(&t)) {
+			return "internal consistency check for SU(2) tensor failed";
+		}
+		if (t.charge_sectors.nsec == 0) {
+			return "expecting at least one charge sector in SU(2) tensor";
+		}
+
+		// fill degeneracy tensors with random entries
+		struct rng_state rng_state;
+		seed_rng_state(41, &rng_state);
+		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+	}
+
+	const int perm[7] = { 2, 1, 0, 4, 3, 6, 5 };
+	struct su2_tensor t_tp;
+	transpose_su2_tensor(perm, &t, &t_tp);
+
+	if (!su2_tensor_is_consistent(&t_tp)) {
+		return "internal consistency check for SU(2) tensor failed";
+	}
+
+	// reference calculation
+	struct dense_tensor t_tp_ref;
+	{
+		struct dense_tensor t_dns;
+		su2_to_dense_tensor(&t, &t_dns);
+		transpose_dense_tensor(perm, &t_dns, &t_tp_ref);
+		delete_dense_tensor(&t_dns);
+	}
+
+	// compare
+	if (!dense_su2_tensor_allclose(&t_tp_ref, &t_tp, 0.)) {
+		return "transposed SU(2) tensor does not agree with reference";
+	}
+
+	delete_dense_tensor(&t_tp_ref);
+	delete_su2_tensor(&t_tp);
+	delete_su2_tensor(&t);
+
+	return 0;
+}
+
+
 char* test_su2_tensor_fmove()
 {
 	const int ndim = 7;
@@ -112,12 +230,8 @@ char* test_su2_tensor_fmove()
 		return "fuse and split trees after F-move must be different";
 	}
 
-	// convert to full dense tensor
-	struct dense_tensor r_dns;
-	su2_to_dense_tensor(&r, &r_dns);
-
 	// compare with original tensor
-	if (!dense_tensor_allclose(&r_dns, &t_dns, 1e-13)) {
+	if (!dense_su2_tensor_allclose(&t_dns, &r, 1e-13)) {
 		return "F-move applied to SU(2) tensor must leave logical tensor invariant";
 	}
 
@@ -133,18 +247,12 @@ char* test_su2_tensor_fmove()
 		return "fuse and split trees after F-move and reversal must be identical";
 	}
 
-	// convert to full dense tensor
-	struct dense_tensor t2_dns;
-	su2_to_dense_tensor(&t2, &t2_dns);
-
 	// compare with original tensor
-	if (!dense_tensor_allclose(&t2_dns, &t_dns, 1e-13)) {
+	if (!dense_su2_tensor_allclose(&t_dns, &t2, 1e-13)) {
 		return "F-move applied to SU(2) tensor must leave logical tensor invariant";
 	}
 
 	// clean up
-	delete_dense_tensor(&t2_dns);
-	delete_dense_tensor(&r_dns);
 	delete_dense_tensor(&t_dns);
 	delete_su2_tensor(&t2);
 	delete_su2_tensor(&r);
@@ -683,11 +791,8 @@ char* test_su2_tensor_reverse_axis_simple()
 			assert(false);
 		}
 
-		struct dense_tensor t_dns;
-		su2_to_dense_tensor(&t, &t_dns);
-
 		// compare
-		if (!dense_tensor_allclose(&t_dns, &t_ref_dns, 1e-5)) {
+		if (!dense_su2_tensor_allclose(&t_ref_dns, &t, 1e-5)) {
 			return "tensor resulting from reversing an axis of an SU(2) tensor does not match reference";
 		}
 
@@ -728,7 +833,6 @@ char* test_su2_tensor_reverse_axis_simple()
 		}
 
 		// clean up
-		delete_dense_tensor(&t_dns);
 		delete_dense_tensor(&t_ref_dns);
 		delete_dense_tensor(&omega_dns);
 		delete_dense_tensor(&t_orig_dns);
@@ -838,12 +942,6 @@ char* test_su2_tensor_fuse_axes()
 	if (!su2_tensor_is_consistent(&r)) {
 		return "internal consistency check for SU(2) tensor failed";
 	}
-
-	// convert to full dense tensors
-	struct dense_tensor t_dns;
-	struct dense_tensor r_dns;
-	su2_to_dense_tensor(&t, &t_dns);
-	su2_to_dense_tensor(&r, &r_dns);
 
 	// construct explicit fusion operation as dense tensor
 	struct dense_tensor u_fuse_dns;
@@ -962,6 +1060,9 @@ char* test_su2_tensor_fuse_axes()
 		delete_su2_tensor(&u_fuse);
 	}
 
+	struct dense_tensor t_dns;
+	su2_to_dense_tensor(&t, &t_dns);
+
 	// contract with dense fusion tensor to obtain reference tensor
 	struct dense_tensor r_dns_ref;
 	{
@@ -982,7 +1083,7 @@ char* test_su2_tensor_fuse_axes()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-5)) {
+	if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-5)) {
 		return "tensor resulting from fusing two axes of an SU(2) tensor does not match reference";
 	}
 
@@ -1043,19 +1144,13 @@ char* test_su2_tensor_fuse_axes()
 		}
 	}
 
-	// convert to a full dense tensor
-	struct dense_tensor t2_dns;
-	su2_to_dense_tensor(&t2, &t2_dns);
-
 	// compare
-	if (!dense_tensor_allclose(&t2_dns, &t_dns, 1e-6)) {
+	if (!dense_su2_tensor_allclose(&t_dns, &t2, 1e-6)) {
 		return "tensor after axis fusion and splitting should agree with original tensor";
 	}
 
-	delete_dense_tensor(&t2_dns);
 	delete_dense_tensor(&r_dns_ref);
 	delete_dense_tensor(&u_fuse_dns);
-	delete_dense_tensor(&r_dns);
 	delete_dense_tensor(&t_dns);
 	delete_su2_tensor(&t2);
 	delete_su2_tensor(&r);
@@ -1215,12 +1310,6 @@ char* test_su2_tensor_split_axis()
 		}
 	}
 
-	// convert to full dense tensors
-	struct dense_tensor t_dns;
-	struct dense_tensor r_dns;
-	su2_to_dense_tensor(&t, &t_dns);
-	su2_to_dense_tensor(&r, &r_dns);
-
 	// construct explicit splitting operation as dense tensor
 	struct dense_tensor u_split_dns;
 	{
@@ -1327,12 +1416,15 @@ char* test_su2_tensor_split_axis()
 		delete_su2_tensor(&u_split);
 	}
 
+	struct dense_tensor t_dns;
+	su2_to_dense_tensor(&t, &t_dns);
+
 	// contract with dense splitting tensor to obtain reference tensor
 	struct dense_tensor r_dns_ref;
 	dense_tensor_multiply_axis(&t_dns, i_ax_split, &u_split_dns, TENSOR_AXIS_RANGE_LEADING, &r_dns_ref);
 
 	// compare
-	if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+	if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-13)) {
 		return "tensor resulting from splitting an axis of an SU(2) tensor does not match reference";
 	}
 
@@ -1344,19 +1436,13 @@ char* test_su2_tensor_split_axis()
 		return "internal consistency check for SU(2) tensor failed";
 	}
 
-	// convert to a full dense tensor
-	struct dense_tensor t2_dns;
-	su2_to_dense_tensor(&t2, &t2_dns);
-
 	// compare
-	if (!dense_tensor_allclose(&t2_dns, &t_dns, 1e-13)) {
+	if (!dense_su2_tensor_allclose(&t_dns, &t2, 1e-13)) {
 		return "tensor after axis splitting and fusion should agree with original tensor";
 	}
 
-	delete_dense_tensor(&t2_dns);
 	delete_dense_tensor(&u_split_dns);
 	delete_dense_tensor(&r_dns_ref);
-	delete_dense_tensor(&r_dns);
 	delete_dense_tensor(&t_dns);
 	delete_su2_tensor(&t2);
 	delete_su2_tensor(&r);
@@ -1658,10 +1744,8 @@ char* test_su2_tensor_contract_simple()
 			// convert to full dense tensors
 			struct dense_tensor s_dns;
 			struct dense_tensor t_dns;
-			struct dense_tensor r_dns;
 			su2_to_dense_tensor(&s, &s_dns);
 			su2_to_dense_tensor(&t, &t_dns);
-			su2_to_dense_tensor(&r, &r_dns);
 
 			if (dense_tensor_is_zero(&s_dns, 0.) || dense_tensor_is_zero(&t_dns, 0.)) {
 				return "to-be contracted SU(2) tensors should not be zero";
@@ -1684,14 +1768,13 @@ char* test_su2_tensor_contract_simple()
 			}
 
 			// compare
-			if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-13)) {
+			if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-13)) {
 				return "tensor resulting from contraction of two SU(2) tensors does not match reference";
 			}
 
 			delete_dense_tensor(&r_dns_ref);
 			delete_dense_tensor(&t_dns_perm);
 			delete_dense_tensor(&s_dns_perm);
-			delete_dense_tensor(&r_dns);
 			delete_dense_tensor(&t_dns);
 			delete_dense_tensor(&s_dns);
 			delete_su2_tensor(&r);
@@ -1904,10 +1987,8 @@ char* test_su2_tensor_contract_yoga()
 		// convert to full dense tensors
 		struct dense_tensor s_dns;
 		struct dense_tensor t_dns;
-		struct dense_tensor r_dns;
 		su2_to_dense_tensor(&s, &s_dns);
 		su2_to_dense_tensor(&t, &t_dns);
-		su2_to_dense_tensor(&r, &r_dns);
 
 		if (dense_tensor_is_zero(&s_dns, 0.) || dense_tensor_is_zero(&t_dns, 0.)) {
 			return "to-be contracted SU(2) tensors should not be zero";
@@ -1925,14 +2006,13 @@ char* test_su2_tensor_contract_yoga()
 		dense_tensor_dot(&s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 1, &r_dns_ref);
 
 		// compare
-		if (!dense_tensor_allclose(&r_dns, &r_dns_ref, 1e-5)) {
+		if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-5)) {
 			return "tensor resulting from contraction of two SU(2) tensors does not match reference";
 		}
 
 		delete_dense_tensor(&r_dns_ref);
 		delete_dense_tensor(&t_dns_perm);
 		delete_dense_tensor(&s_dns_perm);
-		delete_dense_tensor(&r_dns);
 		delete_dense_tensor(&t_dns);
 		delete_dense_tensor(&s_dns);
 
@@ -2039,7 +2119,7 @@ char* test_su2_to_dense_tensor()
 	}
 
 	// apply simultaneous rotations
-	struct dense_tensor s, r;
+	struct dense_tensor r;
 	for (int i = 0; i < ndim_logical; i++)
 	{
 		const ct_long d = su2_tensor_dim_logical_axis(&t, i);
@@ -2066,7 +2146,7 @@ char* test_su2_to_dense_tensor()
 		}
 		else
 		{
-			s = r;  // copy internal data pointers
+			struct dense_tensor s = r;  // copy internal data pointers
 			dense_tensor_multiply_axis(&s, i, &w, TENSOR_AXIS_RANGE_TRAILING, &r);
 			delete_dense_tensor(&s);
 		}
