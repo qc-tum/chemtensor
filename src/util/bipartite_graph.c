@@ -1,6 +1,7 @@
 /// \file bipartite_graph.c
 /// \brief Bipartite graph utility functions, including an implementation of the Hopcroft-Karp algorithm based on https://en.wikipedia.org/wiki/Hopcroft%E2%80%93Karp_algorithm
 
+#include <stdint.h>
 #include "bipartite_graph.h"
 #include "queue.h"
 #include "aligned_memory.h"
@@ -177,7 +178,7 @@ static bool hopcroft_karp_connect_unmatched_vertices(struct hopcroft_karp_data* 
 		if (data->matched_pairs_u[u] == -1) {
 			// 'u' has not been matched yet
 			data->dist[u] = 0;
-			enqueue(&queue, (void*)u);
+			enqueue(&queue, (void*)(intptr_t)u);
 		}
 		else {
 			data->dist[u] = inf_dist;
@@ -188,7 +189,7 @@ static bool hopcroft_karp_connect_unmatched_vertices(struct hopcroft_karp_data* 
 
 	while (!queue_is_empty(&queue))
 	{
-		int u = (int)dequeue(&queue);
+		int u = (int)(intptr_t)dequeue(&queue);
 		// whether this node can provide a shorter path to NIL
 		if (data->dist[u] < data->dist[-1])
 		{
@@ -199,7 +200,7 @@ static bool hopcroft_karp_connect_unmatched_vertices(struct hopcroft_karp_data* 
 				if (data->dist[data->matched_pairs_v[v]] == inf_dist)
 				{
 					data->dist[data->matched_pairs_v[v]] = data->dist[u] + 1;
-					enqueue(&queue, (void*)data->matched_pairs_v[v]);
+					enqueue(&queue, (void*)(intptr_t)data->matched_pairs_v[v]);
 				}
 			}
 		}
