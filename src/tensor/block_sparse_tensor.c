@@ -782,7 +782,7 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 ///
 /// Memory will be allocated for 'r'.
 ///
-void transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
+void block_sparse_tensor_transpose(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
 {
 	r->dtype = t->dtype;
 	r->ndim = t->ndim;
@@ -808,19 +808,7 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 	}
 
 	// ensure that 'perm' is a valid permutation
-	#ifndef NDEBUG
-	int* ax_list = ct_calloc(t->ndim, sizeof(int));
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(0 <= perm[i] && perm[i] < t->ndim);
-		ax_list[perm[i]] = 1;
-	}
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(ax_list[i] == 1);
-	}
-	ct_free(ax_list);
-	#endif
+	assert(is_permutation(perm, t->ndim));
 
 	// dimensions
 	r->dim_logical = ct_malloc(t->ndim * sizeof(ct_long));
@@ -874,7 +862,7 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 
 		// transpose dense tensor block
 		r->blocks[j] = ct_calloc(1, sizeof(struct dense_tensor));
-		transpose_dense_tensor(perm, bt, r->blocks[j]);
+		dense_tensor_transpose(perm, bt, r->blocks[j]);
 
 		ct_free(index_block_r);
 		ct_free(index_block_t);	
@@ -889,9 +877,9 @@ void transpose_block_sparse_tensor(const int* restrict perm, const struct block_
 ///
 /// Memory will be allocated for 'r'.
 ///
-void conjugate_transpose_block_sparse_tensor(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
+void block_sparse_tensor_conjugate_transpose(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
 {
-	transpose_block_sparse_tensor(perm, t, r);
+	block_sparse_tensor_transpose(perm, t, r);
 	conjugate_block_sparse_tensor(r);
 }
 
@@ -1356,7 +1344,7 @@ void block_sparse_tensor_matricize_axis(const struct block_sparse_tensor* restri
 	}
 	else
 	{
-		transpose_block_sparse_tensor(perm, t, mat);
+		block_sparse_tensor_transpose(perm, t, mat);
 	}
 	ct_free(perm);
 
@@ -1441,7 +1429,7 @@ void block_sparse_tensor_dematricize_axis(const struct block_sparse_tensor* rest
 	if (!is_identity_permutation(perm, info->ndim))
 	{
 		struct block_sparse_tensor tmp = *t;  // copy internal data pointers
-		transpose_block_sparse_tensor(perm, &tmp, t);
+		block_sparse_tensor_transpose(perm, &tmp, t);
 		delete_block_sparse_tensor(&tmp);
 	}
 	ct_free(perm);

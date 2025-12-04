@@ -101,7 +101,9 @@ void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct 
 
 // transposition
 
-void transpose_su2_tensor(const int* perm, const struct su2_tensor* t, struct su2_tensor* r);
+void su2_tensor_transpose(const int* perm, const struct su2_tensor* t, struct su2_tensor* r);
+
+void su2_tensor_transpose_logical(const int* perm, const struct su2_tensor* t, struct su2_tensor* r);
 
 
 //________________________________________________________________________________________________________________________

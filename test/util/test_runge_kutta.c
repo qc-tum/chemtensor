@@ -35,7 +35,7 @@ static void ode_func(const double t, const struct block_sparse_tensor* restrict 
 	}
 	const int perm[3] = { 2, 0, 1 };
 	struct block_sparse_tensor k;
-	transpose_block_sparse_tensor(perm, &s, &k);
+	block_sparse_tensor_transpose(perm, &s, &k);
 	delete_block_sparse_tensor(&s);
 	// square and scale entries of 'k'
 	const double scaling = sin(M_PI * (0.25 + 5*t));

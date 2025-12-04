@@ -428,7 +428,7 @@ char* test_block_sparse_tensor_transpose()
 	// transpose the block-sparse tensor
 	const int perm[4] = { 1, 3, 2, 0 };
 	struct block_sparse_tensor t_tp;
-	transpose_block_sparse_tensor(perm, &t, &t_tp);
+	block_sparse_tensor_transpose(perm, &t, &t_tp);
 
 	// compare
 	if (!dense_block_sparse_tensor_allclose(&t_tp_ref, &t_tp, 0.)) {
@@ -614,7 +614,7 @@ char* test_block_sparse_tensor_matricize_axis()
 				if (i_ax_mat == 1) {
 					struct dense_tensor tmp;
 					const int perm[2] = { 1, 0 };
-					transpose_dense_tensor(perm, &mat_ref, &tmp);
+					dense_tensor_transpose(perm, &mat_ref, &tmp);
 					delete_dense_tensor(&mat_ref);
 					mat_ref = tmp;  // copy internal data pointers
 				}
@@ -1182,7 +1182,7 @@ char* test_block_sparse_tensor_dot()
 		}
 		else {
 			const int perm[5] = { 2, 3, 4, 0, 1 };
-			transpose_block_sparse_tensor(perm, &s, &sp);
+			block_sparse_tensor_transpose(perm, &s, &sp);
 		}
 
 		for (enum tensor_axis_range axrange_t = 0; axrange_t < TENSOR_AXIS_RANGE_NUM; axrange_t++)
@@ -1193,7 +1193,7 @@ char* test_block_sparse_tensor_dot()
 			}
 			else {
 				const int perm[6] = { 3, 4, 5, 0, 1, 2 };
-				transpose_block_sparse_tensor(perm, &t, &tp);
+				block_sparse_tensor_transpose(perm, &t, &tp);
 			}
 
 			// block-sparse tensor multiplication

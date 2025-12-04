@@ -46,7 +46,7 @@ bool sparse_coordinate_tensor_is_consistent(const struct sparse_coordinate_tenso
 
 // transposition
 
-void transpose_sparse_coordinate_tensor(const int* perm, const struct sparse_coordinate_tensor* t, struct sparse_coordinate_tensor* r);
+void sparse_coordinate_tensor_transpose(const int* perm, const struct sparse_coordinate_tensor* t, struct sparse_coordinate_tensor* r);
 
 
 //________________________________________________________________________________________________________________________

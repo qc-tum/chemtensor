@@ -275,7 +275,7 @@ char* test_bug_flow_update_basis_leaf()
 			{
 				const int perm[2] = { 1, 0 };
 				struct dense_tensor tmp;
-				transpose_dense_tensor(perm, &a_state_0_dns, &tmp);
+				dense_tensor_transpose(perm, &a_state_0_dns, &tmp);
 				delete_dense_tensor(&a_state_0_dns);
 				a_state_0_dns = tmp;
 
@@ -292,7 +292,7 @@ char* test_bug_flow_update_basis_leaf()
 
 				const int perm[3] = { 2, 0, 1 };
 				struct dense_tensor tmp;
-				transpose_dense_tensor(perm, &a_state_0_dns, &tmp);
+				dense_tensor_transpose(perm, &a_state_0_dns, &tmp);
 				delete_dense_tensor(&a_state_0_dns);
 				a_state_0_dns = tmp;
 
@@ -337,7 +337,7 @@ char* test_bug_flow_update_basis_leaf()
 			{
 				const int perm[3] = { 2, 0, 1 };
 				struct dense_tensor tmp;
-				transpose_dense_tensor(perm, &a_op_dns, &tmp);
+				dense_tensor_transpose(perm, &a_op_dns, &tmp);
 				delete_dense_tensor(&a_op_dns);
 				a_op_dns = tmp;
 

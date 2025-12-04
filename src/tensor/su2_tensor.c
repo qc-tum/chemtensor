@@ -407,24 +407,14 @@ static int compare_su2_tensor_sectors(const void* a, const void* b)
 ///
 /// 'perm' refers to all dimensions (logical, auxiliary and internal) and must not mix axes types.
 ///
-void transpose_su2_tensor(const int* perm, const struct su2_tensor* restrict t, struct su2_tensor* restrict r)
+void su2_tensor_transpose(const int* perm, const struct su2_tensor* restrict t, struct su2_tensor* restrict r)
 {
 	const int ndim = su2_tensor_ndim(t);
 	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
 
 	// ensure that 'perm' is a valid permutation
+	assert(is_permutation(perm, ndim));
 	#ifndef NDEBUG
-	int* ax_list = ct_calloc(ndim, sizeof(int));
-	for (int i = 0; i < ndim; i++)
-	{
-		assert(0 <= perm[i] && perm[i] < ndim);
-		ax_list[perm[i]] = 1;
-	}
-	for (int i = 0; i < ndim; i++)
-	{
-		assert(ax_list[i] == 1);
-	}
-	ct_free(ax_list);
 	// 'perm' must not mix axes types
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
@@ -490,7 +480,7 @@ void transpose_su2_tensor(const int* perm, const struct su2_tensor* restrict t, 
 		}
 		sectors_r[c].degensor = ct_malloc(sizeof(struct dense_tensor));
 		// requiring that 'perm' is an endomorphism of the logical dimensions
-		transpose_dense_tensor(perm, t->degensors[c], sectors_r[c].degensor);
+		dense_tensor_transpose(perm, t->degensors[c], sectors_r[c].degensor);
 	}
 
 	// sort permuted charge sectors and tensors lexicographically
@@ -510,6 +500,32 @@ void transpose_su2_tensor(const int* perm, const struct su2_tensor* restrict t, 
 		delete_su2_irreducible_list(&sectors_r[c].list);
 	}
 	ct_free(sectors_r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Generalized transpose of the logical axes of the SU(2) tensor 't' such that
+/// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
+///
+/// The auxiliary and internal axes ordering remains unchanged.
+///
+void su2_tensor_transpose_logical(const int* perm, const struct su2_tensor* t, struct su2_tensor* r)
+{
+	// ensure that 'perm' is a valid permutation
+	assert(is_permutation(perm, t->ndim_logical));
+
+	// extend by an identity permutation on the auxiliary and internal axes
+	const int ndim = su2_tensor_ndim(t);
+	int* perm_full = ct_malloc(ndim * sizeof(int));
+	memcpy(perm_full, perm, t->ndim_logical * sizeof(int));
+	for (int i = t->ndim_logical; i < ndim; i++) {
+		perm_full[i] = i;
+	}
+
+	su2_tensor_transpose(perm_full, t, r);
+
+	ct_free(perm_full);
 }
 
 
@@ -900,7 +916,7 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 			dt_perm = *dt;  // only copy pointers
 		}
 		else {
-			transpose_dense_tensor(perm, dt, &dt_perm);
+			dense_tensor_transpose(perm, dt, &dt_perm);
 		}
 
 		// corresponding "degeneracy" tensor of 'r'
@@ -1209,7 +1225,7 @@ void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_s
 		}
 		else
 		{
-			transpose_dense_tensor(perm, &dr_perm, r->degensors[cr]);
+			dense_tensor_transpose(perm, &dr_perm, r->degensors[cr]);
 			delete_dense_tensor(&dr_perm);
 		}
 	}
@@ -1618,7 +1634,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 			ds_perm = *ds;  // copy internal data pointers
 		}
 		else {
-			transpose_dense_tensor(perm_s, ds, &ds_perm);
+			dense_tensor_transpose(perm_s, ds, &ds_perm);
 		}
 
 		// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
@@ -1654,7 +1670,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 				dt_perm = *dt;  // copy internal data pointers
 			}
 			else {
-				transpose_dense_tensor(perm_t, dt, &dt_perm);
+				dense_tensor_transpose(perm_t, dt, &dt_perm);
 			}
 
 			// fill 'j' quantum numbers for charge sector in to-be contracted tensor 'r'
@@ -1927,7 +1943,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 			ds_perm = *ds;  // only copy pointers
 		}
 		else {
-			transpose_dense_tensor(perm_s, ds, &ds_perm);
+			dense_tensor_transpose(perm_s, ds, &ds_perm);
 		}
 
 		// fill 'j' quantum numbers for merged charge sector
@@ -1954,7 +1970,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 				dt_perm = *dt;  // only copy pointers
 			}
 			else {
-				transpose_dense_tensor(perm_t, dt, &dt_perm);
+				dense_tensor_transpose(perm_t, dt, &dt_perm);
 			}
 
 			// fill 'j' quantum numbers for merged charge sector

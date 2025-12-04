@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "util.h"
 #include "cblas_ct.h"
+#include "aligned_memory.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -44,6 +45,35 @@ ct_long ipow(ct_long base, int exp)
 		base *= base;
 	}
 	return result;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether an integer map is a permutation of the list [0, ..., n - 1].
+///
+bool is_permutation(const int* map, const int n)
+{
+	for (int i = 0; i < n; i++) {
+		if (map[i] < 0 || map[i] >= n) {
+			return false;
+		}
+	}
+
+	bool* indicator = ct_calloc(n, sizeof(bool));
+	for (int i = 0; i < n; i++) {
+		indicator[map[i]] = true;
+	}
+	for (int i = 0; i < n; i++) {
+		if (!indicator[i])
+		{
+			ct_free(indicator);
+			return false;
+		}
+	}
+	ct_free(indicator);
+
+	return true;
 }
 
 

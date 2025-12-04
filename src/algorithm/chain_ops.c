@@ -129,7 +129,7 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	// re-order first three dimensions
 	const int perm0[5] = { 1, 2, 0, 3, 4 };
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm0, &s, &t);
+	block_sparse_tensor_transpose(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
@@ -137,7 +137,7 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	// multiply with conjugated 'b' tensor
 	// undo re-ordering and temporarily make trailing dimension in 's' the leading dimension
 	const int perm1[5] = { 4, 2, 0, 1, 3 };
-	transpose_block_sparse_tensor(perm1, &s, &t);
+	block_sparse_tensor_transpose(perm1, &s, &t);
 	delete_block_sparse_tensor(&s);
 	struct block_sparse_tensor br = *b;  // copy internal data pointers
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
@@ -160,7 +160,7 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	delete_block_sparse_tensor(&t);
 	// restore original trailing dimension
 	const int perm2[4] = { 1, 2, 3, 0 };
-	transpose_block_sparse_tensor(perm2, &s, r_next);
+	block_sparse_tensor_transpose(perm2, &s, r_next);
 	delete_block_sparse_tensor(&s);
 }
 
@@ -226,7 +226,7 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	// re-order last three dimensions
 	const int perm0[5] = { 0, 1, 4, 2, 3 };
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm0, &s, &t);
+	block_sparse_tensor_transpose(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, w, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
@@ -234,13 +234,13 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	// multiply with 'a' tensor
 	// undo re-ordering, and temporarily make leading dimension in 's' the trailing dimension
 	const int perm1[5] = { 1, 3, 4, 2, 0 };
-	transpose_block_sparse_tensor(perm1, &s, &t);
+	block_sparse_tensor_transpose(perm1, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
 	// restore original leading dimension
 	const int perm2[4] = { 3, 0, 1, 2 };
-	transpose_block_sparse_tensor(perm2, &s, l_next);
+	block_sparse_tensor_transpose(perm2, &s, l_next);
 	delete_block_sparse_tensor(&s);
 }
 
@@ -366,20 +366,20 @@ void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const
 	// re-order first three dimensions
 	const int perm0[5] = { 1, 2, 0, 3, 4 };
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm0, &s, &t);
+	block_sparse_tensor_transpose(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&t);
 	// undo re-ordering
 	const int perm1[5] = { 2, 0, 1, 3, 4 };
-	transpose_block_sparse_tensor(perm1, &s, &t);
+	block_sparse_tensor_transpose(perm1, &s, &t);
 	delete_block_sparse_tensor(&s);
 
 	// multiply with 'l' tensor
 	// re-order last three dimensions
 	const int perm2[4] = { 0, 3, 1, 2 };
 	struct block_sparse_tensor k;
-	transpose_block_sparse_tensor(perm2, l, &k);
+	block_sparse_tensor_transpose(perm2, l, &k);
 	block_sparse_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&k);
 	delete_block_sparse_tensor(&t);
@@ -437,7 +437,7 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 	// re-order last two dimensions
 	const int perm0[5] = { 0, 1, 2, 4, 3 };
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm0, &s, &t);
+	block_sparse_tensor_transpose(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
 	struct block_sparse_tensor br = *b;  // copy internal data pointers
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
@@ -463,10 +463,10 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 	// re-order second and third dimension of 'l'
 	const int perm1[4] = { 0, 2, 1, 3 };
 	struct block_sparse_tensor k;
-	transpose_block_sparse_tensor(perm1, l, &k);
+	block_sparse_tensor_transpose(perm1, l, &k);
 	// re-order leading three dimensions of 's' (to make MPS virtual bond dimensions the leading dimensions)
 	const int perm2[6] = { 2, 0, 1, 3, 4, 5 };
-	transpose_block_sparse_tensor(perm2, &s, &t);
+	block_sparse_tensor_transpose(perm2, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 	delete_block_sparse_tensor(&k);
@@ -497,12 +497,12 @@ void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
 		// move physical input axis of op->a[i] to the end
 		const int perm_op[4] = { 0, 1, 3, 2 };
 		struct block_sparse_tensor r;
-		transpose_block_sparse_tensor(perm_op, &op->a[i], &r);
+		block_sparse_tensor_transpose(perm_op, &op->a[i], &r);
 
 		// move physical axis of psi->a[i] to the beginning
 		const int perm_psi[3] = { 1, 0, 2 };
 		struct block_sparse_tensor s;
-		transpose_block_sparse_tensor(perm_psi, &psi->a[i], &s);
+		block_sparse_tensor_transpose(perm_psi, &psi->a[i], &s);
 
 		// contract local tensors
 		struct block_sparse_tensor t;
@@ -512,7 +512,7 @@ void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
 
 		// reorder axes
 		const int perm_ax[5] = { 0, 3, 1, 2, 4 };
-		transpose_block_sparse_tensor(perm_ax, &t, &r);
+		block_sparse_tensor_transpose(perm_ax, &t, &r);
 		delete_block_sparse_tensor(&t);
 
 		// flatten left and right virtual bonds

@@ -138,7 +138,7 @@ char* test_dense_tensor_transpose()
 	// generalized transposition
 	const int perm[10] = { 4, 8, 2, 6, 0, 9, 5, 7, 3, 1 };
 	struct dense_tensor t_tp;
-	transpose_dense_tensor(perm, &t, &t_tp);
+	dense_tensor_transpose(perm, &t, &t_tp);
 
 	// reference tensor
 	const ct_long refdim[10] = { 1, 1, 5, 1, 1, 7, 2, 3, 1, 4 };
@@ -467,7 +467,7 @@ char* test_dense_tensor_dot()
 		}
 		else {
 			const int perm[5] = { 3, 4, 0, 1, 2 };
-			transpose_dense_tensor(perm, &t, &tp);
+			dense_tensor_transpose(perm, &t, &tp);
 		}
 
 		for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
@@ -478,7 +478,7 @@ char* test_dense_tensor_dot()
 			}
 			else {
 				const int perm[4] = { 2, 3, 0, 1 };
-				transpose_dense_tensor(perm, &s, &sp);
+				dense_tensor_transpose(perm, &s, &sp);
 			}
 
 			// multiply tensors and store result in 't_dot_s'
@@ -557,7 +557,7 @@ char* test_dense_tensor_dot_update()
 		}
 		else {
 			const int perm[5] = { 3, 4, 0, 1, 2 };
-			transpose_dense_tensor(perm, &t, &tp);
+			dense_tensor_transpose(perm, &t, &tp);
 		}
 
 		for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
@@ -568,7 +568,7 @@ char* test_dense_tensor_dot_update()
 			}
 			else {
 				const int perm[4] = { 2, 3, 0, 1 };
-				transpose_dense_tensor(perm, &s, &sp);
+				dense_tensor_transpose(perm, &s, &sp);
 			}
 
 			// multiply tensors and update 't_dot_s' with result
@@ -1051,7 +1051,7 @@ char* test_dense_tensor_eigh()
 		dense_tensor_multiply_pointwise(&u, &lambda, TENSOR_AXIS_RANGE_TRAILING, &u_lambda);
 		const int perm[2] = { 1, 0 };
 		struct dense_tensor uh;
-		conjugate_transpose_dense_tensor(perm, &u, &uh);
+		dense_tensor_conjugate_transpose(perm, &u, &uh);
 		struct dense_tensor u_lambda_uh;
 		dense_tensor_dot(&u_lambda, TENSOR_AXIS_RANGE_TRAILING, &uh, TENSOR_AXIS_RANGE_LEADING, 1, &u_lambda_uh);
 		delete_dense_tensor(&uh);

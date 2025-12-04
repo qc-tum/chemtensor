@@ -265,7 +265,7 @@ void mpo_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 	// group physical input and output dimensions
 	const int perm[6] = { 0, 1, 3, 2, 4, 5 };
 	struct block_sparse_tensor a0_a1_dot_perm;
-	transpose_block_sparse_tensor(perm, &a0_a1_dot, &a0_a1_dot_perm);
+	block_sparse_tensor_transpose(perm, &a0_a1_dot, &a0_a1_dot_perm);
 	delete_block_sparse_tensor(&a0_a1_dot);
 
 	// combine original physical dimensions of a0 and a1 into one dimension

@@ -286,12 +286,12 @@ char* test_apply_mpo()
 		// move physical input axis of 'op_mat' to the end
 		const int perm_op[4] = { 0, 1, 3, 2 };
 		struct block_sparse_tensor r;
-		transpose_block_sparse_tensor(perm_op, &op_mat, &r);
+		block_sparse_tensor_transpose(perm_op, &op_mat, &r);
 
 		// move physical axis of 'psi_vec' to the beginning
 		const int perm_psi[3] = { 1, 0, 2 };
 		struct block_sparse_tensor s;
-		transpose_block_sparse_tensor(perm_psi, &psi_vec, &s);
+		block_sparse_tensor_transpose(perm_psi, &psi_vec, &s);
 
 		// perform logical matrix-vector multiplication
 		struct block_sparse_tensor t;
@@ -301,7 +301,7 @@ char* test_apply_mpo()
 
 		// reorder axes
 		const int perm_ax[5] = { 0, 3, 1, 2, 4 };
-		transpose_block_sparse_tensor(perm_ax, &t, &r);
+		block_sparse_tensor_transpose(perm_ax, &t, &r);
 		delete_block_sparse_tensor(&t);
 
 		// flatten left and right dummy virtual bonds

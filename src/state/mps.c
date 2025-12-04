@@ -295,14 +295,14 @@ static void mps_contraction_step_right(const struct block_sparse_tensor* restric
 	// temporarily make trailing dimension in 's' the leading dimension
 	const int perm0[4] = { 3, 0, 1, 2 };
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm0, &s, &t);
+	block_sparse_tensor_transpose(perm0, &s, &t);
 	delete_block_sparse_tensor(&s);
 	block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, &s);
 	delete_block_sparse_tensor(&t);
 	delete_block_sparse_tensor(&bc);
 	// restore original trailing dimension
 	const int perm1[3] = { 1, 2, 0 };
-	transpose_block_sparse_tensor(perm1, &s, r_next);
+	block_sparse_tensor_transpose(perm1, &s, r_next);
 	delete_block_sparse_tensor(&s);
 }
 

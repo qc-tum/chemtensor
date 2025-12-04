@@ -96,9 +96,9 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* t, struct b
 
 // transposition
 
-void transpose_block_sparse_tensor(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
+void block_sparse_tensor_transpose(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
 
-void conjugate_transpose_block_sparse_tensor(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
+void block_sparse_tensor_conjugate_transpose(const int* perm, const struct block_sparse_tensor* t, struct block_sparse_tensor* r);
 
 
 //________________________________________________________________________________________________________________________

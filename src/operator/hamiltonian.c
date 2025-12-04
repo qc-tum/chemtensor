@@ -433,7 +433,7 @@ static inline void symmetrize_molecular_interaction_coefficients(const struct de
 	{
 		const int perm[4] = { 1, 0, 2, 3 };
 		struct dense_tensor vint_tp;
-		transpose_dense_tensor(perm, vint, &vint_tp);
+		dense_tensor_transpose(perm, vint, &vint_tp);
 		dense_tensor_scalar_multiply_add(numeric_neg_one(vint->dtype), &vint_tp, gint);
 		delete_dense_tensor(&vint_tp);
 	}
@@ -442,7 +442,7 @@ static inline void symmetrize_molecular_interaction_coefficients(const struct de
 	{
 		const int perm[4] = { 0, 1, 3, 2 };
 		struct dense_tensor vint_tp;
-		transpose_dense_tensor(perm, vint, &vint_tp);
+		dense_tensor_transpose(perm, vint, &vint_tp);
 		dense_tensor_scalar_multiply_add(numeric_neg_one(vint->dtype), &vint_tp, gint);
 		delete_dense_tensor(&vint_tp);
 	}
@@ -451,7 +451,7 @@ static inline void symmetrize_molecular_interaction_coefficients(const struct de
 	{
 		const int perm[4] = { 1, 0, 3, 2 };
 		struct dense_tensor vint_tp;
-		transpose_dense_tensor(perm, vint, &vint_tp);
+		dense_tensor_transpose(perm, vint, &vint_tp);
 		dense_tensor_scalar_multiply_add(numeric_one(vint->dtype), &vint_tp, gint);
 		delete_dense_tensor(&vint_tp);
 	}
@@ -1674,7 +1674,7 @@ static inline void symmetrize_spin_molecular_interaction_coefficients(const stru
 	{
 		const int perm[4] = { 1, 0, 3, 2 };
 		struct dense_tensor vint_tp;
-		transpose_dense_tensor(perm, vint, &vint_tp);
+		dense_tensor_transpose(perm, vint, &vint_tp);
 		dense_tensor_scalar_multiply_add(numeric_one(vint->dtype), &vint_tp, gint0);
 		delete_dense_tensor(&vint_tp);
 	}
@@ -1682,14 +1682,14 @@ static inline void symmetrize_spin_molecular_interaction_coefficients(const stru
 	// transpose(vint, (1, 0, 2, 3))
 	{
 		const int perm[4] = { 1, 0, 2, 3 };
-		transpose_dense_tensor(perm, vint, gint1);
+		dense_tensor_transpose(perm, vint, gint1);
 	}
 
 	// + transpose(vint, (0, 1, 3, 2))
 	{
 		const int perm[4] = { 0, 1, 3, 2 };
 		struct dense_tensor vint_tp;
-		transpose_dense_tensor(perm, vint, &vint_tp);
+		dense_tensor_transpose(perm, vint, &vint_tp);
 		dense_tensor_scalar_multiply_add(numeric_one(vint->dtype), &vint_tp, gint1);
 		delete_dense_tensor(&vint_tp);
 	}

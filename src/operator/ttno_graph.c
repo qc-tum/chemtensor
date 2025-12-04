@@ -1511,7 +1511,7 @@ static void ttno_graph_contract_subtree(const struct ttno_graph* graph, const in
 			reshape_dense_tensor(2 * contracted->nsites, dim, &contracted->blocks[i]);
 
 			struct dense_tensor t;
-			transpose_dense_tensor(perm, &contracted->blocks[i], &t);
+			dense_tensor_transpose(perm, &contracted->blocks[i], &t);
 			delete_dense_tensor(&contracted->blocks[i]);
 			contracted->blocks[i] = t;  // copy internal data pointers
 

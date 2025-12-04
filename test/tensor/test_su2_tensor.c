@@ -101,7 +101,7 @@ char* test_su2_tensor_transpose()
 
 	const int perm[7] = { 2, 1, 0, 4, 3, 6, 5 };
 	struct su2_tensor t_tp;
-	transpose_su2_tensor(perm, &t, &t_tp);
+	su2_tensor_transpose(perm, &t, &t_tp);
 
 	if (!su2_tensor_is_consistent(&t_tp)) {
 		return "internal consistency check for SU(2) tensor failed";
@@ -112,7 +112,7 @@ char* test_su2_tensor_transpose()
 	{
 		struct dense_tensor t_dns;
 		su2_to_dense_tensor(&t, &t_dns);
-		transpose_dense_tensor(perm, &t_dns, &t_tp_ref);
+		dense_tensor_transpose(perm, &t_dns, &t_tp_ref);
 		delete_dense_tensor(&t_dns);
 	}
 
@@ -1069,7 +1069,7 @@ char* test_su2_tensor_fuse_axes()
 		// move to-be fused axes in 't' to the end
 		const int perm_t[4] = { 0, 2, 1, 3 };
 		struct dense_tensor t_tmp;
-		transpose_dense_tensor(perm_t, &t_dns, &t_tmp);
+		dense_tensor_transpose(perm_t, &t_dns, &t_tmp);
 
 		// perform contraction
 		struct dense_tensor r_dns_perm;
@@ -1078,7 +1078,7 @@ char* test_su2_tensor_fuse_axes()
 
 		// transpose the fused axis to become axis 1
 		const int perm_r[3] = { 0, 2, 1 };
-		transpose_dense_tensor(perm_r, &r_dns_perm, &r_dns_ref);
+		dense_tensor_transpose(perm_r, &r_dns_perm, &r_dns_ref);
 		delete_dense_tensor(&r_dns_perm);
 	}
 
@@ -1755,8 +1755,8 @@ char* test_su2_tensor_contract_simple()
 			struct dense_tensor t_dns_perm;
 			const int perm_s[4] = { 0, 2, 3, 1 };
 			const int perm_t[5] = { 3, 2, 0, 1, 4 };
-			transpose_dense_tensor(perm_s, &s_dns, &s_dns_perm);
-			transpose_dense_tensor(perm_t, &t_dns, &t_dns_perm);
+			dense_tensor_transpose(perm_s, &s_dns, &s_dns_perm);
+			dense_tensor_transpose(perm_t, &t_dns, &t_dns_perm);
 
 			// contract dense tensors, as reference
 			struct dense_tensor r_dns_ref;
@@ -1998,8 +1998,8 @@ char* test_su2_tensor_contract_yoga()
 		struct dense_tensor t_dns_perm;
 		const int perm_s[4] = { 0, 2, 3, 1 };
 		const int perm_t[4] = { 2, 0, 1, 3 };
-		transpose_dense_tensor(perm_s, &s_dns, &s_dns_perm);
-		transpose_dense_tensor(perm_t, &t_dns, &t_dns_perm);
+		dense_tensor_transpose(perm_s, &s_dns, &s_dns_perm);
+		dense_tensor_transpose(perm_t, &t_dns, &t_dns_perm);
 
 		// contract dense tensors, as reference
 		struct dense_tensor r_dns_ref;

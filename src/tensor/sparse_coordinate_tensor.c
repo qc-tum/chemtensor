@@ -140,22 +140,10 @@ static int compare_coord_value_index_tuples(const void* a, const void* b)
 ///
 /// Memory will be allocated for 'r'.
 ///
-void transpose_sparse_coordinate_tensor(const int* perm, const struct sparse_coordinate_tensor* restrict t, struct sparse_coordinate_tensor* restrict r)
+void sparse_coordinate_tensor_transpose(const int* perm, const struct sparse_coordinate_tensor* restrict t, struct sparse_coordinate_tensor* restrict r)
 {
 	// ensure that 'perm' is a valid permutation
-	#ifndef NDEBUG
-	int* ax_list = ct_calloc(t->ndim, sizeof(int));
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(0 <= perm[i] && perm[i] < t->ndim);
-		ax_list[perm[i]] = 1;
-	}
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(ax_list[i] == 1);
-	}
-	ct_free(ax_list);
-	#endif
+	assert(is_permutation(perm, t->ndim));
 
 	// dimensions of new tensor 'r'
 	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));

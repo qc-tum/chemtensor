@@ -103,14 +103,14 @@ char* test_sparse_coordinate_tensor_transpose()
 				// generalized transposition
 				struct sparse_coordinate_tensor t_tp;
 				const int perm[7] = { 6, 3, 2, 0, 4, 5, 1 };
-				transpose_sparse_coordinate_tensor(d == 0 ? NULL : perm, &t, &t_tp);
+				sparse_coordinate_tensor_transpose(d == 0 ? NULL : perm, &t, &t_tp);
 				if (!sparse_coordinate_tensor_is_consistent(&t_tp)) {
 					return "internal consistency check for sparse coordinate tensor failed";
 				}
 
 				// reference calculation
 				struct dense_tensor t_tp_ref;
-				transpose_dense_tensor(d == 0 ? NULL : perm, &t_dns, &t_tp_ref);
+				dense_tensor_transpose(d == 0 ? NULL : perm, &t_dns, &t_tp_ref);
 
 				struct dense_tensor t_tp_dns;
 				sparse_coordinate_to_dense_tensor(&t_tp, &t_tp_dns);

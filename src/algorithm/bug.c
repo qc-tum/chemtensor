@@ -334,7 +334,7 @@ static void bug_compute_child_environment(const struct block_sparse_tensor* rest
 	delete_block_sparse_tensor(&ai_mat);
 
 	const int perm[2] = { 1, 0 };
-	transpose_block_sparse_tensor(perm, &r0, s0);
+	block_sparse_tensor_transpose(perm, &r0, s0);
 	delete_block_sparse_tensor(&r0);
 
 	struct block_sparse_tensor q0ten;

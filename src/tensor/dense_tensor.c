@@ -766,7 +766,7 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 ///
 /// Memory will be allocated for 'r'.
 ///
-void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+void dense_tensor_transpose(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
 	// TODO: consider using an optimized library like https://github.com/springer13/hptt
 
@@ -779,19 +779,7 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 	}
 
 	// ensure that 'perm' is a valid permutation
-	#ifndef NDEBUG
-	int* ax_list = ct_calloc(t->ndim, sizeof(int));
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(0 <= perm[i] && perm[i] < t->ndim);
-		ax_list[perm[i]] = 1;
-	}
-	for (int i = 0; i < t->ndim; i++)
-	{
-		assert(ax_list[i] == 1);
-	}
-	ct_free(ax_list);
-	#endif
+	assert(is_permutation(perm, t->ndim));
 
 	// dimensions of new tensor 'r'
 	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
@@ -921,9 +909,9 @@ void transpose_dense_tensor(const int* restrict perm, const struct dense_tensor*
 ///
 /// Memory will be allocated for 'r'.
 ///
-void conjugate_transpose_dense_tensor(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+void dense_tensor_conjugate_transpose(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
-	transpose_dense_tensor(perm, t, r);
+	dense_tensor_transpose(perm, t, r);
 	conjugate_dense_tensor(r);
 }
 

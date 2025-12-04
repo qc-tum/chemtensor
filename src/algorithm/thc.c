@@ -47,7 +47,7 @@ int construct_thc_spin_molecular_hamiltonian(const struct dense_tensor* restrict
 	}
 	hamiltonian->mpo_kin = ct_malloc(2*nsites * sizeof(struct mpo));
 	struct dense_tensor u_kin_t;
-	transpose_dense_tensor(perm, &hamiltonian->u_kin, &u_kin_t);
+	dense_tensor_transpose(perm, &hamiltonian->u_kin, &u_kin_t);
 	assert(u_kin_t.dtype == CT_DOUBLE_REAL);
 	assert(u_kin_t.dim[0] == nsites && u_kin_t.dim[1] == nsites);
 	for (int i = 0; i < nsites; i++)
@@ -66,7 +66,7 @@ int construct_thc_spin_molecular_hamiltonian(const struct dense_tensor* restrict
 	// elementary MPOs for the interaction (Coulomb) term in THC representation
 	hamiltonian->mpo_thc = ct_malloc(2*thc_rank * sizeof(struct mpo));
 	struct dense_tensor thc_transform_t;
-	transpose_dense_tensor(perm, &hamiltonian->thc_transform, &thc_transform_t);
+	dense_tensor_transpose(perm, &hamiltonian->thc_transform, &thc_transform_t);
 	assert(thc_transform_t.dtype == CT_DOUBLE_REAL);
 	assert(thc_transform_t.dim[0] == thc_rank && thc_transform_t.dim[1] == nsites);
 	for (int mu = 0; mu < thc_rank; mu++)

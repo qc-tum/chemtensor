@@ -632,8 +632,8 @@ void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, co
 			perm[psi_envs.ndim - 1] = i_ax_p;
 
 			struct block_sparse_tensor psi_envs_perm, chi_conj_perm;
-			transpose_block_sparse_tensor(perm, &psi_envs, &psi_envs_perm);
-			transpose_block_sparse_tensor(perm, &chi_conj, &chi_conj_perm);
+			block_sparse_tensor_transpose(perm, &psi_envs, &psi_envs_perm);
+			block_sparse_tensor_transpose(perm, &chi_conj, &chi_conj_perm);
 
 			block_sparse_tensor_dot(&psi_envs_perm, TENSOR_AXIS_RANGE_LEADING, &chi_conj_perm, TENSOR_AXIS_RANGE_LEADING, psi_envs_perm.ndim - 1, &inner_bonds[i_site]);
 
@@ -940,7 +940,7 @@ struct ttns_contracted_subtree
 static void transpose_ttns_contracted_subtree(const int* perm, struct ttns_contracted_subtree* subtree)
 {
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm, &subtree->tensor, &t);
+	block_sparse_tensor_transpose(perm, &subtree->tensor, &t);
 	delete_block_sparse_tensor(&subtree->tensor);
 	subtree->tensor = t;  // copy internal data pointers
 

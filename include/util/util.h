@@ -76,6 +76,8 @@ ct_long ipow(ct_long base, int exp);
 //
 
 
+bool is_permutation(const int* map, const int n);
+
 bool is_identity_permutation(const int* perm, const int n);
 
 

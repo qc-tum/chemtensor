@@ -662,7 +662,7 @@ struct ttno_contracted_subtree
 static void transpose_ttno_contracted_subtree(const int* perm, struct ttno_contracted_subtree* subtree)
 {
 	struct block_sparse_tensor t;
-	transpose_block_sparse_tensor(perm, &subtree->tensor, &t);
+	block_sparse_tensor_transpose(perm, &subtree->tensor, &t);
 	delete_block_sparse_tensor(&subtree->tensor);
 	subtree->tensor = t;  // copy internal data pointers
 
@@ -880,7 +880,7 @@ void ttno_to_matrix(const struct ttno* ttno, struct block_sparse_tensor* mat)
 	{
 		// group input and output axes together
 		struct block_sparse_tensor t;
-		transpose_block_sparse_tensor(perm, &contracted.tensor, &t);
+		block_sparse_tensor_transpose(perm, &contracted.tensor, &t);
 		delete_block_sparse_tensor(&contracted.tensor);
 
 		// flatten pairs of physical input and output axes

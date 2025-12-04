@@ -144,9 +144,9 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 
 // transposition
 
-void transpose_dense_tensor(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
+void dense_tensor_transpose(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 
-void conjugate_transpose_dense_tensor(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
+void dense_tensor_conjugate_transpose(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________

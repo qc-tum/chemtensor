@@ -169,7 +169,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 			copy_block_sparse_tensor(op, &op_perm);
 		}
 		else {
-			transpose_block_sparse_tensor(perm, op, &op_perm);
+			block_sparse_tensor_transpose(perm, op, &op_perm);
 		}
 
 		ct_free(perm);
@@ -243,7 +243,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 		if (!is_identity_permutation(perm, psi_avg.ndim))
 		{
 			struct block_sparse_tensor tmp;
-			transpose_block_sparse_tensor(perm, &psi_avg, &tmp);
+			block_sparse_tensor_transpose(perm, &psi_avg, &tmp);
 			delete_block_sparse_tensor(&psi_avg);
 			psi_avg = tmp;  // copy internal data pointers
 		}
@@ -317,7 +317,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 		if (!is_identity_permutation(perm, op_psi_avg.ndim))
 		{
 			struct block_sparse_tensor tmp;
-			transpose_block_sparse_tensor(perm, &op_psi_avg, &tmp);
+			block_sparse_tensor_transpose(perm, &op_psi_avg, &tmp);
 			delete_block_sparse_tensor(&op_psi_avg);
 			op_psi_avg = tmp;  // copy internal data pointers
 		}
@@ -353,7 +353,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 		if (!is_identity_permutation(perm, chi_conj.ndim))
 		{
 			struct block_sparse_tensor tmp;
-			transpose_block_sparse_tensor(perm, &chi_conj, &tmp);
+			block_sparse_tensor_transpose(perm, &chi_conj, &tmp);
 			delete_block_sparse_tensor(&chi_conj);
 			chi_conj = tmp;  // copy internal data pointers
 		}
@@ -440,7 +440,7 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 				perm[i] = (i <= i_ax_phys_out ? i - 1 : i);
 			}
 
-			transpose_block_sparse_tensor(perm, op, &op_perm);
+			block_sparse_tensor_transpose(perm, op, &op_perm);
 			op_perm_shallow_copy = false;
 
 			ct_free(perm);
@@ -502,7 +502,7 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 		if (!is_identity_permutation(perm, psi_envs.ndim))
 		{
 			struct block_sparse_tensor tmp;
-			transpose_block_sparse_tensor(perm, &psi_envs, &tmp);
+			block_sparse_tensor_transpose(perm, &psi_envs, &tmp);
 			delete_block_sparse_tensor(&psi_envs);
 			psi_envs = tmp;  // copy internal data pointers
 		}
@@ -538,7 +538,7 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 		}
 
 		struct block_sparse_tensor tmp;
-		transpose_block_sparse_tensor(perm, ret, &tmp);
+		block_sparse_tensor_transpose(perm, ret, &tmp);
 		delete_block_sparse_tensor(ret);
 		*ret = tmp;  // copy internal data pointers
 
