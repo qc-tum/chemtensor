@@ -85,6 +85,7 @@ static inline void su2_tensor_flip_trees(struct su2_tensor* t)
 	su2_fuse_split_tree_flip(&t->tree);
 }
 
+void su2_tensor_delete_charge_sector_by_index(struct su2_tensor* t, const ct_long idx);
 bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist);
 
 void scale_su2_tensor(const void* alpha, struct su2_tensor* t);

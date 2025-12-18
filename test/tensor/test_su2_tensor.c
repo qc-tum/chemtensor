@@ -1224,13 +1224,11 @@ char* test_su2_tensor_split_axis()
 		// delete some charge sectors
 		qnumber jlist_del1[5];
 		qnumber jlist_del2[5];
-		qnumber jlist_del3[5];
 		memcpy(jlist_del1, &t.charge_sectors.jlists[0*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
 		memcpy(jlist_del2, &t.charge_sectors.jlists[3*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
-		memcpy(jlist_del3, &t.charge_sectors.jlists[8*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
 		su2_tensor_delete_charge_sector(&t, jlist_del1);
 		su2_tensor_delete_charge_sector(&t, jlist_del2);
-		su2_tensor_delete_charge_sector(&t, jlist_del3);
+		su2_tensor_delete_charge_sector_by_index(&t, 6);
 
 		if (!su2_tensor_is_consistent(&t)) {
 			return "internal consistency check for SU(2) tensor failed";

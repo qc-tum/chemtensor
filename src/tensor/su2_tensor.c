@@ -279,16 +279,11 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Delete an individual charge sector of the SU(2) symmetric tensor,
-/// returning true if the charge sector was actually found and deleted.
+/// \brief Delete the charge sector at 'idx' of the SU(2) symmetric tensor.
 ///
-bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
+void su2_tensor_delete_charge_sector_by_index(struct su2_tensor* t, const ct_long idx)
 {
-	const ct_long idx = charge_sector_index(&t->charge_sectors, jlist);
-	if (idx < 0) {
-		// not found
-		return false;
-	}
+	assert(0 <= idx && idx < t->charge_sectors.nsec);
 
 	// delete corresponding "degeneracy" tensor
 	delete_dense_tensor(t->degensors[idx]);
@@ -304,6 +299,23 @@ bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
 	t->degensors[t->charge_sectors.nsec - 1] = NULL;
 
 	t->charge_sectors.nsec--;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete an individual charge sector of the SU(2) symmetric tensor,
+/// returning true if the charge sector was actually found and deleted.
+///
+bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
+{
+	const ct_long idx = charge_sector_index(&t->charge_sectors, jlist);
+	if (idx < 0) {
+		// not found
+		return false;
+	}
+
+	su2_tensor_delete_charge_sector_by_index(t, idx);
 
 	return true;
 }
