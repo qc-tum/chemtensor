@@ -125,6 +125,12 @@ rf"""
 ///
 double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
 {{
+	const qnumber js_min = qmin(qmin(abs(ja + jb - jc), abs(jc + ja - jb)), abs(jb + jc - ja));
+	const qnumber js_max = ja + jb + jc;
+	assert((js_max - js_min) % 2 == 0);
+	if (js < js_min || js > js_max) {{
+		return 0;
+	}}
 	if ((ja + jb + jc + js) % 2 != 0) {{
 		return 0;
 	}}

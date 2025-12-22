@@ -35,7 +35,7 @@ char* test_su2_mps_to_statevector()
 		rscale_su2_tensor(&alpha, &mps.a[l]);
 	}
 	if (!su2_mps_is_consistent(&mps)) {
-	 	return "internal SU(2) MPS consistency check failed";
+		return "internal SU(2) MPS consistency check failed";
 	}
 
 	// convert to a state vector

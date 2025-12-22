@@ -376,6 +376,50 @@ void conjugate_su2_tensor(struct su2_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Swap outer axes 'i_ax_0' and 'i_ax_1' in the fusion-splitting tree, assuming that they are direct neighbors,
+/// such that the logical tensor remains the same.
+///
+void su2_tensor_swap_tree_axes(struct su2_tensor* t, const int i_ax_0, const int i_ax_1)
+{
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+
+	assert(i_ax_0 != i_ax_1);
+	assert(0 <= i_ax_0 && i_ax_0 < ndim_outer);
+	assert(0 <= i_ax_1 && i_ax_1 < ndim_outer);
+
+	const int i_ax[2] = { i_ax_0, i_ax_1 };
+	struct su2_tree_node* node = (struct su2_tree_node*)su2_subtree_with_leaf_axes(t->tree.tree_fuse, i_ax, 2);
+	if (node == NULL) {
+		node = (struct su2_tree_node*)su2_subtree_with_leaf_axes(t->tree.tree_split, i_ax, 2);
+	}
+	assert(node != NULL);
+
+	// absorb (-1) factors from R-symbols of SU(2) into degeneracy tensors
+	// enumeration of charge sectors is not affected by swap
+	const void* neg_one = numeric_neg_one(numeric_real_type(t->dtype));
+	const int ndim = t->charge_sectors.ndim;
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+		const qnumber j_eff = jlist[i_ax_0] + jlist[i_ax_1] - jlist[node->i_ax];
+		assert(j_eff % 2 == 0);
+		// quantum numbers are stored times 2
+		if ((j_eff / 2) % 2 == 1) {  // test whether R-symbol is -1
+			rscale_dense_tensor(neg_one, t->degensors[c]);
+		}
+	}
+
+	// actually swap axes indices in tree
+	int tmp = node->c[0]->i_ax;
+	node->c[0]->i_ax = node->c[1]->i_ax;
+	node->c[1]->i_ax = tmp;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Fill the dense degeneracy tensors of an SU(2) symmetric tensor with random normal entries.
 ///
 void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct su2_tensor* t)
