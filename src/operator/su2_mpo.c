@@ -1,6 +1,7 @@
 /// \file su2_mpo.c
 /// \brief SU(2) symmetric matrix product operator (MPO) data structure and functions.
 
+#include <math.h>
 #include <stdio.h>
 #include "su2_mpo.h"
 #include "aligned_memory.h"
@@ -71,6 +72,120 @@ void delete_su2_mpo(struct su2_mpo* mpo)
 	}
 	ct_free(mpo->a);
 	mpo->a = NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct an SU(2) symmetric matrix product operator with random normal degeneracy tensor entries
+/// and overall irreducible quantum number sector zero.
+///
+void construct_random_su2_mpo(
+	const enum numeric_type dtype, const int nsites,
+	const struct su2_irreducible_list* site_irreps, const ct_long* site_dim_degen,
+	const qnumber max_bond_irrep, const ct_long max_bond_dim_degen,
+	struct rng_state* rng_state, struct su2_mpo* mpo)
+{
+	assert(nsites >= 1);
+	assert(site_irreps->num >= 1);
+	assert(max_bond_irrep >= 0);
+	assert(max_bond_dim_degen >= 1);
+
+	// virtual bond irreducible configurations
+	struct su2_irreducible_list* bond_irreps    = ct_malloc((nsites + 1) * sizeof(struct su2_irreducible_list));
+	ct_long**                    bond_dim_degen = ct_malloc((nsites + 1) * sizeof(ct_long*));
+	// dummy left virtual bond; set 'j' quantum number to zero
+	allocate_su2_irreducible_list(1, &bond_irreps[0]);
+	bond_irreps[0].jlist[0] = 0;
+	bond_dim_degen[0] = ct_malloc(sizeof(ct_long));
+	bond_dim_degen[0][0] = 1;
+	// dummy right virtual bond; set 'j' quantum number to zero
+	allocate_su2_irreducible_list(1, &bond_irreps[nsites]);
+	bond_irreps[nsites].jlist[0] = 0;
+	bond_dim_degen[nsites] = ct_malloc(sizeof(ct_long));
+	bond_dim_degen[nsites][0] = 1;
+	// virtual bond irreducible configurations on left half
+	for (int l = 1; l < (nsites + 1) / 2; l++)
+	{
+		struct su2_irreducible_list tmp_irreps;
+		ct_long* tmp_dim_degen;
+		su2_irreps_tensor_product(&bond_irreps[l - 1], bond_dim_degen[l - 1], site_irreps, site_dim_degen, &tmp_irreps, &tmp_dim_degen);
+		su2_irreps_tensor_product(&tmp_irreps, tmp_dim_degen, site_irreps, site_dim_degen, &bond_irreps[l], &bond_dim_degen[l]);
+		ct_free(tmp_dim_degen);
+		delete_su2_irreducible_list(&tmp_irreps);
+		// clamp maximum 'j' quantum number
+		for (int k = 0; k < bond_irreps[l].num; k++)
+		{
+			// assuming that 'j' quantum numbers in jlist are sorted
+			if (bond_irreps[l].jlist[k] > max_bond_irrep)
+			{
+				bond_irreps[l].num = k;
+				break;
+			}
+		}
+		assert(bond_irreps[l].num > 0);
+		// clamp degeneracy dimensions
+		for (int k = 0; k < bond_irreps[l].num; k++)
+		{
+			const qnumber j = bond_irreps[l].jlist[k];
+			assert(bond_dim_degen[l][j] > 0);
+			if (bond_dim_degen[l][j] > max_bond_dim_degen) {
+				bond_dim_degen[l][j] = max_bond_dim_degen;
+			}
+		}
+	}
+	// virtual bond irreducible configurations on right half
+	for (int l = nsites - 1; l >= (nsites + 1) / 2; l--)
+	{
+		struct su2_irreducible_list tmp_irreps;
+		ct_long* tmp_dim_degen;
+		su2_irreps_tensor_product(site_irreps, site_dim_degen, &bond_irreps[l + 1], bond_dim_degen[l + 1], &tmp_irreps, &tmp_dim_degen);
+		su2_irreps_tensor_product(site_irreps, site_dim_degen, &tmp_irreps, tmp_dim_degen, &bond_irreps[l], &bond_dim_degen[l]);
+		ct_free(tmp_dim_degen);
+		delete_su2_irreducible_list(&tmp_irreps);
+		// clamp maximum 'j' quantum number
+		for (int k = 0; k < bond_irreps[l].num; k++)
+		{
+			// assuming that 'j' quantum numbers in jlist are sorted
+			if (bond_irreps[l].jlist[k] > max_bond_irrep)
+			{
+				bond_irreps[l].num = k;
+				break;
+			}
+		}
+		assert(bond_irreps[l].num > 0);
+		// clamp degeneracy dimensions
+		for (int k = 0; k < bond_irreps[l].num; k++)
+		{
+			const qnumber j = bond_irreps[l].jlist[k];
+			assert(bond_dim_degen[l][j] > 0);
+			if (bond_dim_degen[l][j] > max_bond_dim_degen) {
+				bond_dim_degen[l][j] = max_bond_dim_degen;
+			}
+		}
+	}
+
+	allocate_su2_mpo(dtype, nsites, site_irreps, site_dim_degen, bond_irreps, (const ct_long**)bond_dim_degen, mpo);
+
+	for (int l = 0; l < nsites + 1; l++)
+	{
+		ct_free(bond_dim_degen[l]);
+		delete_su2_irreducible_list(&bond_irreps[l]);
+	}
+	ct_free(bond_dim_degen);
+	ct_free(bond_irreps);
+
+	// fill degeneracy tensor entries with pseudo-random numbers, scaled by 1 / sqrt("number of entries")
+	for (int l = 0; l < nsites; l++)
+	{
+		// logical number of entries in MPS tensor
+		const ct_long nelem = su2_tensor_num_elements_logical(&mpo->a[l]);
+		// ensure that 'alpha' is large enough to store any numeric type
+		dcomplex alpha;
+		assert(mpo->a[l].dtype == dtype);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
+		su2_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &mpo->a[l]);
+	}
 }
 
 

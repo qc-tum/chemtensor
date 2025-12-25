@@ -95,7 +95,7 @@ char* test_su2_tensor_swap_tree_axes()
 
 			// fill degeneracy tensors with random entries
 			struct rng_state rng_state;
-			seed_rng_state(38, &rng_state);
+			seed_rng_state(36, &rng_state);
 			su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 		}
 
@@ -121,6 +121,119 @@ char* test_su2_tensor_swap_tree_axes()
 		// compare
 		if (!dense_tensor_allclose(&t_dns, &t_dns_ref, 1e-6)) {
 			return "dense tensor representations of SU(2) symmetric tensor before and after axes swap do not match";
+		}
+
+		delete_dense_tensor(&t_dns);
+		delete_dense_tensor(&t_dns_ref);
+		delete_su2_tensor(&t);
+	}
+
+	return 0;
+}
+
+
+char* test_su2_tensor_add_auxiliary_axis()
+{
+	for (int m = 0; m < 2; m++)  // whether to insert the auxiliary axis on the left or right
+	{
+		// construct an SU(2) tensor 't'
+		struct su2_tensor t;
+		{
+			// construct the fuse and split tree
+			//
+			//  2    1
+			//   ╲  ╱     fuse
+			//    ╲╱
+			//    │
+			//    │4
+			//    │
+			//    ╱╲
+			//   ╱  ╲     split
+			//  0    3
+			//
+			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+			struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+			struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+			struct su2_tree_node j4f = { .i_ax = 4, .c = { &j2,  &j1  } };
+			struct su2_tree_node j4s = { .i_ax = 4, .c = { &j0,  &j3  } };
+
+			struct su2_fuse_split_tree tree = { .tree_fuse = &j4f, .tree_split = &j4s, .ndim = 5 };
+			if (!su2_fuse_split_tree_is_consistent(&tree)) {
+				return "internal consistency check for the fuse and split tree failed";
+			}
+
+			// outer (logical and auxiliary) 'j' quantum numbers
+			qnumber j0list[] = { 0, 4 };
+			qnumber j1list[] = { 1, 3 };
+			qnumber j2list[] = { 0, 2 };
+			qnumber j3list[] = { 1 };  // auxiliary
+			const struct su2_irreducible_list outer_irreps[4] = {
+				{ .jlist = j0list, .num = ARRLEN(j0list) },
+				{ .jlist = j1list, .num = ARRLEN(j1list) },
+				{ .jlist = j2list, .num = ARRLEN(j2list) },
+				{ .jlist = j3list, .num = ARRLEN(j3list) },
+			};
+
+			// degeneracy dimensions, indexed by 'j' quantum numbers
+			//                         j:  0  1  2  3  4
+			const ct_long dim_degen0[] = { 5, 0, 0, 0, 2 };
+			const ct_long dim_degen1[] = { 0, 6, 0, 2    };
+			const ct_long dim_degen2[] = { 4, 0, 7       };
+			const ct_long* dim_degen[] = {
+				dim_degen0,
+				dim_degen1,
+				dim_degen2,
+			};
+
+			const int ndim_logical   = 3;
+			const int ndim_auxiliary = 1;
+
+			allocate_su2_tensor(CT_SINGLE_REAL, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
+
+			// delete some charge sectors
+			su2_tensor_delete_charge_sector_by_index(&t, 2);
+			su2_tensor_delete_charge_sector_by_index(&t, 5);
+
+			if (!su2_tensor_is_consistent(&t)) {
+				return "internal consistency check for SU(2) tensor failed";
+			}
+			if (t.charge_sectors.nsec == 0) {
+				return "expecting at least one charge sector in SU(2) tensor";
+			}
+
+			// fill degeneracy tensors with random entries
+			struct rng_state rng_state;
+			seed_rng_state(37, &rng_state);
+			su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+		}
+
+		struct dense_tensor t_dns_ref;
+		su2_to_dense_tensor(&t, &t_dns_ref);
+
+		const int i_ax_insert = 1;
+		su2_tensor_add_auxiliary_axis(&t, i_ax_insert, m == 0 ? false : true);
+
+		if (!su2_tensor_is_consistent(&t)) {
+			return "internal consistency check for SU(2) tensor failed";
+		}
+
+		if (t.ndim_auxiliary != 2) {
+			return "incorrect number of auxiliary axes after adding an auxiliary axis";;
+		}
+
+		if (t.tree.tree_fuse->c[1]->c[m]->i_ax != i_ax_insert) {
+			return "incorrect tree axis index after adding an auxiliary axis";
+		}
+
+		// adding a "dummy" auxiliary axis must not change logical tensor
+
+		struct dense_tensor t_dns;
+		su2_to_dense_tensor(&t, &t_dns);
+
+		// compare
+		if (!dense_tensor_allclose(&t_dns, &t_dns_ref, 0.)) {
+			return "dense tensor representation of SU(2) tensor after adding an auxiliary axis does not agree with reference";
 		}
 
 		delete_dense_tensor(&t_dns);
@@ -215,7 +328,7 @@ char* test_su2_tensor_transpose()
 
 		// fill degeneracy tensors with random entries
 		struct rng_state rng_state;
-		seed_rng_state(41, &rng_state);
+		seed_rng_state(38, &rng_state);
 		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 	}
 
@@ -927,21 +1040,6 @@ char* test_su2_tensor_reverse_axis_simple()
 			delete_su2_tensor(&t);
 			// copy internal data
 			t = tmp;
-			// delete charge sectors which have been recreated during F-move again
-			qnumber jlist_del1[7];
-			qnumber jlist_del2[7];
-			memcpy(jlist_del1, &t.charge_sectors.jlists[2*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
-			memcpy(jlist_del2, &t.charge_sectors.jlists[5*t.charge_sectors.ndim], t.charge_sectors.ndim*sizeof(qnumber));
-			const ct_long idx1 = charge_sector_index(&t.charge_sectors, jlist_del1);
-			const ct_long idx2 = charge_sector_index(&t.charge_sectors, jlist_del2);
-			if (!dense_tensor_is_zero(t.degensors[idx1], 0.)) {
-				return "expecting a zero degeneracy tensor in SU(2) tensor";
-			}
-			if (!dense_tensor_is_zero(t.degensors[idx2], 0.)) {
-				return "expecting a zero degeneracy tensor in SU(2) tensor";
-			}
-			su2_tensor_delete_charge_sector(&t, jlist_del1);
-			su2_tensor_delete_charge_sector(&t, jlist_del2);
 		}
 
 		if (!su2_tensor_is_consistent(&t)) {

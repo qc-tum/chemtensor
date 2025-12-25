@@ -96,6 +96,8 @@ void conjugate_su2_tensor(struct su2_tensor* t);
 
 void su2_tensor_swap_tree_axes(struct su2_tensor* t, const int i_ax_0, const int i_ax_1);
 
+void su2_tensor_add_auxiliary_axis(struct su2_tensor* t, const int i_ax_insert, const bool insert_left);
+
 void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct su2_tensor* t);
 
 

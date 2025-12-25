@@ -420,6 +420,106 @@ void su2_tensor_swap_tree_axes(struct su2_tensor* t, const int i_ax_0, const int
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Insert a "dummy" auxiliary axis with quantum number zero at outer axis 'i_ax_insert'.
+/// The index of the new axis is the previously largest auxiliary axis index + 1.
+///
+void su2_tensor_add_auxiliary_axis(struct su2_tensor* t, const int i_ax_insert, const bool insert_left)
+{
+	const int ndim = su2_tensor_ndim(t);
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+
+	// must be an outer axis
+	assert(0 <= i_ax_insert && i_ax_insert < ndim_outer);
+
+	// update tree
+	{
+		assert(t->tree.ndim == ndim);
+
+		struct su2_tree_node* node = (struct su2_tree_node*)su2_tree_find_node(t->tree.tree_fuse, i_ax_insert);
+		if (node == NULL) {
+			node = (struct su2_tree_node*)su2_tree_find_node(t->tree.tree_split, i_ax_insert);
+		}
+		assert(node != NULL);
+		assert(su2_tree_node_is_leaf(node));
+
+		// add two new nodes
+		node->c[0] = ct_calloc(1, sizeof(struct su2_tree_node));
+		node->c[1] = ct_calloc(1, sizeof(struct su2_tree_node));
+		if (insert_left)
+		{
+			node->c[0]->i_ax = ndim + 1;  // will be mapped to new auxiliary axis
+			node->c[1]->i_ax = ndim;      // will be mapped to hitherto 'i_ax_insert'
+		}
+		else
+		{
+			node->c[0]->i_ax = ndim;      // will be mapped to hitherto 'i_ax_insert'
+			node->c[1]->i_ax = ndim + 1;  // will be mapped to new auxiliary axis
+		}
+		t->tree.ndim = ndim + 2;
+
+		int* axis_map = ct_malloc(t->tree.ndim * sizeof(int));
+		for (int i = 0; i < t->tree.ndim; i++) {
+			axis_map[i] = i;
+		}
+		axis_map[i_ax_insert] = ndim + 1;
+		for (int i = ndim_outer; i < ndim; i++) {
+			axis_map[i] = i + 1;
+		}
+		axis_map[ndim] = i_ax_insert;
+		axis_map[ndim + 1] = ndim_outer;  // new auxiliary axis index
+
+		su2_fuse_split_tree_update_axes_indices(&t->tree, axis_map);
+
+		ct_free(axis_map);
+	}
+
+	// update irreducible 'j' quantum numbers on outer axes
+	{
+		struct su2_irreducible_list* outer_irreps_new = ct_malloc((ndim_outer + 1) * sizeof(struct su2_irreducible_list));
+		// copy internal data pointers
+		memcpy(outer_irreps_new, t->outer_irreps, ndim_outer * sizeof(struct su2_irreducible_list));
+		// set irreducible 'j' quantum number to zero for new auxiliary axis
+		allocate_su2_irreducible_list(1, &outer_irreps_new[ndim_outer]);
+		outer_irreps_new[ndim_outer].jlist[0] = 0;
+		ct_free(t->outer_irreps);
+		t->outer_irreps = outer_irreps_new;
+	}
+
+	// update charge sectors
+	{
+		assert(t->charge_sectors.ndim == ndim);
+
+		struct charge_sectors charge_sectors_new;
+		allocate_charge_sectors(t->charge_sectors.nsec, ndim + 2, &charge_sectors_new);
+
+		for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+		{
+			const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+			qnumber* jlist_new   = &charge_sectors_new.jlists[c * (ndim + 2)];
+			// copy 'j' quantum numbers on outer axes
+			memcpy(jlist_new, jlist, ndim_outer * sizeof(qnumber));
+			jlist_new[ndim_outer] = 0;  // irreducible 'j' quantum number for new auxiliary axis is zero
+			// copy internal 'j' quantum numbers
+			for (int i = ndim_outer; i < ndim; i++) {
+				jlist_new[i + 1] = jlist[i];
+			}
+			// new internal axis has same quantum number as outer axis 'i_ax_insert'
+			jlist_new[ndim + 1] = jlist[i_ax_insert];
+		}
+
+		delete_charge_sectors(&t->charge_sectors);
+		// copy internal data pointers
+		t->charge_sectors = charge_sectors_new;
+	}
+
+	// degeneracy dimensions and tensors remain unchanged
+
+	t->ndim_auxiliary++;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Fill the dense degeneracy tensors of an SU(2) symmetric tensor with random normal entries.
 ///
 void su2_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct su2_tensor* t)
@@ -633,10 +733,21 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 		assert(parent->c[0]->i_ax == i_ax);
 	}
 
-	// create new tensor
-	allocate_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &tree, t->outer_irreps, (const ct_long**)t->dim_degen, r);
+	// create new (empty) tensor
+	allocate_empty_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &tree, t->outer_irreps, (const ct_long**)t->dim_degen, r);
+
+	const int ndim_r = su2_tensor_ndim(r);
+
+	// all possible charge sectors
+	su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
+	assert(r->charge_sectors.nsec > 0);
+	assert(r->charge_sectors.ndim == ndim_r);
+	// unused charge sectors will correspond to NULL pointers
+	r->degensors = ct_calloc(r->charge_sectors.nsec, sizeof(struct dense_tensor*));
+
 	delete_su2_fuse_split_tree(&tree);
 
+	#pragma omp parallel for schedule(dynamic)
 	for (ct_long cr = 0; cr < r->charge_sectors.nsec; cr++)
 	{
 		// 'j' quantum numbers of current sector
@@ -671,14 +782,51 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 				continue;
 			}
 
-			// ensure that 'alpha' is large enough to store any numeric type
-			dcomplex alpha;
-			numeric_from_double(coeff, r->dtype, &alpha);
+			if (r->degensors[cr] == NULL)
+			{
+				// allocate new degeneracy tensor
+				r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
 
-			// accumulate degeneracy tensor from 't' weighted by 'coeff'
-			dense_tensor_scalar_multiply_add(&alpha, t->degensors[ct], r->degensors[cr]);
+				copy_dense_tensor(t->degensors[ct], r->degensors[cr]);
+				assert(r->degensors[cr]->dtype == r->dtype);
+
+				// ensure that 'alpha' is large enough to store any real numeric type
+				double alpha;
+				numeric_from_double(coeff, numeric_real_type(r->dtype), &alpha);
+				rscale_dense_tensor(&alpha, r->degensors[cr]);
+			}
+			else
+			{
+				// ensure that 'alpha' is large enough to store any numeric type
+				dcomplex alpha;
+				numeric_from_double(coeff, r->dtype, &alpha);
+
+				// accumulate degeneracy tensor from 't' weighted by 'coeff'
+				dense_tensor_scalar_multiply_add(&alpha, t->degensors[ct], r->degensors[cr]);
+			}
 		}
 	}
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors
+	// find first unused charge sector
+	ct_long c = 0;
+	for (; c < r->charge_sectors.nsec; c++) {
+		if (r->degensors[c] == NULL) {
+			break;
+		}
+	}
+	for (ct_long s = c + 1; s < r->charge_sectors.nsec; s++)
+	{
+		if (r->degensors[s] != NULL)
+		{
+			memcpy(&r->charge_sectors.jlists[c * ndim_r], &r->charge_sectors.jlists[s * ndim_r], ndim_r * sizeof(qnumber));
+			// copy pointer
+			r->degensors[c] = r->degensors[s];
+			r->degensors[s] = NULL;
+			c++;
+		}
+	}
+	r->charge_sectors.nsec = c;
 }
 
 
@@ -740,6 +888,7 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax)
 	// reversal does not influence enumeration of charge sectors
 
 	// scale degeneracy tensors
+	#pragma omp parallel for schedule(dynamic)
 	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
 	{
 		// current 'j' quantum numbers

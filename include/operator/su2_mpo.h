@@ -30,6 +30,12 @@ void allocate_su2_mpo(
 
 void delete_su2_mpo(struct su2_mpo* mpo);
 
+void construct_random_su2_mpo(
+	const enum numeric_type dtype, const int nsites,
+	const struct su2_irreducible_list* site_irreps, const ct_long* site_dim_degen,
+	const qnumber max_bond_irrep, const ct_long max_bond_dim_degen,
+	struct rng_state* rng_state, struct su2_mpo* mpo);
+
 bool su2_mpo_is_consistent(const struct su2_mpo* mpo);
 
 
