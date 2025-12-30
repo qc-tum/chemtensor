@@ -698,6 +698,20 @@ bool su2_fuse_split_tree_equal(const struct su2_fuse_split_tree* s, const struct
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Whether two fuse and split trees have the same topology.
+///
+bool su2_fuse_split_tree_equal_topology(const struct su2_fuse_split_tree* s, const struct su2_fuse_split_tree* t)
+{
+	if (s->ndim != t->ndim) {
+		return false;
+	}
+
+	return su2_tree_equal_topology(s->tree_fuse, t->tree_fuse) && su2_tree_equal_topology(s->tree_split, t->tree_split);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Flip the fuse and split trees.
 ///
 void su2_fuse_split_tree_flip(struct su2_fuse_split_tree* tree)

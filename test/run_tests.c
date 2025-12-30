@@ -68,6 +68,7 @@ char* test_su2_tensor_transpose();
 char* test_su2_tensor_fmove();
 char* test_su2_tensor_reverse_axis_simple();
 char* test_su2_tensor_fuse_axes();
+char* test_su2_tensor_fuse_axes_add_auxiliary();
 char* test_su2_tensor_split_axis();
 char* test_su2_tensor_contract_simple();
 char* test_su2_tensor_contract_yoga();
@@ -193,6 +194,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fmove),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_reverse_axis_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fuse_axes),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_fuse_axes_add_auxiliary),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_split_axis),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_yoga),

@@ -917,19 +917,19 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax)
 ///
 void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, struct su2_tensor* restrict r)
 {
+	const int ndim_t = su2_tensor_ndim(t);
+	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;
+
 	assert(i_ax_0 < i_ax_1);
 	// must be logical axes
 	assert(0 <= i_ax_0 && i_ax_0 < t->ndim_logical);
 	assert(0 <= i_ax_1 && i_ax_1 < t->ndim_logical);
 	// resulting tensor must have at least 3 outer axes for a valid fusion-splitting tree
-	assert(t->ndim_logical + t->ndim_auxiliary > 3);
+	assert(ndim_outer_t > 3);
 
 	const bool in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_0);
 	// axes must both be contained either in fusion or in splitting tree
 	assert(in_fuse_tree == su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_1));
-
-	const int ndim_t = su2_tensor_ndim(t);
-	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;
 
 	// parent node axis index
 	int i_ax_p;
@@ -1182,6 +1182,304 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 		if (r->degensors[s] != NULL)
 		{
 			memcpy(&r->charge_sectors.jlists[c * ndim_r], &r->charge_sectors.jlists[s * ndim_r], ndim_r * sizeof(qnumber));
+			// copy pointer
+			r->degensors[c] = r->degensors[s];
+			r->degensors[s] = NULL;
+			c++;
+		}
+	}
+	r->charge_sectors.nsec = c;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fuse the two logical axes (tensor legs) 'i_ax_0' and 'i_ax_1' (with i_ax_0 < i_ax_1) into a single axis with index 'i_ax_0',
+/// corresponding to the contraction with a "fusion" Clebsch-Gordan node, and add a dummy auxiliary axis with quantum number zero.
+/// The axes must have the same direction and must be direct siblings in the fusion-splitting tree.
+/// The fusion-splitting tree topology and overall number of axes remain unchanged, since the hitherto 'i_ax_1' becomes the new first auxiliary axis.
+///
+void su2_tensor_fuse_axes_add_auxiliary(const struct su2_tensor* restrict t, const int i_ax_0, const int i_ax_1, const bool fused_left, struct su2_tensor* restrict r)
+{
+	// same for 't' and 'r'
+	const int ndim = su2_tensor_ndim(t);
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+
+	assert(i_ax_0 < i_ax_1);
+	// must be logical axes
+	assert(0 <= i_ax_0 && i_ax_0 < t->ndim_logical);
+	assert(0 <= i_ax_1 && i_ax_1 < t->ndim_logical);
+	// resulting tensor must have at least 3 outer axes for a valid fusion-splitting tree
+	assert(ndim_outer >= 3);
+
+	const bool in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_0);
+	// axes must both be contained either in fusion or in splitting tree
+	assert(in_fuse_tree == su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_1));
+
+	// parent node axis index, and whether to flip its child nodes 'i_ax_0' and 'i_ax_1'
+	int i_ax_p;
+	bool flip_children;
+	{
+		const struct su2_tree_node* node = su2_tree_find_parent_node(in_fuse_tree ? t->tree.tree_fuse : t->tree.tree_split, i_ax_0);
+		assert(node != NULL);
+		assert(!su2_tree_node_is_leaf(node));
+		assert(su2_tree_node_is_leaf(node->c[0]));
+		assert(su2_tree_node_is_leaf(node->c[1]));
+
+		i_ax_p = node->i_ax;
+
+		if (node->c[0]->i_ax == i_ax_0)
+		{
+			assert(node->c[1]->i_ax == i_ax_1);
+			flip_children = !fused_left;
+		}
+		else
+		{
+			assert(node->c[0]->i_ax == i_ax_1);
+			assert(node->c[1]->i_ax == i_ax_0);
+			flip_children = fused_left;
+		}
+	}
+
+	int* axis_map = ct_malloc(ndim * sizeof(int));
+	for (int i = 0; i < i_ax_1; i++) {
+		axis_map[i] = i;
+	}
+	// 'i_ax_1' becomes first auxiliary axis in 'r'
+	axis_map[i_ax_1] = t->ndim_logical - 1;
+	for (int i = i_ax_1 + 1; i < t->ndim_logical; i++) {
+		axis_map[i] = i - 1;
+	}
+	for (int i = t->ndim_logical; i < ndim; i++) {
+		axis_map[i] = i;
+	}
+	assert(is_permutation(axis_map, ndim));
+
+	qnumber j_max_0 = 0;
+	for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++) {
+		j_max_0 = qmax(j_max_0, t->outer_irreps[i_ax_0].jlist[k]);
+	}
+	qnumber j_max_1 = 0;
+	for (int k = 0; k < t->outer_irreps[i_ax_1].num; k++) {
+		j_max_1 = qmax(j_max_1, t->outer_irreps[i_ax_1].jlist[k]);
+	}
+	// largest possible 'j' quantum number of the new fused axis
+	qnumber j_max_fused = j_max_0 + j_max_1;
+
+	// degeneracy tensor offset map for the fused axis
+	ct_long* offset_map = ct_calloc((j_max_fused + 1) * (j_max_0 + 1) * (j_max_1 + 1), sizeof(ct_long));
+
+	// allocate (empty) 'r' tensor
+	{
+		struct su2_fuse_split_tree tree_r;
+		copy_su2_fuse_split_tree(&t->tree, &tree_r);
+		su2_fuse_split_tree_update_axes_indices(&tree_r, axis_map);
+		struct su2_tree_node* node = (struct su2_tree_node*)su2_tree_find_node(in_fuse_tree ? tree_r.tree_fuse : tree_r.tree_split, axis_map[i_ax_p]);
+		assert(node != NULL);
+		assert((node->c[0]->i_ax == axis_map[i_ax_0] && node->c[1]->i_ax == axis_map[i_ax_1]) ||
+		       (node->c[0]->i_ax == axis_map[i_ax_1] && node->c[1]->i_ax == axis_map[i_ax_0]));
+		if (flip_children)
+		{
+			int tmp = node->c[0]->i_ax;
+			node->c[0]->i_ax = node->c[1]->i_ax;
+			node->c[1]->i_ax = tmp;
+		}
+		assert(su2_fuse_split_tree_is_consistent(&tree_r));
+
+		ct_long* dim_degen_fused = ct_calloc(j_max_fused + 1, sizeof(ct_long));
+		for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++)
+		{
+			const qnumber j0 = t->outer_irreps[i_ax_0].jlist[k];
+			assert(j0 <= j_max_0);
+			assert(t->dim_degen[i_ax_0][j0] > 0);
+
+			for (int l = 0; l < t->outer_irreps[i_ax_1].num; l++)
+			{
+				const qnumber j1 = t->outer_irreps[i_ax_1].jlist[l];
+				assert(j1 <= j_max_1);
+				assert(t->dim_degen[i_ax_1][j1] > 0);
+
+				for (qnumber jf = abs(j0 - j1); jf <= j0 + j1; jf += 2)
+				{
+					// set 'offset_map' entry
+					offset_map[(jf*(j_max_0 + 1) + j0)*(j_max_1 + 1) + j1] = dim_degen_fused[jf];
+					// product of degeneracy dimensions
+					dim_degen_fused[jf] += t->dim_degen[i_ax_0][j0] * t->dim_degen[i_ax_1][j1];
+				}
+			}
+		}
+
+		struct su2_irreducible_list outer_irreps_r_fused = {
+			.jlist = ct_malloc((j_max_fused + 1) * sizeof(qnumber)),
+			.num = 0,
+		};
+		for (qnumber j = 0; j <= j_max_fused; j++) {
+			if (dim_degen_fused[j] > 0) {
+				outer_irreps_r_fused.jlist[outer_irreps_r_fused.num] = j;
+				outer_irreps_r_fused.num++;
+			}
+		}
+		assert(outer_irreps_r_fused.num > 0);
+		qnumber jlist_zero[1] = { 0 };
+		struct su2_irreducible_list outer_irreps_r_auxiliary = {
+			.jlist = jlist_zero,
+			.num = 1,
+		};
+		struct su2_irreducible_list* outer_irreps_r = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
+		for (int i = 0; i < ndim_outer; i++) {
+			outer_irreps_r[axis_map[i]] = t->outer_irreps[i];
+		}
+		outer_irreps_r[i_ax_0] = outer_irreps_r_fused;
+		outer_irreps_r[t->ndim_logical - 1] = outer_irreps_r_auxiliary;
+
+		const ct_long** dim_degen_r = ct_malloc((t->ndim_logical - 1) * sizeof(ct_long*));
+		for (int i = 0; i < t->ndim_logical; i++)
+		{
+			if (i == i_ax_1) {
+				continue;
+			}
+			assert(0 <= axis_map[i] && axis_map[i] < t->ndim_logical - 1);
+			assert(outer_irreps_r[axis_map[i]].num > 0);
+			// simply copy the pointer
+			dim_degen_r[axis_map[i]] = t->dim_degen[i];
+		}
+		dim_degen_r[i_ax_0] = dim_degen_fused;
+
+		allocate_empty_su2_tensor(t->dtype, t->ndim_logical - 1, t->ndim_auxiliary + 1, &tree_r, outer_irreps_r, dim_degen_r, r);
+
+		ct_free(dim_degen_r);
+
+		delete_su2_irreducible_list(&outer_irreps_r_fused);
+		ct_free(outer_irreps_r);
+		ct_free(dim_degen_fused);
+
+		delete_su2_fuse_split_tree(&tree_r);
+	}
+
+	// all possible charge sectors
+	su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
+	assert(r->charge_sectors.nsec > 0);
+	assert(r->charge_sectors.ndim == ndim);
+	// unused charge sectors will correspond to NULL pointers
+	r->degensors = ct_calloc(r->charge_sectors.nsec, sizeof(struct dense_tensor*));
+
+	// permutations of dense degeneracy tensors before axes flattening
+	int* perm = ct_malloc(t->ndim_logical * sizeof(int));
+	for (int i = 0; i <= i_ax_0; i++) {
+		perm[i] = i;
+	}
+	perm[i_ax_0 + 1] = i_ax_1;
+	for (int i = i_ax_0 + 2; i <= i_ax_1; i++) {
+		perm[i] = i - 1;
+	}
+	for (int i = i_ax_1 + 1; i < t->ndim_logical; i++) {
+		perm[i] = i;
+	}
+	const bool perm_is_identity = (i_ax_1 == i_ax_0 + 1);
+	assert(perm_is_identity == is_identity_permutation(perm, t->ndim_logical));
+
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	qnumber* jlist_r = ct_malloc(ndim * sizeof(qnumber));
+	for (ct_long ct = 0; ct < t->charge_sectors.nsec; ct++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist_t = &t->charge_sectors.jlists[ct * t->charge_sectors.ndim];
+
+		for (int i = 0; i < ndim; i++) {
+			if (axis_map[i] != -1) {
+				jlist_r[axis_map[i]] = jlist_t[i];
+			}
+		}
+		// fused axis inherits quantum number from parent since auxiliary quantum number is zero
+		jlist_r[i_ax_0] = jlist_t[i_ax_p];
+		// quantum number of new auxiliary axis is zero
+		jlist_r[t->ndim_logical - 1] = 0;
+
+		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist_r);
+		assert(cr != -1);
+
+		const qnumber j0 = jlist_t[i_ax_0];
+		const qnumber j1 = jlist_t[i_ax_1];
+		const qnumber jp = jlist_t[i_ax_p];
+		assert(j0 <= j_max_0);
+		assert(j1 <= j_max_1);
+		assert((abs(j0 - j1) <= jp) && (jp <= j0 + j1));
+		assert((j0 + j1 + jp) % 2 == 0);
+
+		const ct_long offset = offset_map[(jp*(j_max_0 + 1) + j0)*(j_max_1 + 1) + j1];
+
+		// corresponding "degeneracy" tensor of 't'
+		const struct dense_tensor* dt = t->degensors[ct];
+		assert(dt != NULL);
+		assert(dt->dtype == t->dtype);
+		assert(dt->ndim  == t->ndim_logical);
+		struct dense_tensor dt_perm;
+		if (perm_is_identity) {
+			dt_perm = *dt;  // only copy pointers
+		}
+		else {
+			dense_tensor_transpose(perm, dt, &dt_perm);
+		}
+
+		// corresponding "degeneracy" tensor of 'r'
+		if (r->degensors[cr] == NULL)
+		{
+			// allocate new degeneracy tensor with zero entries
+			// dimension of degeneracy tensor
+			ct_long* dim_d = ct_malloc(r->ndim_logical * sizeof(ct_long));
+			for (int i = 0; i < r->ndim_logical; i++) {
+				const qnumber j = jlist_r[i];
+				assert(r->dim_degen[i][j] > 0);
+				dim_d[i] = r->dim_degen[i][j];
+			}
+			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
+			allocate_dense_tensor(r->dtype, r->ndim_logical, dim_d, r->degensors[cr]);
+			ct_free(dim_d);
+		}
+		struct dense_tensor* dr = r->degensors[cr];
+		assert(dr->dtype == r->dtype);
+		assert(dr->ndim  == r->ndim_logical);
+
+		// copy tensor entries
+		const ct_long n = integer_product(dr->dim, i_ax_0);
+		assert(n == integer_product(dt_perm.dim, i_ax_0));
+		// trailing dimensions times data type size
+		const ct_long tdd_r = integer_product(dr->dim + (i_ax_0 + 1), dr->ndim - (i_ax_0 + 1)) * dtype_size;
+		const ct_long offset_r = offset*tdd_r;
+		const ct_long stride_t = integer_product(dt_perm.dim + i_ax_0, dt_perm.ndim - i_ax_0) * dtype_size;
+		const ct_long stride_r = dr->dim[i_ax_0] * tdd_r;
+		for (ct_long i = 0; i < n; i++)
+		{
+			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+			memcpy((int8_t*)dr->data + (i*stride_r + offset_r),
+			       (int8_t*)dt_perm.data + i*stride_t,
+			       stride_t);
+		}
+
+		if (!perm_is_identity) {
+			delete_dense_tensor(&dt_perm);
+		}
+	}
+
+	ct_free(jlist_r);
+	ct_free(perm);
+	ct_free(offset_map);
+	ct_free(axis_map);
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors
+	// find first unused charge sector
+	ct_long c = 0;
+	for (; c < r->charge_sectors.nsec; c++) {
+		if (r->degensors[c] == NULL) {
+			break;
+		}
+	}
+	for (ct_long s = c + 1; s < r->charge_sectors.nsec; s++)
+	{
+		if (r->degensors[s] != NULL)
+		{
+			memcpy(&r->charge_sectors.jlists[c * ndim], &r->charge_sectors.jlists[s * ndim], ndim * sizeof(qnumber));
 			// copy pointer
 			r->degensors[c] = r->degensors[s];
 			r->degensors[s] = NULL;

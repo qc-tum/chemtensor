@@ -292,12 +292,9 @@ void su2_mpo_inner_product(const struct su2_mps* chi, const struct su2_mpo* op, 
 		delete_su2_tensor(&r);
 		// previous axis 2 is now axis 1
 
-		// add an auxiliary axis and group and fuse axes 0 and 1
-		su2_tensor_add_auxiliary_axis(&t, 0, false);
-		su2_tensor_fmove(&t, t.tree.tree_split->c[1]->i_ax, &r);
+		// fuse axes 0 and 1 and add an auxiliary axis (to retain a minimum of 3 outer axes)
+		su2_tensor_fuse_axes_add_auxiliary(&t, 0, 1, true, ret);
 		delete_su2_tensor(&t);
-		su2_tensor_fuse_axes(&r, 0, 1, ret);
-		delete_su2_tensor(&r);
 	}
 	assert(ret->ndim_logical == 2);
 

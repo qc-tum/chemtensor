@@ -134,6 +134,8 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax);
 
 void su2_tensor_fuse_axes(const struct su2_tensor* t, const int i_ax_0, const int i_ax_1, struct su2_tensor* r);
 
+void su2_tensor_fuse_axes_add_auxiliary(const struct su2_tensor* t, const int i_ax_0, const int i_ax_1, const bool fused_left, struct su2_tensor* r);
+
 void su2_tensor_split_axis(const struct su2_tensor* t, const int i_ax_split, const int i_ax_add, const bool tree_left_child, const struct su2_irreducible_list outer_irreps[2], const ct_long* dim_degen[2], struct su2_tensor* r);
 
 

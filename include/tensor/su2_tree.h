@@ -93,6 +93,8 @@ bool su2_fuse_split_tree_is_consistent(const struct su2_fuse_split_tree* tree);
 
 bool su2_fuse_split_tree_equal(const struct su2_fuse_split_tree* s, const struct su2_fuse_split_tree* t);
 
+bool su2_fuse_split_tree_equal_topology(const struct su2_fuse_split_tree* s, const struct su2_fuse_split_tree* t);
+
 void su2_fuse_split_tree_flip(struct su2_fuse_split_tree* tree);
 
 void su2_fuse_split_tree_update_axes_indices(struct su2_fuse_split_tree* tree, const int* axis_map);
