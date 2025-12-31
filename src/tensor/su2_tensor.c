@@ -260,6 +260,11 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 
 		// current 'j' quantum numbers
 		const qnumber* jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
+
+		if (!su2_fuse_split_tree_is_valid_charge_sector(&t->tree, jlist)) {
+			return false;
+		}
+
 		// dimension of degeneracy tensor
 		for (int i = 0; i < t->ndim_logical; i++)
 		{

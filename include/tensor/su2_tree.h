@@ -73,6 +73,8 @@ double su2_tree_eval_clebsch_gordan(const struct su2_tree_node* tree, const qnum
 
 void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const int ndim, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
 
+bool su2_tree_is_valid_charge_sector(const struct su2_tree_node* tree, const qnumber* jlist);
+
 
 //________________________________________________________________________________________________________________________
 ///
@@ -102,3 +104,5 @@ void su2_fuse_split_tree_update_axes_indices(struct su2_fuse_split_tree* tree, c
 double su2_fuse_split_tree_eval_clebsch_gordan(const struct su2_fuse_split_tree* tree, const qnumber* jlist, const int* im_leaves);
 
 void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* leaf_ranges, struct charge_sectors* sectors);
+
+bool su2_fuse_split_tree_is_valid_charge_sector(const struct su2_fuse_split_tree* tree, const qnumber* jlist);

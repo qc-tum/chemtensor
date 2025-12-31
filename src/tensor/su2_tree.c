@@ -602,6 +602,35 @@ void su2_tree_enumerate_charge_sectors(const struct su2_tree_node* tree, const i
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Determine whether 'jlist' is a valid charge sector, i.e.,
+/// whether the 'j' quantum numbers are within the ranges compatible with the Clebsch-Gordan coefficients.
+///
+bool su2_tree_is_valid_charge_sector(const struct su2_tree_node* tree, const qnumber* jlist)
+{
+	assert(tree != NULL);
+
+	if (su2_tree_node_is_leaf(tree)) {
+		return true;
+	}
+
+	const qnumber j0 = jlist[tree->c[0]->i_ax];
+	const qnumber j1 = jlist[tree->c[1]->i_ax];
+	const qnumber jp = jlist[tree->i_ax];
+	assert(j0 >= 0 && j1 >= 0 && jp >= 0);
+
+	if (!(abs(j0 - j1) <= jp && jp <= j0 + j1)) {
+		return false;
+	}
+	if ((j0 + j1 + jp) % 2 != 0) {
+		return false;
+	}
+
+	return su2_tree_is_valid_charge_sector(tree->c[0], jlist) && su2_tree_is_valid_charge_sector(tree->c[1], jlist);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Make a deep copy of a fuse and split tree.
 ///
 void copy_su2_fuse_split_tree(const struct su2_fuse_split_tree* src, struct su2_fuse_split_tree* dst)
@@ -781,6 +810,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	su2_tree_axes_indicator(tree->tree_fuse,  indicator_fuse);
 	su2_tree_axes_indicator(tree->tree_split, indicator_split);
 	// consistency check
+	#ifndef NDEBUG
 	for (int i = 0; i < tree->ndim; i++) {
 		if (i == i_ax_shared) {
 			assert(indicator_fuse[i] && indicator_split[i]);
@@ -789,6 +819,7 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 			assert(indicator_fuse[i] != indicator_split[i]);
 		}
 	}
+	#endif
 
 	struct charge_sectors sectors_fuse;
 	struct charge_sectors sectors_split;
@@ -839,4 +870,15 @@ void su2_fuse_split_tree_enumerate_charge_sectors(const struct su2_fuse_split_tr
 	ct_free(indicator_fuse);
 	delete_charge_sectors(&sectors_split);
 	delete_charge_sectors(&sectors_fuse);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Determine whether 'jlist' is a valid charge sector, i.e.,
+/// whether the 'j' quantum numbers are within the ranges compatible with the Clebsch-Gordan coefficients.
+///
+bool su2_fuse_split_tree_is_valid_charge_sector(const struct su2_fuse_split_tree* tree, const qnumber* jlist)
+{
+	return su2_tree_is_valid_charge_sector(tree->tree_fuse, jlist) && su2_tree_is_valid_charge_sector(tree->tree_split, jlist);
 }
