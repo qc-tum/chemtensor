@@ -2538,3 +2538,184 @@ char* test_su2_to_dense_tensor()
 
 	return 0;
 }
+
+
+char* test_su2_tensor_qr()
+{
+	struct rng_state rng_state;
+	seed_rng_state(46, &rng_state);
+
+	// decomposition modes
+	for (int mode = 0; mode < QR_NUM_MODES; mode++)
+	{
+		// whether the leading axis is in the fusion or splitting tree
+		for (int lfs = 0; lfs < 2; lfs++)
+		{
+			// whether the auxiliary axis is grouped together with the first or second axis
+			for (int iaux = 0; iaux < 2; iaux++)
+			{
+				// construct an SU(2) tensor 'a'
+				struct su2_tensor a;
+				{
+					struct su2_fuse_split_tree tree;
+					if (iaux == 0)
+					{
+						// construct the fuse and split tree
+						//
+						//      0
+						//      │
+						//      │
+						//      ╱╲
+						//     ╱  ╲
+						//    1    2
+						//
+						struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+						struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+						struct su2_tree_node j0f = { .i_ax = 0, .c = { NULL, NULL } };
+						struct su2_tree_node j0s = { .i_ax = 0, .c = { &j1,  &j2  } };
+
+						struct su2_fuse_split_tree t = { .tree_fuse = &j0f, .tree_split = &j0s, .ndim = 3 };
+
+						copy_su2_fuse_split_tree(&t, &tree);
+					}
+					else
+					{
+						// construct the fuse and split tree
+						//
+						//    0    2
+						//     ╲  ╱
+						//      ╲╱
+						//      │
+						//      │
+						//      1
+						//
+						struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+						struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+						struct su2_tree_node j1f = { .i_ax = 1, .c = { &j0,  &j2  } };
+						struct su2_tree_node j1s = { .i_ax = 1, .c = { NULL, NULL } };
+
+						struct su2_fuse_split_tree t = { .tree_fuse = &j1f, .tree_split = &j1s, .ndim = 3 };
+
+						copy_su2_fuse_split_tree(&t, &tree);
+					}
+
+					if (lfs == 1) {
+						su2_fuse_split_tree_flip(&tree);
+					}
+
+					if (!su2_fuse_split_tree_is_consistent(&tree)) {
+						return "internal consistency check for the fuse and split tree failed";
+					}
+
+					// outer (logical and auxiliary) 'j' quantum numbers
+					qnumber j0list[] = { 0, 1, 3, 7 };  // note: mixed half-integer and integer quantum numbers
+					qnumber j1list[] = { 0, 3, 5, 7 };  // note: mixed half-integer and integer quantum numbers
+					qnumber j2list[] = { 0 };  // auxiliary
+					const struct su2_irreducible_list outer_irreps[3] = {
+						{ .jlist = j0list, .num = ARRLEN(j0list) },
+						{ .jlist = j1list, .num = ARRLEN(j1list) },
+						{ .jlist = j2list, .num = ARRLEN(j2list) },
+					};
+
+					// degeneracy dimensions, indexed by 'j' quantum numbers
+					//                         j:  0  1  2  3  4  5  6  7
+					const ct_long dim_degen0[] = { 2, 5, 0, 8, 0, 0, 0, 6 };
+					const ct_long dim_degen1[] = { 9, 0, 0, 7, 0, 3, 0, 4 };
+					const ct_long* dim_degen[] = {
+						dim_degen0,
+						dim_degen1,
+					};
+
+					allocate_su2_tensor(CT_DOUBLE_COMPLEX, 2, 1, &tree, outer_irreps, dim_degen, &a);
+					delete_su2_fuse_split_tree(&tree);
+
+					// delete a charge sector
+					const qnumber jlist_del[3] = { 7, 7, 0 };
+					su2_tensor_delete_charge_sector(&a, jlist_del);
+
+					// fill degeneracy tensors with random entries
+					su2_tensor_fill_random_normal(numeric_one(a.dtype), numeric_zero(a.dtype), &rng_state, &a);
+
+					if (!su2_tensor_is_consistent(&a)) {
+						return "internal consistency check for SU(2) tensor failed";
+					}
+					if (a.charge_sectors.nsec != 2) {
+						return "expecting two charge sectors in SU(2) tensor";
+					}
+				}
+
+				// perform QR decomposition
+				struct su2_tensor q, r;
+				if (su2_tensor_qr(&a, mode, &q, &r) < 0) {
+					return "SU(2) symmetric QR decomposition failed internally";
+				}
+
+				if (!su2_tensor_is_consistent(&q)) {
+					return "internal consistency check for SU(2) tensor failed";
+				}
+				if (!su2_tensor_is_consistent(&r)) {
+					return "internal consistency check for SU(2) tensor failed";
+				}
+				if (q.ndim_logical != 2) {
+					return "expecting two logical dimensions for Q tensor from SU(2) symmetric QR decomposition";
+				}
+				if (r.ndim_logical != 2) {
+					return "expecting two logical dimensions for R tensor from SU(2) symmetric QR decomposition";
+				}
+				if (q.ndim_auxiliary != a.ndim_auxiliary) {
+					return "expecting same number of auxiliary dimensions in Q tensor from SU(2) symmetric QR decomposition as in original A tensor";
+				}
+				if (su2_tensor_dim_logical_axis(&q, 0) != su2_tensor_dim_logical_axis(&a, 0)) {
+					return "leading dimension of Q from SU(2) symmetric QR decomposition must be equal to the leading dimension of A";
+				}
+				if (su2_tensor_dim_logical_axis(&r, 1) != su2_tensor_dim_logical_axis(&a, 1)) {
+					return "trailing dimension of R from SU(2) symmetric QR decomposition must be equal to the trailing dimension of A";
+				}
+				if (mode == QR_COMPLETE) {
+					// 'q' must be a logical square matrix
+					if (su2_tensor_dim_logical_axis(&q, 0) != su2_tensor_dim_logical_axis(&q, 1)) {
+						return "Q from SU(2) symmetric QR decomposition must be a logical square matrix for the \"complete\" mode";
+					}
+				}
+				// 'q' must be an isometry
+				if (!su2_tensor_is_isometry(&q, 1e-13, false)) {
+					return "Q tensor from SU(2) symmetric QR decomposition is not an isometry";
+				}
+
+				// degeneracy tensors in 'r' are upper triangular, but not neccessarily the overall logical matrix
+
+				// logical matrix product 'q r' must be equal to 'a'
+				struct su2_tensor qr;
+				if (q.tree.tree_fuse->i_ax == 1)
+				{
+					const int i_ax_q[1] = { 1 };
+					const int i_ax_r[1] = { 0 };
+					su2_tensor_contract_simple(&q, i_ax_q, &r, i_ax_r, 1, &qr);
+				}
+				else
+				{
+					// include auxiliary axis for contraction
+					const int i_ax_q[2] = { 1, 2 };
+					const int i_ax_r[2] = { 0, 2 };
+					// add a dummy auxiliary axis to 'r' to ensure that contracted tensor has three axes
+					su2_tensor_add_auxiliary_axis(&r, 1, false);
+					su2_tensor_contract_simple(&q, i_ax_q, &r, i_ax_r, 2, &qr);
+				}
+				// comparing dense tensor representations since number or locations of auxiliary axes might be different
+				struct dense_tensor qr_dns;
+				su2_to_dense_tensor(&qr, &qr_dns);
+				if (!dense_su2_tensor_allclose(&qr_dns, &a, 1e-13)) {
+					return "logical matrix product Q R from SU(2) symmetric QR decomposition is not equal to original A tensor";
+				}
+				delete_dense_tensor(&qr_dns);
+				delete_su2_tensor(&qr);
+
+				delete_su2_tensor(&r);
+				delete_su2_tensor(&q);
+				delete_su2_tensor(&a);
+			}
+		}
+	}
+
+	return 0;
+}

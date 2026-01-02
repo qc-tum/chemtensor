@@ -160,7 +160,19 @@ void su2_to_dense_tensor(const struct su2_tensor* s, struct dense_tensor* t);
 //________________________________________________________________________________________________________________________
 //
 
+// QR and RQ decomposition
+
+int su2_tensor_qr(const struct su2_tensor* a, const enum qr_mode mode, struct su2_tensor* q, struct su2_tensor* r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // comparison
 
 bool su2_tensor_allclose(const struct su2_tensor* s, const struct su2_tensor* t, const double tol);
 bool dense_su2_tensor_allclose(const struct dense_tensor* s, const struct su2_tensor* t, const double tol);
+
+bool su2_tensor_is_identity(const struct su2_tensor* t, const double tol);
+
+bool su2_tensor_is_isometry(const struct su2_tensor* t, const double tol, const bool transpose);

@@ -57,6 +57,8 @@ int su2_tree_num_nodes(const struct su2_tree_node* tree);
 
 int su2_tree_axes_list(const struct su2_tree_node* tree, int* list);
 
+int su2_tree_leaf_axes_list(const struct su2_tree_node* tree, int* list);
+
 void su2_tree_axes_indicator(const struct su2_tree_node* tree, bool* indicator);
 
 void su2_tree_update_axes_indices(struct su2_tree_node* tree, const int* axis_map);

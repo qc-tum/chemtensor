@@ -440,10 +440,8 @@ void su2_tensor_add_auxiliary_axis(struct su2_tensor* t, const int i_ax_insert, 
 	{
 		assert(t->tree.ndim == ndim);
 
-		struct su2_tree_node* node = (struct su2_tree_node*)su2_tree_find_node(t->tree.tree_fuse, i_ax_insert);
-		if (node == NULL) {
-			node = (struct su2_tree_node*)su2_tree_find_node(t->tree.tree_split, i_ax_insert);
-		}
+		const bool in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_insert);
+		struct su2_tree_node* node = (struct su2_tree_node*)su2_tree_find_node(in_fuse_tree ? t->tree.tree_fuse : t->tree.tree_split, i_ax_insert);
 		assert(node != NULL);
 		assert(su2_tree_node_is_leaf(node));
 
@@ -2710,6 +2708,310 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Determine the set intersection of two sorted quantum number lists.
+///
+static inline int qnumber_intersection(const qnumber* restrict list_a, const int num_a, const qnumber* restrict list_b, const int num_b, qnumber* restrict intersection)
+{
+	int i = 0;
+	int j = 0;
+	int c = 0;
+	while (i < num_a && j < num_b)
+	{
+		// require that quantum number lists are sorted
+		assert(i == num_a - 1 || (list_a[i] < list_a[i + 1]));
+		assert(j == num_b - 1 || (list_b[j] < list_b[j + 1]));
+
+		if (list_a[i] == list_b[j])
+		{
+			intersection[c] = list_a[i];
+			i++;
+			j++;
+			c++;
+		}
+		else if (list_a[i] < list_b[j])
+		{
+			i++;
+		}
+		else
+		{
+			assert(list_b[j] < list_a[i]);
+			j++;
+		}
+	}
+
+	return c;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the logical QR decomposition of an SU(2) symmetric tensor.
+///
+/// The input tensor must have an input and an output logical axis and one auxiliary axis with quantum number zero.
+///
+int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, struct su2_tensor* restrict q, struct su2_tensor* restrict r)
+{
+	// require a logical matrix
+	assert(a->ndim_logical == 2);
+	assert(su2_tensor_logical_axis_direction(a, 0) != su2_tensor_logical_axis_direction(a, 1));
+	// expecting a single, "trivial" (solely quantum number zero) auxiliary axis in 'a'
+	assert(a->ndim_auxiliary == 1);
+	assert(a->outer_irreps[2].num == 1);
+	assert(a->outer_irreps[2].jlist[0] == 0);
+
+	// allocate (empty) 'q' tensor (with same tree topology and number of axes as 'a')
+	{
+		struct su2_irreducible_list outer_irreps_q[3];
+		// copy irreducible quantum numbers from first axis of 'a'
+		outer_irreps_q[0] = a->outer_irreps[0];  // only copy pointers
+		// irreducible quantum numbers for second axis of 'q'
+		if (mode == QR_REDUCED)
+		{
+			// find joint irreducible quantum numbers of first and second axis of 'a'
+			// upper bound on required memory
+			allocate_su2_irreducible_list(a->outer_irreps[0].num, &outer_irreps_q[1]);
+			outer_irreps_q[1].num = qnumber_intersection(
+				a->outer_irreps[0].jlist, a->outer_irreps[0].num,
+				a->outer_irreps[1].jlist, a->outer_irreps[1].num,
+				outer_irreps_q[1].jlist);
+			// require at least one common quantum number
+			assert(outer_irreps_q[1].num > 0);
+			assert(outer_irreps_q[1].num <= a->outer_irreps[0].num);
+		}
+		else
+		{
+			assert(mode == QR_COMPLETE);
+			// use the same quantum numbers for second axis of 'q' as for first
+			copy_su2_irreducible_list(&outer_irreps_q[0], &outer_irreps_q[1]);
+		}
+		// auxiliary axis has quantum number zero
+		qnumber jlist_zero[1] = { 0 };
+		outer_irreps_q[2].num = 1;
+		outer_irreps_q[2].jlist = jlist_zero;
+
+		ct_long* dim_degen_q[2];
+		dim_degen_q[0] = a->dim_degen[0];  // copy pointer
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_irreps_q[1].num; k++) {
+			j_max = qmax(j_max, outer_irreps_q[1].jlist[k]);
+		}
+		dim_degen_q[1] = ct_calloc(j_max + 1, sizeof(ct_long));
+		if (mode == QR_REDUCED)
+		{
+			for (int k = 0; k < outer_irreps_q[1].num; k++)
+			{
+				const qnumber j = outer_irreps_q[1].jlist[k];
+				dim_degen_q[1][j] = lmin(a->dim_degen[0][j], a->dim_degen[1][j]);
+				assert(dim_degen_q[1][j] > 0);
+			}
+		}
+		else
+		{
+			assert(mode == QR_COMPLETE);
+			// same degeneracy dimensions as for first axis of 'a'
+			memcpy(dim_degen_q[1], a->dim_degen[0], (j_max + 1) * sizeof(ct_long));
+		}
+
+		allocate_empty_su2_tensor(a->dtype, 2, 1, &a->tree, outer_irreps_q, (const ct_long**)dim_degen_q, q);
+
+		ct_free(dim_degen_q[1]);
+		delete_su2_irreducible_list(&outer_irreps_q[1]);
+
+		// all possible charge sectors
+		su2_fuse_split_tree_enumerate_charge_sectors(&q->tree, q->outer_irreps, &q->charge_sectors);
+		assert(q->charge_sectors.nsec > 0);
+		assert(q->charge_sectors.ndim == 3);
+		// unused charge sectors will correspond to NULL pointers
+		q->degensors = ct_calloc(q->charge_sectors.nsec, sizeof(struct dense_tensor*));
+	}
+
+	// allocate (empty) 'r' tensor
+	{
+		// use a mirrored version of the fusion-splitting tree of 'a' for 'r'
+		struct su2_fuse_split_tree tree_r;
+		copy_su2_fuse_split_tree(&a->tree, &tree_r);
+		su2_fuse_split_tree_flip(&tree_r);
+		// flip axes 0 <-> 1
+		const int axis_map[3] = { 1, 0, 2 };
+		su2_fuse_split_tree_update_axes_indices(&tree_r, axis_map);
+
+		struct su2_irreducible_list outer_irreps_r[3] = {
+			q->outer_irreps[1],  // logical axis 0
+			a->outer_irreps[1],  // logical axis 1
+			q->outer_irreps[2],  // auxiliary axis
+		};
+
+		const ct_long* dim_degen_r[2] = {
+			q->dim_degen[1],
+			a->dim_degen[1],
+		};
+
+		allocate_empty_su2_tensor(a->dtype, 2, 1, &tree_r, outer_irreps_r, dim_degen_r, r);
+
+		delete_su2_fuse_split_tree(&tree_r);
+
+		// all possible charge sectors
+		su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
+		assert(r->charge_sectors.nsec > 0);
+		assert(r->charge_sectors.ndim == 3);
+		// unused charge sectors will correspond to NULL pointers
+		r->degensors = ct_calloc(r->charge_sectors.nsec, sizeof(struct dense_tensor*));
+	}
+
+	// perform QR decompositions of the individual blocks
+	bool failed = false;
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long ca = 0; ca < a->charge_sectors.nsec; ca++)
+	{
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &a->charge_sectors.jlists[ca * a->charge_sectors.ndim];
+		// quantum numbers of of first and second logical axis must agree
+		assert(jlist[0] == jlist[1]);
+		// quantum number of auxiliary axis must be zero
+		assert(jlist[2] == 0);
+		// corresponding "degeneracy" tensor of 'a'
+		const struct dense_tensor* da = a->degensors[ca];
+
+		// charge sector must also exist in 'q'
+		const ct_long cq = charge_sector_index(&q->charge_sectors, jlist);
+		assert(cq != -1);
+
+		if (q->degensors[cq] == NULL)
+		{
+			// allocate new degeneracy tensor with zero entries
+			ct_long dim_d[2] = {
+				q->dim_degen[0][jlist[0]],
+				q->dim_degen[1][jlist[1]],
+			};
+			q->degensors[cq] = ct_calloc(1, sizeof(struct dense_tensor));
+			allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[cq]);
+		}
+
+		// charge sector must also exist in 'r'
+		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist);
+		assert(cr != -1);
+
+		if (r->degensors[cr] == NULL)
+		{
+			// allocate new degeneracy tensor with zero entries
+			ct_long dim_d[2] = {
+				r->dim_degen[0][jlist[0]],
+				r->dim_degen[1][jlist[1]],
+			};
+			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
+			allocate_dense_tensor(r->dtype, 2, dim_d, r->degensors[cr]);
+		}
+
+		// perform QR decomposition of block
+		int ret = dense_tensor_qr_fill(da, mode, q->degensors[cq], r->degensors[cr]);
+		if (ret != 0) {
+			failed = true;
+		}
+	}
+
+	if (failed) {
+		return -1;
+	}
+
+	// set unused blocks in 'q' to standard basis vectors (i.e., identities for square blocks) to ensure that 'q' is a valid isometry
+	for (ct_long c = 0; c < q->charge_sectors.nsec; c++)
+	{
+		if (q->degensors[c] != NULL) {
+			continue;
+		}
+
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &q->charge_sectors.jlists[c * q->charge_sectors.ndim];
+		// quantum numbers of of first and second logical axis must agree
+		assert(jlist[0] == jlist[1]);
+		// quantum number of auxiliary axis must be zero
+		assert(jlist[2] == 0);
+
+		// allocate new degeneracy tensor with zero entries
+		ct_long dim_d[2] = {
+			q->dim_degen[0][jlist[0]],
+			q->dim_degen[1][jlist[1]],
+		};
+		assert(dim_d[0] >= dim_d[1]);
+		q->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
+		allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
+		// set diagonal entries to ones
+		switch (q->degensors[c]->dtype)
+		{
+			case CT_SINGLE_REAL:
+			{
+				float* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[1]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_DOUBLE_REAL:
+			{
+				double* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[1]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_SINGLE_COMPLEX:
+			{
+				scomplex* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[1]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_DOUBLE_COMPLEX:
+			{
+				dcomplex* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[1]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
+	}
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors in 'r'
+	{
+		// find first unused charge sector
+		ct_long c = 0;
+		for (; c < r->charge_sectors.nsec; c++) {
+			if (r->degensors[c] == NULL) {
+				break;
+			}
+		}
+		for (ct_long s = c + 1; s < r->charge_sectors.nsec; s++)
+		{
+			if (r->degensors[s] != NULL)
+			{
+				memcpy(&r->charge_sectors.jlists[c * 3], &r->charge_sectors.jlists[s * 3], 3 * sizeof(qnumber));
+				// copy pointer
+				r->degensors[c] = r->degensors[s];
+				r->degensors[s] = NULL;
+				c++;
+			}
+		}
+		r->charge_sectors.nsec = c;
+		assert(r->charge_sectors.nsec > 0);
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Test whether two SU(2) tensors agree in terms of quantum numbers, internal tree structure and degeneracy tensor entries within tolerance 'tol'.
 ///
 bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_tensor* restrict t, const double tol)
@@ -2785,4 +3087,141 @@ bool dense_su2_tensor_allclose(const struct dense_tensor* s, const struct su2_te
 	delete_dense_tensor(&t_dns);
 
 	return is_close;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether an SU(2) symmetric tensors is close to the identity map within tolerance 'tol'.
+///
+bool su2_tensor_is_identity(const struct su2_tensor* t, const double tol)
+{
+	// must be a logical matrix
+	if (t->ndim_logical != 2) {
+		return false;
+	}
+
+	// one logical axis must be an input axis and the other an output axis
+	if (su2_tensor_logical_axis_direction(t, 0) == su2_tensor_logical_axis_direction(t, 1)) {
+		return false;
+	}
+
+	// all quantum numbers and degeneracy dimensions of the two logical axes must agree
+	if (!su2_irreducible_list_equal(&t->outer_irreps[0], &t->outer_irreps[1])) {
+		return false;
+	}
+	for (int k = 0; k < t->outer_irreps[0].num; k++)
+	{
+		assert(t->outer_irreps[0].jlist[k] == t->outer_irreps[1].jlist[k]);
+		const qnumber j = t->outer_irreps[0].jlist[k];
+		if (t->dim_degen[0][j] != t->dim_degen[1][j]) {
+			return false;
+		}
+	}
+
+	// all auxiliary axes must be "trivial" (soleley quantum number zero)
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+	for (int i = t->ndim_logical; i < ndim_outer; i++)
+	{
+		if (t->outer_irreps[i].num != 1) {
+			return false;
+		}
+		if (t->outer_irreps[i].jlist[0] != 0) {
+			return false;
+		}
+	}
+
+	// all possible diagonal blocks must be identities
+	if (t->charge_sectors.nsec != t->outer_irreps[0].num) {
+		return false;
+	}
+	for (int k = 0; k < t->outer_irreps[0].num; k++)
+	{
+		const qnumber j = t->outer_irreps[0].jlist[k];
+
+		ct_long c;
+		for (c = 0; c < t->charge_sectors.nsec; c++)
+		{
+			// current 'j' quantum numbers
+			const qnumber* jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
+			if (jlist[0] == j && jlist[1] == j) {
+				// found it
+				break;
+			}
+		}
+		if (c == t->charge_sectors.nsec) {
+			return false;
+		}
+
+		assert(t->degensors[c]->ndim == 2);
+		if (!dense_tensor_is_identity(t->degensors[c], tol)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether an SU(2) tensors is an isometry within tolerance 'tol'.
+///
+bool su2_tensor_is_isometry(const struct su2_tensor* t, const double tol, const bool transpose)
+{
+	// must be a logical matrix
+	if (t->ndim_logical != 2) {
+		return false;
+	}
+
+	const int i_ax_open = (transpose ? 0 : 1);
+	const int i_ax_cntr = (transpose ? 1 : 0);
+
+	const bool i_ax_open_in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_open);
+	const bool i_ax_cntr_in_fuse_tree = su2_tree_contains_leaf(t->tree.tree_fuse, i_ax_cntr);
+	// one logical axis must be an input axis and the other an output axis
+	if (i_ax_open_in_fuse_tree == i_ax_cntr_in_fuse_tree) {
+		return false;
+	}
+
+	// all auxiliary axes must be "trivial" (soleley quantum number zero)
+	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+	for (int i = t->ndim_logical; i < ndim_outer; i++)
+	{
+		if (t->outer_irreps[i].num != 1) {
+			return false;
+		}
+		if (t->outer_irreps[i].jlist[0] != 0) {
+			return false;
+		}
+	}
+
+	// adjoint (conjugate transpose) tensor
+	struct su2_tensor tdag;
+	// TODO: avoid full copy
+	copy_su2_tensor(t, &tdag);
+	conjugate_su2_tensor(&tdag);
+	// revert tensor axes directions for multiplication
+	su2_tensor_flip_trees(&tdag);
+
+	struct su2_tensor t2;
+	const int ndim = su2_tensor_ndim(t);
+	// include potential auxiliary axes for contraction
+	int* i_ax_cntr_aux = ct_malloc(ndim * sizeof(int));  // upper bound on required memory
+	const int ndim_mult = su2_tree_leaf_axes_list(i_ax_cntr_in_fuse_tree ? t->tree.tree_fuse : t->tree.tree_split, i_ax_cntr_aux);
+	assert(ndim_mult >= 1);
+	// add an auxiliary dummy axis to "open" axis part of tree if necessary
+	if (su2_tree_node_is_leaf(i_ax_open_in_fuse_tree ? t->tree.tree_fuse : t->tree.tree_split))
+	{
+		su2_tensor_add_auxiliary_axis(&tdag, i_ax_open, false);
+	}
+	su2_tensor_contract_simple(&tdag, i_ax_cntr_aux, t, i_ax_cntr_aux, ndim_mult, &t2);
+	ct_free(i_ax_cntr_aux);
+	delete_su2_tensor(&tdag);
+
+	const bool is_isometry = su2_tensor_is_identity(&t2, tol);
+
+	delete_su2_tensor(&t2);
+
+	return is_isometry;
 }

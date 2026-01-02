@@ -212,6 +212,30 @@ int su2_tree_axes_list(const struct su2_tree_node* tree, int* list)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Fill the list of leaf axis indices contained in the tree, and return the number of leaf axes.
+///
+int su2_tree_leaf_axes_list(const struct su2_tree_node* tree, int* list)
+{
+	if (tree == NULL) {
+		return 0;
+	}
+
+	if (su2_tree_node_is_leaf(tree))
+	{
+		list[0] = tree->i_ax;
+		return 1;
+	}
+
+	// in-order traversal
+	int n0 = su2_tree_leaf_axes_list(tree->c[0], list);
+	int n1 = su2_tree_axes_list(tree->c[1], list + n0);
+
+	return n0 + n1;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Fill the indicator with the axes indexed by the tree.
 ///
 void su2_tree_axes_indicator(const struct su2_tree_node* tree, bool* indicator)

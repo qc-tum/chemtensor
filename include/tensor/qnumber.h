@@ -75,8 +75,8 @@ static inline void decode_quantum_number_pair(const qnumber qnum, qnumber* qa, q
 ///
 enum tensor_axis_direction
 {
-	TENSOR_AXIS_IN  = -1,
-	TENSOR_AXIS_OUT =  1,
+	TENSOR_AXIS_IN  = -1,  //!< logical input axis
+	TENSOR_AXIS_OUT =  1,  //!< logical output axis
 };
 
 
