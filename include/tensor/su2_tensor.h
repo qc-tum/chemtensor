@@ -164,6 +164,8 @@ void su2_to_dense_tensor(const struct su2_tensor* s, struct dense_tensor* t);
 
 int su2_tensor_qr(const struct su2_tensor* a, const enum qr_mode mode, struct su2_tensor* q, struct su2_tensor* r);
 
+int su2_tensor_rq(const struct su2_tensor* a, const enum qr_mode mode, struct su2_tensor* r, struct su2_tensor* q);
+
 
 //________________________________________________________________________________________________________________________
 //

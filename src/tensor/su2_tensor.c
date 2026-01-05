@@ -2875,14 +2875,13 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'q'
 		const ct_long cq = charge_sector_index(&q->charge_sectors, jlist);
 		assert(cq != -1);
-
-		if (q->degensors[cq] == NULL)
+		// allocate new degeneracy tensor with zero entries
 		{
-			// allocate new degeneracy tensor with zero entries
 			ct_long dim_d[2] = {
 				q->dim_degen[0][jlist[0]],
 				q->dim_degen[1][jlist[1]],
 			};
+			assert(q->degensors[cq] == NULL);
 			q->degensors[cq] = ct_calloc(1, sizeof(struct dense_tensor));
 			allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[cq]);
 		}
@@ -2890,14 +2889,13 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'r'
 		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist);
 		assert(cr != -1);
-
-		if (r->degensors[cr] == NULL)
+		// allocate new degeneracy tensor with zero entries
 		{
-			// allocate new degeneracy tensor with zero entries
 			ct_long dim_d[2] = {
 				r->dim_degen[0][jlist[0]],
 				r->dim_degen[1][jlist[1]],
 			};
+			assert(r->degensors[cr] == NULL);
 			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
 			allocate_dense_tensor(r->dtype, 2, dim_d, r->degensors[cr]);
 		}
@@ -2969,6 +2967,271 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 			{
 				dcomplex* data = q->degensors[c]->data;
 				for (ct_long j = 0; j < dim_d[1]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
+	}
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors in 'r'
+	{
+		// find first unused charge sector
+		ct_long c = 0;
+		for (; c < r->charge_sectors.nsec; c++) {
+			if (r->degensors[c] == NULL) {
+				break;
+			}
+		}
+		for (ct_long s = c + 1; s < r->charge_sectors.nsec; s++)
+		{
+			if (r->degensors[s] != NULL)
+			{
+				memcpy(&r->charge_sectors.jlists[c * 3], &r->charge_sectors.jlists[s * 3], 3 * sizeof(qnumber));
+				// copy pointer
+				r->degensors[c] = r->degensors[s];
+				r->degensors[s] = NULL;
+				c++;
+			}
+		}
+		r->charge_sectors.nsec = c;
+		assert(r->charge_sectors.nsec > 0);
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the logical RQ decomposition of an SU(2) symmetric tensor.
+///
+/// The input tensor must have an input and an output logical axis and one auxiliary axis with quantum number zero.
+///
+int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, struct su2_tensor* restrict r, struct su2_tensor* restrict q)
+{
+	// require a logical matrix
+	assert(a->ndim_logical == 2);
+	assert(su2_tensor_logical_axis_direction(a, 0) != su2_tensor_logical_axis_direction(a, 1));
+	// expecting a single, "trivial" (solely quantum number zero) auxiliary axis in 'a'
+	assert(a->ndim_auxiliary == 1);
+	assert(a->outer_irreps[2].num == 1);
+	assert(a->outer_irreps[2].jlist[0] == 0);
+
+	// allocate (empty) 'q' tensor (with same tree topology and number of axes as 'a')
+	{
+		struct su2_irreducible_list outer_irreps_q[3];
+		// copy irreducible quantum numbers from second axis of 'a'
+		outer_irreps_q[1] = a->outer_irreps[1];  // only copy pointers
+		// irreducible quantum numbers for first axis of 'q'
+		if (mode == QR_REDUCED)
+		{
+			// find joint irreducible quantum numbers of first and second axis of 'a'
+			// upper bound on required memory
+			allocate_su2_irreducible_list(a->outer_irreps[1].num, &outer_irreps_q[0]);
+			outer_irreps_q[0].num = qnumber_intersection(
+				a->outer_irreps[0].jlist, a->outer_irreps[0].num,
+				a->outer_irreps[1].jlist, a->outer_irreps[1].num,
+				outer_irreps_q[0].jlist);
+			// require at least one common quantum number
+			assert(outer_irreps_q[0].num > 0);
+			assert(outer_irreps_q[0].num <= a->outer_irreps[1].num);
+		}
+		else
+		{
+			assert(mode == QR_COMPLETE);
+			// use the same quantum numbers for first axis of 'q' as for second
+			copy_su2_irreducible_list(&outer_irreps_q[1], &outer_irreps_q[0]);
+		}
+		// auxiliary axis has quantum number zero
+		qnumber jlist_zero[1] = { 0 };
+		outer_irreps_q[2].num = 1;
+		outer_irreps_q[2].jlist = jlist_zero;
+
+		ct_long* dim_degen_q[2];
+		dim_degen_q[1] = a->dim_degen[1];  // copy pointer
+		qnumber j_max = 0;
+		for (int k = 0; k < outer_irreps_q[0].num; k++) {
+			j_max = qmax(j_max, outer_irreps_q[0].jlist[k]);
+		}
+		dim_degen_q[0] = ct_calloc(j_max + 1, sizeof(ct_long));
+		if (mode == QR_REDUCED)
+		{
+			for (int k = 0; k < outer_irreps_q[0].num; k++)
+			{
+				const qnumber j = outer_irreps_q[0].jlist[k];
+				dim_degen_q[0][j] = lmin(a->dim_degen[0][j], a->dim_degen[1][j]);
+				assert(dim_degen_q[0][j] > 0);
+			}
+		}
+		else
+		{
+			assert(mode == QR_COMPLETE);
+			// same degeneracy dimensions as for second axis of 'a'
+			memcpy(dim_degen_q[0], a->dim_degen[1], (j_max + 1) * sizeof(ct_long));
+		}
+
+		allocate_empty_su2_tensor(a->dtype, 2, 1, &a->tree, outer_irreps_q, (const ct_long**)dim_degen_q, q);
+
+		ct_free(dim_degen_q[0]);
+		delete_su2_irreducible_list(&outer_irreps_q[0]);
+
+		// all possible charge sectors
+		su2_fuse_split_tree_enumerate_charge_sectors(&q->tree, q->outer_irreps, &q->charge_sectors);
+		assert(q->charge_sectors.nsec > 0);
+		assert(q->charge_sectors.ndim == 3);
+		// unused charge sectors will correspond to NULL pointers
+		q->degensors = ct_calloc(q->charge_sectors.nsec, sizeof(struct dense_tensor*));
+	}
+
+	// allocate (empty) 'r' tensor
+	{
+		// use a mirrored version of the fusion-splitting tree of 'a' for 'r'
+		struct su2_fuse_split_tree tree_r;
+		copy_su2_fuse_split_tree(&a->tree, &tree_r);
+		su2_fuse_split_tree_flip(&tree_r);
+		// flip axes 0 <-> 1
+		const int axis_map[3] = { 1, 0, 2 };
+		su2_fuse_split_tree_update_axes_indices(&tree_r, axis_map);
+
+		struct su2_irreducible_list outer_irreps_r[3] = {
+			a->outer_irreps[0],  // logical axis 0
+			q->outer_irreps[0],  // logical axis 1
+			q->outer_irreps[2],  // auxiliary axis
+		};
+
+		const ct_long* dim_degen_r[2] = {
+			a->dim_degen[0],
+			q->dim_degen[0],
+		};
+
+		allocate_empty_su2_tensor(a->dtype, 2, 1, &tree_r, outer_irreps_r, dim_degen_r, r);
+
+		delete_su2_fuse_split_tree(&tree_r);
+
+		// all possible charge sectors
+		su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
+		assert(r->charge_sectors.nsec > 0);
+		assert(r->charge_sectors.ndim == 3);
+		// unused charge sectors will correspond to NULL pointers
+		r->degensors = ct_calloc(r->charge_sectors.nsec, sizeof(struct dense_tensor*));
+	}
+
+	// perform RQ decompositions of the individual blocks
+	bool failed = false;
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long ca = 0; ca < a->charge_sectors.nsec; ca++)
+	{
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &a->charge_sectors.jlists[ca * a->charge_sectors.ndim];
+		// quantum numbers of of first and second logical axis must agree
+		assert(jlist[0] == jlist[1]);
+		// quantum number of auxiliary axis must be zero
+		assert(jlist[2] == 0);
+		// corresponding "degeneracy" tensor of 'a'
+		const struct dense_tensor* da = a->degensors[ca];
+
+		// charge sector must also exist in 'q'
+		const ct_long cq = charge_sector_index(&q->charge_sectors, jlist);
+		assert(cq != -1);
+		// allocate new degeneracy tensor with zero entries
+		{
+			ct_long dim_d[2] = {
+				q->dim_degen[0][jlist[0]],
+				q->dim_degen[1][jlist[1]],
+			};
+			assert(q->degensors[cq] == NULL);
+			q->degensors[cq] = ct_calloc(1, sizeof(struct dense_tensor));
+			allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[cq]);
+		}
+
+		// charge sector must also exist in 'r'
+		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist);
+		assert(cr != -1);
+		// allocate new degeneracy tensor with zero entries
+		{
+			ct_long dim_d[2] = {
+				r->dim_degen[0][jlist[0]],
+				r->dim_degen[1][jlist[1]],
+			};
+			assert(r->degensors[cr] == NULL);
+			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
+			allocate_dense_tensor(r->dtype, 2, dim_d, r->degensors[cr]);
+		}
+
+		// perform RQ decomposition of block
+		int ret = dense_tensor_rq_fill(da, mode, r->degensors[cr], q->degensors[cq]);
+		if (ret != 0) {
+			failed = true;
+		}
+	}
+
+	if (failed) {
+		return -1;
+	}
+
+	// set unused blocks in 'q' to standard basis vectors (i.e., identities for square blocks) to ensure that 'q' is a valid isometry
+	for (ct_long c = 0; c < q->charge_sectors.nsec; c++)
+	{
+		if (q->degensors[c] != NULL) {
+			continue;
+		}
+
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &q->charge_sectors.jlists[c * q->charge_sectors.ndim];
+		// quantum numbers of of first and second logical axis must agree
+		assert(jlist[0] == jlist[1]);
+		// quantum number of auxiliary axis must be zero
+		assert(jlist[2] == 0);
+
+		// allocate new degeneracy tensor with zero entries
+		ct_long dim_d[2] = {
+			q->dim_degen[0][jlist[0]],
+			q->dim_degen[1][jlist[1]],
+		};
+		assert(dim_d[0] <= dim_d[1]);
+		q->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
+		allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
+		// set diagonal entries to ones
+		switch (q->degensors[c]->dtype)
+		{
+			case CT_SINGLE_REAL:
+			{
+				float* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[0]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_DOUBLE_REAL:
+			{
+				double* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[0]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_SINGLE_COMPLEX:
+			{
+				scomplex* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[0]; j++)
+				{
+					data[j*dim_d[1] + j] = 1;
+				}
+				break;
+			}
+			case CT_DOUBLE_COMPLEX:
+			{
+				dcomplex* data = q->degensors[c]->data;
+				for (ct_long j = 0; j < dim_d[0]; j++)
 				{
 					data[j*dim_d[1] + j] = 1;
 				}
