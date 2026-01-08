@@ -293,7 +293,7 @@ void su2_mpo_inner_product(const struct su2_mps* chi, const struct su2_mpo* op, 
 		// previous axis 2 is now axis 1
 
 		// fuse axes 0 and 1 and add an auxiliary axis (to retain a minimum of 3 outer axes)
-		su2_tensor_fuse_axes_add_auxiliary(&t, 0, 1, true, ret);
+		su2_tensor_fuse_axes_add_auxiliary(&t, 0, 1, ret);
 		delete_su2_tensor(&t);
 	}
 	assert(ret->ndim_logical == 2);
