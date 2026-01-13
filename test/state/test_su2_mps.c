@@ -1,9 +1,123 @@
+#include <math.h>
 #include "su2_mps.h"
 #include "mps.h"
 #include "aligned_memory.h"
 
 
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
+char* test_su2_mps_orthonormalize_qr()
+{
+	// number of lattice sites
+	const int nsites = 5;
+
+	// 'j' quantum numbers at each site
+	qnumber jlist[] = { 0, 2 };
+	const struct su2_irreducible_list site_irreps = { .jlist = jlist, .num = ARRLEN(jlist) };
+
+	// degeneracy dimensions, indexed by 'j' quantum numbers
+	//                             j:  0  1  2
+	const ct_long site_dim_degen[] = { 3, 0, 2 };
+
+	struct rng_state rng_state;
+	seed_rng_state(61, &rng_state);
+
+	for (int m = 0; m < 2; m++)  // left- or right-orthonormalization
+	{
+		for (int is = 0; is < 2; is++)  // overall quantum number sector
+		{
+			const qnumber irrep_sector = 2 * is;
+			const qnumber max_bond_irrep = 5;
+			const ct_long max_bond_dim_degen = 13;
+
+			struct su2_mps mps;
+			construct_random_su2_mps(CT_DOUBLE_COMPLEX, nsites, &site_irreps, site_dim_degen, irrep_sector, max_bond_irrep, max_bond_dim_degen, &rng_state, &mps);
+			// rescale tensors such that overall state norm is around 1
+			for (int l = 0; l < nsites; l++)
+			{
+				const double alpha = 14;
+				rscale_su2_tensor(&alpha, &mps.a[l]);
+			}
+			if (!su2_mps_is_consistent(&mps)) {
+				return "internal SU(2) MPS consistency check failed";
+			}
+
+			// convert original MPS to state vector
+			struct su2_tensor vec_ref;
+			su2_mps_to_statevector(&mps, &vec_ref);
+			if (vec_ref.ndim_logical != nsites + 2) {
+				return "expecting the SU(2) statevector representation of an SU(2) MPS to have logical degree 'nsites + 2'";
+			}
+
+			double norm = su2_mps_orthonormalize_qr(&mps, m == 0 ? SU2_MPS_ORTHONORMAL_LEFT : SU2_MPS_ORTHONORMAL_RIGHT);
+
+			if (!su2_mps_is_consistent(&mps)) {
+				return "internal SU(2) MPS consistency check failed";
+			}
+
+			// convert normalized MPS to state vector
+			struct su2_tensor vec;
+			su2_mps_to_statevector(&mps, &vec);
+
+			// must be normalized
+			struct dense_tensor vec_dns;
+			su2_to_dense_tensor(&vec, &vec_dns);
+			// for right-orthonormalization, the trailing dummy bond is renormalized as part of the isometric MPS tensor at the last site
+			if (fabs(dense_tensor_norm2(&vec_dns) - (m == 1 ? 1 : sqrt(irrep_sector + 1))) > 1e-13) {
+				return "vector representation of SU(2) MPS after orthonormalization does not have norm 1 (after compensating for irrep sector)";
+			}
+			delete_dense_tensor(&vec_dns);
+
+			// scaled vector representation must agree with original vector
+			rscale_su2_tensor(&norm, &vec);
+			if (!su2_tensor_allclose(&vec, &vec_ref, 1e-13)) {
+				return "vector representation of SU(2) MPS after orthonormalization does not match reference";
+			}
+
+			delete_su2_tensor(&vec);
+			delete_su2_tensor(&vec_ref);
+
+			for (int l = 0; l < nsites; l++)
+			{
+				// mps.a[l] must be an isometry
+
+				struct su2_tensor a_mat;
+				if (m == 0)
+				{
+					su2_tensor_fuse_axes_add_auxiliary(&mps.a[l], 0, 1, &a_mat);
+				}
+				else
+				{
+					struct su2_tensor tmp;
+					copy_su2_tensor(&mps.a[l], &tmp);
+					su2_tensor_reverse_axis_simple(&tmp, 1);
+					su2_tensor_fuse_axes_add_auxiliary(&tmp, 1, 2, &a_mat);
+					delete_su2_tensor(&tmp);
+				}
+				if (!su2_tensor_is_isometry(&a_mat, 1e-13, m == 1)) {
+					return "SU(2) MPS tensor is not isometric";
+				}
+				delete_su2_tensor(&a_mat);
+
+				// also check dense representation
+				struct dense_tensor a_dns;
+				su2_to_dense_tensor(&mps.a[l], &a_dns);
+				assert(a_dns.ndim == 3);
+				const ct_long dim_mat[2] = { a_dns.dim[0] * (m == 0 ? a_dns.dim[1] : 1), (m == 0 ? 1 : a_dns.dim[1]) * a_dns.dim[2] };
+				reshape_dense_tensor(2, dim_mat, &a_dns);
+				if (!dense_tensor_is_isometry(&a_dns, 1e-13, m == 1)) {
+					return "dense representation of SU(2) MPS tensor is not isometric";
+				}
+				delete_dense_tensor(&a_dns);
+			}
+
+			delete_su2_mps(&mps);
+		}
+	}
+
+	return 0;
+}
 
 
 char* test_su2_mps_to_statevector()
@@ -38,7 +152,7 @@ char* test_su2_mps_to_statevector()
 		return "internal SU(2) MPS consistency check failed";
 	}
 
-	// convert to a state vector
+	// convert to state vector
 	struct su2_tensor vec;
 	su2_mps_to_statevector(&mps, &vec);
 	if (vec.ndim_logical != nsites + 2) {

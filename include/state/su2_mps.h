@@ -45,6 +45,25 @@ bool su2_mps_is_consistent(const struct su2_mps* mps);
 //________________________________________________________________________________________________________________________
 //
 
+// orthonormalization and canonical forms
+
+/// \brief SU(2) MPS orthonormalization mode.
+enum su2_mps_orthonormalization_mode
+{
+	SU2_MPS_ORTHONORMAL_LEFT  = 0,  //!< left-orthonormal
+	SU2_MPS_ORTHONORMAL_RIGHT = 1,  //!< right-orthonormal
+};
+
+void su2_mps_local_orthonormalize_qr(struct su2_tensor* a, struct su2_tensor* a_next);
+
+void su2_mps_local_orthonormalize_rq(struct su2_tensor* a, struct su2_tensor* a_prev);
+
+double su2_mps_orthonormalize_qr(struct su2_mps* mps, const enum su2_mps_orthonormalization_mode mode);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // splitting and merging
 
 void su2_mps_contract_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);

@@ -84,7 +84,7 @@ void delete_su2_mps(struct su2_mps* mps)
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Construct an SU(2) matrix product state with random normal tensor entries.
+/// \brief Construct an SU(2) matrix product state with random normal degeneracy tensor entries.
 ///
 void construct_random_su2_mps(
 	const enum numeric_type dtype, const int nsites,
@@ -221,7 +221,7 @@ bool su2_mps_is_consistent(const struct su2_mps* mps)
 		}
 	}
 
-	// axis directions
+	// axis directions and tree topology
 	for (int l = 0; l < mps->nsites; l++)
 	{
 		if (su2_tensor_logical_axis_direction(&mps->a[l], 0) != TENSOR_AXIS_OUT ||
@@ -229,9 +229,331 @@ bool su2_mps_is_consistent(const struct su2_mps* mps)
 		    su2_tensor_logical_axis_direction(&mps->a[l], 2) != TENSOR_AXIS_IN) {
 			return false;
 		}
+
+		// construct the fuse and split tree
+		//
+		//                       2  right virtual bond
+		//                       │
+		//                       │   fuse
+		//                       ╱╲  split
+		//                      ╱  ╲
+		//  left virtual bond  0    1  physical axis
+		//
+		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+		struct su2_tree_node j2f = { .i_ax = 2, .c = { NULL, NULL } };
+		struct su2_tree_node j2s = { .i_ax = 2, .c = { &j0,  &j1  } };
+		struct su2_fuse_split_tree tree_ref = { .tree_fuse = &j2f, .tree_split = &j2s, .ndim = 3 };
+		assert(su2_fuse_split_tree_is_consistent(&tree_ref));
+
+		if (!su2_fuse_split_tree_equal(&mps->a[l].tree, &tree_ref)) {
+			return false;
+		}
 	}
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Left-orthonormalize a local SU(2) symmetric MPS site tensor by QR decomposition, and update tensor at next site.
+///
+void su2_mps_local_orthonormalize_qr(struct su2_tensor* a, struct su2_tensor* a_next)
+{
+	assert(a->ndim_logical == 3);
+	assert(a->ndim_auxiliary == 0);
+	assert(a_next->ndim_logical == 3);
+	assert(a_next->ndim_auxiliary == 0);
+
+	// combine left virtual bond and physical axis
+	struct su2_tensor a_mat;
+	su2_tensor_fuse_axes_add_auxiliary(a, 0, 1, &a_mat);
+
+	// perform QR decomposition
+	struct su2_tensor q, r;
+	su2_tensor_qr(&a_mat, QR_REDUCED, &q, &r);
+	delete_su2_tensor(&a_mat);
+
+	// replace 'a' by reshaped 'q' matrix, using original logical dimensions and quantum numbers
+	struct su2_tensor a_new;
+	su2_tensor_split_axis_remove_auxiliary(&q, 0, 1, a->outer_irreps, (const ct_long**)a->dim_degen, &a_new);
+	delete_su2_tensor(&q);
+	delete_su2_tensor(a);
+	*a = a_new;  // copy internal data pointers
+
+	// update 'a_next' tensor: multiply with 'r' from left
+	assert(r.ndim_logical == 2 && r.ndim_auxiliary == 1);
+	assert(!su2_tree_node_is_leaf(r.tree.tree_fuse));
+	assert(r.tree.tree_fuse->c[0]->i_ax == 1);
+	assert(r.tree.tree_fuse->c[1]->i_ax == 2);  // expecting auxiliary axis at right child
+	// temporary auxiliary axis for contraction with 'r'
+	su2_tensor_add_auxiliary_axis(a_next, 0, false);
+	struct su2_tensor a_next_update;
+	const int i_ax_cntr_r[2] = { 1, 2 };
+	const int i_ax_cntr_a[2] = { 0, 3 };
+	su2_tensor_contract_simple(&r, i_ax_cntr_r, a_next, i_ax_cntr_a, 2, &a_next_update);
+	delete_su2_tensor(a_next);
+	*a_next = a_next_update;  // copy internal data pointers
+	delete_su2_tensor(&r);
+	assert(a_next->ndim_logical == 3 && a_next->ndim_auxiliary == 0);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Right-orthonormalize a local SU(2) symmetric MPS site tensor by RQ decomposition, and update tensor at previous site.
+///
+void su2_mps_local_orthonormalize_rq(struct su2_tensor* a, struct su2_tensor* a_prev)
+{
+	assert(a->ndim_logical == 3);
+	assert(a->ndim_auxiliary == 0);
+	assert(a_prev->ndim_logical == 3);
+	assert(a_prev->ndim_auxiliary == 0);
+
+	// combine physical and right virtual bond axis
+	su2_tensor_reverse_axis_simple(a, 1);
+	struct su2_tensor a_mat;
+	su2_tensor_fuse_axes_add_auxiliary(a, 1, 2, &a_mat);
+
+	// perform RQ decomposition
+	struct su2_tensor r, q;
+	su2_tensor_rq(&a_mat, QR_REDUCED, &r, &q);
+	delete_su2_tensor(&a_mat);
+
+	// replace 'a' by reshaped 'q' matrix, using original logical dimensions and quantum numbers
+	struct su2_tensor a_new;
+	su2_tensor_split_axis_remove_auxiliary(&q, 1, 2, a->outer_irreps + 1, (const ct_long**)(a->dim_degen + 1), &a_new);
+	delete_su2_tensor(&q);
+	delete_su2_tensor(a);
+	su2_tensor_reverse_axis_simple(&a_new, 1);
+	*a = a_new;  // copy internal data pointers
+
+	// update 'a_prev' tensor: multiply with 'r' from right
+	assert(r.ndim_logical == 2 && r.ndim_auxiliary == 1);
+	assert(!su2_tree_node_is_leaf(r.tree.tree_split));
+	assert(r.tree.tree_split->c[0]->i_ax == 2);  // expecting auxiliary axis at left child
+	assert(r.tree.tree_split->c[1]->i_ax == 0);
+	// temporary auxiliary axis for contraction with 'r'
+	su2_tensor_add_auxiliary_axis(a_prev, 2, true);
+	struct su2_tensor a_prev_update;
+	const int i_ax_cntr_r[2] = { 0, 2 };
+	const int i_ax_cntr_a[2] = { 2, 3 };
+	su2_tensor_contract_simple(a_prev, i_ax_cntr_a, &r, i_ax_cntr_r, 2, &a_prev_update);
+	delete_su2_tensor(a_prev);
+	*a_prev = a_prev_update;  // copy internal data pointers
+	delete_su2_tensor(&r);
+	assert(a_prev->ndim_logical == 3 && a_prev->ndim_auxiliary == 0);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Left- or right-orthonormalize an SU(2) symmetric MPS using QR decompositions, and return the normalization factor.
+///
+double su2_mps_orthonormalize_qr(struct su2_mps* mps, const enum su2_mps_orthonormalization_mode mode)
+{
+	assert(mps->nsites > 0);
+
+	if (mode == SU2_MPS_ORTHONORMAL_LEFT)
+	{
+		for (int l = 0; l < mps->nsites - 1; l++)
+		{
+			su2_mps_local_orthonormalize_qr(&mps->a[l], &mps->a[l + 1]);
+		}
+
+		// last tensor
+		const int l = mps->nsites - 1;
+		assert(mps->a[l].outer_irreps[2].num == 1);
+		assert(mps->a[l].dim_degen[2][mps->a[l].outer_irreps[2].jlist[0]] == 1);
+
+		// create a dummy "tail" tensor
+		struct su2_tensor a_tail;
+		{
+			// construct the fuse and split tree
+			//
+			//                       2  right virtual bond
+			//                       │
+			//                       │   fuse
+			//                       ╱╲  split
+			//                      ╱  ╲
+			//  left virtual bond  0    1  physical axis
+			//
+			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+			struct su2_tree_node j2f = { .i_ax = 2, .c = { NULL, NULL } };
+			struct su2_tree_node j2s = { .i_ax = 2, .c = { &j0,  &j1  } };
+			struct su2_fuse_split_tree tree = { .tree_fuse = &j2f, .tree_split = &j2s, .ndim = 3 };
+			assert(su2_fuse_split_tree_is_consistent(&tree));
+
+			// outer (logical and auxiliary) 'j' quantum numbers
+			// quantum number zero for the dummy site axis
+			qnumber jlist_zero[1] = { 0 };
+			struct su2_irreducible_list site_irreps = {
+				.jlist = jlist_zero,
+				.num = 1,
+			};
+			const struct su2_irreducible_list outer_irreps[3] = { mps->a[l].outer_irreps[2], site_irreps, mps->a[l].outer_irreps[2] };
+			// degeneracy dimensions, indexed by 'j' quantum numbers
+			const ct_long site_dim_degen[1] = { 1 };
+			const ct_long* dim_degen[] = { mps->a[l].dim_degen[2], site_dim_degen, mps->a[l].dim_degen[2] };
+
+			allocate_su2_tensor(mps->a[l].dtype, 3, 0, &tree, outer_irreps, dim_degen, &a_tail);
+			assert(su2_tensor_is_consistent(&a_tail));
+
+			// set single entry of degeneracy tensor to 1
+			assert(a_tail.charge_sectors.nsec == 1);
+			assert(dense_tensor_num_elements(a_tail.degensors[0]) == 1);
+			memcpy(a_tail.degensors[0]->data, numeric_one(a_tail.degensors[0]->dtype), sizeof_numeric_type(a_tail.degensors[0]->dtype));
+		}
+
+		// orthonormalize last MPS tensor
+		su2_mps_local_orthonormalize_qr(&mps->a[l], &a_tail);
+
+		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
+		double norm = 0;
+		assert(a_tail.charge_sectors.nsec == 1);
+		assert(dense_tensor_num_elements(a_tail.degensors[0]) == 1);
+		switch (a_tail.degensors[0]->dtype)
+		{
+			case CT_SINGLE_REAL:
+			{
+				norm = *((float*)a_tail.degensors[0]->data);
+				break;
+			}
+			case CT_DOUBLE_REAL:
+			{
+				norm = *((double*)a_tail.degensors[0]->data);
+				break;
+			}
+			case CT_SINGLE_COMPLEX:
+			{
+				norm = crealf(*((scomplex*)a_tail.degensors[0]->data));
+				break;
+			}
+			case CT_DOUBLE_COMPLEX:
+			{
+				norm = creal(*((dcomplex*)a_tail.degensors[0]->data));
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
+
+		if (norm < 0)
+		{
+			// flip sign such that normalization factor is always non-negative
+			rscale_su2_tensor(numeric_neg_one(numeric_real_type(mps->a[l].dtype)), &mps->a[l]);
+			norm = -norm;
+		}
+
+		delete_su2_tensor(&a_tail);
+
+		return norm;
+	}
+	else
+	{
+		assert(mode == SU2_MPS_ORTHONORMAL_RIGHT);
+
+		for (int l = mps->nsites - 1; l > 0; l--)
+		{
+			su2_mps_local_orthonormalize_rq(&mps->a[l], &mps->a[l - 1]);
+		}
+
+		// first tensor
+		assert(mps->a[0].outer_irreps[0].num == 1);
+		assert(mps->a[0].dim_degen[0][mps->a[0].outer_irreps[0].jlist[0]] == 1);
+
+		// create a dummy "head" tensor
+		struct su2_tensor a_head;
+		{
+			// construct the fuse and split tree
+			//
+			//                       2  right virtual bond
+			//                       │
+			//                       │   fuse
+			//                       ╱╲  split
+			//                      ╱  ╲
+			//  left virtual bond  0    1  physical axis
+			//
+			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+			struct su2_tree_node j2f = { .i_ax = 2, .c = { NULL, NULL } };
+			struct su2_tree_node j2s = { .i_ax = 2, .c = { &j0,  &j1  } };
+			struct su2_fuse_split_tree tree = { .tree_fuse = &j2f, .tree_split = &j2s, .ndim = 3 };
+			assert(su2_fuse_split_tree_is_consistent(&tree));
+
+			// outer (logical and auxiliary) 'j' quantum numbers
+			// quantum number zero for the dummy site axis
+			qnumber jlist_zero[1] = { 0 };
+			struct su2_irreducible_list site_irreps = {
+				.jlist = jlist_zero,
+				.num = 1,
+			};
+			const struct su2_irreducible_list outer_irreps[3] = { mps->a[0].outer_irreps[0], site_irreps, mps->a[0].outer_irreps[0] };
+			// degeneracy dimensions, indexed by 'j' quantum numbers
+			const ct_long site_dim_degen[1] = { 1 };
+			const ct_long* dim_degen[] = { mps->a[0].dim_degen[0], site_dim_degen, mps->a[0].dim_degen[0] };
+
+			allocate_su2_tensor(mps->a[0].dtype, 3, 0, &tree, outer_irreps, dim_degen, &a_head);
+			assert(su2_tensor_is_consistent(&a_head));
+
+			// set single entry of degeneracy tensor to 1
+			assert(a_head.charge_sectors.nsec == 1);
+			assert(dense_tensor_num_elements(a_head.degensors[0]) == 1);
+			memcpy(a_head.degensors[0]->data, numeric_one(a_head.degensors[0]->dtype), sizeof_numeric_type(a_head.degensors[0]->dtype));
+		}
+
+		// orthonormalize first MPS tensor
+		su2_mps_local_orthonormalize_rq(&mps->a[0], &a_head);
+
+		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
+		double norm = 0;
+		assert(a_head.charge_sectors.nsec == 1);
+		assert(dense_tensor_num_elements(a_head.degensors[0]) == 1);
+		switch (a_head.degensors[0]->dtype)
+		{
+			case CT_SINGLE_REAL:
+			{
+				norm = *((float*)a_head.degensors[0]->data);
+				break;
+			}
+			case CT_DOUBLE_REAL:
+			{
+				norm = *((double*)a_head.degensors[0]->data);
+				break;
+			}
+			case CT_SINGLE_COMPLEX:
+			{
+				norm = crealf(*((scomplex*)a_head.degensors[0]->data));
+				break;
+			}
+			case CT_DOUBLE_COMPLEX:
+			{
+				norm = creal(*((dcomplex*)a_head.degensors[0]->data));
+				break;
+			}
+			default:
+			{
+				// unknown data type
+				assert(false);
+			}
+		}
+
+		if (norm < 0)
+		{
+			// flip sign such that normalization factor is always non-negative
+			rscale_su2_tensor(numeric_neg_one(numeric_real_type(mps->a[0].dtype)), &mps->a[0]);
+			norm = -norm;
+		}
+
+		delete_su2_tensor(&a_head);
+
+		return norm;
+	}
 }
 
 
