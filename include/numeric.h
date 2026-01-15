@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <assert.h>
 
 
@@ -55,7 +56,7 @@ static inline size_t sizeof_numeric_type(const enum numeric_type dtype)
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 			return 0;
 		}
 	}
@@ -89,8 +90,64 @@ static inline enum numeric_type numeric_real_type(const enum numeric_type dtype)
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 			return CT_DOUBLE_REAL;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether the numeric data type is real-valued.
+///
+static inline bool is_real_numeric_type(const enum numeric_type dtype)
+{
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		case CT_DOUBLE_REAL:
+		{
+			return true;
+		}
+		case CT_SINGLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
+		{
+			return false;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Whether the numeric data type is complex-valued.
+///
+static inline bool is_complex_numeric_type(const enum numeric_type dtype)
+{
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		case CT_DOUBLE_REAL:
+		{
+			return false;
+		}
+		case CT_SINGLE_COMPLEX:
+		case CT_DOUBLE_COMPLEX:
+		{
+			return true;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
 		}
 	}
 }
@@ -127,7 +184,7 @@ static inline const void* numeric_one(const enum numeric_type dtype)
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 			return NULL;
 		}
 	}
@@ -165,7 +222,7 @@ static inline const void* numeric_zero(const enum numeric_type dtype)
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 			return NULL;
 		}
 	}
@@ -203,7 +260,7 @@ static inline const void* numeric_neg_one(const enum numeric_type dtype)
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 			return NULL;
 		}
 	}
@@ -241,7 +298,7 @@ static inline void numeric_from_double(const double x, const enum numeric_type d
 		default:
 		{
 			// unknown data type
-			assert(0);
+			assert(false);
 		}
 	}
 }

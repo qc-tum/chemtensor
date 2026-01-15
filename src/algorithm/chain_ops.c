@@ -143,7 +143,7 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
 	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
 	block_sparse_tensor_reverse_axis_directions(&br);
-	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	if (is_complex_numeric_type(br.dtype))
 	{
 		// TODO: fuse conjugation with dot product
 		struct block_sparse_tensor bc;
@@ -207,7 +207,7 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
 	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
 	block_sparse_tensor_reverse_axis_directions(&br);
-	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	if (is_complex_numeric_type(br.dtype))
 	{
 		// TODO: fuse conjugation with dot product
 		struct block_sparse_tensor bc;
@@ -443,7 +443,7 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
 	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
 	block_sparse_tensor_reverse_axis_directions(&br);
-	if ((br.dtype == CT_SINGLE_COMPLEX) || (br.dtype == CT_DOUBLE_COMPLEX))
+	if (is_complex_numeric_type(br.dtype))
 	{
 		// TODO: fuse conjugation with dot product
 		struct block_sparse_tensor bc;

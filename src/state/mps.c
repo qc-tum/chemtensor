@@ -1283,7 +1283,7 @@ int save_mps(const char* filename, const struct mps* mps)
 			return -1;
 		}
 		// only compound types must be closed
-		if (bst->dtype == CT_SINGLE_COMPLEX || bst->dtype == CT_DOUBLE_COMPLEX)
+		if (is_complex_numeric_type(bst->dtype))
 		{
 			H5Tclose(dtype_input);
 			H5Tclose(dtype_store);
@@ -1446,7 +1446,7 @@ int load_mps(const char* filename, struct mps* mps)
 	}
 
 	// only compound types must be closed
-	if (dtype == CT_SINGLE_COMPLEX || dtype == CT_DOUBLE_COMPLEX) {
+	if (is_complex_numeric_type(dtype)) {
 		H5Tclose(hdf5_dtype);
 	}
 

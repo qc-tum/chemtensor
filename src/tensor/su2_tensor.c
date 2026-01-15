@@ -366,7 +366,7 @@ void rscale_su2_tensor(const void* alpha, struct su2_tensor* t)
 ///
 void conjugate_su2_tensor(struct su2_tensor* t)
 {
-	if ((t->dtype == CT_SINGLE_REAL) || (t->dtype == CT_DOUBLE_REAL)) {
+	if (is_real_numeric_type(t->dtype)) {
 		// no effect
 		return;
 	}

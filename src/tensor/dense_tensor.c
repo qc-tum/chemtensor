@@ -3828,7 +3828,7 @@ bool dense_tensor_is_isometry(const struct dense_tensor* t, const double tol, co
 	}
 
 	bool is_isometry;
-	if (t->dtype == CT_SINGLE_REAL || t->dtype == CT_DOUBLE_REAL)
+	if (is_real_numeric_type(t->dtype))
 	{
 		struct dense_tensor t2;
 		if (!transpose) {

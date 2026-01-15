@@ -453,7 +453,7 @@ void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t
 ///
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
 {
-	if ((t->dtype == CT_SINGLE_REAL) || (t->dtype == CT_DOUBLE_REAL)) {
+	if (is_real_numeric_type(t->dtype)) {
 		// no effect
 		return;
 	}
