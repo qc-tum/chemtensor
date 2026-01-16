@@ -26,15 +26,15 @@ void allocate_su2_mpo(
 	{
 		// construct the fuse and split tree
 		//
-		// physical input axis  2    3  right virtual bond
-		//                       ╲  ╱
-		//                        ╲╱  fuse
-		//                        │
-		//                        │4
-		//                        │
-		//                        ╱╲  split
-		//                       ╱  ╲
-		//   left virtual bond  0    1  physical output axis
+		//  physical input axis  2    3  right virtual bond
+		//                        ╲  ╱
+		//                         ╲╱   fuse
+		//                         │
+		//                         │4
+		//                         │
+		//                         ╱╲   split
+		//                        ╱  ╲
+		//    left virtual bond  0    1  physical output axis
 		//
 		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
 		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };

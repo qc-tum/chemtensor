@@ -55,7 +55,7 @@ void allocate_su2_mps(
 		// outer (logical and auxiliary) 'j' quantum numbers
 		const struct su2_irreducible_list outer_irreps[3] = { bond_irreps[l], *site_irreps, bond_irreps[l + 1] };
 		// degeneracy dimensions, indexed by 'j' quantum numbers
-		const ct_long* dim_degen[] = { bond_dim_degen[l], site_dim_degen, bond_dim_degen[l + 1] };
+		const ct_long* dim_degen[3] = { bond_dim_degen[l], site_dim_degen, bond_dim_degen[l + 1] };
 
 		allocate_su2_tensor(dtype, 3, 0, &tree, outer_irreps, dim_degen, &mps->a[l]);
 		assert(su2_tensor_is_consistent(&mps->a[l]));
