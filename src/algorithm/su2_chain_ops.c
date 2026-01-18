@@ -23,7 +23,7 @@ static void su2_create_dummy_operator_block_right(const struct su2_tensor* restr
 
 	// construct the fuse and split tree
 	//
-	//  5   4    3
+	//  5   3    4
 	//   ╲   ╲  ╱
 	//    ╲   ╲╱       fuse
 	//     ╲  ╱7
@@ -35,7 +35,7 @@ static void su2_create_dummy_operator_block_right(const struct su2_tensor* restr
 	//     ╱  ╲6       split
 	//    ╱   ╱╲
 	//   ╱   ╱  ╲
-	//  2   1    0
+	//  2   0    1
 	//
 	struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
 	struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
@@ -43,8 +43,8 @@ static void su2_create_dummy_operator_block_right(const struct su2_tensor* restr
 	struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
 	struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
 	struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
-	struct su2_tree_node j6  = { .i_ax = 6, .c = { &j1,  &j0  } };
-	struct su2_tree_node j7  = { .i_ax = 7, .c = { &j4,  &j3  } };
+	struct su2_tree_node j6  = { .i_ax = 6, .c = { &j0,  &j1  } };
+	struct su2_tree_node j7  = { .i_ax = 7, .c = { &j3,  &j4  } };
 	struct su2_tree_node j8f = { .i_ax = 8, .c = { &j5,  &j7  } };
 	struct su2_tree_node j8s = { .i_ax = 8, .c = { &j2,  &j6  } };
 	struct su2_fuse_split_tree tree = { .tree_fuse = &j8f, .tree_split = &j8s, .ndim = 9 };
@@ -135,15 +135,15 @@ static void su2_create_dummy_operator_block_right(const struct su2_tensor* restr
 ///        ╭───1───╮         │    │    │
 ///        │   │   │         │   ╱ ╲   │
 ///     ─<─0───┤   │         │  ╱ r ╲  │
-///        │ w ├───3─<─   ─<─1─╯     │ │
-///        │   │   │         │       │ │
-///        ╰───2───╯         │       │ │
-///            │             │       │ │
-///            ^             │       │ │
-///            │             │       │ │
-///        ╭───1───╮         │       │ │
-///        │   │   │         │       │ │
-///     ─<─0───┴───2─<─   ─<─0───────╯ │
+///        │ w ├───3─<─   ─<─1─│─────╯ │
+///        │   │   │         │ │       │
+///        ╰───2───╯         │ │       │
+///            │             │ │       │
+///            ^             │ │       │
+///            │             │ │       │
+///        ╭───1───╮         │ │       │
+///        │   │   │         │ │       │
+///     ─<─0───┴───2─<─   ─<─0─╯       │
 ///        │   a   │         │         │
 ///        ╰───────╯         ╰─────────╯
 ///
@@ -154,8 +154,8 @@ void su2_contraction_operator_step_right(const struct su2_tensor* restrict a, co
 	assert(b->ndim_logical == 3);
 	assert(w->ndim_logical == 4);
 	assert(r->ndim_logical == 4);
-	assert(r->tree.tree_split->c[1]->i_ax == 0);
-	assert(r->tree.tree_split->c[0]->i_ax == 1);
+	assert(r->tree.tree_split->c[0]->i_ax == 0);
+	assert(r->tree.tree_split->c[1]->i_ax == 1);
 	assert( r->tree.tree_fuse->c[0]->i_ax == 2);
 	assert( r->tree.tree_fuse->c[1]->i_ax == 3);
 
@@ -177,20 +177,18 @@ void su2_contraction_operator_step_right(const struct su2_tensor* restrict a, co
 	//      │5
 	//      │
 	//      ╱╲
-	//     ╱  ╲6
-	//    ╱   ╱╲       split
-	//   ╱   ╱  ╲
-	//  2   0    1
+	//    6╱  ╲
+	//    ╱╲   ╲       split
+	//   ╱  ╲   ╲
+	//  0    1   2
 
 	// multiply with 'w' tensor
 	{
-		// swap axes 0 <-> 1 in the tree and perform an F-move to group axes 1 and 2 together
-		su2_tensor_swap_tree_axes(&s, 0, 1);
+		// perform an F-move to group axes 1 and 2 together
 		struct su2_tensor t;
-		// common axis from contraction with 'a' becomes last internal axis in fusion-splitting tree
+		assert(s.tree.tree_split->c[0]->i_ax == 6);
 		su2_tensor_fmove(&s, 6, &t);
 		delete_su2_tensor(&s);
-		su2_tensor_swap_tree_axes(&t, 1, 2);
 
 		const int i_ax_w[2] = { 2, 3 };
 		const int i_ax_t[2] = { 1, 2 };
@@ -208,32 +206,33 @@ void su2_contraction_operator_step_right(const struct su2_tensor* restrict a, co
 	//      │6
 	//      │
 	//      ╱╲
-	//    5╱  ╲
-	//    ╱╲   ╲       split
-	//   ╱  ╲   ╲
-	//  0    1   2
+	//     ╱  ╲5
+	//    ╱   ╱╲       split
+	//   ╱   ╱  ╲
+	//  2   0    1
 
 	// multiply with conjugated 'b' tensor
 	{
-		// swap axes 0 <-> 1 in the tree and perform an F-move to isolate axis 1
-		su2_tensor_swap_tree_axes(&s, 0, 1);
+		// perform an F-move to isolate axis 1
 		struct su2_tensor t;
-		su2_tensor_fmove(&s, s.tree.tree_split->c[0]->i_ax, &t);
+		assert(s.tree.tree_split->c[1]->i_ax == 5);
+		su2_tensor_fmove(&s, 5, &t);
 		delete_su2_tensor(&s);
 		// reverse axis 1 (physical output axis of 'w')
 		su2_tensor_reverse_axis_simple(&t, 1);
-		// perform an F-move to group axes 1 and 3
-		su2_tensor_fmove(&t, t.tree.tree_fuse->c[1]->i_ax, &s);
+		// swap 3 <-> 4 and perform an F-move to group axes 1 and 3
+		su2_tensor_swap_tree_axes(&t, 3, 4);
+		assert(t.tree.tree_fuse->c[0]->i_ax == 6);
+		su2_tensor_fmove(&t, 6, &s);
 		delete_su2_tensor(&t);
 
-		// flip fusion-splitting tree, complex-conjugate entries, reverse axis 1 and swap 1 <-> 2 in 'b'
+		// flip fusion-splitting tree, complex-conjugate entries and reverse axis 1 in 'b'
 		struct su2_tensor bdag;
 		// TODO: avoid full copy
 		copy_su2_tensor(b, &bdag);
 		su2_tensor_flip_trees(&bdag);
 		conjugate_su2_tensor(&bdag);
 		su2_tensor_reverse_axis_simple(&bdag, 1);
-		su2_tensor_swap_tree_axes(&bdag, 1, 2);
 
 		// actually contract 's' with adjoint of 'b'
 		const int i_ax_s[2] = { 1, 3 };
@@ -244,6 +243,7 @@ void su2_contraction_operator_step_right(const struct su2_tensor* restrict a, co
 
 		// reorder axes
 		assert(t.ndim_logical == 4);
+		su2_tensor_swap_tree_axes(&t, 2, 3);
 		const int perm[4] = { 1, 0, 3, 2 };
 		su2_tensor_transpose_logical(perm, &t, r_next);
 		delete_su2_tensor(&t);
@@ -427,4 +427,133 @@ void su2_mpo_inner_product(const struct su2_mps* chi, const struct su2_mpo* op, 
 	assert(ret->ndim_logical == 2);
 
 	// retain SU(2) information in 'ret'
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Apply a local Hamiltonian operator for SU(2) symmetric tensors.
+///
+/// To-be contracted tensor network:
+///
+///                .................................
+///               '                                 '
+///        ╭──────:──╮                           ╭──:──────╮
+///        │      :  │                           │  :      │
+///     ─<─0─╮    :╭─3─>─  0               2  ─>─2─╮:    ╭─3─<─
+///        │  ╲   ╱  │                           │  ╲   ╱  │
+///        │   ╲ ╱:  │                           │  :╲ ╱   │
+///        │    │ :  │             1             │  : │    │
+///        │    │ :  │             ^             │  : │    │
+///        │    │ :  │             │             │  : │    │
+///        │   ╱ ╲'..│.........╭───1───╮.........│..' │    │
+///        │  ╱   ╲  │         │   │   │         │   ╱ ╲   │
+///        │ │  l  ╰─2─<─   ─<─0───┤   │         │  ╱ r ╲  │
+///        │ │       │         │ w ├───3─<─   ─<─1─│─────╯ │
+///        │ │       │         │   │   │         │ │       │
+///        │ │       │         ╰───2───╯         │ │       │
+///        │ │       │             │             │ │       │
+///        │ │       │             ^             │ │       │
+///        │ │       │             │             │ │       │
+///        │ │       │         ╭───1───╮         │ │       │
+///        │ │       │         │   │   │         │ │       │
+///        │ ╰───────1─<─   ─<─0───┴───2─<─   ─<─0─╯       │
+///        │         │         │   a   │         │         │
+///        ╰─────────╯         ╰───────╯         ╰─────────╯
+///
+/// The dotted outline marks the output tensor.
+/// The outer virtual bonds are contracted as well.
+///
+void su2_apply_local_hamiltonian(const struct su2_tensor* restrict a, const struct su2_tensor* restrict w,
+	const struct su2_tensor* restrict l, const struct su2_tensor* restrict r, struct su2_tensor* restrict b)
+{
+	assert(a->ndim_logical == 3);
+	assert(w->ndim_logical == 4);
+	assert(l->ndim_logical == 4);
+	assert(r->ndim_logical == 4);
+	assert(l->tree.tree_split->c[0]->i_ax == 0);
+	assert( l->tree.tree_fuse->c[0]->i_ax == 1);
+	assert( l->tree.tree_fuse->c[1]->i_ax == 2);
+	assert(l->tree.tree_split->c[1]->i_ax == 3);
+	assert(r->tree.tree_split->c[0]->i_ax == 0);
+	assert(r->tree.tree_split->c[1]->i_ax == 1);
+	assert( r->tree.tree_fuse->c[0]->i_ax == 2);
+	assert( r->tree.tree_fuse->c[1]->i_ax == 3);
+
+	// multiply with 'a' tensor
+	struct su2_tensor s;
+	{
+		const int i_ax_a[1] = { 2 };
+		const int i_ax_r[1] = { 0 };
+		su2_tensor_contract_simple(a, i_ax_a, r, i_ax_r, 1, &s);
+	}
+
+	// tree of current tensor 's'
+	// (with 0 the left virtual bond and 1 the physical axis of the original 'a'):
+	//
+	//    3    4
+	//     ╲  ╱        fuse
+	//      ╲╱
+	//      │
+	//      │5
+	//      │
+	//      ╱╲
+	//    6╱  ╲
+	//    ╱╲   ╲       split
+	//   ╱  ╲   ╲
+	//  0    1   2
+
+	// multiply with 'w' tensor
+	{
+		// perform an F-move to group axes 1 and 2 together
+		struct su2_tensor t;
+		assert(s.tree.tree_split->c[0]->i_ax == 6);
+		su2_tensor_fmove(&s, 6, &t);
+		delete_su2_tensor(&s);
+
+		const int i_ax_w[2] = { 2, 3 };
+		const int i_ax_t[2] = { 1, 2 };
+		su2_tensor_contract_simple(w, i_ax_w, &t, i_ax_t, 2, &s);
+		delete_su2_tensor(&t);
+	}
+
+	// tree of current tensor 's'
+	// (with 0 the left virtual bond and 1 the physical output axis of the original 'w'):
+	//
+	//    3    4
+	//     ╲  ╱        fuse
+	//      ╲╱
+	//      │
+	//      │6
+	//      │
+	//      ╱╲
+	//     ╱  ╲5
+	//    ╱   ╱╲       split
+	//   ╱   ╱  ╲
+	//  2   0    1
+
+	// multiply with 'l' tensor (including outer virtual bonds)
+	{
+		// group axes 0 and 2 in 's' together
+		struct su2_tensor t;
+		assert(s.tree.tree_split->c[1]->i_ax == 5);
+		su2_tensor_fmove(&s, 5, &t);
+		delete_su2_tensor(&s);
+		// group axes 0, 2 with axis 4 (original right virtual bond of 'r')
+		su2_tensor_swap_tree_axes(&t, 3, 4);
+		su2_tensor_reverse_axis_simple(&t, 4);
+		assert(t.tree.tree_split->c[1]->i_ax == 6);
+		su2_tensor_fmove(&t, 6, &s);
+		delete_su2_tensor(&t);
+
+		struct su2_tensor k;
+		copy_su2_tensor(l, &k);
+		su2_tensor_reverse_axis_simple(&k, 0);
+
+		const int i_ax_l[3] = { 0, 1, 2 };
+		const int i_ax_s[3] = { 4, 2, 0 };
+		su2_tensor_contract_simple(&k, i_ax_l, &s, i_ax_s, 3, b);
+		delete_su2_tensor(&s);
+		delete_su2_tensor(&k);
+	}
 }
