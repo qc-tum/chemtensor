@@ -90,7 +90,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 	assert(w->dtype == r->dtype);
 	assert(w->dtype == a_start->dtype);
 
-	const int n = block_sparse_tensor_num_elements_blocks(a_start);
+	const ct_long n = block_sparse_tensor_num_elements_blocks(a_start);
 	void* vstart = ct_malloc(n * sizeof_numeric_type(a_start->dtype));
 	block_sparse_tensor_serialize_entries(a_start, vstart);
 
@@ -150,7 +150,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Run the single-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local single-site optimizations.
-/// The input 'psi' is used as starting state and is updated in-place during the optimization. Its virtual bond dimensions cannot increase.
+/// The input 'psi' is used as the starting state and is updated in-place during the optimization. Its virtual bond dimensions cannot increase.
 ///
 int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, struct mps* psi, double* en_sweeps)
 {
@@ -257,7 +257,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Run the two-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
-/// The input 'psi' is used as starting state and is updated in-place during the optimization.
+/// The input 'psi' is used as the starting state and is updated in-place during the optimization.
 ///
 int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const ct_long max_vdim,
 	struct mps* psi, double* restrict en_sweeps, double* restrict entropy)

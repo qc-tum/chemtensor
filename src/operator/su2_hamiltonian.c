@@ -53,7 +53,6 @@ void construct_heisenberg_1d_su2_mpo(const int nsites, const double J, struct su
 	{
 		bond_irreps[0] = bond_irreps_boundary;
 		bond_dim_degen[0] = bond_dim_degen_boundary;
-		
 	}
 	for (int i = 1; i < nsites; i++)
 	{

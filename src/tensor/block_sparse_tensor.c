@@ -3136,16 +3136,15 @@ void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, 
 	int8_t* pentries = (int8_t*)entries;
 
 	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	ct_long offset = 0;
 	for (ct_long k = 0; k < nblocks; k++)
 	{
 		const struct dense_tensor* b = t->blocks[k];
 		if (b != NULL)
 		{
-			assert(t->dtype == b->dtype);
-			const ct_long nelem = dense_tensor_num_elements(b);
-			memcpy(pentries + offset * dtype_size, b->data, nelem * dtype_size);
-			offset += nelem;
+			assert(b->dtype == t->dtype);
+			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
+			memcpy(pentries, b->data, nbytes);
+			pentries += nbytes;
 		}
 	}
 }
@@ -3163,16 +3162,15 @@ void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, cons
 	const int8_t* pentries = (const int8_t*)entries;
 
 	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	ct_long offset = 0;
 	for (ct_long k = 0; k < nblocks; k++)
 	{
 		struct dense_tensor* b = t->blocks[k];
 		if (b != NULL)
 		{
-			assert(t->dtype == b->dtype);
-			const ct_long nelem = dense_tensor_num_elements(b);
-			memcpy(b->data, pentries + offset * dtype_size, nelem * dtype_size);
-			offset += nelem;
+			assert(b->dtype == t->dtype);
+			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
+			memcpy(b->data, pentries, nbytes);
+			pentries += nbytes;
 		}
 	}
 }

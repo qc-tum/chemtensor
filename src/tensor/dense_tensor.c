@@ -2897,6 +2897,154 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the real eigenvalues of a real symmetric or complex Hermitian matrix 'a'.
+///
+int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_tensor* restrict lambda)
+{
+	assert(a->ndim == 2);
+	assert(a->dim[0] == a->dim[1]);
+	const ct_long n = a->dim[0];
+
+	// row-major vs. column-major order not relevant here since eigenvalues are invariant under transposition
+
+	const ct_long dim_lambda[1] = { n };
+	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_lambda, lambda);
+
+	switch (a->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork = -1;
+			float work_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_ssyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
+				return info;
+			}
+			lwork = (lapack_int)work_size;
+			float* work = ct_malloc(lwork * sizeof(float));
+			const ct_long nbytes = n*n * sizeof(float);
+			float* adata = ct_malloc(nbytes);
+			memcpy(adata, a->data, nbytes);
+			// data entries of 'adata' are overwritten
+			LAPACK_ssyev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, &info);
+			ct_free(adata);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
+				return info;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork = -1;
+			double work_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_dsyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+				return info;
+			}
+			lwork = (lapack_int)work_size;
+			double* work = ct_malloc(lwork * sizeof(double));
+			const ct_long nbytes = n*n * sizeof(double);
+			double* adata = ct_malloc(nbytes);
+			memcpy(adata, a->data, nbytes);
+			// data entries of 'adata' are overwritten
+			LAPACK_dsyev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, &info);
+			ct_free(adata);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+				return info;
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork = -1;
+			scomplex work_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_cheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
+				return info;
+			}
+			lwork = (lapack_int)work_size;
+			scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+			float* rwork   = ct_malloc((lmax(1, 3*n - 2)) * sizeof(float));
+			const ct_long nbytes = n*n * sizeof(scomplex);
+			scomplex* adata = ct_malloc(nbytes);
+			memcpy(adata, a->data, nbytes);
+			// data entries of 'adata' are overwritten
+			LAPACK_cheev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &info);
+			ct_free(adata);
+			ct_free(rwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
+				return info;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			lapack_int info;
+			// query workspace size
+			lapack_int lwork = -1;
+			dcomplex work_size;
+			const lapack_int nlp = n;
+			// "L" corresponds to "U" due to column-major order convention of LAPACK
+			LAPACK_zheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
+				return info;
+			}
+			lwork = (lapack_int)work_size;
+			dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+			double* rwork  = ct_malloc((lmax(1, 3*n - 2)) * sizeof(double));
+			const ct_long nbytes = n*n * sizeof(dcomplex);
+			dcomplex* adata = ct_malloc(nbytes);
+			memcpy(adata, a->data, nbytes);
+			// data entries of 'adata' are overwritten
+			LAPACK_zheev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &info);
+			ct_free(adata);
+			ct_free(rwork);
+			ct_free(work);
+			if (info != 0) {
+				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
+				return info;
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Compute the eigenvalues and -vectors of a (real symmetric or complex Hermitian) matrix 'a',
 /// and store the result in 'u' and 'lambda' (will be allocated).
 /// The eigenvalues are real and returned as vector.

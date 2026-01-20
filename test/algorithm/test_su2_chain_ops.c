@@ -372,31 +372,8 @@ char* test_su2_mpo_inner_product()
 	}
 
 	// compute operator inner product <chi | op | psi>
-	struct su2_tensor s;
+	scomplex s;
 	su2_mpo_inner_product(&chi, &op, &psi, &s);
-
-	if (!su2_tensor_is_consistent(&s)) {
-		return "internal consistency check for SU(2) tensor failed";
-	}
-	if (s.ndim_logical != 2 || s.ndim_auxiliary != 1) {
-		return "SU(2) tensor computed by MPO inner product should have two logical axes and one auxiliary axis";
-	}
-
-	// extract numerical value
-	if (s.charge_sectors.ndim != 3) {
-		return "unexpected charge sector dimension of SU(2) tensor resulting from MPO inner product";
-	}
-	if (s.charge_sectors.jlists[0] != 0 || s.charge_sectors.jlists[1] != 0 || s.charge_sectors.jlists[2] != 0) {
-		return "expecting zero quantum numbers in first charge sector of SU(2) tensor resulting from MPO inner product";
-	}
-	if (s.degensors[0]->ndim != 2) {
-		return "expecting degeneracy tensor of degree 2 in SU(2) tensor resulting from MPO inner product";
-	}
-	if (s.degensors[0]->dim[0] != 1 || s.degensors[0]->dim[1] != 1) {
-		return "degeneracy tensor of zero charge sector in SU(2) tensor resulting from MPO inner product should have dimension 1 x 1";
-	}
-	const scomplex s_val = ((scomplex*)s.degensors[0]->data)[0];
-	delete_su2_tensor(&s);
 
 	// reference calculation
 
@@ -456,12 +433,10 @@ char* test_su2_mpo_inner_product()
 		// trace out trailing virtual bonds
 		dense_tensor_trace(&r, &s_ref);
 		delete_dense_tensor(&r);
-		// compensate for Clebsch-Gordan factor from fused axes in initial "dummy" right operator block
-		s_ref /= sqrtf(2.f);
 	}
 
 	// compare
-	if (cabsf(s_val - s_ref) / cabsf(s_ref) > 5e-6) {
+	if (cabsf(s - s_ref) / cabsf(s_ref) > 5e-6) {
 		return "SU(2) operator inner product does not match reference value";
 	}
 

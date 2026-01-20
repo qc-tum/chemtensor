@@ -11,6 +11,117 @@
 #define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
 
 
+char* test_su2_tensor_norm2()
+{
+	struct rng_state rng_state;
+	seed_rng_state(34, &rng_state);
+
+	for (int ndim_auxiliary = 0; ndim_auxiliary < 2; ndim_auxiliary++)
+	{
+		// construct an SU(2) tensor 't'
+		struct su2_tensor t;
+		{
+			const int ndim = 7;
+
+			// construct the fuse and split tree
+			//
+			//    3    2
+			//     ╲  ╱        fuse
+			//      ╲╱
+			//      │
+			//      │5
+			//      │
+			//      ╱╲
+			//     ╱  ╲6
+			//    ╱   ╱╲       split
+			//   ╱   ╱  ╲
+			//  0   4    1
+			//
+			struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+			struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+			struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+			struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+			struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
+			struct su2_tree_node j6  = { .i_ax = 6, .c = { &j4,  &j1  } };
+			struct su2_tree_node j5f = { .i_ax = 5, .c = { &j3,  &j2  } };
+			struct su2_tree_node j5s = { .i_ax = 5, .c = { &j0,  &j6  } };
+
+			struct su2_fuse_split_tree tree = { .tree_fuse = &j5f, .tree_split = &j5s, .ndim = ndim };
+
+			if (!su2_fuse_split_tree_is_consistent(&tree)) {
+				return "internal consistency check for the fuse and split tree failed";
+			}
+
+			// outer (logical and auxiliary) 'j' quantum numbers
+			qnumber j0list[] = { 2 };
+			qnumber j1list[] = { 0, 2 };
+			qnumber j2list[] = { 1, 3 };
+			qnumber j3list[] = { 2 };
+			qnumber j4list[] = { 1, 3 };  // auxiliary if ndim_auxiliary == 1
+			const struct su2_irreducible_list outer_irreps[5] = {
+				{ .jlist = j0list, .num = ARRLEN(j0list) },
+				{ .jlist = j1list, .num = ARRLEN(j1list) },
+				{ .jlist = j2list, .num = ARRLEN(j2list) },
+				{ .jlist = j3list, .num = ARRLEN(j3list) },
+				{ .jlist = j4list, .num = ARRLEN(j4list) },
+			};
+
+			// degeneracy dimensions, indexed by 'j' quantum numbers
+			//                         j:  0  1  2  3
+			const ct_long dim_degen0[] = { 0, 0, 3    };
+			const ct_long dim_degen1[] = { 1, 0, 4    };
+			const ct_long dim_degen2[] = { 0, 5, 0, 2 };
+			const ct_long dim_degen3[] = { 0, 0, 2    };
+			const ct_long dim_degen4[] = { 0, 4, 0, 3 };  // only used if ndim_auxiliary == 0
+			const ct_long* dim_degen[] = {
+				dim_degen0,
+				dim_degen1,
+				dim_degen2,
+				dim_degen3,
+				dim_degen4,
+			};
+
+			const int ndim_logical = 5 - ndim_auxiliary;
+
+			allocate_su2_tensor(CT_SINGLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
+
+			// delete some charge sectors
+			su2_tensor_delete_charge_sector_by_index(&t, 1);
+			su2_tensor_delete_charge_sector_by_index(&t, 4);
+
+			if (!su2_tensor_is_consistent(&t)) {
+				return "internal consistency check for SU(2) tensor failed";
+			}
+			if (t.charge_sectors.nsec == 0) {
+				return "expecting at least one charge sector in SU(2) tensor";
+			}
+
+			// fill degeneracy tensors with random entries
+			scomplex alpha = 0.01;
+			su2_tensor_fill_random_normal(&alpha, numeric_zero(t.dtype), &rng_state, &t);
+		}
+
+		const double nrm = su2_tensor_norm2(&t);
+
+		// dense tensor representation
+		struct dense_tensor t_dns;
+		su2_to_dense_tensor(&t, &t_dns);
+
+		const double nrm_ref = dense_tensor_norm2(&t_dns);
+
+		// compare
+		if (fabs(nrm - nrm_ref) / nrm_ref > 5e-5) {
+			return "logical norm of SU(2) symmetric tensor does not match reference value";
+		}
+
+		delete_dense_tensor(&t_dns);
+		delete_su2_tensor(&t);
+	}
+
+	return 0;
+}
+
+
 char* test_su2_tensor_swap_tree_axes()
 {
 	for (int ndim_auxiliary = 0; ndim_auxiliary < 2; ndim_auxiliary++)

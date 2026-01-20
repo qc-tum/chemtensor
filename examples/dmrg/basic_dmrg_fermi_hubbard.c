@@ -71,7 +71,7 @@ int main()
 
 	// run two-site DMRG
 	const int num_sweeps      = 4;
-	const int maxiter_lanczos = 25;
+	const int maxiter_lanczos = 5;
 	double tol_split          = 1e-8;
 	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
 	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
@@ -112,40 +112,26 @@ int main()
 		assert(hmat.dim[1] == ipow(hamiltonian.d, hamiltonian.nsites));
 		assert(hmat.dim[1] == hmat.dim[2]);
 		assert(hmat.dtype == CT_DOUBLE_REAL);
+
+		const ct_long dim_mat[2] = { hmat.dim[1], hmat.dim[2] };
+		reshape_dense_tensor(2, dim_mat, &hmat);
 	}
 
 	// reference eigenvalues (based on exact diagonalization of matrix representation)
-	double* w_ref = ct_malloc(hmat.dim[1] * sizeof(double));
-	{
-		lapack_int info;
-		// query workspace size
-		lapack_int lwork = -1;
-		double work_size;
-		const lapack_int nlp = hmat.dim[1];
-		// "L" corresponds to "U" due to column-major order convention of LAPACK
-		LAPACK_dsyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
-		if (info != 0) {
-			fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
-			return info;
-		}
-		lwork  = (lapack_int)work_size;
-		double* work = ct_malloc(lwork * sizeof(double));
-		// data entries of 'hmat' are overwritten
-		LAPACK_dsyev("N", "L", &nlp, hmat.data, &nlp, w_ref, work, &lwork, &info);
-		ct_free(work);
-		if (info != 0) {
-			fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
-			return info;
-		}
+	struct dense_tensor w_ref;
+	if (dense_tensor_eigvalsh(&hmat, &w_ref) < 0) {
+		fprintf(stderr, "computing reference eigenvalues failed");
+		return -3;
 	}
-	printf("reference ground state energy: %g\n", w_ref[0]);
+	const double en_ref = ((double*)w_ref.data)[0];
+	printf("reference ground state energy: %.15g\n", en_ref);
 
 	printf("energy after each DMRG sweep:\n");
 	for (int i = 0; i < num_sweeps; i++) {
-		printf("%i: %g, diff to reference: %g\n", i + 1, en_sweeps[i], en_sweeps[i] - w_ref[0]);
+		printf("%i: %.15g, diff to reference: %g\n", i + 1, en_sweeps[i], en_sweeps[i] - en_ref);
 	}
 
-	ct_free(w_ref);
+	delete_dense_tensor(&w_ref);
 	delete_dense_tensor(&hmat);
 	ct_free(entropy);
 	ct_free(en_sweeps);

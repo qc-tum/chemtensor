@@ -58,6 +58,9 @@ void su2_mps_local_orthonormalize_qr(struct su2_tensor* a, struct su2_tensor* a_
 
 void su2_mps_local_orthonormalize_rq(struct su2_tensor* a, struct su2_tensor* a_prev);
 
+void su2_mps_create_dummy_head_tensor(const struct su2_tensor* a0, struct su2_tensor* a_head);
+void su2_mps_create_dummy_tail_tensor(const struct su2_tensor* al, struct su2_tensor* a_tail);
+
 double su2_mps_orthonormalize_qr(struct su2_mps* mps, const enum su2_mps_orthonormalization_mode mode);
 
 

@@ -236,6 +236,8 @@ int dense_tensor_rq_fill(const struct dense_tensor* a, const enum qr_mode mode, 
 
 // spectral decomposition
 
+int dense_tensor_eigvalsh(const struct dense_tensor* a, struct dense_tensor* lambda);
+
 int dense_tensor_eigh(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* lambda);
 
 int dense_tensor_eigh_fill(const struct dense_tensor* a, struct dense_tensor* u, struct dense_tensor* lambda);

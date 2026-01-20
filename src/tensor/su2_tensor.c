@@ -78,6 +78,16 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Allocate memory for an SU(2) symmetric tensor of the same type, dimensions, fusion-splitting tree and quantum numbers as the provided tensor.
+///
+void allocate_su2_tensor_like(const struct su2_tensor* restrict s, struct su2_tensor* restrict t)
+{
+	allocate_su2_tensor(s->dtype, s->ndim_logical, s->ndim_auxiliary, &s->tree, s->outer_irreps, (const ct_long**)s->dim_degen, t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Delete an SU(2) symmetric tensor (free memory).
 ///
 void delete_su2_tensor(struct su2_tensor* t)
@@ -279,6 +289,34 @@ bool su2_tensor_is_consistent(const struct su2_tensor* t)
 	}
 
 	return true;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the logical 2-norm (Frobenius norm) of the tensor.
+///
+/// Result is returned as double also for single-precision tensor entries.
+///
+double su2_tensor_norm2(const struct su2_tensor* t)
+{
+	const int i_ax_root = t->tree.tree_fuse->i_ax;
+	assert(i_ax_root == t->tree.tree_split->i_ax);
+
+	double nrm = 0;
+
+	const int ndim = t->charge_sectors.ndim;
+	#pragma omp parallel for schedule(dynamic) reduction(+: nrm)
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+		nrm += (jlist[i_ax_root] + 1) * square(dense_tensor_norm2(t->degensors[c]));
+	}
+	nrm = sqrt(nrm);
+
+	return nrm;
 }
 
 
@@ -897,10 +935,11 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax)
 		// current 'j' quantum numbers
 		const qnumber* jlist = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
 
-		const double coeff = sqrt(jlist[i_ax] + 1) *
-			(in_fuse_tree ?
-				su2_recoupling_coefficient(jlist[i_ax], jlist[i_ax_sibling], jlist[i_ax_sibling], jlist[i_ax], jlist[i_ax_root], 0) * (1 - 2 * (jlist[i_ax] % 2)) :
-				su2_recoupling_coefficient(jlist[i_ax], jlist[i_ax], jlist[i_ax_sibling], jlist[i_ax_sibling], 0, jlist[i_ax_root]));
+		double coeff = sqrt(jlist[i_ax] + 1) *
+			su2_recoupling_coefficient(jlist[i_ax], jlist[i_ax_sibling], jlist[i_ax_sibling], jlist[i_ax], jlist[i_ax_root], 0);
+		if (in_fuse_tree) {
+			coeff *= (1 - 2 * (jlist[i_ax] % 2));
+		}
 
 		// ensure that 'alpha' is large enough to store any real numeric type
 		double alpha;
@@ -3724,4 +3763,290 @@ bool su2_tensor_is_isometry(const struct su2_tensor* t, const double tol, const 
 	delete_su2_tensor(&t2);
 
 	return is_isometry;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Overall number of entries in the dense degeneracy tensors.
+///
+ct_long su2_tensor_num_elements_degensors(const struct su2_tensor* t)
+{
+	ct_long nelem = 0;
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		nelem += dense_tensor_num_elements(t->degensors[c]);
+	}
+
+	return nelem;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Store the degeneracy tensor entries in a linear array, which must have been allocated beforehand.
+///
+void su2_tensor_serialize_entries(const struct su2_tensor* t, void* entries)
+{
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	int8_t* pentries = (int8_t*)entries;
+
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		const struct dense_tensor* d = t->degensors[c];
+		assert(d != NULL);
+		assert(d->dtype == t->dtype);
+		const size_t nbytes = dense_tensor_num_elements(d) * dtype_size;
+		memcpy(pentries, d->data, nbytes);
+		pentries += nbytes;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fill the degeneracy tensor entries from a linear array.
+///
+void su2_tensor_deserialize_entries(struct su2_tensor* t, const void* entries)
+{
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	const int8_t* pentries = (const int8_t*)entries;
+
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		struct dense_tensor* d = t->degensors[c];
+		assert(d != NULL);
+		assert(d->dtype == t->dtype);
+		const size_t nbytes = dense_tensor_num_elements(d) * dtype_size;
+		memcpy(d->data, pentries, nbytes);
+		pentries += nbytes;
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Store the degeneracy tensor entries in a linear array, renormalized by the structural part.
+///
+void su2_tensor_serialize_renormalized_entries(const struct su2_tensor* t, void* entries)
+{
+	const int i_ax_root = t->tree.tree_fuse->i_ax;
+	assert(i_ax_root == t->tree.tree_split->i_ax);
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			float* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const float factor = sqrtf(jlist[i_ax_root] + 1);
+
+				const struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				const float* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					pentries[i] = factor * ddata[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			double* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const double factor = sqrt(jlist[i_ax_root] + 1);
+
+				const struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				const double* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					pentries[i] = factor * ddata[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			scomplex* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const float factor = sqrtf(jlist[i_ax_root] + 1);
+
+				const struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				const scomplex* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					pentries[i] = factor * ddata[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			dcomplex* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const double factor = sqrt(jlist[i_ax_root] + 1);
+
+				const struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				const dcomplex* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					pentries[i] = factor * ddata[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Fill the degeneracy tensor entries from a linear array, taking renormalization by the structural part into account.
+///
+void su2_tensor_deserialize_renormalized_entries(struct su2_tensor* t, const void* entries)
+{
+	const int i_ax_root = t->tree.tree_fuse->i_ax;
+	assert(i_ax_root == t->tree.tree_split->i_ax);
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const float factor = 1 / sqrtf(jlist[i_ax_root] + 1);
+
+				struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				float* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					ddata[i] = factor * pentries[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const double factor = 1 / sqrt(jlist[i_ax_root] + 1);
+
+				struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				double* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					ddata[i] = factor * pentries[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const float factor = 1 / sqrtf(jlist[i_ax_root] + 1);
+
+				struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				scomplex* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					ddata[i] = factor *  pentries[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* pentries = entries;
+
+			const int ndim = t->charge_sectors.ndim;
+			for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+			{
+				// current 'j' quantum numbers
+				const qnumber* jlist = &t->charge_sectors.jlists[c * ndim];
+
+				const double factor = 1 / sqrt(jlist[i_ax_root] + 1);
+
+				struct dense_tensor* d = t->degensors[c];
+				const ct_long nelem = dense_tensor_num_elements(d);
+				dcomplex* ddata = d->data;
+				for (ct_long i = 0; i < nelem; i++) {
+					ddata[i] = factor * pentries[i];
+				}
+				pentries += nelem;
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
 }

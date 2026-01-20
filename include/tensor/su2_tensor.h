@@ -35,6 +35,8 @@ void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_log
 
 void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, int ndim_auxiliary, const struct su2_fuse_split_tree* tree, const struct su2_irreducible_list* outer_irreps, const ct_long** dim_degen, struct su2_tensor* t);
 
+void allocate_su2_tensor_like(const struct su2_tensor* s, struct su2_tensor* t);
+
 void delete_su2_tensor(struct su2_tensor* t);
 
 void copy_su2_tensor(const struct su2_tensor* src, struct su2_tensor* dst);
@@ -73,6 +75,14 @@ enum tensor_axis_direction su2_tensor_logical_axis_direction(const struct su2_te
 // internal consistency checking
 
 bool su2_tensor_is_consistent(const struct su2_tensor* t);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// trace and norm
+
+double su2_tensor_norm2(const struct su2_tensor* t);
 
 
 //________________________________________________________________________________________________________________________
@@ -180,3 +190,19 @@ bool dense_su2_tensor_allclose(const struct dense_tensor* s, const struct su2_te
 bool su2_tensor_is_identity(const struct su2_tensor* t, const double tol);
 
 bool su2_tensor_is_isometry(const struct su2_tensor* t, const double tol, const bool transpose);
+
+
+//________________________________________________________________________________________________________________________
+//
+
+// (de)serialization
+
+ct_long su2_tensor_num_elements_degensors(const struct su2_tensor* t);
+
+void su2_tensor_serialize_entries(const struct su2_tensor* t, void* entries);
+
+void su2_tensor_deserialize_entries(struct su2_tensor* t, const void* entries);
+
+void su2_tensor_serialize_renormalized_entries(const struct su2_tensor* t, void* entries);
+
+void su2_tensor_deserialize_renormalized_entries(struct su2_tensor* t, const void* entries);

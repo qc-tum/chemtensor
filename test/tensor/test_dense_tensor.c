@@ -1044,7 +1044,9 @@ char* test_dense_tensor_eigh()
 
 		// compute spectral decomposition
 		struct dense_tensor u, lambda;
-		dense_tensor_eigh(&a, &u, &lambda);
+		if (dense_tensor_eigh(&a, &u, &lambda) < 0) {
+			return "'dense_tensor_eigh' failed internally";
+		}
 
 		// matrix product 'u lambda u^H' must be equal to 'a'
 		struct dense_tensor u_lambda;
@@ -1066,6 +1068,18 @@ char* test_dense_tensor_eigh()
 			return "U matrix is not an isometry";
 		}
 
+		// compute eigenvalues only
+		struct dense_tensor lambda_alt;
+		if (dense_tensor_eigvalsh(&a, &lambda_alt) < 0) {
+			return "'dense_tensor_eigvalsh' failed internally";
+		}
+
+		// compare
+		if (!dense_tensor_allclose(&lambda, &lambda_alt, tol)) {
+			return "eigenvalues computed by 'dense_tensor_eigh' and 'dense_tensor_eigvalsh' differ";
+		}
+
+		delete_dense_tensor(&lambda_alt);
 		delete_dense_tensor(&lambda);
 		delete_dense_tensor(&u);
 		delete_dense_tensor(&a);

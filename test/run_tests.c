@@ -62,6 +62,7 @@ char* test_su2_fuse_split_tree_enumerate_charge_sectors();
 char* test_su2_graph_to_fuse_split_tree();
 char* test_su2_graph_yoga_to_simple_subtree();
 char* test_su2_graph_connect();
+char* test_su2_tensor_norm2();
 char* test_su2_tensor_swap_tree_axes();
 char* test_su2_tensor_add_auxiliary_axis();
 char* test_su2_tensor_transpose();
@@ -125,6 +126,7 @@ char* test_su2_apply_local_hamiltonian();
 char* test_ttno_inner_product();
 char* test_dmrg_singlesite();
 char* test_dmrg_twosite();
+char* test_su2_dmrg_singlesite();
 char* test_operator_average_coefficient_gradient();
 char* test_apply_thc_spin_molecular_hamiltonian();
 char* test_thc_spin_molecular_hamiltonian_to_matrix();
@@ -193,6 +195,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_graph_to_fuse_split_tree),
 		TEST_FUNCTION_ENTRY(test_su2_graph_yoga_to_simple_subtree),
 		TEST_FUNCTION_ENTRY(test_su2_graph_connect),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_norm2),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_swap_tree_axes),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_add_auxiliary_axis),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_transpose),
@@ -256,6 +259,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_ttno_inner_product),
 		TEST_FUNCTION_ENTRY(test_dmrg_singlesite),
 		TEST_FUNCTION_ENTRY(test_dmrg_twosite),
+		TEST_FUNCTION_ENTRY(test_su2_dmrg_singlesite),
 		TEST_FUNCTION_ENTRY(test_operator_average_coefficient_gradient),
 		TEST_FUNCTION_ENTRY(test_apply_thc_spin_molecular_hamiltonian),
 		TEST_FUNCTION_ENTRY(test_thc_spin_molecular_hamiltonian_to_matrix),

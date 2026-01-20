@@ -228,7 +228,7 @@ int su2_tree_leaf_axes_list(const struct su2_tree_node* tree, int* list)
 
 	// in-order traversal
 	int n0 = su2_tree_leaf_axes_list(tree->c[0], list);
-	int n1 = su2_tree_axes_list(tree->c[1], list + n0);
+	int n1 = su2_tree_leaf_axes_list(tree->c[1], list + n0);
 
 	return n0 + n1;
 }
