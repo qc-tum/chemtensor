@@ -191,6 +191,86 @@ void LAPACK_zungrq(
 	lapack_int* info);
 
 
+// eigendecomposition of general symmetric matrices
+
+#define LAPACK_ssyev_base LAPACK_GLOBAL(ssyev,SSYEV)
+void LAPACK_ssyev_base(
+    char const* jobz, char const* uplo,
+    lapack_int const* n,
+    float* A, lapack_int const* lda,
+    float* W,
+    float* work, lapack_int const* lwork,
+    lapack_int* info
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    , size_t, size_t
+#endif
+);
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    #define LAPACK_ssyev(...) LAPACK_ssyev_base(__VA_ARGS__, 1, 1)
+#else
+    #define LAPACK_ssyev(...) LAPACK_ssyev_base(__VA_ARGS__)
+#endif
+
+
+#define LAPACK_dsyev_base LAPACK_GLOBAL(dsyev,DSYEV)
+void LAPACK_dsyev_base(
+	char const* jobz, char const* uplo,
+	lapack_int const* n,
+	double* A, lapack_int const* lda,
+	double* W,
+	double* work, lapack_int const* lwork,
+	lapack_int* info
+#ifdef LAPACK_FORTRAN_STRLEN_END
+	, size_t, size_t
+#endif
+);
+#ifdef LAPACK_FORTRAN_STRLEN_END
+	#define LAPACK_dsyev(...) LAPACK_dsyev_base(__VA_ARGS__, 1, 1)
+#else
+	#define LAPACK_dsyev(...) LAPACK_dsyev_base(__VA_ARGS__)
+#endif
+
+
+#define LAPACK_cheev_base LAPACK_GLOBAL(cheev,CHEEV)
+void LAPACK_cheev_base(
+    char const* jobz, char const* uplo,
+    lapack_int const* n,
+    lapack_complex_float* A, lapack_int const* lda,
+    float* W,
+    lapack_complex_float* work, lapack_int const* lwork,
+    float* rwork,
+    lapack_int* info
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    , size_t, size_t
+#endif
+);
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    #define LAPACK_cheev(...) LAPACK_cheev_base(__VA_ARGS__, 1, 1)
+#else
+    #define LAPACK_cheev(...) LAPACK_cheev_base(__VA_ARGS__)
+#endif
+
+
+#define LAPACK_zheev_base LAPACK_GLOBAL(zheev,ZHEEV)
+void LAPACK_zheev_base(
+    char const* jobz, char const* uplo,
+    lapack_int const* n,
+    lapack_complex_double* A, lapack_int const* lda,
+    double* W,
+    lapack_complex_double* work, lapack_int const* lwork,
+    double* rwork,
+    lapack_int* info
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    , size_t, size_t
+#endif
+);
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    #define LAPACK_zheev(...) LAPACK_zheev_base(__VA_ARGS__, 1, 1)
+#else
+    #define LAPACK_zheev(...) LAPACK_zheev_base(__VA_ARGS__)
+#endif
+
+
 // eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
 
 #define LAPACK_ssyevd_base LAPACK_GLOBAL(ssyevd,SSYEVD)
@@ -418,6 +498,13 @@ void LAPACK_zgesvd_base(
 #define LAPACK_cungrq cungrq_
 #define LAPACK_zgerqf zgerqf_
 #define LAPACK_zungrq zungrq_
+
+// eigendecomposition of general symmetric matrices
+
+#define LAPACK_ssyev ssyev_
+#define LAPACK_dsyev dsyev_
+#define LAPACK_cheev cheev_
+#define LAPACK_zheev zheev_
 
 // eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
 

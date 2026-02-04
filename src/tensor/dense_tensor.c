@@ -2916,31 +2916,26 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 		{
 			lapack_int info;
 			// query workspace size
-			lapack_int lwork  = -1;
-			lapack_int liwork = -1;
+			lapack_int lwork = -1;
 			float work_size;
-			lapack_int iwork_size;
 			const lapack_int nlp = n;
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
-			LAPACK_ssyevd("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
+			LAPACK_ssyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
 				return -1;
 			}
-			lwork  = (lapack_int)work_size;
-			liwork = (lapack_int)iwork_size;
-			float* work       = ct_malloc(lwork * sizeof(float));
-			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			lwork = (lapack_int)work_size;
+			float* work = ct_malloc(lwork * sizeof(float));
 			const size_t nbytes = n*n * sizeof(float);
 			float* adata = ct_malloc(nbytes);
 			memcpy(adata, a->data, nbytes);
 			// data entries of 'adata' are overwritten
-			LAPACK_ssyevd("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, iwork, &liwork, &info);
+			LAPACK_ssyev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, &info);
 			ct_free(adata);
-			ct_free(iwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -2950,31 +2945,26 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 		{
 			lapack_int info;
 			// query workspace size
-			lapack_int lwork  = -1;
-			lapack_int liwork = -1;
+			lapack_int lwork = -1;
 			double work_size;
-			lapack_int iwork_size;
 			const lapack_int nlp = n;
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
-			LAPACK_dsyevd("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
+			LAPACK_dsyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
 				return -1;
 			}
-			lwork  = (lapack_int)work_size;
-			liwork = (lapack_int)iwork_size;
-			double* work      = ct_malloc(lwork * sizeof(double));
-			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			lwork = (lapack_int)work_size;
+			double* work = ct_malloc(lwork * sizeof(double));
 			const size_t nbytes = n*n * sizeof(double);
 			double* adata = ct_malloc(nbytes);
 			memcpy(adata, a->data, nbytes);
 			// data entries of 'adata' are overwritten
-			LAPACK_dsyevd("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, iwork, &liwork, &info);
+			LAPACK_dsyev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, &info);
 			ct_free(adata);
-			ct_free(iwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -2984,36 +2974,28 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 		{
 			lapack_int info;
 			// query workspace size
-			lapack_int lwork  = -1;
-			lapack_int lrwork = -1;
-			lapack_int liwork = -1;
+			lapack_int lwork = -1;
 			scomplex work_size;
-			float rwork_size;
-			lapack_int iwork_size;
 			const lapack_int nlp = n;
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
-			LAPACK_cheevd("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
+			LAPACK_cheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
 				return -1;
 			}
-			lwork  = (lapack_int)work_size;
-			lrwork = (lapack_int)rwork_size;
-			liwork = (lapack_int)iwork_size;
-			scomplex* work    = ct_malloc(lwork * sizeof(scomplex));
-			float* rwork      = ct_malloc(lrwork * sizeof(float));
-			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			lwork = (lapack_int)work_size;
+			scomplex* work = ct_malloc(lwork * sizeof(scomplex));
+			float* rwork   = ct_malloc((lmax(1, 3*n - 2)) * sizeof(float));
 			const size_t nbytes = n*n * sizeof(scomplex);
 			scomplex* adata = ct_malloc(nbytes);
 			memcpy(adata, a->data, nbytes);
 			// data entries of 'adata' are overwritten
-			LAPACK_cheevd("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &lrwork, iwork, &liwork, &info);
+			LAPACK_cheev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &info);
 			ct_free(adata);
-			ct_free(iwork);
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3023,36 +3005,28 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 		{
 			lapack_int info;
 			// query workspace size
-			lapack_int lwork  = -1;
-			lapack_int lrwork = -1;
-			lapack_int liwork = -1;
+			lapack_int lwork = -1;
 			dcomplex work_size;
-			double rwork_size;
-			lapack_int iwork_size;
 			const lapack_int nlp = n;
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
-			LAPACK_zheevd("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
+			LAPACK_zheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
 				return -1;
 			}
-			lwork  = (lapack_int)work_size;
-			lrwork = (lapack_int)rwork_size;
-			liwork = (lapack_int)iwork_size;
-			dcomplex* work    = ct_malloc(lwork * sizeof(dcomplex));
-			double* rwork     = ct_malloc(lrwork * sizeof(double));
-			lapack_int* iwork = ct_malloc(liwork * sizeof(lapack_int));
+			lwork = (lapack_int)work_size;
+			dcomplex* work = ct_malloc(lwork * sizeof(dcomplex));
+			double* rwork  = ct_malloc((lmax(1, 3*n - 2)) * sizeof(double));
 			const size_t nbytes = n*n * sizeof(dcomplex);
 			dcomplex* adata = ct_malloc(nbytes);
 			memcpy(adata, a->data, nbytes);
 			// data entries of 'adata' are overwritten
-			LAPACK_zheevd("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &lrwork, iwork, &liwork, &info);
+			LAPACK_zheev("N", "L", &nlp, adata, &nlp, lambda->data, work, &lwork, rwork, &info);
 			ct_free(adata);
-			ct_free(iwork);
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
+				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
 				return -1;
 			}
 
