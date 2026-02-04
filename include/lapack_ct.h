@@ -442,7 +442,10 @@ void LAPACK_zgesvd_base(
 
 // eigendecomposition of general symmetric matrices
 
+#define LAPACK_ssyev ssyev_
 #define LAPACK_dsyev dsyev_
+#define LAPACK_cheev cheev_
+#define LAPACK_zheev zheev_
 
 // eigendecomposition of general symmetric matrices, using a divide and conquer algorithm
 
