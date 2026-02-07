@@ -3296,7 +3296,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the "economical" SVD decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh' (will be allocated).
+/// \brief Compute the "economical" singular value decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh' (will be allocated).
 /// The singular values 's' are returned as vector.
 ///
 int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh)
@@ -3321,7 +3321,7 @@ int dense_tensor_svd(const struct dense_tensor* restrict a, struct dense_tensor*
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the "economical" SVD decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh',
+/// \brief Compute the "economical" singular value decomposition of the matrix 'a', and store the result in 'u', 's' and 'vh',
 /// which must have been allocated beforehand. The singular values 's' are returned as vector.
 ///
 int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_tensor* restrict u, struct dense_tensor* restrict s, struct dense_tensor* restrict vh)

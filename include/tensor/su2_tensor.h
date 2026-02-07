@@ -182,6 +182,14 @@ int su2_tensor_rq(const struct su2_tensor* a, const enum qr_mode mode, struct su
 //________________________________________________________________________________________________________________________
 //
 
+// singular value decomposition
+
+int su2_tensor_svd(const struct su2_tensor* a, const bool copy_tree_left, struct su2_tensor* u, struct dense_tensor* s, int** multiplicities, struct su2_tensor* vh);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // comparison
 
 bool su2_tensor_allclose(const struct su2_tensor* s, const struct su2_tensor* t, const double tol);

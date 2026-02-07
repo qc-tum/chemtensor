@@ -76,6 +76,7 @@ char* test_su2_tensor_contract_yoga();
 char* test_su2_to_dense_tensor();
 char* test_su2_tensor_qr();
 char* test_su2_tensor_rq();
+char* test_su2_tensor_svd();
 char* test_copy_mps();
 char* test_mps_vdot();
 char* test_mps_add();
@@ -209,6 +210,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_qr),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_rq),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_copy_mps),
 		TEST_FUNCTION_ENTRY(test_mps_vdot),
 		TEST_FUNCTION_ENTRY(test_mps_add),

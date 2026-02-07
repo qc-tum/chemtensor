@@ -2678,7 +2678,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Compute the logical SVD decomposition of a block-sparse matrix.
+/// \brief Compute the logical singular value decomposition of a block-sparse matrix.
 ///
 /// The logical quantum numbers of the axis connecting 'u' and 'vh' will be sorted.
 /// The singular values are returned in a dense vector.
@@ -2813,7 +2813,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 			const ct_long dim_bs[1] = { bu->dim[1] };
 			allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_bs, &bs);
 
-			// perform SVD decomposition of block
+			// perform singular value decomposition of block
 			int ret = dense_tensor_svd_fill(ba, bu, &bs, bvh);
 			if (ret != 0) {
 				failed = true;

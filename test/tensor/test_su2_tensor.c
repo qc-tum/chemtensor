@@ -3061,3 +3061,215 @@ char* test_su2_tensor_rq()
 
 	return 0;
 }
+
+
+char* test_su2_tensor_svd()
+{
+	struct rng_state rng_state;
+	seed_rng_state(48, &rng_state);
+
+	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
+
+	// data types
+	for (int dt = 0; dt < CT_NUM_NUMERIC_TYPES; dt++)
+	{
+		const double tol = (dt % 2 == 0 ? 5e-6 : 1e-13);
+
+		for (int copy_tree_left = 0; copy_tree_left < 2; copy_tree_left++)
+		{
+			// whether the leading axis is in the fusion or splitting tree
+			for (int lfs = 0; lfs < 2; lfs++)
+			{
+				// whether the auxiliary axis is grouped together with the first or second axis
+				for (int iaux = 0; iaux < 2; iaux++)
+				{
+					// construct an SU(2) tensor 'a'
+					struct su2_tensor a;
+					{
+						struct su2_fuse_split_tree tree;
+						if (iaux == 0)
+						{
+							// construct the fuse and split tree
+							//
+							//      0
+							//      │
+							//      │
+							//      ╱╲
+							//     ╱  ╲
+							//    1    2
+							//
+							struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+							struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+							struct su2_tree_node j0f = { .i_ax = 0, .c = { NULL, NULL } };
+							struct su2_tree_node j0s = { .i_ax = 0, .c = { &j1,  &j2  } };
+
+							struct su2_fuse_split_tree t = { .tree_fuse = &j0f, .tree_split = &j0s, .ndim = 3 };
+
+							copy_su2_fuse_split_tree(&t, &tree);
+						}
+						else
+						{
+							// construct the fuse and split tree
+							//
+							//    0    2
+							//     ╲  ╱
+							//      ╲╱
+							//      │
+							//      │
+							//      1
+							//
+							struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+							struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+							struct su2_tree_node j1f = { .i_ax = 1, .c = { &j0,  &j2  } };
+							struct su2_tree_node j1s = { .i_ax = 1, .c = { NULL, NULL } };
+
+							struct su2_fuse_split_tree t = { .tree_fuse = &j1f, .tree_split = &j1s, .ndim = 3 };
+
+							copy_su2_fuse_split_tree(&t, &tree);
+						}
+
+						if (lfs == 1) {
+							su2_fuse_split_tree_flip(&tree);
+						}
+
+						if (!su2_fuse_split_tree_is_consistent(&tree)) {
+							return "internal consistency check for the fuse and split tree failed";
+						}
+
+						// outer (logical and auxiliary) 'j' quantum numbers
+						qnumber j0list[] = { 0, 1, 2, 3, 5 };  // note: mixed half-integer and integer quantum numbers
+						qnumber j1list[] = { 1, 2, 4, 5, 6 };  // note: mixed half-integer and integer quantum numbers
+						qnumber j2list[] = { 0 };  // auxiliary
+						const struct su2_irreducible_list outer_irreps[3] = {
+							{ .jlist = j0list, .num = ARRLEN(j0list) },
+							{ .jlist = j1list, .num = ARRLEN(j1list) },
+							{ .jlist = j2list, .num = ARRLEN(j2list) },
+						};
+
+						// degeneracy dimensions, indexed by 'j' quantum numbers
+						//                         j:  0  1  2  3  4  5  6
+						const ct_long dim_degen0[] = { 3, 5, 7, 6, 0, 4    };
+						const ct_long dim_degen1[] = { 0, 4, 9, 0, 1, 3, 2 };
+						const ct_long* dim_degen[] = {
+							dim_degen0,
+							dim_degen1,
+						};
+
+						allocate_su2_tensor(dtypes[dt], 2, 1, &tree, outer_irreps, dim_degen, &a);
+						delete_su2_fuse_split_tree(&tree);
+
+						// delete a charge sector
+						const qnumber jlist_del[3] = { 5, 5, 0 };
+						su2_tensor_delete_charge_sector(&a, jlist_del);
+
+						// fill degeneracy tensors with random entries
+						su2_tensor_fill_random_normal(numeric_one(a.dtype), numeric_zero(a.dtype), &rng_state, &a);
+
+						if (!su2_tensor_is_consistent(&a)) {
+							return "internal consistency check for SU(2) tensor failed";
+						}
+						if (a.charge_sectors.nsec != 2) {
+							return "expecting two charge sectors in SU(2) tensor";
+						}
+					}
+
+					// perform singular value decomposition
+					struct su2_tensor u, vh;
+					struct dense_tensor s;
+					int* multiplicities;
+					if (su2_tensor_svd(&a, copy_tree_left, &u, &s, &multiplicities, &vh) < 0) {
+						return "SU(2) symmetric singular value decomposition failed internally";
+					}
+
+					if (!su2_tensor_is_consistent(&u)) {
+						return "internal consistency check for SU(2) tensor failed";
+					}
+					if (!su2_tensor_is_consistent(&vh)) {
+						return "internal consistency check for SU(2) tensor failed";
+					}
+					if (copy_tree_left)
+					{
+						if (!su2_fuse_split_tree_equal(&u.tree, &a.tree)) {
+							return "fusion-splitting tree of U tensor from SU(2) symmetric singular value decomposition does not agree with the one of A";
+						}
+					}
+					else
+					{
+						if (!su2_fuse_split_tree_equal(&vh.tree, &a.tree)) {
+							return "fusion-splitting tree of V^dag tensor from SU(2) symmetric singular value decomposition does not agree with the one of A";
+						}
+					}
+					// 'u' must be an isometry
+					if (!su2_tensor_is_isometry(&u, tol, false)) {
+						return "U tensor from SU(2) symmetric singular value decomposition is not an isometry";
+					}
+					// 'vh' must be an isometry
+					if (!su2_tensor_is_isometry(&vh, tol, true)) {
+						return "V tensor from SU(2) symmetric singular value decomposition is not an isometry";
+					}
+
+					// convert to dense tensors
+					struct dense_tensor u_dns, vh_dns;
+					su2_to_dense_tensor(&u, &u_dns);
+					su2_to_dense_tensor(&vh, &vh_dns);
+					if (u_dns.dim[1] != vh_dns.dim[0]) {
+						return "second logical dimension of U matrix does not agree with first logical dimension of V^dag matrix after SU(2) symmetric singular value decomposition";
+					}
+					// take multiplicities of singular values into account
+					struct dense_tensor s_expanded;
+					const ct_long dim_s_expanded[1] = { u_dns.dim[1] };
+					allocate_dense_tensor(s.dtype, 1, dim_s_expanded, &s_expanded);
+					ct_long count = 0;
+					for (ct_long i = 0; i < s.dim[0]; i++)
+					{
+						if (multiplicities[i] <= 0) {
+							return "each singular value multiplicity after SU(2) symmetric singular value decomposition must at least be 1";
+						}
+						if (s.dtype == CT_SINGLE_REAL)
+						{
+							const float* s_data = s.data;
+							float* s_expanded_data = s_expanded.data;
+							for (ct_long k = 0; k < multiplicities[i]; k++) {
+								s_expanded_data[count++] = s_data[i];
+							}
+						}
+						else
+						{
+							assert(s.dtype == CT_DOUBLE_REAL);
+							const double* s_data = s.data;
+							double* s_expanded_data = s_expanded.data;
+							for (ct_long k = 0; k < multiplicities[i]; k++) {
+								s_expanded_data[count++] = s_data[i];
+							}
+						}
+					}
+					if (count != s_expanded.dim[0]) {
+						return "number of singular values (including multiplicities) does not match logical inner dimension after SU(2) symmetric singular value decomposition";
+					}
+					struct dense_tensor us_dns;
+					dense_tensor_multiply_pointwise(&u_dns, &s_expanded, TENSOR_AXIS_RANGE_TRAILING, &us_dns);
+					delete_dense_tensor(&s_expanded);
+					delete_dense_tensor(&u_dns);
+					struct dense_tensor usvh_dns;
+					dense_tensor_dot(&us_dns, TENSOR_AXIS_RANGE_TRAILING, &vh_dns, TENSOR_AXIS_RANGE_LEADING, 1, &usvh_dns);
+					delete_dense_tensor(&us_dns);
+					delete_dense_tensor(&vh_dns);
+
+					// logical matrix product 'u s vh' must be equal to 'a'
+					if (!dense_su2_tensor_allclose(&usvh_dns, &a, tol)) {
+						return "logical matrix product U S V^dag from SU(2) symmetric singular value decomposition is not equal to original A matrix";
+					}
+					delete_dense_tensor(&usvh_dns);
+
+					ct_free(multiplicities);
+					delete_dense_tensor(&s);
+					delete_su2_tensor(&vh);
+					delete_su2_tensor(&u);
+					delete_su2_tensor(&a);
+				}
+			}
+		}
+	}
+
+	return 0;
+}

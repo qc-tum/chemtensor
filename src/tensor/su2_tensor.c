@@ -3551,6 +3551,162 @@ int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the logical "economical" singular value decomposition of an SU(2) symmetric matrix.
+///
+/// The parameter 'copy_tree_left' indicates whether to transfer the SU(2) tree of 'a' to 'u' or to 'vh'.
+/// The respective other matrix uses a mirrored version of the tree.
+///
+/// The singular values are returned in a dense vector.
+///
+/// The 'multiplicities' vector is allocated and filled by the function, with the same length as the singular values.
+/// The i-th entry is the logical multiplicity '2 j + 1' of the 'j' quantum sector containing the i-th singular value.
+///
+int su2_tensor_svd(const struct su2_tensor* restrict a, const bool copy_tree_left, struct su2_tensor* restrict u, struct dense_tensor* restrict s, int** multiplicities, struct su2_tensor* restrict vh)
+{
+	// require a logical matrix
+	assert(a->ndim_logical == 2);
+	assert(su2_tensor_logical_axis_direction(a, 0) != su2_tensor_logical_axis_direction(a, 1));
+	// expecting a single, "trivial" (solely quantum number zero) auxiliary axis in 'a'
+	assert(a->ndim_auxiliary == 1);
+	assert(a->outer_irreps[2].num == 1);
+	assert(a->outer_irreps[2].jlist[0] == 0);
+
+	// take only the charge sectors which are present in 'a' into account
+	assert(a->charge_sectors.nsec > 0);
+	struct su2_irreducible_list irreps_shared;
+	allocate_su2_irreducible_list(a->charge_sectors.nsec, &irreps_shared);
+	qnumber j_max_shared = 0;
+	for (ct_long c = 0; c < a->charge_sectors.nsec; c++)
+	{
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &a->charge_sectors.jlists[c * a->charge_sectors.ndim];
+		// quantum numbers of of first and second logical axis must agree
+		assert(jlist[0] == jlist[1]);
+		// quantum number of auxiliary axis must be zero
+		assert(jlist[2] == 0);
+		const qnumber j = jlist[0];
+
+		irreps_shared.jlist[c] = j;
+
+		j_max_shared = qmax(j_max_shared, j);
+	}
+	ct_long* offset_map = ct_malloc((irreps_shared.num + 1) * sizeof(ct_long));
+	offset_map[0] = 0;
+	ct_long* dim_degen_shared = ct_calloc(j_max_shared + 1, sizeof(ct_long));
+	for (int k = 0; k < irreps_shared.num; k++)
+	{
+		const qnumber j = irreps_shared.jlist[k];
+		dim_degen_shared[j] = lmin(a->dim_degen[0][j], a->dim_degen[1][j]);
+		assert(dim_degen_shared[j] > 0);
+		offset_map[k + 1] = offset_map[k] + dim_degen_shared[j];
+	}
+
+	(*multiplicities) = ct_malloc(offset_map[irreps_shared.num] * sizeof(int));
+
+	struct su2_fuse_split_tree flipped_tree;
+	{
+		copy_su2_fuse_split_tree(&a->tree, &flipped_tree);
+		su2_fuse_split_tree_flip(&flipped_tree);
+		// flip axes 0 <-> 1
+		const int axis_map[3] = { 1, 0, 2 };
+		su2_fuse_split_tree_update_axes_indices(&flipped_tree, axis_map);
+	}
+
+	// allocate 'u' tensor
+	{
+		struct su2_irreducible_list outer_irreps_u[3];
+		// copy irreducible quantum numbers from first axis of 'a'
+		outer_irreps_u[0] = a->outer_irreps[0];
+		outer_irreps_u[1] = irreps_shared;
+		// auxiliary axis has quantum number zero
+		qnumber jlist_zero[1] = { 0 };
+		outer_irreps_u[2].num = 1;
+		outer_irreps_u[2].jlist = jlist_zero;
+		// degeneracy dimensions
+		const ct_long* dim_degen_u[2] = {
+			a->dim_degen[0],
+			dim_degen_shared,
+		};
+
+		allocate_su2_tensor(a->dtype, 2, 1, copy_tree_left ? &a->tree : &flipped_tree, outer_irreps_u, dim_degen_u, u);
+		assert(charge_sectors_equal(&u->charge_sectors, &a->charge_sectors));
+	}
+
+	// allocate 'vh' tensor
+	{
+		struct su2_irreducible_list outer_irreps_vh[3];
+		// copy irreducible quantum numbers from first axis of 'a'
+		outer_irreps_vh[0] = irreps_shared;
+		outer_irreps_vh[1] = a->outer_irreps[1];
+		// auxiliary axis has quantum number zero
+		qnumber jlist_zero[1] = { 0 };
+		outer_irreps_vh[2].num = 1;
+		outer_irreps_vh[2].jlist = jlist_zero;
+		// degeneracy dimensions
+		const ct_long* dim_degen_vh[2] = {
+			dim_degen_shared,
+			a->dim_degen[1],
+		};
+
+		allocate_su2_tensor(a->dtype, 2, 1, copy_tree_left ? &flipped_tree : &a->tree, outer_irreps_vh, dim_degen_vh, vh);
+		assert(charge_sectors_equal(&vh->charge_sectors, &a->charge_sectors));
+	}
+
+	delete_su2_fuse_split_tree(&flipped_tree);
+	ct_free(dim_degen_shared);
+	delete_su2_irreducible_list(&irreps_shared);
+
+	// allocate vector for singular values
+	const ct_long dim_s[1] = { offset_map[a->charge_sectors.nsec] };
+	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_s, s);
+	const size_t sval_dtype_size = sizeof_numeric_type(s->dtype);
+
+	// perform SVD decompositions of the individual blocks
+	bool failed = false;
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long c = 0; c < a->charge_sectors.nsec; c++)
+	{
+		const struct dense_tensor* da = a->degensors[c];
+
+		// allocate vector for singular values of current block
+		struct dense_tensor s_block;
+		const ct_long dim_s_block[1] = { u->degensors[c]->dim[1] };
+		allocate_dense_tensor(s->dtype, 1, dim_s_block, &s_block);
+
+		// perform singular value decomposition of block
+		int ret = dense_tensor_svd_fill(da, u->degensors[c], &s_block, vh->degensors[c]);
+		if (ret != 0) {
+			failed = true;
+		}
+
+		// copy singular values
+		// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+		memcpy((int8_t*)s->data + offset_map[c] * sval_dtype_size, s_block.data, s_block.dim[0] * sval_dtype_size);
+
+		// 'j' quantum numbers of current sector
+		const qnumber* jlist = &a->charge_sectors.jlists[c * a->charge_sectors.ndim];
+		const qnumber j = jlist[0];
+
+		for (ct_long i = 0; i < s_block.dim[0]; i++)
+		{
+			(*multiplicities)[offset_map[c] + i] = j + 1;
+		}
+
+		delete_dense_tensor(&s_block);
+	}
+
+	ct_free(offset_map);
+
+	if (failed) {
+		return -1;
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Test whether two SU(2) tensors agree in terms of quantum numbers, internal tree structure and degeneracy tensor entries within tolerance 'tol'.
 ///
 bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_tensor* restrict t, const double tol)
