@@ -117,6 +117,7 @@ char* test_quadratic_fermionic_mpo();
 char* test_quadratic_spin_fermionic_mpo();
 char* test_heisenberg_1d_su2_mpo();
 char* test_retained_bond_indices();
+char* test_retained_bond_indices_multiplicities();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
 char* test_mpo_inner_product();
@@ -251,6 +252,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_quadratic_spin_fermionic_mpo),
 		TEST_FUNCTION_ENTRY(test_heisenberg_1d_su2_mpo),
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices),
+		TEST_FUNCTION_ENTRY(test_retained_bond_indices_multiplicities),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
 		TEST_FUNCTION_ENTRY(test_mpo_inner_product),
