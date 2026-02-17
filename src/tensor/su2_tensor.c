@@ -2042,6 +2042,156 @@ void su2_tensor_split_axis_remove_auxiliary(const struct su2_tensor* restrict t,
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Slice a logical axis of the tensor by selecting "degeneracy" indices 'ind' along this axis.
+///
+/// Indices 'ind' cannot be duplicate and must be sorted.
+/// 'j' quantum numbers along 'i_ax' for which the new degeneracy dimension would be zero are removed.
+/// Memory will be allocated for 'r'.
+///
+void su2_tensor_slice(const struct su2_tensor* restrict t, const int i_ax, const ct_long* ind, const ct_long nind, struct su2_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim_logical);
+	assert(nind > 0);
+
+	// maximum 'j' quantum number along axis 'i_ax'
+	qnumber j_max = 0;
+	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
+	{
+		const qnumber j = t->outer_irreps[i_ax].jlist[k];
+		j_max = qmax(j_max, j);
+	}
+
+	// selected indices for each 'j' quantum number along 'i_ax'
+	ct_long** ind_sectors     = ct_calloc(j_max + 1, sizeof(ct_long*));
+	ct_long* dim_degen_r_i_ax = ct_calloc(j_max + 1, sizeof(ct_long));
+	ct_long d = 0;
+	ct_long i = 0;
+	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
+	{
+		const qnumber j = t->outer_irreps[i_ax].jlist[k];
+		const ct_long dim_degen = t->dim_degen[i_ax][j];
+		assert(dim_degen > 0);
+		ind_sectors[j] = ct_malloc(dim_degen * sizeof(ct_long));  // upper bound on required memory
+		for (; i < nind; i++)
+		{
+			assert(i == 0 || ind[i - 1] < ind[i]);
+			if (ind[i] - d >= dim_degen) {
+				break;
+			}
+			ind_sectors[j][dim_degen_r_i_ax[j]] = ind[i] - d;
+			dim_degen_r_i_ax[j]++;
+		}
+		assert(dim_degen_r_i_ax[j] <= dim_degen);
+
+		d += dim_degen;
+	}
+	assert(i == nind);
+
+	// allocate (empty) 'r' tensor
+	{
+		const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
+
+		struct su2_irreducible_list outer_irreps_r_i_ax = {
+			.jlist = ct_malloc(t->outer_irreps[i_ax].num * sizeof(qnumber)),  // upper bound on required memory
+			.num = 0,
+		};
+		for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
+		{
+			const qnumber j = t->outer_irreps[i_ax].jlist[k];
+			assert(j <= j_max);
+
+			if (dim_degen_r_i_ax[j] > 0)
+			{
+				outer_irreps_r_i_ax.jlist[outer_irreps_r_i_ax.num] = j;
+				outer_irreps_r_i_ax.num++;
+			}
+		}
+		assert(outer_irreps_r_i_ax.num > 0);
+
+		struct su2_irreducible_list* outer_irreps_r = ct_malloc(ndim_outer * sizeof(struct su2_irreducible_list));
+		for (int i = 0; i < ndim_outer; i++) {
+			outer_irreps_r[i] = t->outer_irreps[i];
+		}
+		outer_irreps_r[i_ax] = outer_irreps_r_i_ax;
+
+		const ct_long** dim_degen_r = ct_malloc(t->ndim_logical * sizeof(ct_long*));
+		for (int i = 0; i < t->ndim_logical; i++) {
+			// simply copy the pointer
+			dim_degen_r[i] = t->dim_degen[i];
+		}
+		dim_degen_r[i_ax] = dim_degen_r_i_ax;
+
+		allocate_empty_su2_tensor(t->dtype, t->ndim_logical, t->ndim_auxiliary, &t->tree, outer_irreps_r, (const ct_long**)dim_degen_r, r);
+
+		ct_free(dim_degen_r);
+		ct_free(outer_irreps_r);
+		delete_su2_irreducible_list(&outer_irreps_r_i_ax);
+
+		// all possible charge sectors
+		su2_fuse_split_tree_enumerate_charge_sectors(&r->tree, r->outer_irreps, &r->charge_sectors);
+		assert(r->charge_sectors.nsec > 0);
+		// unused charge sectors will correspond to NULL pointers
+		r->degensors = ct_calloc(r->charge_sectors.nsec, sizeof(struct dense_tensor*));
+	}
+
+	for (ct_long cr = 0; cr < r->charge_sectors.nsec; cr++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist = &r->charge_sectors.jlists[cr * r->charge_sectors.ndim];
+
+		const ct_long ct = charge_sector_index(&t->charge_sectors, jlist);
+		if (ct == -1) {
+			continue;
+		}
+
+		// corresponding "degeneracy" tensor of 't'
+		const struct dense_tensor* dt = t->degensors[ct];
+		assert(dt != NULL);
+
+		// corresponding "degeneracy" tensor of 'r'
+		assert(r->degensors[cr] == NULL);
+		r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
+
+		const qnumber j = jlist[i_ax];
+		assert(r->dim_degen[i_ax][j] == dim_degen_r_i_ax[j]);
+		dense_tensor_slice(dt, i_ax, ind_sectors[j], r->dim_degen[i_ax][j], r->degensors[cr]);
+	}
+
+	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
+	{
+		const qnumber j = t->outer_irreps[i_ax].jlist[k];
+		ct_free(ind_sectors[j]);
+	}
+	ct_free(ind_sectors);
+	ct_free(dim_degen_r_i_ax);
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors
+	// find first unused charge sector
+	ct_long c = 0;
+	for (; c < r->charge_sectors.nsec; c++) {
+		if (r->degensors[c] == NULL) {
+			break;
+		}
+	}
+	const int ndim = r->charge_sectors.ndim;
+	assert(ndim == su2_tensor_ndim(r));
+	for (ct_long s = c + 1; s < r->charge_sectors.nsec; s++)
+	{
+		if (r->degensors[s] != NULL)
+		{
+			memcpy(&r->charge_sectors.jlists[c * ndim], &r->charge_sectors.jlists[s * ndim], ndim * sizeof(qnumber));
+			// copy pointer
+			r->degensors[c] = r->degensors[s];
+			r->degensors[s] = NULL;
+			c++;
+		}
+	}
+	r->charge_sectors.nsec = c;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Contraction mode of two SU(2) symmetric tensors.
 ///
 enum su2_tensor_contraction_mode

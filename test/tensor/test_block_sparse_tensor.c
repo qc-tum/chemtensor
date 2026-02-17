@@ -715,7 +715,7 @@ char* test_block_sparse_tensor_slice()
 
 	// compare with reference
 	if (!dense_block_sparse_tensor_allclose(&s_ref, &s, 0.)) {
-		return "block-sparse tensor with split axes does not match reference";
+		return "block-sparse tensor after axis slicing does not match reference";
 	}
 
 	// clean up
