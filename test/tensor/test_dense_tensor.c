@@ -5,6 +5,9 @@
 #include "hdf5_util.h"
 
 
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
 char* test_tensor_index_to_offset()
 {
 	const int ndim = 5;
@@ -214,6 +217,143 @@ char* test_dense_tensor_slice()
 
 	H5Tclose(hdf5_scomplex_id);
 	H5Fclose(file);
+
+	return 0;
+}
+
+
+static void dense_tensor_diagonal_matrix(const struct dense_tensor* restrict diag, struct dense_tensor* restrict t)
+{
+	assert(diag->ndim == 1);
+
+	const ct_long tdim[2] = { diag->dim[0], diag->dim[0] };
+	allocate_dense_tensor(diag->dtype, 2, tdim, t);
+
+	switch (diag->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* ddata = diag->data;
+			float*       tdata = t->data;
+			for (ct_long i = 0; i < diag->dim[0]; i++) {
+				tdata[i * diag->dim[0] + i] = ddata[i];
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* ddata = diag->data;
+			double*       tdata = t->data;
+			for (ct_long i = 0; i < diag->dim[0]; i++) {
+				tdata[i * diag->dim[0] + i] = ddata[i];
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* ddata = diag->data;
+			scomplex*       tdata = t->data;
+			for (ct_long i = 0; i < diag->dim[0]; i++) {
+				tdata[i * diag->dim[0] + i] = ddata[i];
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* ddata = diag->data;
+			dcomplex*       tdata = t->data;
+			for (ct_long i = 0; i < diag->dim[0]; i++) {
+				tdata[i * diag->dim[0] + i] = ddata[i];
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+char* test_dense_tensor_slice_scale()
+{
+	struct rng_state rng_state;
+	seed_rng_state(21, &rng_state);
+
+	// data types
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
+	{
+		// construct a random tensor 't'
+		struct dense_tensor t;
+		const ct_long tdim[4] = { 5, 8, 7, 3 };
+		allocate_dense_tensor(idtype, 4, tdim, &t);
+		dense_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+
+		const int i_ax = 2;
+		const ct_long ind[] = { 5, 3, 0, 1, 0, 2, 6, 3, 3 };
+
+		for (int st = 0; st < 2; st++)
+		{
+			struct dense_tensor s;
+			const ct_long sdim[1] = { ARRLEN(ind) };
+			allocate_dense_tensor(st == 0 ? numeric_real_type(t.dtype) : t.dtype, 1, sdim, &s);
+			dense_tensor_fill_random_normal(numeric_one(s.dtype), numeric_zero(s.dtype), &rng_state, &s);
+
+			struct dense_tensor r;
+			dense_tensor_slice_scale(&t, i_ax, ind, &s, &r);
+
+			// reference calculation
+			struct dense_tensor t_slice;
+			dense_tensor_slice(&t, i_ax, ind, ARRLEN(ind), &t_slice);
+			// construct a diagonal matrix containing the entries in 's'
+			struct dense_tensor s_diag;
+			if (t.dtype == CT_SINGLE_COMPLEX && s.dtype == CT_SINGLE_REAL)
+			{
+				struct dense_tensor s_cplx;
+				allocate_dense_tensor(CT_SINGLE_COMPLEX, s.ndim, s.dim, &s_cplx);
+				const float* sdata = s.data;
+				scomplex*    cdata = s_cplx.data;
+				for (ct_long i = 0; i < s.dim[0]; i++) {
+					cdata[i] = sdata[i];
+				}
+				dense_tensor_diagonal_matrix(&s_cplx, &s_diag);
+				delete_dense_tensor(&s_cplx);
+			}
+			else if (t.dtype == CT_DOUBLE_COMPLEX && s.dtype == CT_DOUBLE_REAL)
+			{
+				struct dense_tensor s_cplx;
+				allocate_dense_tensor(CT_DOUBLE_COMPLEX, s.ndim, s.dim, &s_cplx);
+				const double* sdata = s.data;
+				dcomplex*     cdata = s_cplx.data;
+				for (ct_long i = 0; i < s.dim[0]; i++) {
+					cdata[i] = sdata[i];
+				}
+				dense_tensor_diagonal_matrix(&s_cplx, &s_diag);
+				delete_dense_tensor(&s_cplx);
+			}
+			else
+			{
+				assert(t.dtype == s.dtype);
+				dense_tensor_diagonal_matrix(&s, &s_diag);
+			}
+			struct dense_tensor r_ref;
+			dense_tensor_multiply_axis(&t_slice, i_ax, &s_diag, TENSOR_AXIS_RANGE_TRAILING, &r_ref);
+			delete_dense_tensor(&s_diag);
+			delete_dense_tensor(&t_slice);
+
+			// compare
+			if (!dense_tensor_allclose(&r, &r_ref, 1e-15)) {
+				return "sliced and scaled tensor does not match reference";
+			}
+
+			delete_dense_tensor(&r_ref);
+			delete_dense_tensor(&r);
+			delete_dense_tensor(&s);
+		}
+
+		delete_dense_tensor(&t);
+	}
 
 	return 0;
 }
@@ -843,8 +983,6 @@ char* test_dense_tensor_qr()
 		construct_hdf5_double_complex_dtype(false),
 	};
 
-	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
-
 	// cases m >= n and m < n
 	for (int s = 0; s < 2; s++)
 	{
@@ -852,18 +990,18 @@ char* test_dense_tensor_qr()
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
 			// data types
-			for (int t = 0; t < CT_NUM_NUMERIC_TYPES; t++)
+			for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 			{
-				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
+				const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
 
 				// matrix 'a'
 				struct dense_tensor a;
 				const ct_long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
-				allocate_dense_tensor(dtypes[t], 2, dim, &a);
+				allocate_dense_tensor(idtype, 2, dim, &a);
 				// read values from disk
 				char varname[1024];
-				sprintf(varname, "a_s%i_t%i", s, t);
-				if (read_hdf5_dataset(file, varname, hdf5_type_ids[t], a.data) < 0) {
+				sprintf(varname, "a_s%i_t%i", s, idtype);
+				if (read_hdf5_dataset(file, varname, hdf5_type_ids[idtype], a.data) < 0) {
 					return "reading tensor entries from disk failed";
 				}
 
@@ -931,8 +1069,6 @@ char* test_dense_tensor_rq()
 		construct_hdf5_double_complex_dtype(false),
 	};
 
-	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
-
 	// cases m >= n and m < n
 	for (int s = 0; s < 2; s++)
 	{
@@ -940,18 +1076,18 @@ char* test_dense_tensor_rq()
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
 		{
 			// data types
-			for (int t = 0; t < CT_NUM_NUMERIC_TYPES; t++)
+			for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 			{
-				const double tol = (t % 2 == 0 ? 1e-5 : 1e-13);
+				const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
 
 				// matrix 'a'
 				struct dense_tensor a;
 				const ct_long dim[2] = { s == 0 ? 11 : 5, s == 0 ? 7 : 13 };
-				allocate_dense_tensor(dtypes[t], 2, dim, &a);
+				allocate_dense_tensor(idtype, 2, dim, &a);
 				// read values from disk
 				char varname[1024];
-				sprintf(varname, "a_s%i_t%i", s, t);
-				if (read_hdf5_dataset(file, varname, hdf5_type_ids[t], a.data) < 0) {
+				sprintf(varname, "a_s%i_t%i", s, idtype);
+				if (read_hdf5_dataset(file, varname, hdf5_type_ids[idtype], a.data) < 0) {
 					return "reading tensor entries from disk failed";
 				}
 
@@ -1021,21 +1157,19 @@ char* test_dense_tensor_eigh()
 		construct_hdf5_double_complex_dtype(false),
 	};
 
-	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
-
 	// data types
-	for (int j = 0; j < CT_NUM_NUMERIC_TYPES; j++)
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 	{
-		const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
+		const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 5e-6 : 1e-13);
 
 		// matrix 'a'
 		struct dense_tensor a;
 		const ct_long dim[2] = { 7, 7 };
-		allocate_dense_tensor(dtypes[j], 2, dim, &a);
+		allocate_dense_tensor(idtype, 2, dim, &a);
 		// read values from disk
 		char varname[1024];
-		sprintf(varname, "a_t%i", j);
-		if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
+		sprintf(varname, "a_t%i", idtype);
+		if (read_hdf5_dataset(file, varname, hdf5_type_ids[idtype], a.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
 		if (!dense_tensor_is_self_adjoint(&a, tol)) {
@@ -1107,24 +1241,22 @@ char* test_dense_tensor_svd()
 		construct_hdf5_double_complex_dtype(false),
 	};
 
-	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
-
 	// cases m >= n and m < n
 	for (int i = 0; i < 2; i++)
 	{
 		// data types
-		for (int j = 0; j < CT_NUM_NUMERIC_TYPES; j++)
+		for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 		{
-			const double tol = (j % 2 == 0 ? 5e-6 : 1e-13);
+			const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 5e-6 : 1e-13);
 
 			// matrix 'a'
 			struct dense_tensor a;
 			const ct_long dim[2] = { i == 0 ? 11 : 5, i == 0 ? 7 : 13 };
-			allocate_dense_tensor(dtypes[j], 2, dim, &a);
+			allocate_dense_tensor(idtype, 2, dim, &a);
 			// read values from disk
 			char varname[1024];
-			sprintf(varname, "a_s%i_t%i", i, j);
-			if (read_hdf5_dataset(file, varname, hdf5_type_ids[j], a.data) < 0) {
+			sprintf(varname, "a_s%i_t%i", i, idtype);
+			if (read_hdf5_dataset(file, varname, hdf5_type_ids[idtype], a.data) < 0) {
 				return "reading tensor entries from disk failed";
 			}
 

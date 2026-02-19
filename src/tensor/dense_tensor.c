@@ -928,6 +928,7 @@ void dense_tensor_slice(const struct dense_tensor* restrict t, const int i_ax, c
 	assert(0 <= i_ax && i_ax < t->ndim);
 	assert(nind > 0);
 
+	// allocate the 'r' tensor
 	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
 	memcpy(rdim, t->dim, t->ndim * sizeof(ct_long));
 	rdim[i_ax] = nind;
@@ -964,6 +965,186 @@ void dense_tensor_slice_fill(const struct dense_tensor* restrict t, const int i_
 			assert(0 <= ind[k] && ind[k] < t->dim[i_ax]);
 			// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 			memcpy((int8_t*)r->data + (j * nind + k) * stride, (int8_t*)t->data + (j * t->dim[i_ax] + ind[k]) * stride, stride);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Slice an axis of the tensor by selecting indices 'ind' along this axis, and pointwise-multiply the entries along this axis by the vector 's'.
+///
+/// Indices 'ind' can be duplicate and need not be sorted.
+/// Memory will be allocated for 'r'.
+///
+void dense_tensor_slice_scale(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const struct dense_tensor* restrict s, struct dense_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	// 's' must be a vector
+	assert(s->ndim == 1);
+
+	// allocate the 'r' tensor
+	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
+	memcpy(rdim, t->dim, t->ndim * sizeof(ct_long));
+	rdim[i_ax] = s->dim[0];
+	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
+	ct_free(rdim);
+
+	dense_tensor_slice_scale_fill(t, i_ax, ind, s, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Slice an axis of the tensor by selecting indices 'ind' along this axis, and pointwise-multiply the entries along this axis by the vector 's'.
+///
+/// Indices 'ind' can be duplicate and need not be sorted.
+/// 'r' must have been allocated beforehand.
+///
+void dense_tensor_slice_scale_fill(const struct dense_tensor* restrict t, const int i_ax, const ct_long* ind, const struct dense_tensor* restrict s, struct dense_tensor* restrict r)
+{
+	assert(0 <= i_ax && i_ax < t->ndim);
+	// 's' must be a vector
+	assert(s->ndim == 1);
+	assert(s->dtype == t->dtype || s->dtype == numeric_real_type(t->dtype));
+	assert(r->ndim == t->ndim);
+	assert(r->dim[i_ax] == s->dim[0]);
+
+	const ct_long nind = s->dim[0];
+
+	// leading dimension of 't' and 'r'
+	const ct_long ld = integer_product(t->dim, i_ax);
+	// trailing dimension of 't' and 'r'
+	const ct_long td = integer_product(&t->dim[i_ax + 1], t->ndim - (i_ax + 1));
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* tdata = t->data;
+			const float* sdata = s->data;
+			float*       rdata = r->data;
+
+			for (ct_long i = 0; i < ld; i++)
+			{
+				for (ct_long j = 0; j < nind; j++)
+				{
+					assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+					for (ct_long k = 0; k < td; k++)
+					{
+						rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+					}
+				}
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* tdata = t->data;
+			const double* sdata = s->data;
+			double*       rdata = r->data;
+
+			for (ct_long i = 0; i < ld; i++)
+			{
+				for (ct_long j = 0; j < nind; j++)
+				{
+					assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+					for (ct_long k = 0; k < td; k++)
+					{
+						rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+					}
+				}
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* tdata = t->data;
+			scomplex*       rdata = r->data;
+
+			if (s->dtype == CT_SINGLE_COMPLEX)
+			{
+				const scomplex* sdata = s->data;
+
+				for (ct_long i = 0; i < ld; i++)
+				{
+					for (ct_long j = 0; j < nind; j++)
+					{
+						assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+						for (ct_long k = 0; k < td; k++)
+						{
+							rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+						}
+					}
+				}
+			}
+			else
+			{
+				assert(s->dtype == CT_SINGLE_REAL);
+				const float* sdata = s->data;
+
+				for (ct_long i = 0; i < ld; i++)
+				{
+					for (ct_long j = 0; j < nind; j++)
+					{
+						assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+						for (ct_long k = 0; k < td; k++)
+						{
+							rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+						}
+					}
+				}
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* tdata = t->data;
+			dcomplex*       rdata = r->data;
+
+			if (s->dtype == CT_DOUBLE_COMPLEX)
+			{
+				const dcomplex* sdata = s->data;
+
+				for (ct_long i = 0; i < ld; i++)
+				{
+					for (ct_long j = 0; j < nind; j++)
+					{
+						assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+						for (ct_long k = 0; k < td; k++)
+						{
+							rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+						}
+					}
+				}
+			}
+			else
+			{
+				assert(s->dtype == CT_DOUBLE_REAL);
+				const double* sdata = s->data;
+
+				for (ct_long i = 0; i < ld; i++)
+				{
+					for (ct_long j = 0; j < nind; j++)
+					{
+						assert(0 <= ind[j] && ind[j] < t->dim[i_ax]);
+						for (ct_long k = 0; k < td; k++)
+						{
+							rdata[(i * nind + j) * td + k] = sdata[j] * tdata[(i * t->dim[i_ax] + ind[j]) * td + k];
+						}
+					}
+				}
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }

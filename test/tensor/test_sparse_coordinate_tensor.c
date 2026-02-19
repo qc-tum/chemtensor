@@ -69,7 +69,7 @@ char* test_sparse_coordinate_tensor_transpose()
 	seed_rng_state(51, &rng_state);
 
 	// data types
-	for (int dtype = 0; dtype < CT_NUM_NUMERIC_TYPES; dtype++)
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 	{
 		// special case of all zero entries, and generic case
 		for (int c = 0; c < 2; c++)
@@ -81,12 +81,12 @@ char* test_sparse_coordinate_tensor_transpose()
 				struct dense_tensor t_dns;
 				if (d == 0)
 				{
-					allocate_dense_tensor(dtype, 0, NULL, &t_dns);
+					allocate_dense_tensor(idtype, 0, NULL, &t_dns);
 				}
 				else
 				{
 					const ct_long dim[7] = { 17, 2, 5, 3, 1, 11, 8 };
-					allocate_dense_tensor(dtype, 7, dim, &t_dns);
+					allocate_dense_tensor(idtype, 7, dim, &t_dns);
 				}
 
 				if (c == 1) {
@@ -139,7 +139,7 @@ char* test_sparse_coordinate_tensor_dot()
 	seed_rng_state(52, &rng_state);
 
 	// data types
-	for (int dtype = 0; dtype < CT_NUM_NUMERIC_TYPES; dtype++)
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 	{
 		// special case of all zero entries in first tensor, and generic case
 		for (int cs = 0; cs < 2; cs++)
@@ -151,12 +151,12 @@ char* test_sparse_coordinate_tensor_dot()
 				if (ds == 0)
 				{
 					const ct_long dim[2] = { 11, 4 };
-					allocate_dense_tensor(dtype, 2, dim, &s_dns);
+					allocate_dense_tensor(idtype, 2, dim, &s_dns);
 				}
 				else
 				{
 					const ct_long dim[4] = { 7, 9, 11, 4 };
-					allocate_dense_tensor(dtype, 4, dim, &s_dns);
+					allocate_dense_tensor(idtype, 4, dim, &s_dns);
 				}
 
 				if (cs == 1) {
@@ -180,12 +180,12 @@ char* test_sparse_coordinate_tensor_dot()
 						if (dt == 0)
 						{
 							const ct_long dim[2] = { 11, 4 };
-							allocate_dense_tensor(dtype, 2, dim, &t_dns);
+							allocate_dense_tensor(idtype, 2, dim, &t_dns);
 						}
 						else
 						{
 							const ct_long dim[5] = { 17, 1, 5, 11, 4 };
-							allocate_dense_tensor(dtype, 5, dim, &t_dns);
+							allocate_dense_tensor(idtype, 5, dim, &t_dns);
 						}
 
 						if (ct == 1) {
@@ -214,7 +214,7 @@ char* test_sparse_coordinate_tensor_dot()
 						sparse_coordinate_to_dense_tensor(&r, &r_dns);
 
 						// compare
-						const double tol = (numeric_real_type(dtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
+						const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
 						if (!dense_tensor_allclose(&r_dns, &r_ref, tol)) {
 							return "dot product of two sparse coordinate tensors does not agree with reference";
 						}
@@ -250,18 +250,18 @@ char* test_sparse_coordinate_to_dense_tensor()
 		for (int d = 0; d < 2; d++)
 		{
 			// data types
-			for (int dtype = 0; dtype < CT_NUM_NUMERIC_TYPES; dtype++)
+			for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 			{
 				struct dense_tensor t;
 				if (d == 0)
 				{
-					allocate_dense_tensor(dtype, 0, NULL, &t);
+					allocate_dense_tensor(idtype, 0, NULL, &t);
 				}
 				else
 				{
 					const int ndim = 5;
 					const ct_long dim[5] = { 4, 7, 1, 13, 5 };
-					allocate_dense_tensor(dtype, ndim, dim, &t);
+					allocate_dense_tensor(idtype, ndim, dim, &t);
 				}
 
 				if (c == 1)

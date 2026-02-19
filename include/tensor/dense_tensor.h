@@ -158,6 +158,10 @@ void dense_tensor_slice(const struct dense_tensor* t, const int i_ax, const ct_l
 
 void dense_tensor_slice_fill(const struct dense_tensor* t, const int i_ax, const ct_long* ind, const ct_long nind, struct dense_tensor* r);
 
+void dense_tensor_slice_scale(const struct dense_tensor* t, const int i_ax, const ct_long* ind, const struct dense_tensor* s, struct dense_tensor* r);
+
+void dense_tensor_slice_scale_fill(const struct dense_tensor* t, const int i_ax, const ct_long* ind, const struct dense_tensor* s, struct dense_tensor* r);
+
 
 //________________________________________________________________________________________________________________________
 //

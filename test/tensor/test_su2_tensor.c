@@ -3233,12 +3233,10 @@ char* test_su2_tensor_svd()
 	struct rng_state rng_state;
 	seed_rng_state(49, &rng_state);
 
-	const enum numeric_type dtypes[4] = { CT_SINGLE_REAL, CT_DOUBLE_REAL, CT_SINGLE_COMPLEX, CT_DOUBLE_COMPLEX };
-
 	// data types
-	for (int dt = 0; dt < CT_NUM_NUMERIC_TYPES; dt++)
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 	{
-		const double tol = (dt % 2 == 0 ? 5e-6 : 1e-13);
+		const double tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 5e-6 : 1e-13);
 
 		for (int copy_tree_left = 0; copy_tree_left < 2; copy_tree_left++)
 		{
@@ -3320,7 +3318,7 @@ char* test_su2_tensor_svd()
 							dim_degen1,
 						};
 
-						allocate_su2_tensor(dtypes[dt], 2, 1, &tree, outer_irreps, dim_degen, &a);
+						allocate_su2_tensor(idtype, 2, 1, &tree, outer_irreps, dim_degen, &a);
 						delete_su2_fuse_split_tree(&tree);
 
 						// delete a charge sector

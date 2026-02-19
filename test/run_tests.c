@@ -19,6 +19,7 @@ char* test_dense_tensor_trace();
 char* test_dense_tensor_cyclic_partial_trace();
 char* test_dense_tensor_transpose();
 char* test_dense_tensor_slice();
+char* test_dense_tensor_slice_scale();
 char* test_dense_tensor_pad_zeros();
 char* test_dense_tensor_multiply_pointwise();
 char* test_dense_tensor_multiply_axis();
@@ -155,6 +156,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_cyclic_partial_trace),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_slice),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_slice_scale),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_pad_zeros),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_pointwise),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_axis),
