@@ -552,7 +552,7 @@ void sparse_coordinate_tensor_dot(const struct sparse_coordinate_tensor* restric
 void sparse_coordinate_to_dense_tensor(const struct sparse_coordinate_tensor* s, struct dense_tensor* t)
 {
 	// data entries are initialized to zeros
-	allocate_dense_tensor(s->dtype, s->ndim, s->dim, t);
+	allocate_zero_dense_tensor(s->dtype, s->ndim, s->dim, t);
 
 	switch (s->dtype)
 	{

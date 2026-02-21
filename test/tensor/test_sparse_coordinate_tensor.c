@@ -81,12 +81,12 @@ char* test_sparse_coordinate_tensor_transpose()
 				struct dense_tensor t_dns;
 				if (d == 0)
 				{
-					allocate_dense_tensor(idtype, 0, NULL, &t_dns);
+					allocate_zero_dense_tensor(idtype, 0, NULL, &t_dns);
 				}
 				else
 				{
 					const ct_long dim[7] = { 17, 2, 5, 3, 1, 11, 8 };
-					allocate_dense_tensor(idtype, 7, dim, &t_dns);
+					allocate_zero_dense_tensor(idtype, 7, dim, &t_dns);
 				}
 
 				if (c == 1) {
@@ -151,12 +151,12 @@ char* test_sparse_coordinate_tensor_dot()
 				if (ds == 0)
 				{
 					const ct_long dim[2] = { 11, 4 };
-					allocate_dense_tensor(idtype, 2, dim, &s_dns);
+					allocate_zero_dense_tensor(idtype, 2, dim, &s_dns);
 				}
 				else
 				{
 					const ct_long dim[4] = { 7, 9, 11, 4 };
-					allocate_dense_tensor(idtype, 4, dim, &s_dns);
+					allocate_zero_dense_tensor(idtype, 4, dim, &s_dns);
 				}
 
 				if (cs == 1) {
@@ -180,12 +180,12 @@ char* test_sparse_coordinate_tensor_dot()
 						if (dt == 0)
 						{
 							const ct_long dim[2] = { 11, 4 };
-							allocate_dense_tensor(idtype, 2, dim, &t_dns);
+							allocate_zero_dense_tensor(idtype, 2, dim, &t_dns);
 						}
 						else
 						{
 							const ct_long dim[5] = { 17, 1, 5, 11, 4 };
-							allocate_dense_tensor(idtype, 5, dim, &t_dns);
+							allocate_zero_dense_tensor(idtype, 5, dim, &t_dns);
 						}
 
 						if (ct == 1) {
@@ -255,13 +255,13 @@ char* test_sparse_coordinate_to_dense_tensor()
 				struct dense_tensor t;
 				if (d == 0)
 				{
-					allocate_dense_tensor(idtype, 0, NULL, &t);
+					allocate_zero_dense_tensor(idtype, 0, NULL, &t);
 				}
 				else
 				{
 					const int ndim = 5;
 					const ct_long dim[5] = { 4, 7, 1, 13, 5 };
-					allocate_dense_tensor(idtype, ndim, dim, &t);
+					allocate_zero_dense_tensor(idtype, ndim, dim, &t);
 				}
 
 				if (c == 1)

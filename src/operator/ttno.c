@@ -173,7 +173,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			}
 		}
 		struct dense_tensor a_loc;
-		allocate_dense_tensor(assembly->dtype, ndim_a_loc, dim_a_loc, &a_loc);
+		allocate_zero_dense_tensor(assembly->dtype, ndim_a_loc, dim_a_loc, &a_loc);
 		ct_free(dim_a_loc);
 
 		for (int n = 0; n < assembly->graph.num_edges[l]; n++)

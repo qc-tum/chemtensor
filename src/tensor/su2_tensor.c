@@ -70,7 +70,7 @@ void allocate_su2_tensor(const enum numeric_type dtype, const int ndim_logical, 
 			dim_d[i] = t->dim_degen[i][j];
 		}
 		t->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_dense_tensor(t->dtype, t->ndim_logical, dim_d, t->degensors[c]);
+		allocate_zero_dense_tensor(t->dtype, t->ndim_logical, dim_d, t->degensors[c]);
 		ct_free(dim_d);
 	}
 }
@@ -424,11 +424,9 @@ void conjugate_su2_tensor(struct su2_tensor* t)
 ///
 void su2_tensor_swap_tree_axes(struct su2_tensor* t, const int i_ax_0, const int i_ax_1)
 {
-	const int ndim_outer = t->ndim_logical + t->ndim_auxiliary;
-
 	assert(i_ax_0 != i_ax_1);
-	assert(0 <= i_ax_0 && i_ax_0 < ndim_outer);
-	assert(0 <= i_ax_1 && i_ax_1 < ndim_outer);
+	assert(0 <= i_ax_0 && i_ax_0 < t->ndim_logical + t->ndim_auxiliary);
+	assert(0 <= i_ax_1 && i_ax_1 < t->ndim_logical + t->ndim_auxiliary);
 
 	const int i_ax[2] = { i_ax_0, i_ax_1 };
 	struct su2_tree_node* node = (struct su2_tree_node*)su2_subtree_with_leaf_axes(t->tree.tree_fuse, i_ax, 2);
@@ -1178,7 +1176,7 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 				dim_d[i] = r->dim_degen[i][j];
 			}
 			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
-			allocate_dense_tensor(r->dtype, r->ndim_logical, dim_d, r->degensors[cr]);
+			allocate_zero_dense_tensor(r->dtype, r->ndim_logical, dim_d, r->degensors[cr]);
 			ct_free(dim_d);
 		}
 		struct dense_tensor* dr = r->degensors[cr];
@@ -1301,11 +1299,13 @@ void su2_tensor_fuse_axes_add_auxiliary(const struct su2_tensor* restrict t, con
 		struct su2_fuse_split_tree tree_r;
 		copy_su2_fuse_split_tree(&t->tree, &tree_r);
 		su2_fuse_split_tree_update_axes_indices(&tree_r, axis_map);
+		#ifndef NDEBUG
 		struct su2_tree_node* node = (struct su2_tree_node*)su2_tree_find_node(in_fuse_tree ? tree_r.tree_fuse : tree_r.tree_split, axis_map[i_ax_p]);
 		assert(node != NULL);
 		assert((node->c[0]->i_ax == axis_map[i_ax_0] && node->c[1]->i_ax == axis_map[i_ax_1]) ||
 		       (node->c[0]->i_ax == axis_map[i_ax_1] && node->c[1]->i_ax == axis_map[i_ax_0]));
 		assert(su2_fuse_split_tree_is_consistent(&tree_r));
+		#endif
 
 		ct_long* dim_degen_fused = ct_calloc(j_max_fused + 1, sizeof(ct_long));
 		for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++)
@@ -1453,7 +1453,7 @@ void su2_tensor_fuse_axes_add_auxiliary(const struct su2_tensor* restrict t, con
 				dim_d[i] = r->dim_degen[i][j];
 			}
 			r->degensors[cr] = ct_calloc(1, sizeof(struct dense_tensor));
-			allocate_dense_tensor(r->dtype, r->ndim_logical, dim_d, r->degensors[cr]);
+			allocate_zero_dense_tensor(r->dtype, r->ndim_logical, dim_d, r->degensors[cr]);
 			ct_free(dim_d);
 		}
 		struct dense_tensor* dr = r->degensors[cr];
@@ -1720,7 +1720,7 @@ void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_s
 				assert(r->dim_degen[i][j] > 0);
 				dim_d[perm[i]] = r->dim_degen[i][j];
 			}
-			allocate_dense_tensor(r->dtype, r->ndim_logical, dim_d, &dr_perm);
+			allocate_zero_dense_tensor(r->dtype, r->ndim_logical, dim_d, &dr_perm);
 			ct_free(dim_d);
 		}
 
@@ -1979,7 +1979,7 @@ void su2_tensor_split_axis_remove_auxiliary(const struct su2_tensor* restrict t,
 				assert(r->dim_degen[i][j] > 0);
 				dim_d[perm[i]] = r->dim_degen[i][j];
 			}
-			allocate_dense_tensor(r->dtype, r->ndim_logical, dim_d, &dr_perm);
+			allocate_zero_dense_tensor(r->dtype, r->ndim_logical, dim_d, &dr_perm);
 			ct_free(dim_d);
 		}
 
@@ -3028,7 +3028,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 	}
 
 	// allocate dense tensor
-	allocate_dense_tensor(s->dtype, s->ndim_logical, dim_t, t);
+	allocate_zero_dense_tensor(s->dtype, s->ndim_logical, dim_t, t);
 	ct_free(dim_t);
 
 	// number of outer dimensions, i.e., number of leaves
@@ -3301,7 +3301,7 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'q'
 		const ct_long cq = charge_sector_index(&q->charge_sectors, jlist);
 		assert(cq != -1);
-		// allocate new degeneracy tensor with zero entries
+		// allocate new degeneracy tensor
 		{
 			ct_long dim_d[2] = {
 				q->dim_degen[0][jlist[0]],
@@ -3315,7 +3315,7 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'r'
 		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist);
 		assert(cr != -1);
-		// allocate new degeneracy tensor with zero entries
+		// allocate new degeneracy tensor
 		{
 			ct_long dim_d[2] = {
 				r->dim_degen[0][jlist[0]],
@@ -3358,7 +3358,7 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		};
 		assert(dim_d[0] >= dim_d[1]);
 		q->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
+		allocate_zero_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
 		// set diagonal entries to ones
 		switch (q->degensors[c]->dtype)
 		{
@@ -3566,7 +3566,7 @@ int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'q'
 		const ct_long cq = charge_sector_index(&q->charge_sectors, jlist);
 		assert(cq != -1);
-		// allocate new degeneracy tensor with zero entries
+		// allocate new degeneracy tensor
 		{
 			ct_long dim_d[2] = {
 				q->dim_degen[0][jlist[0]],
@@ -3580,7 +3580,7 @@ int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		// charge sector must also exist in 'r'
 		const ct_long cr = charge_sector_index(&r->charge_sectors, jlist);
 		assert(cr != -1);
-		// allocate new degeneracy tensor with zero entries
+		// allocate new degeneracy tensor
 		{
 			ct_long dim_d[2] = {
 				r->dim_degen[0][jlist[0]],
@@ -3623,7 +3623,7 @@ int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 		};
 		assert(dim_d[0] <= dim_d[1]);
 		q->degensors[c] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
+		allocate_zero_dense_tensor(q->dtype, 2, dim_d, q->degensors[c]);
 		// set diagonal entries to ones
 		switch (q->degensors[c]->dtype)
 		{

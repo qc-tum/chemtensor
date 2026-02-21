@@ -30,6 +30,8 @@ struct dense_tensor
 
 void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t);
 
+void allocate_zero_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t);
+
 void delete_dense_tensor(struct dense_tensor* t);
 
 void copy_dense_tensor(const struct dense_tensor* src, struct dense_tensor* dst);

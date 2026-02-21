@@ -76,7 +76,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 		// accumulate entries in a dense tensor first
 		const ct_long dim_a_loc[4] = { assembly->graph.num_verts[l], d, d, assembly->graph.num_verts[l + 1] };
 		struct dense_tensor a_loc;
-		allocate_dense_tensor(assembly->dtype, 4, dim_a_loc, &a_loc);
+		allocate_zero_dense_tensor(assembly->dtype, 4, dim_a_loc, &a_loc);
 
 		for (int i = 0; i < assembly->graph.num_edges[l]; i++)
 		{

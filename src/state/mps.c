@@ -1430,7 +1430,7 @@ int load_mps(const char* filename, struct mps* mps)
 	for (int i = 0; i < nsites; i++)
 	{
 		struct dense_tensor dt;
-		allocate_dense_tensor(mps->a[i].dtype, mps->a[i].ndim, mps->a[i].dim_logical, &dt);
+		allocate_zero_dense_tensor(mps->a[i].dtype, mps->a[i].ndim, mps->a[i].dim_logical, &dt);
 		char varname[128];
 		sprintf(varname, "tensor_%i", i);
 		if (read_hdf5_dataset(file, varname, hdf5_dtype, dt.data) < 0)

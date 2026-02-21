@@ -1704,7 +1704,7 @@ char* test_block_sparse_tensor_get_entry()
 
 	// reconstruct dense tensor entry-by-entry
 	struct dense_tensor t_reconstr;
-	allocate_dense_tensor(t.dtype, t.ndim, t.dim_logical, &t_reconstr);
+	allocate_zero_dense_tensor(t.dtype, t.ndim, t.dim_logical, &t_reconstr);
 	ct_long* index = ct_calloc(t.ndim, sizeof(ct_long));
 	const ct_long nelem = dense_tensor_num_elements(&t_reconstr);
 	float* tdata = t_reconstr.data;

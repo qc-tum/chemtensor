@@ -54,7 +54,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		// allocate memory for a single block
 		t->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
 		t->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_dense_tensor(dtype, ndim, dim, t->blocks[0]);
+		allocate_zero_dense_tensor(dtype, ndim, dim, t->blocks[0]);
 
 		return;
 	}
@@ -138,7 +138,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		for (int i = 0; i < ndim; i++) {
 			bdim[i] = qcounts[i][index_block[i]].count;
 		}
-		allocate_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
+		allocate_zero_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
 		ct_free(bdim);
 	}
 	ct_free(index_block);
@@ -515,7 +515,7 @@ void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift
 ///
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, struct dense_tensor* restrict t)
 {
-	allocate_dense_tensor(s->dtype, s->ndim, s->dim_logical, t);
+	allocate_zero_dense_tensor(s->dtype, s->ndim, s->dim_logical, t);
 
 	// for each block with matching quantum numbers...
 	const ct_long nblocks = integer_product(s->dim_blocks, s->ndim);
@@ -2745,7 +2745,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 
 	// allocate the 's' vector
 	const ct_long dim_s[1] = { dim_interm };
-	allocate_dense_tensor(numeric_real_type(a->dtype), 1, dim_s, s);
+	allocate_zero_dense_tensor(numeric_real_type(a->dtype), 1, dim_s, s);
 
 	// allocate the 'vh' matrix
 	const ct_long dim_vh[2] = { dim_interm, a->dim_logical[1] };

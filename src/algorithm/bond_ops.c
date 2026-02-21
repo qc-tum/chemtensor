@@ -60,7 +60,7 @@ int split_block_sparse_matrix_svd(const struct block_sparse_tensor* restrict a,
 		// dummy singular value vector with a single entry 0
 		struct dense_tensor s_zero;
 		const ct_long sdim[1] = { 1 };
-		allocate_dense_tensor(s.dtype, 1, sdim, &s_zero);
+		allocate_zero_dense_tensor(s.dtype, 1, sdim, &s_zero);
 		delete_dense_tensor(&s);
 
 		if (svd_distr == SVD_DISTR_LEFT)

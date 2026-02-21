@@ -108,7 +108,7 @@ char* test_mpo_graph_from_opchains_basic()
 	// sum matrix representations of individual operator chains
 	struct dense_tensor a_chains;
 	const ct_long dim_a_chains[2] = { dim_full, dim_full };
-	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_chains, &a_chains);
+	allocate_zero_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;
@@ -237,7 +237,7 @@ char* test_mpo_graph_from_opchains_advanced()
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor a_chains;
 	const ct_long dim_a_chains[2] = { dim_full, dim_full };
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
+	allocate_zero_dense_tensor(CT_SINGLE_COMPLEX, 2, dim_a_chains, &a_chains);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;

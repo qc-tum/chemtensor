@@ -14,9 +14,39 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Allocate memory for a dense tensor, without initializing the data entries.
+///
+void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t)
+{
+	t->dtype = dtype;
+
+	assert(ndim >= 0);
+	t->ndim = ndim;
+
+	if (ndim > 0)
+	{
+		t->dim = ct_malloc(ndim * sizeof(ct_long));
+		memcpy(t->dim, dim, ndim * sizeof(ct_long));
+	}
+	else    // ndim == 0
+	{
+		// ct_malloc(0) not guaranteed to return NULL
+		t->dim = NULL;
+	}
+
+	const ct_long nelem = dense_tensor_num_elements(t);
+	// dimensions must be strictly positive
+	assert(nelem > 0);
+	t->data = ct_malloc(nelem * sizeof_numeric_type(dtype));
+	assert(t->data != NULL);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Allocate memory for a dense tensor, and initialize the data entries with zeros.
 ///
-void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, struct dense_tensor* restrict t)
+void allocate_zero_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t)
 {
 	t->dtype = dtype;
 
@@ -223,7 +253,7 @@ void dense_tensor_cyclic_partial_trace(const struct dense_tensor* t, const int n
 	}
 
 	// construct new tensor 'r'
-	allocate_dense_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim + ndim_trace, r);
+	allocate_zero_dense_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim + ndim_trace, r);
 
 	dense_tensor_cyclic_partial_trace_update(t, ndim_trace, r);
 }
@@ -1176,7 +1206,7 @@ void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long
 		rdim[i] = pad_before[i] + t->dim[i] + pad_after[i];
 	}
 
-	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
+	allocate_zero_dense_tensor(t->dtype, t->ndim, rdim, r);
 
 	ct_free(rdim);
 
@@ -1875,7 +1905,7 @@ void dense_tensor_kronecker_product(const struct dense_tensor* restrict s, const
 		rdim_il[2*i  ] = s->dim[i];
 		rdim_il[2*i+1] = t->dim[i];
 	}
-	allocate_dense_tensor(s->dtype, s->ndim + t->ndim, rdim_il, r);
+	allocate_zero_dense_tensor(s->dtype, s->ndim + t->ndim, rdim_il, r);
 	ct_free(rdim_il);
 
 	ct_long* index_s = ct_calloc(s->ndim, sizeof(ct_long));
@@ -2084,7 +2114,7 @@ void dense_tensor_block_diag(const struct dense_tensor* restrict tlist, const in
 	}
 
 	// allocate new tensor
-	allocate_dense_tensor(tlist[0].dtype, ndim, rdim, r);
+	allocate_zero_dense_tensor(tlist[0].dtype, ndim, rdim, r);
 
 	ct_free(rdim);
 	ct_free(i_ax_indicator);

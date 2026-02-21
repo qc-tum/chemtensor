@@ -161,7 +161,7 @@ char* test_ttno_graph_from_opchains()
 	// sum matrix representations of individual operator chains, as reference
 	struct dense_tensor mat_ref;
 	const ct_long dim_mat_ref[2] = { dim_full_physical, dim_full_physical };
-	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
+	allocate_zero_dense_tensor(CT_DOUBLE_COMPLEX, 2, dim_mat_ref, &mat_ref);
 	for (int i = 0; i < nchains; i++)
 	{
 		struct dense_tensor c;

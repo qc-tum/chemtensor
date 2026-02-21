@@ -69,7 +69,7 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const ct_long dim[2] = { assembly->d, assembly->d };
-		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
+		allocate_zero_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
 	dense_tensor_set_identity(&assembly->opmap[OID_Id]);

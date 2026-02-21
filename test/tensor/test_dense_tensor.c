@@ -227,7 +227,7 @@ static void dense_tensor_diagonal_matrix(const struct dense_tensor* restrict dia
 	assert(diag->ndim == 1);
 
 	const ct_long tdim[2] = { diag->dim[0], diag->dim[0] };
-	allocate_dense_tensor(diag->dtype, 2, tdim, t);
+	allocate_zero_dense_tensor(diag->dtype, 2, tdim, t);
 
 	switch (diag->dtype)
 	{

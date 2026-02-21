@@ -183,7 +183,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const ct_long d, c
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	for (int i = 0; i < assembly->num_local_ops; i++) {
 		const ct_long dim[2] = { d, d };
-		allocate_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
+		allocate_zero_dense_tensor(assembly->dtype, 2, dim, &assembly->opmap[i]);
 	}
 	// identity operator
 	dense_tensor_set_identity(&assembly->opmap[OID_Id]);
@@ -291,7 +291,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor n_tot;
 	{
 		const ct_long dim[2] = { 4, 4 };
-		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_tot);
+		allocate_zero_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_tot);
 		const double diag[4] = { 0, 1, 1, 2 };
 		double* data = n_tot.data;
 		for (int i = 0; i < 4; i++) {
@@ -302,7 +302,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	struct dense_tensor n_int;
 	{
 		const ct_long dim[2] = { 4, 4 };
-		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_int);
+		allocate_zero_dense_tensor(CT_DOUBLE_REAL, 2, dim, &n_int);
 		const double diag[4] = {  0.25, -0.25, -0.25,  0.25 };
 		double* data = n_int.data;
 		for (int i = 0; i < 4; i++) {
