@@ -1,6 +1,12 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../tensor")
+sys.path.append("../util/")
+from opchain import OpChain
+from opgraph import OpGraph
+from block_sparse_util import qnumber_outer_sum
+from crandn import crandn
 
 
 def ttno_graph_from_opchains_data():
@@ -9,9 +15,9 @@ def ttno_graph_from_opchains_data():
     rng = np.random.default_rng(307)
 
     # physical quantum numbers
-    qd = np.array([0, -1, 1])
+    qsite = np.array([0, -1, 1])
     # local physical dimension
-    d = len(qd)
+    d = len(qsite)
     # number of physical sites
     nsites_physical = 5
 
@@ -20,33 +26,33 @@ def ttno_graph_from_opchains_data():
     # number of local operators
     num_local_ops = 18
 
-    coeffmap = np.concatenate((np.array([0., 1.]), ptn.crandn(7, rng)))
+    coeffmap = np.concatenate((np.array([0., 1.]), crandn(7, rng)))
 
     cids = [5, 8, 7, 4, 3, 2, 3, 6, 4]
     chains = [  #     0   1   2   3   4       0   1   2   3   4
-        ptn.OpChain([     6,  9,  5, 15], [     0, -1, -1,  1,  0], coeffmap[cids[0]], 1),
-        ptn.OpChain([ 8, 16,  2, 11,  3], [ 0, -1,  1,  2,  1,  0], coeffmap[cids[1]], 0),
-        ptn.OpChain([        10,  1    ], [         0,  1,  0    ], coeffmap[cids[2]], 2),
-        ptn.OpChain([ 9,  7, 13, 12,  1], [ 0,  0, -1, -1,  1,  0], coeffmap[cids[3]], 0),
-        ptn.OpChain([     0, 17,  4,  7], [     0,  0,  1,  1,  0], coeffmap[cids[4]], 1),
-        ptn.OpChain([            15, 14], [             0, -1,  0], coeffmap[cids[5]], 3),
-        ptn.OpChain([     9,  2,  1    ], [     0,  0,  1,  0    ], coeffmap[cids[6]], 1),
-        ptn.OpChain([ 7,  0,  0, 14,  9], [ 0, -1, -1, -1,  0,  0], coeffmap[cids[7]], 0),
-        ptn.OpChain([        10,  0,  7], [         0,  1,  1,  0], coeffmap[cids[8]], 2),
+        OpChain([     6,  9,  5, 15], [     0, -1, -1,  1,  0], coeffmap[cids[0]], 1),
+        OpChain([ 8, 16,  2, 11,  3], [ 0, -1,  1,  2,  1,  0], coeffmap[cids[1]], 0),
+        OpChain([        10,  1    ], [         0,  1,  0    ], coeffmap[cids[2]], 2),
+        OpChain([ 9,  7, 13, 12,  1], [ 0,  0, -1, -1,  1,  0], coeffmap[cids[3]], 0),
+        OpChain([     0, 17,  4,  7], [     0,  0,  1,  1,  0], coeffmap[cids[4]], 1),
+        OpChain([            15, 14], [             0, -1,  0], coeffmap[cids[5]], 3),
+        OpChain([     9,  2,  1    ], [     0,  0,  1,  0    ], coeffmap[cids[6]], 1),
+        OpChain([ 7,  0,  0, 14,  9], [ 0, -1, -1, -1,  0,  0], coeffmap[cids[7]], 0),
+        OpChain([        10,  0,  7], [         0,  1,  1,  0], coeffmap[cids[8]], 2),
     ]
 
-    graph = ptn.OpGraph.from_opchains(chains, nsites_physical, oid_identity)
+    graph = OpGraph.from_opchains(chains, nsites_physical, oid_identity)
     assert graph.is_consistent()
     assert graph.length == nsites_physical
 
     # random local operators
-    opmap = [np.identity(len(qd), dtype=complex) if opid == oid_identity else ptn.crandn((d, d), rng)
+    opmap = [np.identity(d, dtype=complex) if opid == oid_identity else crandn((d, d), rng)
              for opid in range(num_local_ops)]
     # enforce sparsity pattern according to quantum numbers
     for chain in chains:
         for i, opid in enumerate(chain.oids):
-            qDloc = chain.qnums[i:i+2]
-            mask = ptn.qnumber_outer_sum([qd, -qd, [qDloc[0]], [-qDloc[1]]])[:, :, 0, 0]
+            qbonds_loc = chain.qnums[i:i+2]
+            mask = qnumber_outer_sum([qsite, -qsite, [qbonds_loc[0]], [-qbonds_loc[1]]])[:, :, 0, 0]
             opmap[opid] = np.where(mask == 0, opmap[opid], 0)
     # sparsity pattern should not lead to zero operators
     for op in opmap:
@@ -57,9 +63,9 @@ def ttno_graph_from_opchains_data():
     for chain in chains:
         # including leading and trailing identity maps
         mat_ref = mat_ref + np.kron(np.kron(
-            np.identity(len(qd)**chain.istart),
-            chain.as_matrix(opmap)),
-            np.identity(len(qd)**(nsites_physical - (chain.istart + chain.length))))
+            np.identity(d**chain.istart),
+            chain.to_matrix(opmap)),
+            np.identity(d**(nsites_physical - (chain.istart + chain.length))))
 
     # group sites (0, 4) and (1, 2, 3)
     rank_04_123 = _operator_partition_rank(mat_ref, d, (0, 4), (1, 2, 3))

@@ -24,14 +24,17 @@ def construct_heisenberg_1d_hamiltonian(nsites: int, J: float):
     on a one-dimensional lattice as sparse matrix.
     """
     # spin operators
-    Sup = np.array([[0.,  1.], [0.,  0. ]])
-    Sdn = np.array([[0.,  0.], [1.,  0. ]])
-    Sz  = np.array([[0.5, 0.], [0., -0.5]])
+    sup = np.array([[0.,  1.], [0.,  0. ]])
+    sdn = np.array([[0.,  0.], [1.,  0. ]])
+    sz  = np.array([[0.5, 0.], [0., -0.5]])
     # local interaction term
-    hint = J * (0.5 * (sparse.kron(Sup, Sdn) + sparse.kron(Sdn, Sup)) + sparse.kron(Sz, Sz))
-    return sum(sparse.kron(sparse.identity(2**j),
-               sparse.kron(hint,
-                           sparse.identity(2**(nsites-j-2)))) for j in range(nsites - 1))
+    hint = J * (0.5 * (sparse.kron(sup, sdn) + sparse.kron(sdn, sup)) + sparse.kron(sz, sz))
+    hamiltonian = \
+        sum(sparse.kron(sparse.identity(2**j),
+            sparse.kron(hint,
+                        sparse.identity(2**(nsites-j-2)))) for j in range(nsites - 1))
+    hamiltonian.eliminate_zeros()
+    return hamiltonian
 
 
 def main():

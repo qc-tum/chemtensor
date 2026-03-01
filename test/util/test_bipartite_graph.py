@@ -1,6 +1,6 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+from bipartite_graph import BipartiteGraph, HopcroftKarp, minimum_vertex_cover
 
 
 def bipartite_graph_maximum_cardinality_matching_data():
@@ -16,10 +16,10 @@ def bipartite_graph_maximum_cardinality_matching_data():
         for v in range(num_v):
             if rng.uniform() < 0.05:
                 edges.append((u, v))
-    graph = ptn.BipartiteGraph(num_u, num_v, edges)
+    graph = BipartiteGraph(num_u, num_v, edges)
 
     # run Hopcroft-Karp algorithm
-    hopcroft_karp = ptn.HopcroftKarp(graph)
+    hopcroft_karp = HopcroftKarp(graph)
     matching = hopcroft_karp()
 
     with h5py.File("data/test_bipartite_graph_maximum_cardinality_matching.hdf5", "w") as file:
@@ -42,10 +42,10 @@ def bipartite_graph_minimum_vertex_cover_data():
         for v in range(num_v):
             if rng.uniform() < 0.02:
                 edges.append((u, v))
-    graph = ptn.BipartiteGraph(num_u, num_v, edges)
+    graph = BipartiteGraph(num_u, num_v, edges)
 
     # obtain a minimum vertex cover
-    u_cover, v_cover = ptn.minimum_vertex_cover(graph)
+    u_cover, v_cover = minimum_vertex_cover(graph)
 
     with h5py.File("data/test_bipartite_graph_minimum_vertex_cover.hdf5", "w") as file:
         file.attrs["num_u"] = num_u

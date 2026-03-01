@@ -1,6 +1,8 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../util/")
+from crandn import crandn
 
 
 def dense_tensor_trace_data():
@@ -8,7 +10,7 @@ def dense_tensor_trace_data():
     # random number generator
     rng = np.random.default_rng(95)
 
-    t = ptn.crandn((5, 5, 5), rng)
+    t = crandn((5, 5, 5), rng)
 
     # sum of diagonal entries
     tr = 0
@@ -27,7 +29,7 @@ def dense_tensor_cyclic_partial_trace_data():
 
     ndim_trace = 2
 
-    t = ptn.crandn((5, 2, 3, 4, 1, 5, 2), rng).astype(np.complex64)
+    t = crandn((5, 2, 3, 4, 1, 5, 2), rng).astype(np.complex64)
 
     # compute cyclic trace
     t_tr = np.trace(np.trace(t, axis1=0, axis2=t.ndim-ndim_trace), axis1=0, axis2=t.ndim-ndim_trace-1)
@@ -58,7 +60,7 @@ def dense_tensor_slice_data():
     # random number generator
     rng = np.random.default_rng(143)
 
-    t = ptn.crandn((2, 7, 3, 5, 4), rng).astype(np.complex64)
+    t = crandn((2, 7, 3, 5, 4), rng).astype(np.complex64)
 
     # slice along axis 1
     ind = rng.integers(0, t.shape[1], 10)
@@ -89,7 +91,7 @@ def dense_tensor_multiply_pointwise_data():
     # random number generator
     rng = np.random.default_rng(631)
 
-    t = ptn.crandn((2, 6, 5), rng).astype(np.complex64)
+    t = crandn((2, 6, 5), rng).astype(np.complex64)
     s = [rng.standard_normal(dim).astype(np.float32) for dim in [(2, 6), (6, 5)]]
 
     t_mult_s = [t * s[0][:, :, None], t * s[1]]
@@ -106,12 +108,12 @@ def dense_tensor_multiply_axis_data():
     # random number generator
     rng = np.random.default_rng(193)
 
-    s = ptn.crandn((3, 8, 5, 7), rng).astype(np.complex64)
+    s = crandn((3, 8, 5, 7), rng).astype(np.complex64)
 
-    t0 = ptn.crandn((6, 4, 5), rng).astype(np.complex64)
+    t0 = crandn((6, 4, 5), rng).astype(np.complex64)
     r0 = np.einsum(s, (0, 1, 5, 4), t0, (2, 3, 5), (0, 1, 2, 3, 4))
 
-    t1 = ptn.crandn((5, 2, 6), rng).astype(np.complex64)
+    t1 = crandn((5, 2, 6), rng).astype(np.complex64)
     r1 = np.einsum(s, (0, 1, 5, 4), t1, (5, 2, 3), (0, 1, 2, 3, 4))
 
     with h5py.File("data/test_dense_tensor_multiply_axis.hdf5", "w") as file:
@@ -127,8 +129,8 @@ def dense_tensor_dot_data():
     # random number generator
     rng = np.random.default_rng(524)
 
-    t = ptn.crandn((2, 11, 3, 4, 5), rng)
-    s = ptn.crandn((4, 5, 7, 6), rng)
+    t = crandn((2, 11, 3, 4, 5), rng)
+    s = crandn((4, 5, 7, 6), rng)
 
     t_dot_s = np.tensordot(t, s, 2)
 
@@ -146,10 +148,10 @@ def dense_tensor_dot_update_data():
     alpha = np.array( 1.2 - 0.3j).astype(np.complex64)
     beta  = np.array(-0.7 + 0.8j).astype(np.complex64)
 
-    t = ptn.crandn((2, 11, 3, 4, 5), rng).astype(np.complex64)
-    s = ptn.crandn((4, 5, 7, 6), rng).astype(np.complex64)
+    t = crandn((2, 11, 3, 4, 5), rng).astype(np.complex64)
+    s = crandn((4, 5, 7, 6), rng).astype(np.complex64)
 
-    t_dot_s_0 = ptn.crandn((2, 11, 3, 7, 6), rng).astype(np.complex64)
+    t_dot_s_0 = crandn((2, 11, 3, 7, 6), rng).astype(np.complex64)
     t_dot_s_1 = alpha * np.tensordot(t, s, 2) + beta * t_dot_s_0
 
     with h5py.File("data/test_dense_tensor_dot_update.hdf5", "w") as file:
@@ -164,8 +166,8 @@ def dense_tensor_kronecker_product_data():
     # random number generator
     rng = np.random.default_rng(172)
 
-    s = ptn.crandn((6,  5, 7, 2), rng)
-    t = ptn.crandn((3, 11, 2, 5), rng)
+    s = crandn((6,  5, 7, 2), rng)
+    t = crandn((3, 11, 2, 5), rng)
 
     r = np.kron(s, t)
 
@@ -180,8 +182,8 @@ def dense_tensor_kronecker_product_degree_zero_data():
     # random number generator
     rng = np.random.default_rng(743)
 
-    s = ptn.crandn((), rng).astype(np.complex64)
-    t = ptn.crandn((), rng).astype(np.complex64)
+    s = crandn((), rng).astype(np.complex64)
+    t = crandn((), rng).astype(np.complex64)
 
     r = np.kron(s, t)
 
@@ -250,10 +252,10 @@ def dense_tensor_qr_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = ptn.crandn(size, rng).astype(np.complex64)
+                    a = crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = ptn.crandn(size, rng)
+                    a = crandn(size, rng)
                 file[f"a_s{i}_t{j}"] = a
 
 
@@ -275,10 +277,10 @@ def dense_tensor_rq_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = ptn.crandn(size, rng).astype(np.complex64)
+                    a = crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = ptn.crandn(size, rng)
+                    a = crandn(size, rng)
                 file[f"a_s{i}_t{j}"] = a
 
 
@@ -299,10 +301,10 @@ def dense_tensor_eigh_data():
                 a = rng.standard_normal((n, n))
             elif j == 2:
                 # single precision complex
-                a = 0.5 * ptn.crandn((n, n), rng).astype(np.complex64)
+                a = 0.5 * crandn((n, n), rng).astype(np.complex64)
             else:
                 # double precision complex
-                a = 0.5 * ptn.crandn((n, n), rng)
+                a = 0.5 * crandn((n, n), rng)
             # symmetrize
             a = 0.5 * (a + a.conj().T)
             file[f"a_t{j}"] = a
@@ -326,10 +328,10 @@ def dense_tensor_svd_data():
                     a = rng.standard_normal(size)
                 elif j == 2:
                     # single precision complex
-                    a = 0.5 * ptn.crandn(size, rng).astype(np.complex64)
+                    a = 0.5 * crandn(size, rng).astype(np.complex64)
                 else:
                     # double precision complex
-                    a = 0.5 * ptn.crandn(size, rng)
+                    a = 0.5 * crandn(size, rng)
                 file[f"a_s{i}_t{j}"] = a
 
 
@@ -338,7 +340,7 @@ def dense_tensor_block_data():
     # random number generator
     rng = np.random.default_rng(945)
 
-    t = ptn.crandn((2, 3, 4, 5), rng)
+    t = crandn((2, 3, 4, 5), rng)
 
     # generalized sub-block of 't'
     b = t.copy()

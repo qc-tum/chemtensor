@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+from krylov import lanczos_iteration, eigh_krylov
+from crandn import crandn
 
 
 def lanczos_iteration_d_data():
@@ -19,7 +20,7 @@ def lanczos_iteration_d_data():
     vstart = rng.standard_normal(n) / np.sqrt(n)
 
     # perform Lanczos iteration, using 'a' as linear transformation
-    alpha, beta, v = ptn.lanczos_iteration(lambda x: a @ x, vstart, numiter)
+    alpha, beta, v = lanczos_iteration(lambda x: a @ x, vstart, numiter)
 
     # check orthogonality of Lanczos vectors
     assert np.allclose(v.T @ v, np.identity(numiter), rtol=1e-12)
@@ -45,14 +46,14 @@ def lanczos_iteration_z_data():
     numiter = 24
 
     # random Hermitian matrix
-    a = ptn.crandn((n, n), rng) / np.sqrt(n)
+    a = crandn((n, n), rng) / np.sqrt(n)
     a = 0.5 * (a + a.conj().T)
 
     # random complex starting vector
-    vstart = ptn.crandn(n, rng) / np.sqrt(n)
+    vstart = crandn(n, rng) / np.sqrt(n)
 
     # perform Lanczos iteration, using 'a' as linear transformation
-    alpha, beta, v = ptn.lanczos_iteration(lambda x: a @ x, vstart, numiter)
+    alpha, beta, v = lanczos_iteration(lambda x: a @ x, vstart, numiter)
 
     # check orthogonality of Lanczos vectors
     assert np.allclose(v.conj().T @ v, np.identity(numiter), rtol=1e-12)
@@ -85,7 +86,7 @@ def eigensystem_krylov_symmetric_data():
     # random starting vector
     vstart = rng.standard_normal(n) / np.sqrt(n)
 
-    w, u_ritz = ptn.eigh_krylov(lambda x: a @ x, vstart, numiter, numeig)
+    w, u_ritz = eigh_krylov(lambda x: a @ x, vstart, numiter, numeig)
     assert np.linalg.norm(u_ritz.imag) == 0
     # function returns complex Ritz vectors by default
     u_ritz = u_ritz.real
@@ -110,13 +111,13 @@ def eigensystem_krylov_hermitian_data():
     numeig = 6
 
     # random Hermitian matrix
-    a = ptn.crandn((n, n), rng) / np.sqrt(n)
+    a = crandn((n, n), rng) / np.sqrt(n)
     a = 0.5 * (a + a.conj().T)
 
     # random complex starting vector
-    vstart = ptn.crandn(n, rng) / np.sqrt(n)
+    vstart = crandn(n, rng) / np.sqrt(n)
 
-    w, u_ritz = ptn.eigh_krylov(lambda x: a @ x, vstart, numiter, numeig)
+    w, u_ritz = eigh_krylov(lambda x: a @ x, vstart, numiter, numeig)
 
     # check orthogonality of Ritz vectors
     assert np.allclose(u_ritz.conj().T @ u_ritz, np.identity(numeig), rtol=1e-12)

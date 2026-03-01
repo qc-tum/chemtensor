@@ -1,7 +1,10 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../tensor/")
+from block_sparse_util import enforce_qsparsity
+from crandn import crandn
 
 
 def runge_kutta_4_block_sparse_data():
@@ -17,21 +20,21 @@ def runge_kutta_4_block_sparse_data():
     # quantum numbers
     qnums = tuple(rng.integers(-2, 3, size=d).astype(np.int32) for d in dims)
     # dense tensor representation
-    y0 = 0.1 * ptn.crandn(dims, rng)
+    y0 = 0.1 * crandn(dims, rng)
     # enforce sparsity pattern based on quantum numbers
-    ptn.enforce_qsparsity(y0, [axis_dir[i] * qnums[i] for i in range(len(dims))])
+    enforce_qsparsity(y0, [axis_dir[i] * qnums[i] for i in range(len(dims))])
 
     # tensor defining linear term of ODE
-    lintensor = ptn.crandn(dims[:2] + dims[:2], rng)
+    lintensor = crandn(dims[:2] + dims[:2], rng)
     qnums_lin = qnums[:2] + qnums[:2]
     axis_dir_lin = axis_dir[:2] + tuple(-ad for ad in axis_dir[:2])
-    ptn.enforce_qsparsity(lintensor, [axis_dir_lin[i] * qnums_lin[i] for i in range(len(axis_dir_lin))])
+    enforce_qsparsity(lintensor, [axis_dir_lin[i] * qnums_lin[i] for i in range(len(axis_dir_lin))])
     # tensors defining nonlinear term of ODE
     nonlintensors = []
     for i in range(y0.ndim):
         i_next = (i + 1) % y0.ndim
-        nlt = 0.75 * ptn.crandn((dims[i_next], dims[i]), rng)
-        ptn.enforce_qsparsity(nlt, (axis_dir[i_next] * qnums[i_next], -axis_dir[i] * qnums[i]))
+        nlt = 0.75 * crandn((dims[i_next], dims[i]), rng)
+        enforce_qsparsity(nlt, (axis_dir[i_next] * qnums[i_next], -axis_dir[i] * qnums[i]))
         nonlintensors.append(nlt)
 
     # ODE function
@@ -39,7 +42,8 @@ def runge_kutta_4_block_sparse_data():
         y = y.reshape(y0.shape)
         h = np.einsum(lintensor, (0, 1, 3, 4), y, (3, 4, 2), (0, 1, 2))
         # cyclically permuted axes
-        s = np.einsum(nonlintensors[2], (0, 5), nonlintensors[0], (1, 3), nonlintensors[1], (2, 4), y, (3, 4, 5), (0, 1, 2), optimize=True)
+        s = np.einsum(nonlintensors[2], (0, 5), nonlintensors[0], (1, 3),
+                      nonlintensors[1], (2, 4), y, (3, 4, 5), (0, 1, 2), optimize=True)
         k = np.sin(np.pi * (0.25 + 5*t)) * s**2
         return (h + k).reshape(-1)
 

@@ -1,6 +1,13 @@
 import numpy as np
-from scipy import sparse
 import h5py
+from hamiltonian import (
+    construct_ising_1d_hamiltonian,
+    construct_heisenberg_xxz_1d_hamiltonian,
+    construct_bose_hubbard_1d_hamiltonian,
+    construct_fermi_operators,
+    construct_fermi_hubbard_1d_hamiltonian,
+    construct_molecular_hamiltonian,
+    construct_spin_molecular_hamiltonian)
 
 
 def ising_1d_mpo_data():
@@ -157,185 +164,8 @@ def quadratic_spin_fermionic_mpo_data():
         file["coeffc"] = coeffc
         file["coeffa"] = coeffa
         for sigma in (0, 1):
-            file[f"quadratic_spin_fermionic_mat_{sigma}"] = quadratic_spin_fermionic_mat[sigma].todense()
-
-
-def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
-    """
-    Construct the Ising Hamiltonian `sum J Z Z + h Z + g X`
-    on a one-dimensional lattice as sparse matrix.
-    """
-    # Pauli-X and Z matrices
-    sigma_x = sparse.csr_matrix([[0., 1.], [1.,  0.]])
-    sigma_z = sparse.csr_matrix([[1., 0.], [0., -1.]])
-    H = sparse.csr_matrix((2**nsites, 2**nsites), dtype=float)
-    # interaction terms
-    hint = sparse.kron(sigma_z, sigma_z)
-    for j in range(nsites - 1):
-        H += J * sparse.kron(sparse.identity(2**j),
-                 sparse.kron(hint,
-                             sparse.identity(2**(nsites-j-2))))
-    # external field
-    for j in range(nsites):
-        H += sparse.kron(sparse.identity(2**j),
-             sparse.kron(h*sigma_z + g*sigma_x,
-                         sparse.identity(2**(nsites-j-1))))
-    return H
-
-
-def construct_heisenberg_xxz_1d_hamiltonian(nsites: int, J: float, D: float, h: float):
-    """
-    Construct the XXZ Heisenberg Hamiltonian `sum J (X X + Y Y + D Z Z) - h Z`
-    on a one-dimensional lattice as sparse matrix.
-    """
-    # spin operators
-    Sup = np.array([[0.,  1.], [0.,  0. ]])
-    Sdn = np.array([[0.,  0.], [1.,  0. ]])
-    Sz  = np.array([[0.5, 0.], [0., -0.5]])
-    H = sparse.csr_matrix((2**nsites, 2**nsites), dtype=float)
-    # interaction terms
-    hint = J * (0.5 * (sparse.kron(Sup, Sdn) + sparse.kron(Sdn, Sup)) + D * sparse.kron(Sz, Sz))
-    for j in range(nsites - 1):
-        H += sparse.kron(sparse.identity(2**j),
-             sparse.kron(hint,
-                         sparse.identity(2**(nsites-j-2))))
-    # external field
-    for j in range(nsites):
-        H -= sparse.kron(sparse.identity(2**j),
-             sparse.kron(h*Sz,
-                         sparse.identity(2**(nsites-j-1))))
-    return H
-
-
-def construct_bose_hubbard_1d_hamiltonian(nsites: int, d: int, t: float, u: float, mu: float):
-    """
-    Construct the Bose-Hubbard Hamiltonian
-    with nearest-neighbor hopping on a one-dimensional lattice as sparse matrix.
-    """
-    # bosonic creation and annihilation operators
-    b_dag = np.diag(np.sqrt(np.arange(1, d, dtype=float)), -1)
-    b_ann = np.diag(np.sqrt(np.arange(1, d, dtype=float)),  1)
-    # number operator
-    numop = np.diag(np.arange(d, dtype=float))
-    H = sparse.csr_matrix((d**nsites, d**nsites), dtype=float)
-    # interaction terms
-    hint = -t * (sparse.kron(b_dag, b_ann) + sparse.kron(b_ann, b_dag))
-    for j in range(nsites - 1):
-        H += sparse.kron(sparse.identity(d**j),
-             sparse.kron(hint,
-                         sparse.identity(d**(nsites-j-2))))
-    # external field
-    for j in range(nsites):
-        H += sparse.kron(sparse.identity(d**j),
-             sparse.kron(0.5*u*(numop @ (numop - np.identity(d))) - mu*numop,
-                         sparse.identity(d**(nsites-j-1))))
-    return H
-
-
-def construct_fermi_operators(nmodes: int):
-    """
-    Generate sparse matrix representations of the fermionic creation and
-    annihilation operators for `nmodes` modes (or sites),
-    based on Jordan-Wigner transformation.
-    """
-    I = sparse.identity(2)
-    Z = sparse.csr_matrix([[ 1.,  0.], [ 0., -1.]])
-    U = sparse.csr_matrix([[ 0.,  0.], [ 1.,  0.]])
-    clist = []
-    for i in range(nmodes):
-        c = sparse.identity(1)
-        for j in range(nmodes):
-            if j < i:
-                c = sparse.kron(c, Z)
-            elif j == i:
-                c = sparse.kron(c, U)
-            else:
-                c = sparse.kron(c, I)
-        c = sparse.csr_matrix(c)
-        c.eliminate_zeros()
-        clist.append(c)
-    # corresponding annihilation operators
-    alist = [sparse.csr_matrix(c.conj().T) for c in clist]
-    # corresponding number operators
-    nlist = []
-    for i in range(nmodes):
-        f = 1 << (nmodes - i - 1)
-        data = [1. if (n & f == f) else 0. for n in range(2**nmodes)]
-        nlist.append(sparse.dia_matrix((data, 0), 2*(2**nmodes,)))
-    return clist, alist, nlist
-
-
-def construct_fermi_hubbard_1d_hamiltonian(nsites: int, t: float, u: float, mu: float):
-    """
-    Construct the Fermi-Hubbard Hamiltonian
-    with nearest-neighbor hopping on a one-dimensional lattice as sparse matrix.
-    """
-    clist, alist, nlist = construct_fermi_operators(2*nsites)
-    H = sparse.csr_matrix((4**nsites, 4**nsites), dtype=float)
-    # kinetic hopping terms
-    for j in range(2*nsites - 2):
-        H -= t * (clist[j] @ alist[j+2] + clist[j+2] @ alist[j])
-    # interaction u (n_up - 1/2) (n_dn - 1/2) and number operator - mu (n_up + n_dn)
-    for j in range(0, 2*nsites, 2):
-        H += (u * (nlist[j] - 0.5*sparse.identity(4**nsites)) @ (nlist[j+1] - 0.5*sparse.identity(4**nsites))
-              - mu * (nlist[j] + nlist[j+1]))
-    H.eliminate_zeros()
-    return H
-
-
-def construct_molecular_hamiltonian(tkin, vint):
-    """
-    Construct the molecular Hamiltonian as sparse matrix.
-    """
-    nmodes = tkin.shape[0]
-
-    complex_hamiltonian = np.iscomplexobj(tkin) or np.iscomplexobj(vint)
-    H = sparse.csr_matrix((2**nmodes, 2**nmodes), dtype=(complex if complex_hamiltonian else float))
-
-    clist, alist, _ = construct_fermi_operators(nmodes)
-
-    # kinetic hopping terms
-    for i in range(nmodes):
-        for j in range(nmodes):
-            H += tkin[i, j] * (clist[i] @ alist[j])
-    # interaction terms
-    for i in range(nmodes):
-        for j in range(nmodes):
-            for k in range(nmodes):
-                for l in range(nmodes):
-                    H += 0.5 * vint[i, j, k, l] * (clist[i] @ clist[j] @ alist[l] @ alist[k])
-    H.eliminate_zeros()
-    return H
-
-
-def construct_spin_molecular_hamiltonian(tkin, vint):
-    """
-    Construct a molecular Hamiltonian for a spin orbital basis as sparse matrix.
-    """
-    tkin = np.asarray(tkin)
-    vint = np.asarray(vint)
-
-    nsites = tkin.shape[0]
-    assert tkin.shape == 2 * (nsites,)
-    assert vint.shape == 4 * (nsites,)
-
-    # enlarge the single- and two-particle electron overlap integral tensors
-    # from an orbital basis without spin to a spin orbital basis
-
-    # single-particle integrals
-    tkin_spin = np.kron(tkin, np.eye(2))
-
-    # two-particle integrals
-    tmp = np.zeros((2*nsites, nsites, 2*nsites, nsites), dtype=vint.dtype)
-    for i in range(nsites):
-        for j in range(nsites):
-            tmp[:, i, :, j] = np.kron(vint[:, i, :, j], np.eye(2))
-    vint_spin = np.zeros((2*nsites, 2*nsites, 2*nsites, 2*nsites), dtype=vint.dtype)
-    for i in range(2*nsites):
-        for j in range(2*nsites):
-            vint_spin[i, :, j, :] = np.kron(tmp[i, :, j, :], np.eye(2))
-
-    return construct_molecular_hamiltonian(tkin_spin, vint_spin)
+            file[f"quadratic_spin_fermionic_mat_{sigma}"] = \
+                quadratic_spin_fermionic_mat[sigma].todense()
 
 
 def main():

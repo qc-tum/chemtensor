@@ -1,7 +1,9 @@
 from collections.abc import Sequence
 import numpy as np
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../tensor/")
+from block_sparse_util import qnumber_outer_sum
 
 
 class OpHyperedgeInfo:
@@ -104,7 +106,7 @@ def ttno_from_assembly_data():
     for k in range(nsites_physical):
         for ei in edge_info[k]:
             qsum = np.dot(qbond_signs[k], [vert_qnums[vid] for vid in ei.vids])
-            mask = ptn.qnumber_outer_sum([qd, -qd, [qsum]])[:, :, 0]
+            mask = qnumber_outer_sum([qd, -qd, [qsum]])[:, :, 0]
             for oid in ei.oids:
                 opmap[oid] = np.where(mask == 0, opmap[oid], 0)
     # sparsity pattern should not lead to zero operators

@@ -1,6 +1,10 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../tensor/")
+sys.path.append("../util/")
+from block_sparse_util import enforce_qsparsity
+from crandn import crandn
 
 
 def single_mode_product(a, t, i: int):
@@ -80,9 +84,9 @@ def ttns_orthonormalize_qr_data():
             if j > i:
                 dims.append(len(qbonds[(i, j)]))
                 qnums.append(-qbonds[(i, j)])  # inward direction
-        a = ptn.crandn(dims, rng) / np.sqrt(np.prod(dims))
+        a = crandn(dims, rng) / np.sqrt(np.prod(dims))
         # enforce sparsity pattern according to quantum numbers
-        ptn.enforce_qsparsity(a, qnums)
+        enforce_qsparsity(a, qnums)
         for c, j in enumerate(neighs[i]):
             i_ax = (c if j < i else c + 1)
             # imitate small entanglement by multiplying bonds with small scaling factors
@@ -177,9 +181,9 @@ def ttns_compress_data():
             if j > i:
                 dims.append(len(qbonds[(i, j)]))
                 qnums.append(-qbonds[(i, j)])  # inward direction
-        a = ptn.crandn(dims, rng) / np.sqrt(np.prod(dims))
+        a = crandn(dims, rng) / np.sqrt(np.prod(dims))
         # enforce sparsity pattern according to quantum numbers
-        ptn.enforce_qsparsity(a, qnums)
+        enforce_qsparsity(a, qnums)
         for c, j in enumerate(neighs[i]):
             i_ax = (c if j < i else c + 1)
             # imitate small entanglement by multiplying bonds with small scaling factors

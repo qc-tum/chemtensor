@@ -1,6 +1,11 @@
 import numpy as np
 import h5py
-import pytenet as ptn
+import sys
+sys.path.append("../tensor/")
+sys.path.append("../util/")
+from bond_ops import split_block_sparse_matrix_svd
+from block_sparse_util import enforce_qsparsity
+from crandn import crandn
 
 
 def split_block_sparse_matrix_svd_data():
@@ -22,19 +27,19 @@ def split_block_sparse_matrix_svd_data():
         qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
 
         # dense tensor
-        a = 0.02 * ptn.crandn(dims, rng).astype(np.complex64)
+        a = 0.02 * crandn(dims, rng).astype(np.complex64)
         # enforce sparsity pattern based on quantum numbers
-        ptn.enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
+        enforce_qsparsity(a, [axis_dir[i] * qnums[i] for i in range(a.ndim)])
 
         file["a"] = a
         file.attrs["axis_dir"] = axis_dir
-        for i, qn in enumerate(qnums):
-            file.attrs[f"qnums{i}"] = qn
+        for i, qnum in enumerate(qnums):
+            file.attrs[f"qnums{i}"] = qnum
         file.attrs["tol"] = tol
 
         sigma = np.linalg.svd(a, compute_uv=False)
 
-        a0, s, a1, q = ptn.split_matrix_svd(a, qnums[0], qnums[1], tol)
+        a0, s, a1, _ = split_block_sparse_matrix_svd(a, qnums[0], qnums[1], tol)
         file.attrs["num_retained"] = len(s)
 
         # reassemble matrix after splitting, as reference
