@@ -1,6 +1,6 @@
 from typing import Sequence
 import numpy as np
-from block_sparse_util import qnumber_flatten, enforce_qsparsity, block_sparse_qr
+from block_sparse_util import qnumber_outer_sum, qnumber_flatten, enforce_qsparsity, block_sparse_qr
 from bond_ops import split_block_sparse_matrix_svd
 from crandn import crandn
 
@@ -47,6 +47,47 @@ class MPS:
         # enforce block sparsity structure dictated by quantum numbers
         for i in range(nsites):
             enforce_qsparsity(self.a[i], (self.qbonds[i], self.qsite, -self.qbonds[i+1]))
+
+    @classmethod
+    def construct_random(cls, nsites: int, qsite: Sequence[int], qnum_sector: int,
+                         max_vdim: int=256, rng: np.random.Generator=None):
+        """
+        Construct a matrix product state with random normal tensor entries,
+        given an overall quantum number sector and maximum virtual bond dimension.
+        """
+        assert nsites > 0
+        # require NumPy array
+        qsite = np.asarray(qsite)
+        if rng is None:
+            rng = np.random.default_rng()
+        qbonds = (nsites + 1) * [None]
+        # dummy left virtual bond; set quantum number to zero
+        qbonds[0] = [0]
+        # dummy right virtual bond; set quantum number to overall quantum number sector
+        qbonds[-1] = [qnum_sector]
+        # virtual bond quantum numbers on left half
+        for l in range(1, (nsites + 1) // 2):
+            # enumerate all combinations of left bond quantum numbers
+            # and local physical quantum numbers
+            qnums_full = qnumber_outer_sum([qbonds[l - 1], qsite]).reshape(-1)
+            if len(qnums_full) <= max_vdim:
+                qbonds[l] = qnums_full
+            else:
+                # randomly select quantum numbers
+                idx = rng.choice(len(qnums_full), size=max_vdim, replace=False)
+                qbonds[l] = qnums_full[idx]
+        # virtual bond quantum numbers on right half
+        for l in reversed(range((nsites + 1) // 2, nsites)):
+            # enumerate all combinations of right bond quantum numbers
+            # and local physical quantum numbers
+            qnums_full = qnumber_outer_sum([qbonds[l + 1], -qsite]).reshape(-1)
+            if len(qnums_full) <= max_vdim:
+                qbonds[l] = qnums_full
+            else:
+                # randomly select quantum numbers
+                idx = rng.choice(len(qnums_full), size=max_vdim, replace=False)
+                qbonds[l] = qnums_full[idx]
+        return cls(qsite, qbonds, fill="random", rng=rng)
 
     @property
     def nsites(self) -> int:

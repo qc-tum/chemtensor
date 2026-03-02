@@ -21,15 +21,17 @@ def dmrg_singlesite_data():
     nsites = 7
 
     # local physical quantum numbers
-    qsite = np.array([0, -1, 0])
+    qsite = np.array([0, -1, 1])
 
     # Hamiltonian
-    hamiltonian = _construct_random_hermitian_mpo(qsite, nsites, rng)
+    hamiltonian = _construct_random_hermitian_mpo(nsites, qsite, rng)
     # must be Hermitian
     hmat = hamiltonian.to_matrix()
     assert np.allclose(hmat, hmat.conj().T)
 
-    psi_start = _construct_random_mps(qsite, nsites, rng)
+    psi_start = MPS.construct_random(nsites, qsite, qnum_sector=1, rng=rng)
+    for i in range(nsites):
+        psi_start.a[i] *= 5
     assert np.linalg.norm(psi_start.to_vector()) > 0.1
 
     num_sweeps = 6
@@ -61,21 +63,23 @@ def dmrg_singlesite_data():
 def dmrg_twosite_data():
 
     # random number generator
-    rng = np.random.default_rng(288)
+    rng = np.random.default_rng(287)
 
     # number of lattice sites
-    nsites = 11
+    nsites = 6
 
     # local physical quantum numbers
-    qsite = np.array([0, 0])
+    qsite = np.array([0, -1, 1, 0])
 
     # Hamiltonian
-    hamiltonian = _construct_random_hermitian_mpo(qsite, nsites, rng)
+    hamiltonian = _construct_random_hermitian_mpo(nsites, qsite, rng)
     # must be Hermitian
     hmat = hamiltonian.to_matrix()
     assert np.allclose(hmat, hmat.conj().T)
 
-    psi_start = _construct_random_mps(qsite, nsites, rng)
+    psi_start = MPS.construct_random(nsites, qsite, qnum_sector=2, max_vdim=56, rng=rng)
+    for i in range(nsites):
+        psi_start.a[i] *= 4
     assert np.linalg.norm(psi_start.to_vector()) > 0.1
 
     num_sweeps = 4
@@ -106,7 +110,7 @@ def dmrg_twosite_data():
             file[f"psi_a{i}"] = ai
 
 
-def _construct_random_hermitian_mpo(qsite, nsites: int, rng: np.random.Generator):
+def _construct_random_hermitian_mpo(nsites: int, qsite, rng: np.random.Generator):
     """
     Construct a random matrix product operator, such that the logical operator is Hermitian.
     """
@@ -115,12 +119,12 @@ def _construct_random_hermitian_mpo(qsite, nsites: int, rng: np.random.Generator
                    for bi in [1] + list(rng.integers(5, 10, size=nsites-1)) + [1]]
     h0 = MPO(qsite, qbonds_zero, fill="random", rng=rng)
     for i in range(nsites):
-        h0.a[i] = 1.5 * (h0.a[i] + h0.a[i].conj().transpose((0, 2, 1, 3)))
+        h0.a[i] = 1.75 * (h0.a[i] + h0.a[i].conj().transpose((0, 2, 1, 3)))
     assert np.linalg.norm(h0.to_matrix(), ord=2) > 0.1
 
     # general part (plus adjoint copy)
     qbonds1 = [rng.integers(-1, 2, size=bi)
-               for bi in [1] + list(rng.integers(10, 20, size=nsites-1)) + [1]]
+               for bi in [1] + list(rng.integers(5, 10, size=nsites-1)) + [1]]
     # require zero dummy bonds for addition of adjoint copy
     qbonds1[ 0] = np.array([0])
     qbonds1[-1] = np.array([0])
@@ -147,21 +151,6 @@ def _construct_random_hermitian_mpo(qsite, nsites: int, rng: np.random.Generator
         assert is_qsparse(mpo.a[i+1], (mpo.qbonds[i+1], mpo.qsite, -mpo.qsite, -mpo.qbonds[i+2]))
 
     return mpo
-
-
-def _construct_random_mps(qsite, nsites: int, rng: np.random.Generator):
-    """
-    Construct a random matrix product state.
-    """
-    # virtual bond quantum numbers
-    qbonds = [rng.integers(-1, 2, size=bi)
-              for bi in [1] + list(rng.integers(12, 20, size=nsites-1)) + [1]]
-    qbonds[ 0] = np.array([0])
-    qbonds[-1] = np.array([0])
-    psi = MPS(qsite, qbonds, fill="random", rng=rng)
-    for i in range(nsites):
-        psi.a[i] *= 5
-    return psi
 
 
 def main():

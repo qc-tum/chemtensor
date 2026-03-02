@@ -240,9 +240,9 @@ char* test_dmrg_twosite()
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
 	// number of lattice sites
-	const int nsites = 11;
+	const int nsites = 6;
 	// local physical dimension
-	const ct_long d = 2;
+	const ct_long d = 4;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));

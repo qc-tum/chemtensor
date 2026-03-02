@@ -64,7 +64,7 @@ def contraction_operator_step_left(a: np.ndarray, b: np.ndarray, w: np.ndarray, 
      │         │           │
      │         │       ╭───1───╮
      │         │       │       │
-     │    l    1──   ──0   W   3──
+     │    l    1──   ──0   w   3──
      │         │       │       │
      │         │       ╰───2───╯
      │         │           │
