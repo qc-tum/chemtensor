@@ -73,6 +73,7 @@ char* test_su2_tensor_fuse_axes();
 char* test_su2_tensor_fuse_axes_add_auxiliary();
 char* test_su2_tensor_split_axis();
 char* test_su2_tensor_slice();
+char* test_su2_tensor_slice_scale();
 char* test_su2_tensor_contract_simple();
 char* test_su2_tensor_contract_yoga();
 char* test_su2_to_dense_tensor();
@@ -210,6 +211,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_su2_tensor_fuse_axes_add_auxiliary),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_split_axis),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_slice),
+		TEST_FUNCTION_ENTRY(test_su2_tensor_slice_scale),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_simple),
 		TEST_FUNCTION_ENTRY(test_su2_tensor_contract_yoga),
 		TEST_FUNCTION_ENTRY(test_su2_to_dense_tensor),

@@ -158,6 +158,8 @@ void su2_tensor_split_axis_remove_auxiliary(const struct su2_tensor* t, const in
 
 void su2_tensor_slice(const struct su2_tensor* t, const int i_ax, const ct_long* ind, const ct_long nind, struct su2_tensor* r);
 
+void su2_tensor_slice_scale(const struct su2_tensor* t, const int i_ax, const ct_long* ind, const struct dense_tensor* s, struct su2_tensor* r);
+
 
 //________________________________________________________________________________________________________________________
 //

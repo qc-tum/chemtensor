@@ -2147,10 +2147,202 @@ char* test_su2_tensor_slice()
 }
 
 
-char* test_su2_tensor_contract_simple()
+char* test_su2_tensor_slice_scale()
 {
 	struct rng_state rng_state;
 	seed_rng_state(44, &rng_state);
+
+	// construct an SU(2) tensor 't'
+	struct su2_tensor t;
+	{
+		const int ndim = 9;
+
+		// construct the fuse and split tree
+		//
+		//  5   1    4   2
+		//   ╲   ╲  ╱   ╱
+		//    ╲   ╲╱   ╱
+		//     ╲  8╲  ╱        fuse
+		//      ╲   ╲╱
+		//       ╲  ╱7
+		//        ╲╱
+		//        │
+		//        │6
+		//        │
+		//        ╱╲
+		//       ╱  ╲          split
+		//      3    0
+		//
+		struct su2_tree_node j0  = { .i_ax = 0, .c = { NULL, NULL } };
+		struct su2_tree_node j1  = { .i_ax = 1, .c = { NULL, NULL } };
+		struct su2_tree_node j2  = { .i_ax = 2, .c = { NULL, NULL } };
+		struct su2_tree_node j3  = { .i_ax = 3, .c = { NULL, NULL } };
+		struct su2_tree_node j4  = { .i_ax = 4, .c = { NULL, NULL } };
+		struct su2_tree_node j5  = { .i_ax = 5, .c = { NULL, NULL } };
+		struct su2_tree_node j8  = { .i_ax = 8, .c = { &j1,  &j4  } };
+		struct su2_tree_node j7  = { .i_ax = 7, .c = { &j8,  &j2  } };
+		struct su2_tree_node j6f = { .i_ax = 6, .c = { &j5,  &j7  } };
+		struct su2_tree_node j6s = { .i_ax = 6, .c = { &j3,  &j0  } };
+
+		struct su2_fuse_split_tree tree = { .tree_fuse = &j6f, .tree_split = &j6s, .ndim = ndim };
+
+		if (!su2_fuse_split_tree_is_consistent(&tree)) {
+			return "internal consistency check for the fuse and split tree failed";
+		}
+
+		// outer (logical and auxiliary) 'j' quantum numbers
+		qnumber j0list[] = { 0, 2 };
+		qnumber j1list[] = { 1 };
+		qnumber j2list[] = { 1, 3 };
+		qnumber j3list[] = { 1, 3 };
+		qnumber j4list[] = { 0 };  // auxiliary
+		qnumber j5list[] = { 1 };  // auxiliary
+		const struct su2_irreducible_list outer_irreps[6] = {
+			{ .jlist = j0list, .num = ARRLEN(j0list) },
+			{ .jlist = j1list, .num = ARRLEN(j1list) },
+			{ .jlist = j2list, .num = ARRLEN(j2list) },
+			{ .jlist = j3list, .num = ARRLEN(j3list) },
+			{ .jlist = j4list, .num = ARRLEN(j4list) },
+			{ .jlist = j5list, .num = ARRLEN(j5list) },
+		};
+
+		// degeneracy dimensions, indexed by 'j' quantum numbers
+		//                         j:  0  1  2  3
+		const ct_long dim_degen0[] = { 5, 0, 2    };
+		const ct_long dim_degen1[] = { 0, 3       };
+		const ct_long dim_degen2[] = { 0, 4, 0, 6 };
+		const ct_long dim_degen3[] = { 0, 1, 0, 7 };
+		const ct_long* dim_degen[] = {
+			dim_degen0,
+			dim_degen1,
+			dim_degen2,
+			dim_degen3,
+		};
+
+		const int ndim_logical   = 4;
+		const int ndim_auxiliary = 2;
+
+		allocate_su2_tensor(CT_DOUBLE_COMPLEX, ndim_logical, ndim_auxiliary, &tree, outer_irreps, dim_degen, &t);
+
+		// delete some charge sectors
+		su2_tensor_delete_charge_sector_by_index(&t, 0);
+		su2_tensor_delete_charge_sector_by_index(&t, 5);
+
+		if (!su2_tensor_is_consistent(&t)) {
+			return "internal consistency check for SU(2) tensor failed";
+		}
+		if (t.charge_sectors.nsec == 0) {
+			return "expecting at least one charge sector in SU(2) tensor";
+		}
+
+		// fill degeneracy tensors with random entries
+		su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+	}
+
+	const int i_ax_slice = 2;
+	const ct_long ind_slice[] = { 5, 7, 9 };
+	// scaling factors
+	double fac[ARRLEN(ind_slice)];
+	for (ct_long i = 0; i < (ct_long)ARRLEN(fac); i++) {
+		fac[i] = randn(&rng_state);
+	}
+	struct dense_tensor s;
+	const ct_long sdim[1] = { ARRLEN(fac) };
+	allocate_dense_tensor(CT_DOUBLE_REAL, 1, sdim, &s);
+	memcpy(s.data, fac, sizeof(fac));
+
+	struct su2_tensor r;
+	su2_tensor_slice_scale(&t, i_ax_slice, ind_slice, &s, &r);
+
+	if (!su2_tensor_is_consistent(&r)) {
+		return "internal consistency check for SU(2) tensor failed";
+	}
+
+	for (int k = 0; k < r.outer_irreps[i_ax_slice].num; k++) {
+		if (r.outer_irreps[i_ax_slice].jlist[k] == 1) {
+			return "quantum number 'j == 1' should be absent in SU(2) tensor after slicing";
+		}
+	}
+
+	// reference calculation
+
+	struct dense_tensor t_dns;
+	su2_to_dense_tensor(&t, &t_dns);
+
+	qnumber j_max = 0;
+	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++) {
+		j_max = qmax(j_max, t.outer_irreps[i_ax_slice].jlist[k]);
+	}
+	ct_long* sector_offsets = ct_calloc(j_max + 1, sizeof(ct_long));
+	ct_long d = 0;
+	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++)
+	{
+		const qnumber j = t.outer_irreps[i_ax_slice].jlist[k];
+		assert(t.dim_degen[i_ax_slice][j] > 0);
+		sector_offsets[j] = d;
+		d += t.dim_degen[i_ax_slice][j] * (j + 1);
+	}
+	assert(d == t_dns.dim[i_ax_slice]);
+
+	ct_long* ind_slice_dns = ct_malloc(d * sizeof(ct_long));  // upper bound on required memory
+	double*  fac_slice_dns = ct_malloc(d * sizeof(double));
+	ct_long nind_dns = 0;
+	for (ct_long i = 0; i < (ct_long)ARRLEN(ind_slice); i++)
+	{
+		// find 'j' quantum number sector of current index
+		ct_long b = 0;
+		int k;
+		for (k = 0; k < t.outer_irreps[i_ax_slice].num; k++)
+		{
+			const qnumber j = t.outer_irreps[i_ax_slice].jlist[k];
+			if (b <= ind_slice[i] && ind_slice[i] < b + t.dim_degen[i_ax_slice][j]) {
+				break;
+			}
+			b += t.dim_degen[i_ax_slice][j];
+		}
+		assert(k < t.outer_irreps[i_ax_slice].num);
+		const qnumber j = t.outer_irreps[i_ax_slice].jlist[k];
+
+		const ct_long ind_loc = ind_slice[i] - b;
+		assert(ind_loc < t.dim_degen[i_ax_slice][j]);
+		for (ct_long l = ind_loc * (j + 1); l < (ind_loc + 1) * (j + 1); l++) {
+			ind_slice_dns[nind_dns] = sector_offsets[j] + l;
+			fac_slice_dns[nind_dns] = fac[i];
+			nind_dns++;
+		}
+	}
+
+	struct dense_tensor s_slice_dns;
+	const ct_long ssd_dim[1] = { nind_dns };
+	allocate_dense_tensor(s.dtype, 1, ssd_dim, &s_slice_dns);
+	memcpy(s_slice_dns.data, fac_slice_dns, nind_dns * sizeof(double));
+	ct_free(fac_slice_dns);
+
+	struct dense_tensor r_ref;
+	dense_tensor_slice_scale(&t_dns, i_ax_slice, ind_slice_dns, &s_slice_dns, &r_ref);
+
+	// compare
+	if (!dense_su2_tensor_allclose(&r_ref, &r, 1e-14)) {
+		return "SU(2) tensor after axis slicing and scaling does not match reference";
+	}
+
+	delete_dense_tensor(&s_slice_dns);
+	ct_free(ind_slice_dns);
+	ct_free(sector_offsets);
+	delete_dense_tensor(&r_ref);
+	delete_dense_tensor(&t_dns);
+	delete_dense_tensor(&s);
+	delete_su2_tensor(&r);
+	delete_su2_tensor(&t);
+
+	return 0;
+}
+
+
+char* test_su2_tensor_contract_simple()
+{
+	struct rng_state rng_state;
+	seed_rng_state(45, &rng_state);
 
 	// construct the 's' tensor
 	struct su2_tensor s;
@@ -2486,7 +2678,7 @@ char* test_su2_tensor_contract_simple()
 char* test_su2_tensor_contract_yoga()
 {
 	struct rng_state rng_state;
-	seed_rng_state(45, &rng_state);
+	seed_rng_state(46, &rng_state);
 
 	// yoga tree variant
 	for (int variant = 0; variant < 2; variant++)
@@ -2802,7 +2994,7 @@ char* test_su2_to_dense_tensor()
 
 	// fill degeneracy tensors with random entries
 	struct rng_state rng_state;
-	seed_rng_state(46, &rng_state);
+	seed_rng_state(47, &rng_state);
 	su2_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
 
 	// convert to full dense tensor
@@ -2869,7 +3061,7 @@ char* test_su2_to_dense_tensor()
 char* test_su2_tensor_qr()
 {
 	struct rng_state rng_state;
-	seed_rng_state(47, &rng_state);
+	seed_rng_state(48, &rng_state);
 
 	// decomposition modes
 	for (int mode = 0; mode < QR_NUM_MODES; mode++)
@@ -3050,7 +3242,7 @@ char* test_su2_tensor_qr()
 char* test_su2_tensor_rq()
 {
 	struct rng_state rng_state;
-	seed_rng_state(48, &rng_state);
+	seed_rng_state(49, &rng_state);
 
 	// decomposition modes
 	for (int mode = 0; mode < QR_NUM_MODES; mode++)
@@ -3231,7 +3423,7 @@ char* test_su2_tensor_rq()
 char* test_su2_tensor_svd()
 {
 	struct rng_state rng_state;
-	seed_rng_state(49, &rng_state);
+	seed_rng_state(50, &rng_state);
 
 	// data types
 	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
