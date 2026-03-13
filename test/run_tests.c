@@ -123,6 +123,7 @@ char* test_retained_bond_indices();
 char* test_retained_bond_indices_multiplicities();
 char* test_split_block_sparse_matrix_svd();
 char* test_split_block_sparse_matrix_svd_zero();
+char* test_split_su2_matrix_svd();
 char* test_mpo_inner_product();
 char* test_apply_mpo();
 char* test_su2_contraction_operator_step_left();
@@ -261,6 +262,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_retained_bond_indices_multiplicities),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_split_block_sparse_matrix_svd_zero),
+		TEST_FUNCTION_ENTRY(test_split_su2_matrix_svd),
 		TEST_FUNCTION_ENTRY(test_mpo_inner_product),
 		TEST_FUNCTION_ENTRY(test_apply_mpo),
 		TEST_FUNCTION_ENTRY(test_su2_contraction_operator_step_left),
