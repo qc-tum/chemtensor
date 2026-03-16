@@ -4,7 +4,7 @@
 #pragma once
 
 #include "su2_tensor.h"
-#include "bond_ops.h"
+#include "su2_bond_ops.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -68,6 +68,10 @@ double su2_mps_orthonormalize_qr(struct su2_mps* mps, const enum su2_mps_orthono
 //
 
 // splitting and merging
+
+int su2_mps_split_tensor_svd(const struct su2_tensor* a, const struct su2_irreducible_list split_site_irreps[2], const ct_long* split_site_dim_degen[2],
+	const double tol, const ct_long max_vdim, const enum su2_singular_value_distr svd_distr,
+	struct su2_tensor* a0, struct su2_tensor* a1, struct trunc_info* info);
 
 void su2_mps_contract_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);
 

@@ -1113,8 +1113,8 @@ int mps_compress_rescale(const double tol, const ct_long max_vdim, const enum mp
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Split a MPS tensor with dimension `D0 x d0*d1 x D2` into two MPS tensors
-/// with dimensions `D0 x d0 x D1` and `D1 x d1 x D2`, respectively, using SVD.
+/// \brief Split an MPS tensor with dimension `b0 x d0*d1 x b2` into two MPS tensors
+/// with dimensions `b0 x d0 x b1` and `b1 x d1 x b2`, respectively, using SVD.
 ///
 int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const ct_long d[2], const qnumber* new_qsite[2],
 	const double tol, const ct_long max_vdim, const bool renormalize, const enum singular_value_distr svd_distr,
@@ -1180,7 +1180,7 @@ void mps_merge_tensor_pair(const struct block_sparse_tensor* restrict a0, const 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Merge all tensors of a MPS to obtain the vector representation on the full Hilbert space.
+/// \brief Merge all tensors of an MPS to obtain the vector representation on the full Hilbert space.
 /// The (dummy) virtual bonds are retained in the output tensor.
 ///
 void mps_to_statevector(const struct mps* mps, struct block_sparse_tensor* vec)

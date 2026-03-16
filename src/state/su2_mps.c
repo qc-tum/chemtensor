@@ -5,7 +5,6 @@
 #include <math.h>
 #include <stdio.h>
 #include "su2_mps.h"
-#include "su2_util.h"
 #include "aligned_memory.h"
 
 
@@ -576,6 +575,98 @@ double su2_mps_orthonormalize_qr(struct su2_mps* mps, const enum su2_mps_orthono
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Split an SU(2) symmetric MPS tensor with logical dimension `b0 x d0*d1 x b2` into two MPS tensors
+/// with logical dimensions `b0 x d0 x b1` and `b1 x d1 x b2`, respectively, using SVD.
+///
+int su2_mps_split_tensor_svd(const struct su2_tensor* restrict a, const struct su2_irreducible_list split_site_irreps[2], const ct_long* split_site_dim_degen[2],
+	const double tol, const ct_long max_vdim, const enum su2_singular_value_distr svd_distr,
+	struct su2_tensor* restrict a0, struct su2_tensor* restrict a1, struct trunc_info* info)
+{
+	assert(a->ndim_logical == 3);
+	assert(a->ndim_auxiliary == 0);
+
+	// split physical axis
+	struct su2_tensor s;
+	su2_tensor_split_axis(a, 1, 2, true, split_site_irreps, split_site_dim_degen, &s);
+
+	// tree of current tensor 's'
+	//
+	//                         3  right virtual bond
+	//                         │
+	//                         │       fuse
+	//                         ╱╲
+	//                        ╱  ╲4
+	//                       ╱   ╱╲    split
+	//                      ╱   ╱  ╲
+	//  left virtual bond  0   1    2
+	//                         physical axes
+
+	// reshape into a matrix
+	// group axes 0 and 1 together and fuse them
+	struct su2_tensor t;
+	su2_tensor_fmove(&s, 4, &t);
+	delete_su2_tensor(&s);
+	su2_tensor_fuse_axes(&t, 0, 1, &s);
+	delete_su2_tensor(&t);
+	assert(s.ndim_logical == 3);
+	su2_tensor_reverse_axis_simple(&s, 1);
+	su2_tensor_fuse_axes_add_auxiliary(&s, 1, 2, &t);
+	delete_su2_tensor(&s);
+
+	// tree of current tensor 't'
+	//
+	//                                    combined right physical axis
+	//      dummy auxiliary axis  2    1  and virtual bond
+	//                             ╲  ╱
+	//                              ╲╱    fuse
+	//                              │     split
+	//                              │
+	//  combined left virtual bond  0
+	//           and physical axis
+
+	// split by truncated SVD
+	struct su2_tensor m0, m1;
+	// copy tree into 'm1'
+	int ret = split_su2_matrix_svd(&t, tol, true, max_vdim, svd_distr, false, &m0, &m1, info);
+	delete_su2_tensor(&t);
+	if (ret < 0) {
+		return ret;
+	}
+
+	// restore original virtual bonds and physical axes
+	// left tensor
+	{
+		su2_tensor_swap_tree_axes(&m0, 0, 2);  // auxiliary axis must be the right child node
+		assert(su2_tree_node_is_leaf(m0.tree.tree_fuse));
+		assert(m0.tree.tree_fuse->i_ax == 1);
+		assert(m0.tree.tree_split->c[0]->i_ax == 0);
+		assert(m0.tree.tree_split->c[1]->i_ax == 2);
+		struct su2_irreducible_list outer_irreps[2] = { a->outer_irreps[0], split_site_irreps[0] };
+		const ct_long* dim_degen[2] = { a->dim_degen[0], split_site_dim_degen[0] };
+		su2_tensor_split_axis_remove_auxiliary(&m0, 0, 1, outer_irreps, dim_degen, a0);
+		delete_su2_tensor(&m0);
+		assert(a0->ndim_logical == 3 && a0->ndim_auxiliary == 0);
+	}
+	// right tensor
+	{
+		assert(su2_tree_node_is_leaf(m1.tree.tree_split));
+		assert(m1.tree.tree_split->i_ax == 0);
+		assert(m1.tree.tree_fuse->c[0]->i_ax == 2);
+		assert(m1.tree.tree_fuse->c[1]->i_ax == 1);
+		struct su2_irreducible_list outer_irreps[2] = { split_site_irreps[1], a->outer_irreps[2] };
+		const ct_long* dim_degen[2] = { split_site_dim_degen[1], a->dim_degen[2] };
+		su2_tensor_split_axis_remove_auxiliary(&m1, 1, 2, outer_irreps, dim_degen, a1);
+		delete_su2_tensor(&m1);
+		su2_tensor_reverse_axis_simple(a1, 1);
+		assert(a1->ndim_logical == 3 && a1->ndim_auxiliary == 0);
+	}
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Contract two neighboring SU(2) MPS tensors along the virtual bond (without merging the physical axes).
 ///
 void su2_mps_contract_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a)
@@ -587,7 +678,13 @@ void su2_mps_contract_tensor_pair(const struct su2_tensor* restrict a0, const st
 	// allowing a0 and a1 to have several physical axes
 	const int i_ax_cntr_0[1] = { a0->ndim_logical - 1 };
 	const int i_ax_cntr_1[1] = { 0 };
-	su2_tensor_contract_simple(a0, i_ax_cntr_0, a1, i_ax_cntr_1, 1, a);
+	struct su2_tensor t;
+	su2_tensor_contract_simple(a0, i_ax_cntr_0, a1, i_ax_cntr_1, 1, &t);
+
+	// group physical axes together
+	su2_tensor_fmove(&t, t.tree.tree_split->c[0]->i_ax, a);
+	delete_su2_tensor(&t);
+
 }
 
 
@@ -597,12 +694,15 @@ void su2_mps_contract_tensor_pair(const struct su2_tensor* restrict a0, const st
 ///
 void su2_mps_merge_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a)
 {
-	struct su2_tensor a0_a1_dot;
-	su2_mps_contract_tensor_pair(a0, a1, &a0_a1_dot);
+	assert(a0->ndim_logical == 3 && a0->ndim_auxiliary == 0);
+	assert(a1->ndim_logical == 3 && a1->ndim_auxiliary == 0);
 
-	// combine original physical dimensions of a0 and a1 into one dimension
-	su2_tensor_fuse_axes(&a0_a1_dot, 1, 2, a);
-	delete_su2_tensor(&a0_a1_dot);
+	struct su2_tensor t;
+	su2_mps_contract_tensor_pair(a0, a1, &t);
+
+	// combine original physical axes of a0 and a1 into one axis
+	su2_tensor_fuse_axes(&t, 1, 2, a);
+	delete_su2_tensor(&t);
 }
 
 

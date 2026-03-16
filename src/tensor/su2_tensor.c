@@ -36,10 +36,7 @@ void allocate_empty_su2_tensor(const enum numeric_type dtype, const int ndim_log
 	for (int i = 0; i < t->ndim_logical; i++)
 	{
 		assert(t->outer_irreps[i].num > 0);
-		qnumber j_max = 0;
-		for (int k = 0; k < t->outer_irreps[i].num; k++) {
-			j_max = qmax(j_max, t->outer_irreps[i].jlist[k]);
-		}
+		const qnumber j_max = su2_irreducible_list_j_max(&t->outer_irreps[i]);
 		t->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(ct_long));
 		memcpy(t->dim_degen[i], dim_degen[i], (j_max + 1) * sizeof(ct_long));
 	}
@@ -654,10 +651,7 @@ void su2_tensor_transpose(const int* perm, const struct su2_tensor* restrict t, 
 	for (int i = 0; i < r->ndim_logical; i++)
 	{
 		assert(r->outer_irreps[i].num > 0);
-		qnumber j_max = 0;
-		for (int k = 0; k < r->outer_irreps[i].num; k++) {
-			j_max = qmax(j_max, r->outer_irreps[i].jlist[k]);
-		}
+		const qnumber j_max = su2_irreducible_list_j_max(&r->outer_irreps[i]);
 		r->dim_degen[i] = ct_malloc((j_max + 1) * sizeof(ct_long));
 		memcpy(r->dim_degen[i], t->dim_degen[perm[i]], (j_max + 1) * sizeof(ct_long));
 	}
@@ -1000,16 +994,10 @@ void su2_tensor_fuse_axes(const struct su2_tensor* restrict t, const int i_ax_0,
 		axis_map[i] = i - 2;
 	}
 
-	qnumber j_max_0 = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++) {
-		j_max_0 = qmax(j_max_0, t->outer_irreps[i_ax_0].jlist[k]);
-	}
-	qnumber j_max_1 = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_1].num; k++) {
-		j_max_1 = qmax(j_max_1, t->outer_irreps[i_ax_1].jlist[k]);
-	}
+	const qnumber j_max_0 = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_0]);
+	const qnumber j_max_1 = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_1]);
 	// largest possible 'j' quantum number of the new fused axis
-	qnumber j_max_fused = j_max_0 + j_max_1;
+	const qnumber j_max_fused = j_max_0 + j_max_1;
 
 	// degeneracy tensor offset map for the fused axis
 	ct_long* offset_map = ct_calloc((j_max_fused + 1) * (j_max_0 + 1) * (j_max_1 + 1), sizeof(ct_long));
@@ -1280,16 +1268,10 @@ void su2_tensor_fuse_axes_add_auxiliary(const struct su2_tensor* restrict t, con
 	}
 	assert(is_permutation(axis_map, ndim));
 
-	qnumber j_max_0 = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_0].num; k++) {
-		j_max_0 = qmax(j_max_0, t->outer_irreps[i_ax_0].jlist[k]);
-	}
-	qnumber j_max_1 = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_1].num; k++) {
-		j_max_1 = qmax(j_max_1, t->outer_irreps[i_ax_1].jlist[k]);
-	}
+	const qnumber j_max_0 = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_0]);
+	const qnumber j_max_1 = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_1]);
 	// largest possible 'j' quantum number of the new fused axis
-	qnumber j_max_fused = j_max_0 + j_max_1;
+	const qnumber j_max_fused = j_max_0 + j_max_1;
 
 	// degeneracy tensor offset map for the fused axis
 	ct_long* offset_map = ct_calloc((j_max_fused + 1) * (j_max_0 + 1) * (j_max_1 + 1), sizeof(ct_long));
@@ -1545,18 +1527,9 @@ void su2_tensor_split_axis(const struct su2_tensor* restrict t, const int i_ax_s
 	axis_map[ndim_t]     = i_ax_split;
 	axis_map[ndim_t + 1] = i_ax_add;
 
-	qnumber j_max_0 = 0;
-	for (int k = 0; k < outer_irreps[0].num; k++) {
-		j_max_0 = qmax(j_max_0, outer_irreps[0].jlist[k]);
-	}
-	qnumber j_max_1 = 0;
-	for (int k = 0; k < outer_irreps[1].num; k++) {
-		j_max_1 = qmax(j_max_1, outer_irreps[1].jlist[k]);
-	}
-	qnumber j_max_split = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_split].num; k++) {
-		j_max_split = qmax(j_max_split, t->outer_irreps[i_ax_split].jlist[k]);
-	}
+	const qnumber j_max_0 = su2_irreducible_list_j_max(&outer_irreps[0]);
+	const qnumber j_max_1 = su2_irreducible_list_j_max(&outer_irreps[1]);
+	const qnumber j_max_split = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_split]);
 	// must be compatible
 	assert(j_max_split == j_max_0 + j_max_1);
 
@@ -1829,18 +1802,9 @@ void su2_tensor_split_axis_remove_auxiliary(const struct su2_tensor* restrict t,
 	}
 	assert(is_permutation(axis_map, ndim));
 
-	qnumber j_max_0 = 0;
-	for (int k = 0; k < outer_irreps[0].num; k++) {
-		j_max_0 = qmax(j_max_0, outer_irreps[0].jlist[k]);
-	}
-	qnumber j_max_1 = 0;
-	for (int k = 0; k < outer_irreps[1].num; k++) {
-		j_max_1 = qmax(j_max_1, outer_irreps[1].jlist[k]);
-	}
-	qnumber j_max_split = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax_split].num; k++) {
-		j_max_split = qmax(j_max_split, t->outer_irreps[i_ax_split].jlist[k]);
-	}
+	const qnumber j_max_0 = su2_irreducible_list_j_max(&outer_irreps[0]);
+	const qnumber j_max_1 = su2_irreducible_list_j_max(&outer_irreps[1]);
+	const qnumber j_max_split = su2_irreducible_list_j_max(&t->outer_irreps[i_ax_split]);
 	// must be compatible
 	assert(j_max_split == j_max_0 + j_max_1);
 
@@ -2054,12 +2018,7 @@ void su2_tensor_slice(const struct su2_tensor* restrict t, const int i_ax, const
 	assert(nind > 0);
 
 	// maximum 'j' quantum number along axis 'i_ax'
-	qnumber j_max = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
-	{
-		const qnumber j = t->outer_irreps[i_ax].jlist[k];
-		j_max = qmax(j_max, j);
-	}
+	const qnumber j_max = su2_irreducible_list_j_max(&t->outer_irreps[i_ax]);
 
 	// selected indices for each 'j' quantum number along 'i_ax'
 	ct_long** ind_sectors     = ct_calloc(j_max + 1, sizeof(ct_long*));
@@ -2207,12 +2166,7 @@ void su2_tensor_slice_scale(const struct su2_tensor* restrict t, const int i_ax,
 	const ct_long nind = s->dim[0];
 
 	// maximum 'j' quantum number along axis 'i_ax'
-	qnumber j_max = 0;
-	for (int k = 0; k < t->outer_irreps[i_ax].num; k++)
-	{
-		const qnumber j = t->outer_irreps[i_ax].jlist[k];
-		j_max = qmax(j_max, j);
-	}
+	const qnumber j_max = su2_irreducible_list_j_max(&t->outer_irreps[i_ax]);
 
 	// selected indices for each 'j' quantum number along 'i_ax'
 	ct_long** ind_sectors     = ct_calloc(j_max + 1, sizeof(ct_long*));
@@ -3192,10 +3146,7 @@ void su2_to_dense_tensor(const struct su2_tensor* restrict s, struct dense_tenso
 	for (int i = 0; i < s->ndim_logical; i++)
 	{
 		assert(s->outer_irreps[i].num > 0);
-		qnumber j_max = 0;
-		for (int k = 0; k < s->outer_irreps[i].num; k++) {
-			j_max = qmax(j_max, s->outer_irreps[i].jlist[k]);
-		}
+		const qnumber j_max = su2_irreducible_list_j_max(&s->outer_irreps[i]);
 		sector_offsets[i] = ct_calloc(j_max + 1, sizeof(ct_long));
 		for (int k = 0; k < s->outer_irreps[i].num; k++)
 		{
@@ -3396,10 +3347,7 @@ int su2_tensor_qr(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 
 		ct_long* dim_degen_q[2];
 		dim_degen_q[0] = a->dim_degen[0];  // copy pointer
-		qnumber j_max = 0;
-		for (int k = 0; k < outer_irreps_q[1].num; k++) {
-			j_max = qmax(j_max, outer_irreps_q[1].jlist[k]);
-		}
+		const qnumber j_max = su2_irreducible_list_j_max(&outer_irreps_q[1]);
 		dim_degen_q[1] = ct_calloc(j_max + 1, sizeof(ct_long));
 		if (mode == QR_REDUCED)
 		{
@@ -3661,10 +3609,7 @@ int su2_tensor_rq(const struct su2_tensor* restrict a, const enum qr_mode mode, 
 
 		ct_long* dim_degen_q[2];
 		dim_degen_q[1] = a->dim_degen[1];  // copy pointer
-		qnumber j_max = 0;
-		for (int k = 0; k < outer_irreps_q[0].num; k++) {
-			j_max = qmax(j_max, outer_irreps_q[0].jlist[k]);
-		}
+		const qnumber j_max = su2_irreducible_list_j_max(&outer_irreps_q[0]);
 		dim_degen_q[0] = ct_calloc(j_max + 1, sizeof(ct_long));
 		if (mode == QR_REDUCED)
 		{
@@ -4075,10 +4020,8 @@ bool su2_tensor_allclose(const struct su2_tensor* restrict s, const struct su2_t
 	for (int i = 0; i < s->ndim_logical; i++)
 	{
 		assert(s->outer_irreps[i].num > 0);
-		qnumber j_max = 0;
-		for (int k = 0; k < s->outer_irreps[i].num; k++) {
-			j_max = qmax(j_max, s->outer_irreps[i].jlist[k]);
-		}
+		
+		const qnumber j_max = su2_irreducible_list_j_max(&s->outer_irreps[i]);
 		for (qnumber j = 0; j <= j_max; j++) {
 			if (s->dim_degen[i][j] != t->dim_degen[i][j]) {
 				return false;

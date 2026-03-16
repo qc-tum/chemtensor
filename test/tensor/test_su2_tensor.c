@@ -2088,10 +2088,7 @@ char* test_su2_tensor_slice()
 	struct dense_tensor t_dns;
 	su2_to_dense_tensor(&t, &t_dns);
 
-	qnumber j_max = 0;
-	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++) {
-		j_max = qmax(j_max, t.outer_irreps[i_ax_slice].jlist[k]);
-	}
+	const qnumber j_max = su2_irreducible_list_j_max(&t.outer_irreps[i_ax_slice]);
 	ct_long* sector_offsets = ct_calloc(j_max + 1, sizeof(ct_long));
 	ct_long d = 0;
 	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++)
@@ -2269,10 +2266,7 @@ char* test_su2_tensor_slice_scale()
 	struct dense_tensor t_dns;
 	su2_to_dense_tensor(&t, &t_dns);
 
-	qnumber j_max = 0;
-	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++) {
-		j_max = qmax(j_max, t.outer_irreps[i_ax_slice].jlist[k]);
-	}
+	const qnumber j_max = su2_irreducible_list_j_max(&t.outer_irreps[i_ax_slice]);
 	ct_long* sector_offsets = ct_calloc(j_max + 1, sizeof(ct_long));
 	ct_long d = 0;
 	for (int k = 0; k < t.outer_irreps[i_ax_slice].num; k++)

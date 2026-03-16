@@ -91,14 +91,8 @@ void su2_irreps_tensor_product(
 	const struct su2_irreducible_list* restrict irreps_b, const ct_long* restrict dim_degen_b,
 	struct su2_irreducible_list* restrict irreps_prod, ct_long** restrict dim_degen_prod)
 {
-	qnumber j_max_a = 0;
-	for (int k = 0; k < irreps_a->num; k++) {
-		j_max_a = qmax(j_max_a, irreps_a->jlist[k]);
-	}
-	qnumber j_max_b = 0;
-	for (int k = 0; k < irreps_b->num; k++) {
-		j_max_b = qmax(j_max_b, irreps_b->jlist[k]);
-	}
+	const qnumber j_max_a = su2_irreducible_list_j_max(irreps_a);
+	const qnumber j_max_b = su2_irreducible_list_j_max(irreps_b);
 	const qnumber j_max_prod = j_max_a + j_max_b;
 
 	// evaluate "degeneracies"

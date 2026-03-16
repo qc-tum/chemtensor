@@ -23,6 +23,21 @@ void copy_su2_irreducible_list(const struct su2_irreducible_list* src, struct su
 
 void delete_su2_irreducible_list(struct su2_irreducible_list* list);
 
+//________________________________________________________________________________________________________________________
+///
+/// \brief Largest 'j' quantum number contained in the list.
+///
+/// Assuming that the 'j' quantum numbers are non-negative, and returns 0 for an empty list.
+///
+static inline qnumber su2_irreducible_list_j_max(const struct su2_irreducible_list* s)
+{
+	qnumber j_max = 0;
+	for (int k = 0; k < s->num; k++) {
+		j_max = qmax(j_max, s->jlist[k]);
+	}
+	return j_max;
+}
+
 bool su2_irreducible_list_equal(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t);
 
 int compare_su2_irreducible_lists(const struct su2_irreducible_list* s, const struct su2_irreducible_list* t);
