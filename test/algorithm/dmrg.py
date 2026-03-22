@@ -47,9 +47,8 @@ def dmrg_singlesite(hamiltonian: MPO, psi: MPS, num_sweeps: int, numiter_lanczos
     lblocks[0] = np.array([[[1]]], dtype=rblocks[0].dtype)
 
     # consistency check
-    for i in range(len(rblocks)):
-        assert is_qsparse(rblocks[i],
-                          (psi.qbonds[i+1], hamiltonian.qbonds[i+1], -psi.qbonds[i+1])), \
+    for i, rb in enumerate(rblocks):
+        assert is_qsparse(rb, (psi.qbonds[i+1], hamiltonian.qbonds[i+1], -psi.qbonds[i+1])), \
             "sparsity pattern of operator blocks must match quantum numbers"
 
     en_min = np.zeros(num_sweeps)
@@ -81,7 +80,7 @@ def dmrg_singlesite(hamiltonian: MPO, psi: MPS, num_sweeps: int, numiter_lanczos
 
         # right-normalize leftmost tensor to ensure that 'psi' is normalized
         psi.a[0], _, psi.qbonds[0] = mps_local_orthonormalize_right_qr(
-                                psi.a[0], np.array([[[1]]]), psi.qsite, psi.qbonds[:2])
+            psi.a[0], np.array([[[1]]]), psi.qsite, psi.qbonds[:2])
 
         # record energy after each sweep
         en_min[n] = en
@@ -122,9 +121,8 @@ def dmrg_twosite(hamiltonian: MPO, psi: MPS, num_sweeps: int,
     lblocks[0] = np.array([[[1]]], dtype=rblocks[0].dtype)
 
     # consistency check
-    for i in range(len(rblocks)):
-        assert is_qsparse(rblocks[i],
-                          (psi.qbonds[i+1], hamiltonian.qbonds[i+1], -psi.qbonds[i+1])), \
+    for i, rb in enumerate(rblocks):
+        assert is_qsparse(rb, (psi.qbonds[i+1], hamiltonian.qbonds[i+1], -psi.qbonds[i+1])), \
             "sparsity pattern of operator blocks must match quantum numbers"
 
     en_min = np.zeros(num_sweeps)

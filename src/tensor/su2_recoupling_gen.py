@@ -8,7 +8,8 @@ def su2_j3_range(j1: int, j2: int):
     """
     Range of the combined quantum number 'j3' for given 'j1' and 'j2'.
 
-    Quantum numbers are represented times 2 to support half-integers without rounding errors.
+    Quantum numbers are represented times 2 to support
+    logical half-integers while retaining the integer type.
     """
     return range(abs(j1 - j2), j1 + j2 + 1, 2)
 
@@ -17,7 +18,7 @@ def js_range(ja: int, jb: int, jc: int):
     """
     Admissible range of quantum number combined from 'ja', 'jb', 'jc'.
     """
-    js_min = min(abs(ja + jb - jc), abs(jc + ja - jb), abs(jb + jc - ja))
+    js_min = min(abs(jab - jc) for jab in su2_j3_range(ja, jb))
     js_max = ja + jb + jc
     return range(js_min, js_max + 1, 2)
 
@@ -125,7 +126,10 @@ rf"""
 ///
 double su2_recoupling_coefficient(const qnumber ja, const qnumber jb, const qnumber jc, const qnumber js, const qnumber je, const qnumber jf)
 {{
-	const qnumber js_min = qmin(qmin(abs(ja + jb - jc), abs(jc + ja - jb)), abs(jb + jc - ja));
+	qnumber js_min = abs(ja + jb - jc);
+	for (qnumber jab = abs(ja - jb); jab <= ja + jb; jab += 2) {{
+		js_min = qmin(js_min, abs(jab - jc));
+	}}
 	const qnumber js_max = ja + jb + jc;
 	assert((js_max - js_min) % 2 == 0);
 	if (js < js_min || js > js_max) {{

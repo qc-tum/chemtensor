@@ -243,6 +243,24 @@ bool su2_mpo_is_consistent(const struct su2_mpo* mpo)
 ///
 /// \brief Contract two neighboring SU(2) MPO tensors along the virtual bond (without merging the physical axes).
 ///
+/// Tree of output tensor 'a' for standard SU(2) MPO tensors a0 and a1,
+/// with 3, 4 the physical input axes of a0 and a1,
+/// and 1, 2 the physical output axes of a0 and a1, respectively:
+///
+///    3    4   5
+///     ╲  ╱   ╱
+///      ╲╱   ╱
+///      8╲  ╱        fuse
+///        ╲╱
+///        │
+///        │6
+///        │
+///        ╱╲
+///       ╱  ╲7       split
+///      ╱   ╱╲
+///     ╱   ╱  ╲
+///    0   1    2
+///
 void su2_mpo_contract_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a)
 {
 	assert(a0->ndim_auxiliary == 0);
@@ -252,6 +270,23 @@ void su2_mpo_contract_tensor_pair(const struct su2_tensor* restrict a0, const st
 	// allowing a0 and a1 to have several physical axes
 	struct su2_tensor s;
 	su2_tensor_contract_yoga(a0, a0->ndim_logical - 1, a1, 0, &s);
+
+	// tree of current tensor 's' for standard SU(2) MPO tensors a0 and a1
+	// (with 0 the left virtual bond of a0 and 5 the right virtual bond of a1):
+	//
+	//  2   4    5
+	//   ╲   ╲  ╱
+	//    ╲   ╲╱
+	//     ╲  ╱8       fuse
+	//      ╲╱
+	//      │
+	//      │6
+	//      │
+	//      ╱╲
+	//    7╱  ╲        split
+	//    ╱╲   ╲
+	//   ╱  ╲   ╲
+	//  0    1   3
 
 	// group physical input and output axes together
 	struct su2_tensor t;
@@ -292,6 +327,23 @@ void su2_mpo_contract_tensor_pair(const struct su2_tensor* restrict a0, const st
 	}
 	su2_tensor_fmove(&s, i_ax_p_right, a);
 	delete_su2_tensor(&s);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Merge two neighboring SU(2) MPO tensors.
+///
+void su2_mpo_merge_tensor_pair(const struct su2_tensor* restrict a0, const struct su2_tensor* restrict a1, struct su2_tensor* restrict a)
+{
+	su2_mpo_contract_tensor_pair(a0, a1, a);
+
+	// combine original physical input and output axes of a0 and a1
+	struct su2_tensor t;
+	su2_tensor_fuse_axes(a, 3, 4, &t);
+	delete_su2_tensor(a);
+	su2_tensor_fuse_axes(&t, 1, 2, a);
+	delete_su2_tensor(&t);
 }
 
 

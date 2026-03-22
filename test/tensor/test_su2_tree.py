@@ -6,7 +6,8 @@ def _su2_j3_range(j1: int, j2: int):
     """
     Range of the combined quantum number 'j3' for given 'j1' and 'j2'.
 
-    Quantum numbers are represented times 2 to support half-integers without rounding errors.
+    Quantum numbers are represented times 2 to support
+    logical half-integers while retaining the integer type.
     """
     return range(abs(j1 - j2), j1 + j2 + 1, 2)
 

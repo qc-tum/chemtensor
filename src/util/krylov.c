@@ -1,6 +1,7 @@
 /// \file krylov.c
 /// \brief Krylov subspace algorithms.
 
+#include <math.h>
 #include <complex.h>
 #include <assert.h>
 #include <stdio.h>
@@ -174,6 +175,42 @@ int eigensystem_krylov_symmetric(const ct_long n, lanczos_linear_func_d afunc, c
 {
 	assert(numeig <= maxiter);
 
+	#ifndef NDEBUG
+	{
+		// test symmetry of the matrix representation of 'afunc'
+
+		double* h_dns_t = ct_malloc(n * n * sizeof(double));
+		double* unitvec = ct_malloc(n * sizeof(double));
+		for (ct_long j = 0; j < n; j++)
+		{
+			memset(unitvec, 0, n * sizeof(double));
+			unitvec[j] = 1;
+			afunc(n, adata, unitvec, &h_dns_t[j * n]);
+		}
+		ct_free(unitvec);
+
+		const double tol = 1e-12;
+		bool is_symm = true;
+		double err = 0;
+		for (ct_long i = 0; i < n; i++)
+		{
+			for (ct_long j = i + 1; j < n; j++)
+			{
+				const double err_loc = fabs(h_dns_t[i*n + j] - h_dns_t[j*n + i]);
+				err += err_loc;
+				if (err_loc > tol) {
+					is_symm = false;
+				}
+			}
+		}
+		ct_free(h_dns_t);
+
+		if (!is_symm) {
+			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric' is not symmetric; overall error: %g\n", err);
+		}
+	}
+	#endif
+
 	double* alpha = ct_malloc(maxiter       * sizeof(double));
 	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));
 	double* v     = ct_malloc(maxiter*n     * sizeof(double));
@@ -223,6 +260,42 @@ int eigensystem_krylov_hermitian(const ct_long n, lanczos_linear_func_z afunc, c
 	double* restrict lambda, dcomplex* restrict u_ritz)
 {
 	assert(numeig <= maxiter);
+
+	#ifndef NDEBUG
+	{
+		// test symmetry of the matrix representation of 'afunc'
+
+		dcomplex* h_dns_t = ct_malloc(n * n * sizeof(dcomplex));
+		dcomplex* unitvec = ct_malloc(n * sizeof(dcomplex));
+		for (ct_long j = 0; j < n; j++)
+		{
+			memset(unitvec, 0, n * sizeof(dcomplex));
+			unitvec[j] = 1;
+			afunc(n, adata, unitvec, &h_dns_t[j * n]);
+		}
+		ct_free(unitvec);
+
+		const double tol = 1e-12;
+		bool is_symm = true;
+		double err = 0;
+		for (ct_long i = 0; i < n; i++)
+		{
+			for (ct_long j = i; j < n; j++)  // starting at j == i since diagonal entries must be real
+			{
+				const double err_loc = cabs(h_dns_t[i*n + j] - conj(h_dns_t[j*n + i]));
+				err += err_loc;
+				if (err_loc > tol) {
+					is_symm = false;
+				}
+			}
+		}
+		ct_free(h_dns_t);
+
+		if (!is_symm) {
+			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_hermitian' is not Hermitian; overall error: %g\n", err);
+		}
+	}
+	#endif
 
 	double* alpha = ct_malloc(maxiter       * sizeof(double));
 	double* beta  = ct_malloc((maxiter - 1) * sizeof(double));

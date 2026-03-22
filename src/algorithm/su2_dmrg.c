@@ -251,3 +251,179 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 
 	return 0;
 }
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Run the two-site DMRG algorithm for SU(2) symmetric tensors:
+/// Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
+/// The input 'psi' is used as the starting state and is updated in-place during the optimization.
+///
+int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const ct_long max_vdim,
+	struct su2_mps* psi, double* restrict en_sweeps, double* restrict entropy)
+{
+	// number of lattice sites
+	const int nsites = hamiltonian->nsites;
+	assert(nsites == psi->nsites);
+	assert(nsites >= 2);
+
+	// currently only double precision supported
+	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
+
+	// right-normalize input matrix product state
+	double nrm = su2_mps_orthonormalize_qr(psi, SU2_MPS_ORTHONORMAL_RIGHT);
+	if (nrm == 0) {
+		printf("Warning: in 'su2_dmrg_twosite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
+	}
+
+	// left and right operator blocks
+	struct su2_tensor* lblocks = ct_malloc(nsites * sizeof(struct su2_tensor));
+	struct su2_tensor* rblocks = ct_malloc(nsites * sizeof(struct su2_tensor));
+	su2_compute_right_operator_blocks(psi, psi, hamiltonian, rblocks);
+	su2_create_dummy_operator_block_left(hamiltonian->a[0].dtype, &lblocks[0]);
+	for (int i = 1; i < nsites; i++) {
+		copy_su2_tensor(&lblocks[0], &lblocks[i]);
+	}
+
+	// precompute merged neighboring Hamiltonian MPO tensors
+	struct su2_tensor* h2 = ct_malloc((nsites - 1) * sizeof(struct su2_tensor));
+	for (int i = 0; i < nsites - 1; i++) {
+		su2_mpo_merge_tensor_pair(&hamiltonian->a[i], &hamiltonian->a[i + 1], &h2[i]);
+	}
+
+	// TODO: number of sweeps should be determined by tolerance and some convergence measure
+	for (int n = 0; n < num_sweeps; n++)
+	{
+		double en;
+
+		// sweep from left to right
+		for (int i = 0; i < nsites - 2; i++)
+		{
+			// save 'j' quantum numbers and degeneracy dimensions for the current two physical sites
+			struct su2_irreducible_list site_irreps[2];
+			copy_su2_irreducible_list(&psi->a[i    ].outer_irreps[1], &site_irreps[0]);
+			copy_su2_irreducible_list(&psi->a[i + 1].outer_irreps[1], &site_irreps[1]);
+			const qnumber site_j_max[2] = {
+				su2_irreducible_list_j_max(&site_irreps[0]),
+				su2_irreducible_list_j_max(&site_irreps[1]),
+			};
+			ct_long* site_dim_degen[2] = {
+				ct_malloc((site_j_max[0] + 1) * sizeof(ct_long)),
+				ct_malloc((site_j_max[1] + 1) * sizeof(ct_long)),
+			};
+			memcpy(site_dim_degen[0], psi->a[i    ].dim_degen[1], (site_j_max[0] + 1) * sizeof(ct_long));
+			memcpy(site_dim_degen[1], psi->a[i + 1].dim_degen[1], (site_j_max[1] + 1) * sizeof(ct_long));
+
+			// merge neighboring MPS tensors
+			struct su2_tensor a_cur;
+			su2_mps_merge_tensor_pair(&psi->a[i], &psi->a[i + 1], &a_cur);
+			delete_su2_tensor(&psi->a[i]);
+			delete_su2_tensor(&psi->a[i + 1]);
+
+			// minimize local two-site energy using merged tensor as starting point
+			struct su2_tensor a_opt;
+			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			delete_su2_tensor(&a_cur);
+			if (ret < 0) {
+				return ret;
+			}
+
+			// split optimized two-site MPS tensor into two tensors
+			struct trunc_info info;
+			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, tol_split, max_vdim, SU2_SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &info);
+			if (ret < 0) {
+				return ret;
+			}
+			ct_free(site_dim_degen[0]);
+			ct_free(site_dim_degen[1]);
+			delete_su2_irreducible_list(&site_irreps[0]);
+			delete_su2_irreducible_list(&site_irreps[1]);
+			delete_su2_tensor(&a_opt);
+
+			// update the left blocks
+			delete_su2_tensor(&lblocks[i + 1]);
+			su2_contraction_operator_step_left(&psi->a[i], &psi->a[i], &hamiltonian->a[i], &lblocks[i], &lblocks[i + 1]);
+		}
+
+		// sweep from right to left
+		for (int i = nsites - 2; i >= 0; i--)
+		{
+			// save 'j' quantum numbers and degeneracy dimensions for the current two physical sites
+			struct su2_irreducible_list site_irreps[2];
+			copy_su2_irreducible_list(&psi->a[i    ].outer_irreps[1], &site_irreps[0]);
+			copy_su2_irreducible_list(&psi->a[i + 1].outer_irreps[1], &site_irreps[1]);
+			const qnumber site_j_max[2] = {
+				su2_irreducible_list_j_max(&site_irreps[0]),
+				su2_irreducible_list_j_max(&site_irreps[1]),
+			};
+			ct_long* site_dim_degen[2] = {
+				ct_malloc((site_j_max[0] + 1) * sizeof(ct_long)),
+				ct_malloc((site_j_max[1] + 1) * sizeof(ct_long)),
+			};
+			memcpy(site_dim_degen[0], psi->a[i    ].dim_degen[1], (site_j_max[0] + 1) * sizeof(ct_long));
+			memcpy(site_dim_degen[1], psi->a[i + 1].dim_degen[1], (site_j_max[1] + 1) * sizeof(ct_long));
+
+			// merge neighboring MPS tensors
+			struct su2_tensor a_cur;
+			su2_mps_merge_tensor_pair(&psi->a[i], &psi->a[i + 1], &a_cur);
+			delete_su2_tensor(&psi->a[i]);
+			delete_su2_tensor(&psi->a[i + 1]);
+
+			// minimize local two-site energy using merged tensor as starting point
+			struct su2_tensor a_opt;
+			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			delete_su2_tensor(&a_cur);
+			if (ret < 0) {
+				return ret;
+			}
+
+			// split optimized two-site MPS tensor into two tensors
+			struct trunc_info info;
+			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, tol_split, max_vdim, SU2_SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &info);
+			if (ret < 0) {
+				return ret;
+			}
+			ct_free(site_dim_degen[0]);
+			ct_free(site_dim_degen[1]);
+			delete_su2_irreducible_list(&site_irreps[0]);
+			delete_su2_irreducible_list(&site_irreps[1]);
+			delete_su2_tensor(&a_opt);
+			// record entropy
+			entropy[i] = info.entropy;
+
+			// update the right blocks
+			delete_su2_tensor(&rblocks[i]);
+			su2_contraction_operator_step_right(&psi->a[i + 1], &psi->a[i + 1], &hamiltonian->a[i + 1], &rblocks[i + 1], &rblocks[i]);
+		}
+
+		// right-normalize leftmost tensor to ensure that 'psi' is normalized
+		{
+			// dummy tensor at site "-1"
+			struct su2_tensor a_head;
+			su2_mps_create_dummy_head_tensor(&psi->a[0], &a_head);
+
+			su2_mps_local_orthonormalize_rq(&psi->a[0], &a_head);
+
+			delete_su2_tensor(&a_head);
+		}
+
+		// record energy after each sweep
+		en_sweeps[n] = en;
+	}
+
+	// clean up
+	for (int i = 0; i < nsites - 1; i++)
+	{
+		delete_su2_tensor(&h2[i]);
+	}
+	ct_free(h2);
+	for (int i = 0; i < nsites; i++)
+	{
+		delete_su2_tensor(&rblocks[i]);
+		delete_su2_tensor(&lblocks[i]);
+	}
+	ct_free(rblocks);
+	ct_free(lblocks);
+
+	return 0;
+}

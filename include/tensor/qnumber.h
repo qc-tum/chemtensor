@@ -10,9 +10,9 @@
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Quantum number type for exploiting U(1) symmetries (like particle number or spin conservation).
+/// \brief Quantum number type for exploiting U(1) symmetries (like particle number or spin conservation) and SU(2) symmetries.
 ///
-/// For half-integer quantum numbers like spins, we store the physical quantum number times 2 to avoid rounding issues.
+/// For half-integer quantum numbers like spins, we store the physical quantum number times 2 to retain the integer type.
 ///
 typedef int32_t qnumber;
 

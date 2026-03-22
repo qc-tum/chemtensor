@@ -42,6 +42,16 @@ bool su2_mpo_is_consistent(const struct su2_mpo* mpo);
 //________________________________________________________________________________________________________________________
 //
 
+// splitting and merging
+
+void su2_mpo_contract_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);
+
+void su2_mpo_merge_tensor_pair(const struct su2_tensor* a0, const struct su2_tensor* a1, struct su2_tensor* a);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // conversion to a single tensor (intended for testing)
 
 void su2_mpo_to_tensor(const struct su2_mpo* mpo, struct su2_tensor* mat);
