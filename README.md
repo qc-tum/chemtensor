@@ -22,12 +22,12 @@ Features
 - Represent common Hamiltonians as MPOs, including molecular Hamiltonians
 - General MPO and TTNO construction with optimized bond dimensions from a list of operator chains
 - Block-sparse tensors based on additive quantum number conservation to implement abelian symmetries
-- Single- and two-site DMRG algorithm
+- SU(2) symmetric tensors as preliminary support for non-abelian symmetries
+- Single- and two-site DMRG algorithm, variants for abelian and for SU(2) symmetries
 - Gradient computation with respect to MPO parameters
 - Tensor hypercontraction form of molecular Hamiltonians
 - Tree tensor network topologies
 - Basis-Update and Galerkin (BUG) rank-adaptive time integration
-- Non-abelian symmetries (work in progress)
 
 
 Installation
