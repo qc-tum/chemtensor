@@ -174,9 +174,13 @@ void su2_tensor_contract_yoga(const struct su2_tensor* s, const int i_ax_s, cons
 //________________________________________________________________________________________________________________________
 //
 
-// conversion to a dense tensor
+// conversion to and dot product with a dense tensor
 
 void su2_to_dense_tensor(const struct su2_tensor* s, struct dense_tensor* t);
+
+void su2_dense_tensor_dot(const struct su2_tensor* s, const enum tensor_axis_range axrange_s,
+	const struct dense_tensor* t, const enum tensor_axis_range axrange_t,
+	const int ndim_mult, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________
