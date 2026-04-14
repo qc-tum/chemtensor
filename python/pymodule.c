@@ -2485,18 +2485,22 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 		return NULL;
 	}
 
-	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_tkin, NPY_DOUBLE, 2, 2);
+	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_FromAny(py_obj_tkin, NULL, 2, 2, NPY_ARRAY_DEFAULT | NPY_ARRAY_ENSUREARRAY, NULL);
 	if (py_tkin == NULL) {
 		PyErr_SetString(PyExc_ValueError, "converting input argument 'tkin' to a NumPy array with degree 2 failed");
 		return NULL;
 	}
-	PyArrayObject* py_vint = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_vint, NPY_DOUBLE, 4, 4);
+	PyArrayObject* py_vint = (PyArrayObject*)PyArray_FromAny(py_obj_vint, NULL, 4, 4, NPY_ARRAY_DEFAULT | NPY_ARRAY_ENSUREARRAY, NULL);
 	if (py_vint == NULL) {
 		PyErr_SetString(PyExc_ValueError, "converting input argument 'vint' to a NumPy array with degree 4 failed");
 		return NULL;
 	}
 
 	// argument checks
+	if (PyArray_TYPE(py_tkin) != PyArray_TYPE(py_vint)) {
+		PyErr_SetString(PyExc_TypeError, "'tkin' and 'vint' must have entries of the same data type");
+		return NULL;
+	}
 	if (PyArray_NDIM(py_tkin) != 2) {
 		char msg[1024];
 		sprintf(msg, "'tkin' must have degree 2, received %i", PyArray_NDIM(py_tkin));
@@ -2511,10 +2515,6 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 	}
 	if (PyArray_DIM(py_tkin, 0) == 0) {
 		PyErr_SetString(PyExc_ValueError, "'tkin' cannot be an empty matrix");
-		return NULL;
-	}
-	if (PyArray_TYPE(py_tkin) != NPY_DOUBLE) {
-		PyErr_SetString(PyExc_TypeError, "'tkin' must have 'double' format entries");
 		return NULL;
 	}
 	if (!(PyArray_FLAGS(py_tkin) & NPY_ARRAY_C_CONTIGUOUS)) {
@@ -2535,10 +2535,6 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	if (PyArray_TYPE(py_vint) != NPY_DOUBLE) {
-		PyErr_SetString(PyExc_TypeError, "'vint' must have 'double' format entries");
-		return NULL;
-	}
 	if (!(PyArray_FLAGS(py_vint) & NPY_ARRAY_C_CONTIGUOUS)) {
 		PyErr_SetString(PyExc_SyntaxError, "'vint' does not have contiguous C storage format");
 		return NULL;
@@ -2548,19 +2544,31 @@ static PyObject* Py_construct_molecular_hamiltonian_mpo(PyObject* Py_UNUSED(self
 		return NULL;
 	}
 
+	enum numeric_type dtype;
+	for (dtype = 0; dtype < CT_NUM_NUMERIC_TYPES; dtype++)
+	{
+		if ((enum NPY_TYPES)PyArray_TYPE(py_tkin) == numeric_to_numpy_type(dtype)) {
+			break;
+		}
+	}
+	if (dtype == CT_NUM_NUMERIC_TYPES) {
+		PyErr_SetString(PyExc_SyntaxError, "numeric data type of 'tkin' and 'vint' not supported");
+		return NULL;
+	}
+
 	const ct_long nsites = (ct_long)PyArray_DIM(py_tkin, 0);
 	ct_long dim_tkin[2] = { nsites, nsites };
 	struct dense_tensor tkin = {
 		.data  = PyArray_DATA(py_tkin),
 		.dim   = dim_tkin,
-		.dtype = CT_DOUBLE_REAL,
+		.dtype = dtype,
 		.ndim  = 2,
 	};
 	ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	struct dense_tensor vint = {
 		.data  = PyArray_DATA(py_vint),
 		.dim   = dim_vint,
-		.dtype = CT_DOUBLE_REAL,
+		.dtype = dtype,
 		.ndim  = 4,
 	};
 
@@ -2594,18 +2602,22 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 		return NULL;
 	}
 
-	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_tkin, NPY_DOUBLE, 2, 2);
+	PyArrayObject* py_tkin = (PyArrayObject*)PyArray_FromAny(py_obj_tkin, NULL, 2, 2, NPY_ARRAY_DEFAULT | NPY_ARRAY_ENSUREARRAY, NULL);
 	if (py_tkin == NULL) {
 		PyErr_SetString(PyExc_ValueError, "converting input argument 'tkin' to a NumPy array with degree 2 failed");
 		return NULL;
 	}
-	PyArrayObject* py_vint = (PyArrayObject*)PyArray_ContiguousFromObject(py_obj_vint, NPY_DOUBLE, 4, 4);
+	PyArrayObject* py_vint = (PyArrayObject*)PyArray_FromAny(py_obj_vint, NULL, 4, 4, NPY_ARRAY_DEFAULT | NPY_ARRAY_ENSUREARRAY, NULL);
 	if (py_vint == NULL) {
 		PyErr_SetString(PyExc_ValueError, "converting input argument 'vint' to a NumPy array with degree 4 failed");
 		return NULL;
 	}
 
 	// argument checks
+	if (PyArray_TYPE(py_tkin) != PyArray_TYPE(py_vint)) {
+		PyErr_SetString(PyExc_TypeError, "'tkin' and 'vint' must have entries of the same data type");
+		return NULL;
+	}
 	if (PyArray_NDIM(py_tkin) != 2) {
 		char msg[1024];
 		sprintf(msg, "'tkin' must have degree 2, received %i", PyArray_NDIM(py_tkin));
@@ -2620,10 +2632,6 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 	}
 	if (PyArray_DIM(py_tkin, 0) == 0) {
 		PyErr_SetString(PyExc_ValueError, "'tkin' cannot be an empty matrix");
-		return NULL;
-	}
-	if (PyArray_TYPE(py_tkin) != NPY_DOUBLE) {
-		PyErr_SetString(PyExc_TypeError, "'tkin' must have 'double' format entries");
 		return NULL;
 	}
 	if (!(PyArray_FLAGS(py_tkin) & NPY_ARRAY_C_CONTIGUOUS)) {
@@ -2644,10 +2652,6 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	if (PyArray_TYPE(py_vint) != NPY_DOUBLE) {
-		PyErr_SetString(PyExc_TypeError, "'vint' must have 'double' format entries");
-		return NULL;
-	}
 	if (!(PyArray_FLAGS(py_vint) & NPY_ARRAY_C_CONTIGUOUS)) {
 		PyErr_SetString(PyExc_SyntaxError, "'vint' does not have contiguous C storage format");
 		return NULL;
@@ -2657,19 +2661,31 @@ static PyObject* Py_construct_spin_molecular_hamiltonian_mpo(PyObject* Py_UNUSED
 		return NULL;
 	}
 
+	enum numeric_type dtype;
+	for (dtype = 0; dtype < CT_NUM_NUMERIC_TYPES; dtype++)
+	{
+		if ((enum NPY_TYPES)PyArray_TYPE(py_tkin) == numeric_to_numpy_type(dtype)) {
+			break;
+		}
+	}
+	if (dtype == CT_NUM_NUMERIC_TYPES) {
+		PyErr_SetString(PyExc_SyntaxError, "numeric data type of 'tkin' and 'vint' not supported");
+		return NULL;
+	}
+
 	const ct_long nsites = (ct_long)PyArray_DIM(py_tkin, 0);
 	ct_long dim_tkin[2] = { nsites, nsites };
 	struct dense_tensor tkin = {
 		.data  = PyArray_DATA(py_tkin),
 		.dim   = dim_tkin,
-		.dtype = CT_DOUBLE_REAL,
+		.dtype = dtype,
 		.ndim  = 2,
 	};
 	ct_long dim_vint[4] = { nsites, nsites, nsites, nsites };
 	struct dense_tensor vint = {
 		.data  = PyArray_DATA(py_vint),
 		.dim   = dim_vint,
-		.dtype = CT_DOUBLE_REAL,
+		.dtype = dtype,
 		.ndim  = 4,
 	};
 
