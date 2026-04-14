@@ -1,5 +1,8 @@
 import numpy as np
 import h5py
+import sys
+sys.path.append("../tensor/")
+sys.path.append("../util/")
 from hamiltonian import (
     construct_ising_1d_hamiltonian,
     construct_heisenberg_xxz_1d_hamiltonian,
@@ -8,6 +11,7 @@ from hamiltonian import (
     construct_fermi_hubbard_1d_hamiltonian,
     construct_molecular_hamiltonian,
     construct_spin_molecular_hamiltonian)
+from crandn import crandn
 
 
 def ising_1d_mpo_data():
@@ -88,17 +92,36 @@ def molecular_hamiltonian_mpo_data():
     # number of lattice sites
     nsites = 7
 
-    # Hamiltonian coefficients
-    tkin = rng.standard_normal(2 * (nsites,))
-    vint = rng.standard_normal(4 * (nsites,))
-
-    # reference Hamiltonian
-    molecular_hamiltonian_mat = construct_molecular_hamiltonian(tkin, vint).todense()
-
     with h5py.File("data/test_molecular_hamiltonian_mpo.hdf5", "w") as file:
-        file["tkin"] = tkin
-        file["vint"] = vint
-        file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
+        for j in range(4):
+            if j == 0:
+                # single precision real
+                randgen = lambda size: rng.standard_normal(size).astype(np.float32)
+            elif j == 1:
+                # double precision real
+                randgen = lambda size: rng.standard_normal(size)
+            elif j == 2:
+                # single precision complex
+                randgen = lambda size: crandn(size, rng).astype(np.complex64)
+            else:
+                # double precision complex
+                randgen = lambda size: crandn(size, rng)
+
+            # Hamiltonian coefficients
+            tkin = randgen(2 * (nsites,))
+            vint = randgen(4 * (nsites,))
+
+            # reference Hamiltonian
+            molecular_hamiltonian_mat = construct_molecular_hamiltonian(tkin, vint).todense()
+            # cast to single-precision if necessary
+            if j == 0:
+                molecular_hamiltonian_mat = molecular_hamiltonian_mat.astype(np.float32)
+            elif j == 2:
+                molecular_hamiltonian_mat = molecular_hamiltonian_mat.astype(np.complex64)
+
+            file[f"tkin_t{j}"] = tkin
+            file[f"vint_t{j}"] = vint
+            file[f"molecular_hamiltonian_mat_t{j}"] = molecular_hamiltonian_mat
 
 
 def spin_molecular_hamiltonian_mpo_data():
@@ -107,17 +130,37 @@ def spin_molecular_hamiltonian_mpo_data():
 
     # number of spin-endowed lattice sites
     nsites = 4
-    # Hamiltonian parameters
-    tkin = rng.standard_normal(2 * (nsites,))
-    vint = rng.standard_normal(4 * (nsites,))
-
-    # reference Hamiltonian
-    molecular_hamiltonian_mat = construct_spin_molecular_hamiltonian(tkin, vint).todense()
 
     with h5py.File("data/test_spin_molecular_hamiltonian_mpo.hdf5", "w") as file:
-        file["tkin"] = tkin
-        file["vint"] = vint
-        file["molecular_hamiltonian_mat"] = molecular_hamiltonian_mat
+        for j in range(4):
+            if j == 0:
+                # single precision real
+                randgen = lambda size: rng.standard_normal(size).astype(np.float32)
+            elif j == 1:
+                # double precision real
+                randgen = lambda size: rng.standard_normal(size)
+            elif j == 2:
+                # single precision complex
+                randgen = lambda size: crandn(size, rng).astype(np.complex64)
+            else:
+                # double precision complex
+                randgen = lambda size: crandn(size, rng)
+
+            # Hamiltonian parameters
+            tkin = randgen(2 * (nsites,))
+            vint = randgen(4 * (nsites,))
+
+            # reference Hamiltonian
+            molecular_hamiltonian_mat = construct_spin_molecular_hamiltonian(tkin, vint).todense()
+            # cast to single-precision if necessary
+            if j == 0:
+                molecular_hamiltonian_mat = molecular_hamiltonian_mat.astype(np.float32)
+            elif j == 2:
+                molecular_hamiltonian_mat = molecular_hamiltonian_mat.astype(np.complex64)
+
+            file[f"tkin_t{j}"] = tkin
+            file[f"vint_t{j}"] = vint
+            file[f"molecular_hamiltonian_mat_t{j}"] = molecular_hamiltonian_mat
 
 
 def quadratic_fermionic_mpo_data():

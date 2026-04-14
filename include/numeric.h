@@ -269,6 +269,44 @@ static inline const void* numeric_neg_one(const enum numeric_type dtype)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Return a pointer to a static constant variable of the provided data type representing 0.5.
+///
+static inline const void* numeric_one_half(const enum numeric_type dtype)
+{
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			static const float one_half = 0.5;
+			return &one_half;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			static const double one_half = 0.5;
+			return &one_half;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			static const scomplex one_half = 0.5;
+			return &one_half;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			static const dcomplex one_half = 0.5;
+			return &one_half;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return NULL;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Convert the double number 'x' to the specified type and store result in 'alpha'.
 ///
 static inline void numeric_from_double(const double x, const enum numeric_type dtype, void* alpha)
@@ -299,6 +337,40 @@ static inline void numeric_from_double(const double x, const enum numeric_type d
 		{
 			// unknown data type
 			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Test whether a numeric value is exactly zero.
+///
+static inline bool numeric_is_zero(const enum numeric_type dtype, const void* alpha)
+{
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			return *((float*)alpha) == 0;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			return *((double*)alpha) == 0;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			return *((scomplex*)alpha) == 0;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			return *((dcomplex*)alpha) == 0;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return false;
 		}
 	}
 }

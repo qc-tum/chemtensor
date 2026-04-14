@@ -394,27 +394,95 @@ enum molecular_oid
 ///
 /// \brief Create the local operator map for a molecular Hamiltonian.
 ///
-static void create_molecular_hamiltonian_operator_map(struct dense_tensor* opmap)
+static void create_molecular_hamiltonian_operator_map(const enum numeric_type dtype, struct dense_tensor* opmap)
 {
-	// local operators
-	// creation and annihilation operators for a single spin and lattice site
-	const double a_ann[4] = { 0.,  1.,  0.,  0. };
-	const double a_dag[4] = { 0.,  0.,  1.,  0. };
-	// number operator
-	const double numop[4] = { 0.,  0.,  0.,  1. };
-	// Pauli-Z matrix required for Jordan-Wigner transformation
-	const double z[4]     = { 1.,  0.,  0., -1. };
-
 	for (int i = 0; i < NUM_MOLECULAR_OID; i++) {
 		const ct_long dim[2] = { 2, 2 };
-		allocate_dense_tensor(CT_DOUBLE_REAL, 2, dim, &opmap[i]);
+		allocate_dense_tensor(dtype, 2, dim, &opmap[i]);
 	}
 
 	dense_tensor_set_identity(&opmap[MOLECULAR_OID_I]);
-	memcpy(opmap[MOLECULAR_OID_C].data, a_dag, sizeof(a_dag));
-	memcpy(opmap[MOLECULAR_OID_A].data, a_ann, sizeof(a_ann));
-	memcpy(opmap[MOLECULAR_OID_N].data, numop, sizeof(numop));
-	memcpy(opmap[MOLECULAR_OID_Z].data, z,     sizeof(z));
+
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			// local operators
+			// creation and annihilation operators for a single spin and lattice site
+			const float a_ann[4] = { 0.f,  1.f,  0.f,  0.f };
+			const float a_dag[4] = { 0.f,  0.f,  1.f,  0.f };
+			// number operator
+			const float numop[4] = { 0.f,  0.f,  0.f,  1.f };
+			// Pauli-Z matrix required for Jordan-Wigner transformation
+			const float z[4]     = { 1.f,  0.f,  0.f, -1.f };
+
+			memcpy(opmap[MOLECULAR_OID_C].data, a_dag, sizeof(a_dag));
+			memcpy(opmap[MOLECULAR_OID_A].data, a_ann, sizeof(a_ann));
+			memcpy(opmap[MOLECULAR_OID_N].data, numop, sizeof(numop));
+			memcpy(opmap[MOLECULAR_OID_Z].data, z,     sizeof(z));
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			// local operators
+			// creation and annihilation operators for a single spin and lattice site
+			const double a_ann[4] = { 0.,  1.,  0.,  0. };
+			const double a_dag[4] = { 0.,  0.,  1.,  0. };
+			// number operator
+			const double numop[4] = { 0.,  0.,  0.,  1. };
+			// Pauli-Z matrix required for Jordan-Wigner transformation
+			const double z[4]     = { 1.,  0.,  0., -1. };
+
+			memcpy(opmap[MOLECULAR_OID_C].data, a_dag, sizeof(a_dag));
+			memcpy(opmap[MOLECULAR_OID_A].data, a_ann, sizeof(a_ann));
+			memcpy(opmap[MOLECULAR_OID_N].data, numop, sizeof(numop));
+			memcpy(opmap[MOLECULAR_OID_Z].data, z,     sizeof(z));
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			// local operators
+			// creation and annihilation operators for a single spin and lattice site
+			const scomplex a_ann[4] = { 0.f,  1.f,  0.f,  0.f };
+			const scomplex a_dag[4] = { 0.f,  0.f,  1.f,  0.f };
+			// number operator
+			const scomplex numop[4] = { 0.f,  0.f,  0.f,  1.f };
+			// Pauli-Z matrix required for Jordan-Wigner transformation
+			const scomplex z[4]     = { 1.f,  0.f,  0.f, -1.f };
+
+			memcpy(opmap[MOLECULAR_OID_C].data, a_dag, sizeof(a_dag));
+			memcpy(opmap[MOLECULAR_OID_A].data, a_ann, sizeof(a_ann));
+			memcpy(opmap[MOLECULAR_OID_N].data, numop, sizeof(numop));
+			memcpy(opmap[MOLECULAR_OID_Z].data, z,     sizeof(z));
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			// local operators
+			// creation and annihilation operators for a single spin and lattice site
+			const dcomplex a_ann[4] = { 0.,  1.,  0.,  0. };
+			const dcomplex a_dag[4] = { 0.,  0.,  1.,  0. };
+			// number operator
+			const dcomplex numop[4] = { 0.,  0.,  0.,  1. };
+			// Pauli-Z matrix required for Jordan-Wigner transformation
+			const dcomplex z[4]     = { 1.,  0.,  0., -1. };
+
+			memcpy(opmap[MOLECULAR_OID_C].data, a_dag, sizeof(a_dag));
+			memcpy(opmap[MOLECULAR_OID_A].data, a_ann, sizeof(a_ann));
+			memcpy(opmap[MOLECULAR_OID_N].data, numop, sizeof(numop));
+			memcpy(opmap[MOLECULAR_OID_Z].data, z,     sizeof(z));
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
 }
 
 
@@ -1210,10 +1278,9 @@ static void molecular_mpo_graph_add_term(const struct molecular_mpo_graph_vids* 
 ///
 void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly)
 {
-	assert(tkin->dtype == CT_DOUBLE_REAL);
-	assert(vint->dtype == CT_DOUBLE_REAL);
+	assert(tkin->dtype == vint->dtype);
 
-	assembly->dtype = CT_DOUBLE_REAL;
+	assembly->dtype = tkin->dtype;
 
 	// dimension consistency checks
 	assert(tkin->ndim == 2);
@@ -1239,53 +1306,51 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 	// operator map
 	assembly->num_local_ops = NUM_MOLECULAR_OID;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
-	create_molecular_hamiltonian_operator_map(assembly->opmap);
+	create_molecular_hamiltonian_operator_map(assembly->dtype, assembly->opmap);
 
 	// interaction terms 1/2 \sum_{i,j,k,l} v_{i,j,k,l} a^{\dagger}_i a^{\dagger}_j a_l a_k:
 	// can anti-commute fermionic operators such that i < j and k < l
 	struct dense_tensor gint;
 	symmetrize_molecular_interaction_coefficients(vint, &gint);
 	// prefactor 1/2
-	const double one_half = 0.5;
-	scale_dense_tensor(&one_half, &gint);
+	scale_dense_tensor(numeric_one_half(gint.dtype), &gint);
 
 	// coefficient map
-	double* coeffmap = ct_malloc((2 + nsites2 + nsites_choose_two * nsites_choose_two) * sizeof(double));
+	const size_t dtype_size = sizeof_numeric_type(assembly->dtype);
+	void* coeffmap = ct_malloc((2 + nsites2 + nsites_choose_two * nsites_choose_two) * dtype_size);
 	// first two entries must always be 0 and 1
-	coeffmap[0] = 0.;
-	coeffmap[1] = 1.;
+	memcpy(coeffmap, numeric_zero(assembly->dtype), dtype_size);
+	memcpy((int8_t*)coeffmap + dtype_size, numeric_one(assembly->dtype), dtype_size);
 	int* tkin_cids = ct_calloc(nsites2, sizeof(int));
 	int* gint_cids = ct_calloc(nsites2*nsites2, sizeof(int));
 	int c = 2;
-	const double* tkin_data = tkin->data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = 0; j < nsites; j++) {
 			const int idx = i*nsites + j;
 			// if optimize == false, retain a universal mapping between 'tkin' and 'coeffmap', independent of zero entries
-			if (optimize && (tkin_data[idx] == 0)) {
+			if (optimize && numeric_is_zero(tkin->dtype, (int8_t*)tkin->data + idx*dtype_size)) {
 				// filter out zero coefficients
 				tkin_cids[idx] = CID_ZERO;
 			}
 			else {
-				coeffmap[c] = tkin_data[idx];
+				memcpy((int8_t*)coeffmap + c*dtype_size, (int8_t*)tkin->data + idx*dtype_size, dtype_size);
 				tkin_cids[idx] = c;
 				c++;
 			}
 		}
 	}
-	const double* gint_data = gint.data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = i + 1; j < nsites; j++) {  // i < j
 			for (int k = 0; k < nsites; k++) {
 				for (int l = k + 1; l < nsites; l++) {  // k < l
 					const int idx = ((i*nsites + j)*nsites + k)*nsites + l;
 					// if optimize == false, retain a universal mapping between 'gint' and 'coeffmap', independent of zero entries
-					if (optimize && (gint_data[idx] == 0)) {
+					if (optimize && numeric_is_zero(gint.dtype, (int8_t*)gint.data + idx*dtype_size)) {
 						// filter out zero coefficients
 						gint_cids[idx] = CID_ZERO;
 					}
 					else {
-						coeffmap[c] = gint_data[idx];
+						memcpy((int8_t*)coeffmap + c*dtype_size, (int8_t*)gint.data + idx*dtype_size, dtype_size);
 						gint_cids[idx] = c;
 						c++;
 					}
@@ -1294,6 +1359,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 		}
 	}
 	assert(c <= 2 + nsites2 + nsites_choose_two * nsites_choose_two);
+	assert(coefficient_map_is_valid(assembly->dtype, coeffmap));
 	assembly->num_coeffs = c;
 	assembly->coeffmap = coeffmap;
 
@@ -1636,10 +1702,10 @@ static const enum spin_molecular_oid molecular_oid_single_pair_map[5][5] = {
 ///
 /// \brief Create the local operator map for a molecular Hamiltonian, assuming a spin orbital basis.
 ///
-static void create_spin_molecular_hamiltonian_operator_map(struct dense_tensor* opmap)
+static void create_spin_molecular_hamiltonian_operator_map(const enum numeric_type dtype, struct dense_tensor* opmap)
 {
 	struct dense_tensor opmap_single[NUM_MOLECULAR_OID];
-	create_molecular_hamiltonian_operator_map(opmap_single);
+	create_molecular_hamiltonian_operator_map(dtype, opmap_single);
 
 	for (int i = 0; i < NUM_MOLECULAR_OID; i++)
 	{
@@ -2701,10 +2767,9 @@ static void spin_molecular_mpo_graph_add_term(const struct spin_molecular_mpo_gr
 ///
 void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* restrict tkin, const struct dense_tensor* restrict vint, const bool optimize, struct mpo_assembly* assembly)
 {
-	assert(tkin->dtype == CT_DOUBLE_REAL);
-	assert(vint->dtype == CT_DOUBLE_REAL);
+	assert(tkin->dtype == vint->dtype);
 
-	assembly->dtype = CT_DOUBLE_REAL;
+	assembly->dtype = tkin->dtype;
 
 	// dimension consistency checks
 	assert(tkin->ndim == 2);
@@ -2733,55 +2798,53 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 	// operator map
 	assembly->num_local_ops = NUM_SPIN_MOLECULAR_OID;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
-	create_spin_molecular_hamiltonian_operator_map(assembly->opmap);
+	create_spin_molecular_hamiltonian_operator_map(assembly->dtype, assembly->opmap);
 
 	// interaction terms 1/2 \sum_{i,j,k,l,\sigma,\tau,\mu,\nu} v_{i,j,k,l} \delta_{\sigma,\mu} \delta_{\tau,\nu} a^{\dagger}_{i,\sigma} a^{\dagger}_{j,\tau} a_{l,\nu} a_{k,\mu}:
 	// can anti-commute fermionic operators such that (i,\sigma) < (j,\tau) and (k,\mu) < (l,\nu)
 	struct dense_tensor gint0, gint1;
 	symmetrize_spin_molecular_interaction_coefficients(vint, &gint0, &gint1);
 	// prefactor 1/2
-	const double one_half = 0.5;
-	scale_dense_tensor(&one_half, &gint0);
-	scale_dense_tensor(&one_half, &gint1);
+	scale_dense_tensor(numeric_one_half(gint0.dtype), &gint0);
+	scale_dense_tensor(numeric_one_half(gint1.dtype), &gint1);
 
 	// coefficient map
-	double* coeffmap = ct_malloc((2 + nsites2 + 2 * nsites1_choose_two * nsites1_choose_two) * sizeof(double));
+	const size_t dtype_size = sizeof_numeric_type(assembly->dtype);
+	void* coeffmap = ct_malloc((2 + nsites2 + 2 * nsites1_choose_two * nsites1_choose_two) * dtype_size);
 	// first two entries must always be 0 and 1
-	coeffmap[0] = 0.;
-	coeffmap[1] = 1.;
+	memcpy(coeffmap, numeric_zero(assembly->dtype), dtype_size);
+	memcpy((int8_t*)coeffmap + dtype_size, numeric_one(assembly->dtype), dtype_size);
 	int* tkin_cids  = ct_calloc(nsites2, sizeof(int));
 	int* gint0_cids = ct_calloc(nsites2*nsites2, sizeof(int));
 	int* gint1_cids = ct_calloc(nsites2*nsites2, sizeof(int));
 	int c = 2;
-	const double* tkin_data = tkin->data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = 0; j < nsites; j++) {
 			const int idx = i*nsites + j;
 			// if optimize == false, retain a universal mapping between 'tkin' and 'coeffmap', independent of zero entries
-			if (optimize && (tkin_data[idx] == 0)) {
+			if (optimize && numeric_is_zero(tkin->dtype, (int8_t*)tkin->data + idx*dtype_size)) {
 				// filter out zero coefficients
 				tkin_cids[idx] = CID_ZERO;
 			}
 			else {
-				coeffmap[c] = tkin_data[idx];
+				memcpy((int8_t*)coeffmap + c*dtype_size, (int8_t*)tkin->data + idx*dtype_size, dtype_size);
 				tkin_cids[idx] = c;
 				c++;
 			}
 		}
 	}
-	const double* gint0_data = gint0.data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = i; j < nsites; j++) {  // i <= j
 			for (int k = 0; k < nsites; k++) {
 				for (int l = k; l < nsites; l++) {  // k <= l
 					const int idx = ((i*nsites + j)*nsites + k)*nsites + l;
 					// if optimize == false, retain a universal mapping between 'gint' and 'coeffmap', independent of zero entries
-					if (optimize && (gint0_data[idx] == 0)) {
+					if (optimize && numeric_is_zero(gint0.dtype, (int8_t*)gint0.data + idx*dtype_size)) {
 						// filter out zero coefficients
 						gint0_cids[idx] = CID_ZERO;
 					}
 					else {
-						coeffmap[c] = gint0_data[idx];
+						memcpy((int8_t*)coeffmap + c*dtype_size, (int8_t*)gint0.data + idx*dtype_size, dtype_size);
 						gint0_cids[idx] = c;
 						c++;
 					}
@@ -2789,19 +2852,18 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 			}
 		}
 	}
-	const double* gint1_data = gint1.data;
 	for (int i = 0; i < nsites; i++) {
 		for (int j = i; j < nsites; j++) {  // i <= j
 			for (int k = 0; k < nsites; k++) {
 				for (int l = k; l < nsites; l++) {  // k <= l
 					const int idx = ((i*nsites + j)*nsites + k)*nsites + l;
 					// if optimize == false, retain a universal mapping between 'gint' and 'coeffmap', independent of zero entries
-					if (optimize && (gint1_data[idx] == 0)) {
+					if (optimize && numeric_is_zero(gint1.dtype, (int8_t*)gint1.data + idx*dtype_size)) {
 						// filter out zero coefficients
 						gint1_cids[idx] = CID_ZERO;
 					}
 					else {
-						coeffmap[c] = gint1_data[idx];
+						memcpy((int8_t*)coeffmap + c*dtype_size, (int8_t*)gint1.data + idx*dtype_size, dtype_size);
 						gint1_cids[idx] = c;
 						c++;
 					}
@@ -2810,6 +2872,7 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 		}
 	}
 	assert(c <= 2 + nsites2 + 2 * nsites1_choose_two * nsites1_choose_two);
+	assert(coefficient_map_is_valid(assembly->dtype, coeffmap));
 	assembly->num_coeffs = c;
 	assembly->coeffmap = coeffmap;
 
@@ -2938,7 +3001,7 @@ void construct_quadratic_fermionic_mpo_assembly(const int nsites, const double* 
 	// operator map
 	assembly->num_local_ops = NUM_MOLECULAR_OID;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
-	create_molecular_hamiltonian_operator_map(assembly->opmap);
+	create_molecular_hamiltonian_operator_map(assembly->dtype, assembly->opmap);
 
 	// coefficient map
 	assembly->num_coeffs = 2 + 3 * nsites;
@@ -3130,7 +3193,7 @@ void construct_quadratic_spin_fermionic_mpo_assembly(const int nsites, const dou
 	assembly->num_local_ops = 12;
 	assembly->opmap = ct_malloc(assembly->num_local_ops * sizeof(struct dense_tensor));
 	struct dense_tensor opmap_single[NUM_MOLECULAR_OID];
-	create_molecular_hamiltonian_operator_map(opmap_single);
+	create_molecular_hamiltonian_operator_map(assembly->dtype, opmap_single);
 	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_I], &assembly->opmap[OID_Id]);
 	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_C], &assembly->opmap[OID_IC]);
 	dense_tensor_kronecker_product(&opmap_single[MOLECULAR_OID_I], &opmap_single[MOLECULAR_OID_A], &assembly->opmap[OID_IA]);
