@@ -7,3 +7,5 @@
 
 
 void construct_heisenberg_1d_su2_mpo(const int nsites, const double J, struct su2_mpo* mpo);
+
+void construct_fermi_hubbard_1d_su2_mpo(const int nsites, const double t, const double u, const double mu, struct su2_mpo* mpo);

@@ -168,7 +168,7 @@ def quadratic_spin_fermionic_mpo(coeffc, coeffa, sigma: int) -> MPO:
 def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
     """
     Construct the Ising Hamiltonian `sum J Z Z + h Z + g X`
-    on a one-dimensional lattice as sparse matrix.
+    on a one-dimensional lattice as a sparse matrix.
     """
     # Pauli-X and Z matrices
     sigma_x = sparse.csr_matrix([[0., 1.], [1.,  0.]])
@@ -191,7 +191,7 @@ def construct_ising_1d_hamiltonian(nsites: int, J: float, h: float, g: float):
 def construct_heisenberg_xxz_1d_hamiltonian(nsites: int, J: float, D: float, h: float):
     """
     Construct the XXZ Heisenberg Hamiltonian `sum J (X X + Y Y + D Z Z) - h Z`
-    on a one-dimensional lattice as sparse matrix.
+    on a one-dimensional lattice as a sparse matrix.
     """
     # spin operators
     sup = np.array([[0.,  1.], [0.,  0. ]])
@@ -208,6 +208,25 @@ def construct_heisenberg_xxz_1d_hamiltonian(nsites: int, J: float, D: float, h: 
             sparse.kron(-h * sz,
                         sparse.identity(2**(nsites-j-1))))
             for j in range(nsites))
+    hamiltonian.eliminate_zeros()
+    return hamiltonian
+
+
+def construct_heisenberg_xxx_1d_hamiltonian(nsites: int, J: float):
+    """
+    Construct the XXX Heisenberg Hamiltonian `sum J (X X + Y Y + Z Z)`
+    on a one-dimensional lattice as a sparse matrix.
+    """
+    # spin operators
+    sup = np.array([[0.,  1.], [0.,  0. ]])
+    sdn = np.array([[0.,  0.], [1.,  0. ]])
+    sz  = np.array([[0.5, 0.], [0., -0.5]])
+    # local interaction term
+    hint = J * (0.5 * (sparse.kron(sup, sdn) + sparse.kron(sdn, sup)) + sparse.kron(sz, sz))
+    hamiltonian = \
+        sum(sparse.kron(sparse.identity(2**j),
+            sparse.kron(hint,
+                        sparse.identity(2**(nsites-j-2)))) for j in range(nsites - 1))
     hamiltonian.eliminate_zeros()
     return hamiltonian
 
@@ -274,7 +293,7 @@ def construct_fermi_operators(nmodes: int):
 def construct_fermi_hubbard_1d_hamiltonian(nsites: int, t: float, u: float, mu: float):
     """
     Construct the Fermi-Hubbard Hamiltonian
-    with nearest-neighbor hopping on a one-dimensional lattice as sparse matrix.
+    with nearest-neighbor hopping on a one-dimensional lattice as a sparse matrix.
     """
     clist, alist, nlist = construct_fermi_operators(2*nsites)
     # kinetic hopping terms and
@@ -315,7 +334,7 @@ def construct_molecular_hamiltonian(tkin, vint):
 
 def construct_spin_molecular_hamiltonian(tkin, vint):
     """
-    Construct a molecular Hamiltonian for a spin orbital basis as sparse matrix.
+    Construct a molecular Hamiltonian for a spin orbital basis as a sparse matrix.
     """
     tkin = np.asarray(tkin)
     vint = np.asarray(vint)
