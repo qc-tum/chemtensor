@@ -98,6 +98,8 @@ static inline void su2_tensor_flip_trees(struct su2_tensor* t)
 void su2_tensor_delete_charge_sector_by_index(struct su2_tensor* t, const ct_long idx);
 bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist);
 
+void su2_tensor_delete_charge_sectors_by_indices(struct su2_tensor* t, const ct_long* idx, const ct_long num);
+
 void scale_su2_tensor(const void* alpha, struct su2_tensor* t);
 
 void rscale_su2_tensor(const void* alpha, struct su2_tensor* t);

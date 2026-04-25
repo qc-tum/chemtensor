@@ -363,6 +363,51 @@ bool su2_tensor_delete_charge_sector(struct su2_tensor* t, const qnumber* jlist)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Delete the charge sectors at the specified indices 'idx' of the SU(2) symmetric tensor.
+///
+void su2_tensor_delete_charge_sectors_by_indices(struct su2_tensor* t, const ct_long* idx, const ct_long num)
+{
+	for (ct_long i = 0; i < num; i++)
+	{
+		assert(0 <= idx[i] && idx[i] < t->charge_sectors.nsec);
+
+		// avoid deleting the same tensor twice
+		if (t->degensors[idx[i]] != NULL)
+		{
+			// delete corresponding "degeneracy" tensor
+			delete_dense_tensor(t->degensors[idx[i]]);
+			ct_free(t->degensors[idx[i]]);
+			t->degensors[idx[i]] = NULL;
+		}
+	}
+
+	const int ndim = t->charge_sectors.ndim;
+
+	// condense charge sector quantum numbers and corresponding degeneracy tensors
+	// find first unused charge sector
+	ct_long c = 0;
+	for (; c < t->charge_sectors.nsec; c++) {
+		if (t->degensors[c] == NULL) {
+			break;
+		}
+	}
+	for (ct_long s = c + 1; s < t->charge_sectors.nsec; s++)
+	{
+		if (t->degensors[s] != NULL)
+		{
+			memcpy(&t->charge_sectors.jlists[c * ndim], &t->charge_sectors.jlists[s * ndim], ndim * sizeof(qnumber));
+			// copy pointer
+			t->degensors[c] = t->degensors[s];
+			t->degensors[s] = NULL;
+			c++;
+		}
+	}
+	t->charge_sectors.nsec = c;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scale tensor 't' by 'alpha'.
 ///
 /// Data types of all "degeneracy" tensors and of 'alpha' must match.
