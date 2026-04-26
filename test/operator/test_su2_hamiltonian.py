@@ -35,12 +35,12 @@ def fermi_hubbard_1d_su2_mpo_data():
 
     # reference Hamiltonian
     fermi_hubbard_1d_mat = construct_fermi_hubbard_1d_hamiltonian(nsites, t, u, mu).toarray()
-    # permutation of the local site basis states to SU(2) ordering (|00>, |11>, |10>, |01>)
+    # permutation of the local site basis states to SU(2) ordering (|00>, |11>, |01>, |10>)
     site_perm = np.array([
         [1., 0., 0., 0.],
         [0., 0., 0., 1.],
-        [0., 0., 1., 0.],
-        [0., 1., 0., 0.]])
+        [0., 1., 0., 0.],
+        [0., 0., 1., 0.]])
     fermi_hubbard_1d_mat = fermi_hubbard_1d_mat.reshape((2*nsites) * (4,))
     for i in range(2*nsites):
         # multiply the i-th axis with 'site_perm'
