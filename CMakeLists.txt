@@ -76,6 +76,13 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)  # test whether current 
         target_link_libraries( basic_dmrg_fermi_hubbard PRIVATE OpenMP::OpenMP_C)
     endif()
 
+    add_executable(            basic_su2_dmrg_fermi_hubbard ${CHEMTENSOR_SOURCES} "examples/dmrg/basic_su2_dmrg_fermi_hubbard.c")
+    target_include_directories(basic_su2_dmrg_fermi_hubbard PRIVATE ${CHEMTENSOR_INCLUDE_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACK_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(     basic_su2_dmrg_fermi_hubbard PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${HDF5_LIBRARIES})
+    if (OpenMP_C_FOUND)
+        target_link_libraries( basic_su2_dmrg_fermi_hubbard PRIVATE OpenMP::OpenMP_C)
+    endif()
+
     add_executable(            perf_dmrg ${CHEMTENSOR_SOURCES} "perf/perf_dmrg.c")
     target_include_directories(perf_dmrg PRIVATE ${CHEMTENSOR_INCLUDE_DIRS} ${BLAS_INCLUDE_DIRS} ${LAPACK_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
     target_link_libraries(     perf_dmrg PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${HDF5_LIBRARIES})

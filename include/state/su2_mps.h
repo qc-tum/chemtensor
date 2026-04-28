@@ -43,6 +43,16 @@ bool su2_mps_is_consistent(const struct su2_mps* mps);
 
 
 //________________________________________________________________________________________________________________________
+///
+/// \brief Logical dimension of i-th virtual bond of an SU(2) symmetric matrix product state, starting with the leftmost (dummy) bond.
+///
+static inline ct_long su2_mps_bond_dim(const struct su2_mps* mps, const int i)
+{
+	return (i < mps->nsites ? su2_tensor_dim_logical_axis(&mps->a[i], 0) : su2_tensor_dim_logical_axis(&mps->a[mps->nsites - 1], 2));
+}
+
+
+//________________________________________________________________________________________________________________________
 //
 
 // orthonormalization and canonical forms
