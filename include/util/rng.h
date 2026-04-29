@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <complex.h>
 #include "pcg_basic.h"
+#include "numeric.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -59,6 +59,6 @@ double randn(struct rng_state* state);
 
 float randnf(struct rng_state* state);
 
-double complex crandn(struct rng_state* state);
+dcomplex crandn(struct rng_state* state);
 
-float complex crandnf(struct rng_state* state);
+scomplex crandnf(struct rng_state* state);

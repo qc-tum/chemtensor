@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <math.h>
+#include <complex.h>
 #include <stdio.h>
 #include "su2_mps.h"
 #include "aligned_memory.h"

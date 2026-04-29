@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <complex.h>
 #include <assert.h>
 #include "rng.h"
 
@@ -148,7 +149,7 @@ float randnf(struct rng_state* state)
 ///
 /// Complex double precision version.
 ///
-double complex crandn(struct rng_state* state)
+dcomplex crandn(struct rng_state* state)
 {
 	double x = randn(state);
 	double y = randn(state);
@@ -162,7 +163,7 @@ double complex crandn(struct rng_state* state)
 ///
 /// Complex single precision version.
 ///
-float complex crandnf(struct rng_state* state)
+scomplex crandnf(struct rng_state* state)
 {
 	float x = randnf(state);
 	float y = randnf(state);

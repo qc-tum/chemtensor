@@ -2,6 +2,7 @@
 /// \brief Tree tensor network state (TTNS) data structure.
 
 #include <math.h>
+#include <complex.h>
 #include "ttns.h"
 #include "bond_ops.h"
 #include "aligned_memory.h"
