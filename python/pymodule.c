@@ -6,6 +6,7 @@
 #include <omp.h>
 #endif
 #include <stdint.h>
+#include <complex.h>
 #include "mps.h"
 #include "op_chain.h"
 #include "mpo.h"
