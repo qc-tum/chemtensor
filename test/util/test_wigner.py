@@ -13,7 +13,7 @@ def wigner_small_d_data():
 
     with h5py.File("data/test_wigner_small_d.hdf5", "w") as file:
         file.attrs["theta"] = theta
-        for j in range(6):
+        for j in range(7):
             file[f"w{j}"] = wigner_small_d(j, theta)
 
 

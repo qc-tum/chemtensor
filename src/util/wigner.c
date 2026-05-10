@@ -42,14 +42,15 @@ void wigner_small_d(const qnumber j, const double theta, double* w)
 
 			const double c = cos(0.5 * theta);
 			const double s = sin(0.5 * theta);
-			const double c2 = cos(theta);
-			const double cc = c * c;
-			const double cs = sqrt2 * c * s;
-			const double ss = s * s;
 
-			w[0] =  cc;    w[1] =  cs;    w[2] =  ss;
-			w[3] = -cs;    w[4] =  c2;    w[5] =  cs;
-			w[6] =  ss;    w[7] = -cs;    w[8] =  cc;
+			const double c2   = c * c;
+			const double s2   = s * s;
+			const double cs   = sqrt2 * c * s;
+			const double c212 = 2 * c2 - 1;
+
+			w[0] =  c2;    w[1] =  cs;    w[2] =  s2;
+			w[3] = -cs;    w[4] =  c212;  w[5] =  cs;
+			w[6] =  s2;    w[7] = -cs;    w[8] =  c2;
 
 			break;
 		}
@@ -59,18 +60,20 @@ void wigner_small_d(const qnumber j, const double theta, double* w)
 
 			const double c = cos(0.5 * theta);
 			const double s = sin(0.5 * theta);
-			const double c2 = cos(theta);
-			const double ccc = c * c * c;
-			const double ccs = sqrt3 * c * c * s;
-			const double css = sqrt3 * c * s * s;
-			const double sss = s * s * s;
-			const double c3c21 = 0.5 * c * (3*c2 - 1);
-			const double s3c21 = 0.5 * s * (3*c2 + 1);
 
-			w[ 0] =  ccc;    w[ 1] =  ccs;    w[ 2] =  css;    w[ 3] =  sss;
-			w[ 4] = -ccs;    w[ 5] =  c3c21;  w[ 6] =  s3c21;  w[ 7] =  css;
-			w[ 8] =  css;    w[ 9] = -s3c21;  w[10] =  c3c21;  w[11] =  ccs;
-			w[12] = -sss;    w[13] =  css;    w[14] = -ccs;    w[15] =  ccc;
+			const double c2    = c * c;
+			const double s2    = s * s;
+			const double c3    = c * c2;
+			const double s3    = s * s2;
+			const double c2s   = sqrt3 * c2 * s;
+			const double cs2   = sqrt3 * c * s2;
+			const double cc223 = c * (3 * c2 - 2);
+			const double c213s = (3 * c2 - 1) * s;
+
+			w[ 0] =  c3;     w[ 1] =  c2s;    w[ 2] =  cs2;    w[ 3] =  s3;
+			w[ 4] = -c2s;    w[ 5] =  cc223;  w[ 6] =  c213s;  w[ 7] =  cs2;
+			w[ 8] =  cs2;    w[ 9] = -c213s;  w[10] =  cc223;  w[11] =  c2s;
+			w[12] = -s3;     w[13] =  cs2;    w[14] = -c2s;    w[15] =  c3;
 
 			break;
 		}
@@ -80,62 +83,108 @@ void wigner_small_d(const qnumber j, const double theta, double* w)
 
 			const double c = cos(0.5 * theta);
 			const double s = sin(0.5 * theta);
-			const double c2 = cos(theta);
-			const double cc = c * c;
-			const double ss = s * s;
-			const double cccc = cc * cc;
-			const double cccs = 2 * c * cc * s;
-			const double ccss = sqrt6 * cc * ss;
-			const double csss = 2 * c * s * ss;
-			const double ssss = ss * ss;
-			const double cc2s = sqrt6 * c * c2 * s;
-			const double cc2c21 = cc * (2 * c2 - 1);
-			const double ss2c21 = ss * (2 * c2 + 1);
-			const double c2c213 = 0.5 * (3 * c2 * c2 - 1);
 
-			w[ 0] =  cccc;    w[ 1] =  cccs;    w[ 2] =  ccss;    w[ 3] =  csss;    w[ 4] =  ssss;
-			w[ 5] = -cccs;    w[ 6] =  cc2c21;  w[ 7] =  cc2s;    w[ 8] =  ss2c21;  w[ 9] =  csss;
-			w[10] =  ccss;    w[11] = -cc2s;    w[12] =  c2c213;  w[13] =  cc2s;    w[14] =  ccss;
-			w[15] = -csss;    w[16] =  ss2c21;  w[17] = -cc2s;    w[18] =  cc2c21;  w[19] =  cccs;
-			w[20] =  ssss;    w[21] = -csss;    w[22] =  ccss;    w[23] = -cccs;    w[24] =  cccc;
+			const double c2     = c * c;
+			const double s2     = s * s;
+			const double c4     = c2 * c2;
+			const double s4     = s2 * s2;
+			const double c3s    = 2 * c * c2 * s;
+			const double cs3    = 2 * c * s * s2;
+			const double c2s2   = sqrt6 * c2 * s2;
+			const double c2c234 = c2 * (4 * c2 - 3);
+			const double c214s2 = (4 * c2 - 1) * s2;
+			const double cc212s = sqrt6 * c * (2 * c2 - 1) * s;
+			const double c2c416 = 1 - 6 * c2 + 6 * c4;
+
+			w[ 0] =  c4;      w[ 1] =  c3s;     w[ 2] =  c2s2;    w[ 3] =  cs3;     w[ 4] =  s4;
+			w[ 5] = -c3s;     w[ 6] =  c2c234;  w[ 7] =  cc212s;  w[ 8] =  c214s2;  w[ 9] =  cs3;
+			w[10] =  c2s2;    w[11] = -cc212s;  w[12] =  c2c416;  w[13] =  cc212s;  w[14] =  c2s2;
+			w[15] = -cs3;     w[16] =  c214s2;  w[17] = -cc212s;  w[18] =  c2c234;  w[19] =  c3s;
+			w[20] =  s4;      w[21] = -cs3;     w[22] =  c2s2;    w[23] = -c3s;     w[24] =  c4;
 
 			break;
 		}
 		case 5:  // logical quantum number 5/2
 		{
-			const double invsq2 = 0.70710678118654752440;
+			const double sqrt2  = 1.4142135623730950488;
 			const double sqrt5  = 2.2360679774997896964;
 			const double sqrt10 = 3.1622776601683793320;
 
 			const double c = cos(0.5 * theta);
 			const double s = sin(0.5 * theta);
-			const double c2 = cos(theta);
-			const double c4 = cos(2 * theta);
-			const double cc = c * c;
-			const double ss = s * s;
-			const double ccc = c * cc;
-			const double sss = s * ss;
-			const double cccc = cc * cc;
-			const double ssss = ss * ss;
-			const double ccccc = c * cccc;
-			const double ccccs = sqrt5  * cccc * s;
-			const double cccss = sqrt10 * ccc * ss;
-			const double ccsss = sqrt10 * cc * sss;
-			const double cssss = sqrt5  * c * ssss;
-			const double sssss = s * ssss;
-			const double ccc5c23 = 0.5 * ccc * (5 * c2 - 3);
-			const double sss5c23 = 0.5 * sss * (5 * c2 + 3);
-			const double ccs5c21 = invsq2 * cc * s * (5 * c2 - 1);
-			const double css5c21 = invsq2 * c * ss * (5 * c2 + 1);
-			const double c34c25c4 = 0.25 * c * (3 - 4 * c2 + 5 * c4);
-			const double s34c25c4 = 0.25 * s * (3 + 4 * c2 + 5 * c4);
 
-			w[ 0] =  ccccc;    w[ 1] =  ccccs;    w[ 2] =  cccss;    w[ 3] =  ccsss;    w[ 4] =  cssss;    w[ 5] =  sssss;
-			w[ 6] = -ccccs;    w[ 7] =  ccc5c23;  w[ 8] =  ccs5c21;  w[ 9] =  css5c21;  w[10] =  sss5c23;  w[11] =  cssss;
-			w[12] =  cccss;    w[13] = -ccs5c21;  w[14] =  c34c25c4; w[15] =  s34c25c4; w[16] =  css5c21;  w[17] =  ccsss;
-			w[18] = -ccsss;    w[19] =  css5c21;  w[20] = -s34c25c4; w[21] =  c34c25c4; w[22] =  ccs5c21;  w[23] =  cccss;
-			w[24] =  cssss;    w[25] = -sss5c23;  w[26] =  css5c21;  w[27] = -ccs5c21;  w[28] =  ccc5c23;  w[29] =  ccccs;
-			w[30] = -sssss;    w[31] =  cssss;    w[32] = -ccsss;    w[33] =  cccss;    w[34] = -ccccs;    w[35] =  ccccc;
+			const double c2      = c * c;
+			const double s2      = s * s;
+			const double c3      = c * c2;
+			const double s3      = s * s2;
+			const double c4      = c2 * c2;
+			const double s4      = s2 * s2;
+			const double c5      = c * c4;
+			const double s5      = s * s4;
+			const double c4s     = sqrt5  * c4 * s;
+			const double c3s2    = sqrt10 * c3 * s2;
+			const double c2s3    = sqrt10 * c2 * s3;
+			const double cs4     = sqrt5  * c  * s4;
+			const double c3c245  = c3 * (5 * c2 - 4);
+			const double cc225s2 = sqrt2 * c * (5 * c2 - 2) * s2;
+			const double c2c235s = sqrt2 * c2 * (5 * c2 - 3) * s;
+			const double c215s3  = (5 * c2 - 1) * s3;
+			const double cc2c4   = c * (3 - 12 * c2 + 10 * c4);
+			const double c2c4s   = (1 - 8 * c2 + 10 * c4) * s;
+
+			w[ 0] =  c5;       w[ 1] =  c4s;      w[ 2] =  c3s2;     w[ 3] =  c2s3;     w[ 4] =  cs4;      w[ 5] =  s5;
+			w[ 6] = -c4s;      w[ 7] =  c3c245;   w[ 8] =  c2c235s;  w[ 9] =  cc225s2;  w[10] =  c215s3;   w[11] =  cs4;
+			w[12] =  c3s2;     w[13] = -c2c235s;  w[14] =  cc2c4;    w[15] =  c2c4s;    w[16] =  cc225s2;  w[17] =  c2s3;
+			w[18] = -c2s3;     w[19] =  cc225s2;  w[20] = -c2c4s;    w[21] =  cc2c4;    w[22] =  c2c235s;  w[23] =  c3s2;
+			w[24] =  cs4;      w[25] = -c215s3;   w[26] =  cc225s2;  w[27] = -c2c235s;  w[28] =  c3c245;   w[29] =  c4s;
+			w[30] = -s5;       w[31] =  cs4;      w[32] = -c2s3;     w[33] =  c3s2;     w[34] = -c4s;      w[35] =  c5;
+
+			break;
+		}
+		case 6:  // logical quantum number 3
+		{
+			const double sqrt6  = 2.4494897427831780982;
+			const double sqrt10 = 3.1622776601683793320;
+			const double sqrt12 = 3.4641016151377545871;
+			const double sqrt15 = 3.8729833462074168852;
+			const double sqrt20 = 4.4721359549995793928;
+			const double sqrt30 = 5.4772255750516611346;
+
+			const double c = cos(0.5 * theta);
+			const double s = sin(0.5 * theta);
+
+			const double c2      = c * c;
+			const double s2      = s * s;
+			const double c3      = c * c2;
+			const double s3      = s * s2;
+			const double c4      = c2 * c2;
+			const double s4      = s2 * s2;
+			const double c5      = c * c4;
+			const double s5      = s * s4;
+			const double c6      = c2 * c4;
+			const double s6      = s2 * s4;
+			const double c5s     = sqrt6  * c5 * s;
+			const double c4s2    = sqrt15 * c4 * s2;
+			const double c3s3    = sqrt20 * c3 * s3;
+			const double c2s4    = sqrt15 * c2 * s4;
+			const double cs5     = sqrt6  * c  * s5;
+			const double c4s216  = c4 * (1 - 6 * s2);
+			const double c216s4  = (6 * c2 - 1) * s4;
+			const double c2s2s2  = sqrt30 * c2 * (2 * c2 - 1) * s2;
+			const double c2c4s2  = (1 - 10 * c2 + 15 * c4) * s2;
+			const double c3c223s = sqrt10 * c3 * (3 * c2 - 2) * s;
+			const double cs223s3 = sqrt10 * c * (2 - 3 * s2) * s3;
+			const double c2c2c4  = c2 * (6 - 20 * c2 + 15 * c4);
+			const double cc2c4s  = sqrt12 * c * (1 - 5 * c2 + 5 * c4) * s;
+			const double c2c4c6  = -1 + 12 * c2 - 30 * c4 + 20 * c6;
+
+			w[ 0] =  c6;       w[ 1] =  c5s;      w[ 2] =  c4s2;     w[ 3] =  c3s3;     w[ 4] =  c2s4;     w[ 5] =  cs5;      w[ 6] =  s6;
+			w[ 7] = -c5s;      w[ 8] =  c4s216;   w[ 9] =  c3c223s;  w[10] =  c2s2s2;   w[11] =  cs223s3;  w[12] =  c216s4;   w[13] =  cs5;
+			w[14] =  c4s2;     w[15] = -c3c223s;  w[16] =  c2c2c4;   w[17] =  cc2c4s;   w[18] =  c2c4s2;   w[19] =  cs223s3;  w[20] =  c2s4;
+			w[21] = -c3s3;     w[22] =  c2s2s2;   w[23] = -cc2c4s;   w[24] =  c2c4c6;   w[25] =  cc2c4s;   w[26] =  c2s2s2;   w[27] =  c3s3;
+			w[28] =  c2s4;     w[29] = -cs223s3;  w[30] =  c2c4s2;   w[31] = -cc2c4s;   w[32] =  c2c2c4;   w[33] =  c3c223s;  w[34] =  c4s2;
+			w[35] = -cs5;      w[36] =  c216s4;   w[37] = -cs223s3;  w[38] =  c2s2s2;   w[39] = -c3c223s;  w[40] =  c4s216;   w[41] =  c5s;
+			w[42] =  s6;       w[43] = -cs5;      w[44] =  c2s4;     w[45] = -c3s3;     w[46] =  c4s2;     w[47] = -c5s;      w[48] =  c6;
 
 			break;
 		}

@@ -18,7 +18,7 @@ char* test_wigner_small_d()
 		return "reading 'theta' angle from disk failed";
 	}
 
-	for (qnumber j = 0; j <= 5; j++)
+	for (qnumber j = 0; j <= 6; j++)
 	{
 		struct dense_tensor w;
 		const ct_long dim[2] = { j + 1, j + 1 };
