@@ -410,6 +410,91 @@ char* test_dense_tensor_pad_zeros()
 }
 
 
+char* test_dense_tensor_cast()
+{
+	struct rng_state rng_state;
+	seed_rng_state(22, &rng_state);
+
+	// data types
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
+	{
+		// construct a random tensor 't'
+		struct dense_tensor t;
+		const ct_long dim[3] = { 7, 2, 11 };
+		allocate_dense_tensor(idtype, 3, dim, &t);
+		dense_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+
+		// perform a cyclic casting sequence
+
+		// allow casting to lower precision type
+		{
+			struct dense_tensor r;
+
+			struct dense_tensor tmp;
+			copy_dense_tensor(&t, &tmp);
+			for (int j = 0; j <= CT_NUM_NUMERIC_TYPES; j++)
+			{
+				const enum numeric_type target_type = (idtype + j) % CT_NUM_NUMERIC_TYPES;
+				// skip if casting would delete imaginary entries
+				if (is_complex_numeric_type(t.dtype) && is_real_numeric_type(target_type)) {
+					continue;
+				}
+				dense_tensor_cast(&tmp, target_type, &r);
+				if (r.dtype != target_type) {
+					return "tensor originating from numeric type casting has wrong data type";
+				}
+				delete_dense_tensor(&tmp);
+				tmp = r;  // copy internal data pointers
+			}
+
+			// compare
+			if (!dense_tensor_allclose(&t, &r, 1e-6)) {
+				return "tensor originating from cyclic numeric type casting sequence does not agree with original tensor";
+			}
+
+			delete_dense_tensor(&r);
+		}
+
+		// only cast if precision is retained
+		{
+			struct dense_tensor r;
+
+			struct dense_tensor tmp;
+			copy_dense_tensor(&t, &tmp);
+			for (int j = 0; j <= CT_NUM_NUMERIC_TYPES; j++)
+			{
+				const enum numeric_type target_type = (idtype + j) % CT_NUM_NUMERIC_TYPES;
+				// skip if casting would delete imaginary entries
+				if (is_complex_numeric_type(t.dtype) && is_real_numeric_type(target_type)) {
+					continue;
+				}
+				// skip casting to lower-precision numeric type
+				if ((numeric_real_type(t.dtype) == CT_DOUBLE_REAL) && (numeric_real_type(target_type) == CT_SINGLE_REAL)) {
+					continue;
+				}
+				dense_tensor_cast(&tmp, target_type, &r);
+				if (r.dtype != target_type) {
+					return "tensor originating from numeric type casting has wrong data type";
+				}
+				delete_dense_tensor(&tmp);
+				tmp = r;  // copy internal data pointers
+			}
+
+			// compare
+			if (!dense_tensor_allclose(&t, &r, 0.)) {
+				return "tensor originating from cyclic numeric type casting sequence does not agree with original tensor";
+			}
+
+			delete_dense_tensor(&r);
+		}
+
+		delete_dense_tensor(&t);
+	}
+
+	return 0;
+}
+
+
 char* test_dense_tensor_multiply_pointwise()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_pointwise.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);

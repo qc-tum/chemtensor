@@ -1236,6 +1236,203 @@ void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Type-cast the entries of a tensor and store them in a newly allocated output tensor.
+///
+void dense_tensor_cast(const struct dense_tensor* t, const enum numeric_type target_dtype, struct dense_tensor* r)
+{
+	const ct_long nelem = dense_tensor_num_elements(t);
+
+	allocate_dense_tensor(target_dtype, t->ndim, t->dim, r);
+
+	switch (t->dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			const float* tdata = t->data;
+
+			switch (target_dtype)
+			{
+				case CT_SINGLE_REAL:
+				{
+					memcpy(r->data, tdata, nelem * sizeof(float));
+					break;
+				}
+				case CT_DOUBLE_REAL:
+				{
+					double* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_SINGLE_COMPLEX:
+				{
+					scomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_COMPLEX:
+				{
+					dcomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
+			}
+
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			const double* tdata = t->data;
+
+			switch (target_dtype)
+			{
+				case CT_SINGLE_REAL:
+				{
+					float* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_REAL:
+				{
+					memcpy(r->data, tdata, nelem * sizeof(double));
+					break;
+				}
+				case CT_SINGLE_COMPLEX:
+				{
+					scomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_COMPLEX:
+				{
+					dcomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
+			}
+
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			const scomplex* tdata = t->data;
+
+			switch (target_dtype)
+			{
+				case CT_SINGLE_REAL:
+				{
+					float* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_REAL:
+				{
+					double* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_SINGLE_COMPLEX:
+				{
+					memcpy(r->data, tdata, nelem * sizeof(scomplex));
+					break;
+				}
+				case CT_DOUBLE_COMPLEX:
+				{
+					dcomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
+			}
+
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			const dcomplex* tdata = t->data;
+
+			switch (target_dtype)
+			{
+				case CT_SINGLE_REAL:
+				{
+					float* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_REAL:
+				{
+					double* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_SINGLE_COMPLEX:
+				{
+					scomplex* rdata = r->data;
+					for (ct_long i = 0; i < nelem; i++) {
+						rdata[i] = tdata[i];
+					}
+					break;
+				}
+				case CT_DOUBLE_COMPLEX:
+				{
+					memcpy(r->data, tdata, nelem * sizeof(dcomplex));
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
+			}
+
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Scalar multiply and add two tensors: t = alpha*s + t; dimensions and data types of s and t must agree,
 /// and alpha must be of the same data type as tensor entries.
 ///

@@ -174,6 +174,14 @@ void dense_tensor_pad_zeros(const struct dense_tensor* t, const ct_long* pad_bef
 
 
 //________________________________________________________________________________________________________________________
+//
+
+// numeric type casting
+
+void dense_tensor_cast(const struct dense_tensor* t, const enum numeric_type target_dtype, struct dense_tensor* r);
+
+
+//________________________________________________________________________________________________________________________
 ///
 /// \brief Tensor axis alignment, used to specify multiplication.
 ///
