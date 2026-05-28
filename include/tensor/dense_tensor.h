@@ -176,9 +176,19 @@ void dense_tensor_pad_zeros(const struct dense_tensor* t, const ct_long* pad_bef
 //________________________________________________________________________________________________________________________
 //
 
+// broadcasting
+
+void dense_tensor_broadcast(const struct dense_tensor* t, const int ndim_add, const ct_long* dim_add, struct dense_tensor* r);
+
+void dense_tensor_broadcast_fill(const struct dense_tensor* t, struct dense_tensor* r);
+
+
+//________________________________________________________________________________________________________________________
+//
+
 // numeric type casting
 
-void dense_tensor_cast(const struct dense_tensor* t, const enum numeric_type target_dtype, struct dense_tensor* r);
+void dense_tensor_cast_dtype(const struct dense_tensor* t, const enum numeric_type target_dtype, struct dense_tensor* r);
 
 
 //________________________________________________________________________________________________________________________

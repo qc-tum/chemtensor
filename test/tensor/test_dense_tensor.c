@@ -410,10 +410,58 @@ char* test_dense_tensor_pad_zeros()
 }
 
 
-char* test_dense_tensor_cast()
+char* test_dense_tensor_broadcast()
 {
 	struct rng_state rng_state;
 	seed_rng_state(22, &rng_state);
+
+	// construct a random tensor 't'
+	struct dense_tensor t;
+	{
+		const ct_long dim[2] = { 5, 13 };
+		allocate_dense_tensor(CT_SINGLE_COMPLEX, 2, dim, &t);
+		dense_tensor_fill_random_normal(numeric_one(t.dtype), numeric_zero(t.dtype), &rng_state, &t);
+	}
+
+	for (int ndim_add = 0; ndim_add <= 3; ndim_add++)
+	{
+		const ct_long dim_add[] = { 4, 1, 7 };
+		struct dense_tensor r;
+		dense_tensor_broadcast(&t, ndim_add, dim_add, &r);
+		if (r.ndim != t.ndim + ndim_add) {
+			return "dense tensor originating from broadcasting has incorrect degree";
+		}
+
+		// slice by selecting a single index along each of the added axes
+		struct dense_tensor tmp = r;  // copy internal data pointers
+		for (int i_ax = 0; i_ax < ndim_add; i_ax++)
+		{
+			const ct_long ind[1] = { rand_interval( tmp.dim[i_ax], &rng_state) };
+			dense_tensor_slice(&tmp, i_ax, ind, 1, &r);
+			delete_dense_tensor(&tmp);
+			tmp = r;  // copy internal data pointers
+		}
+
+		reshape_dense_tensor(t.ndim, t.dim, &r);
+
+		// compare
+		if (!dense_tensor_allclose(&r, &t, 0.)) {
+			return "dense tensor after broadcasting and slicing does not agree with original tensor";
+		}
+
+		delete_dense_tensor(&r);
+	}
+
+	delete_dense_tensor(&t);
+
+	return 0;
+}
+
+
+char* test_dense_tensor_cast_dtype()
+{
+	struct rng_state rng_state;
+	seed_rng_state(23, &rng_state);
 
 	// data types
 	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
@@ -439,7 +487,7 @@ char* test_dense_tensor_cast()
 				if (is_complex_numeric_type(t.dtype) && is_real_numeric_type(target_type)) {
 					continue;
 				}
-				dense_tensor_cast(&tmp, target_type, &r);
+				dense_tensor_cast_dtype(&tmp, target_type, &r);
 				if (r.dtype != target_type) {
 					return "tensor originating from numeric type casting has wrong data type";
 				}
@@ -472,7 +520,7 @@ char* test_dense_tensor_cast()
 				if ((numeric_real_type(t.dtype) == CT_DOUBLE_REAL) && (numeric_real_type(target_type) == CT_SINGLE_REAL)) {
 					continue;
 				}
-				dense_tensor_cast(&tmp, target_type, &r);
+				dense_tensor_cast_dtype(&tmp, target_type, &r);
 				if (r.dtype != target_type) {
 					return "tensor originating from numeric type casting has wrong data type";
 				}

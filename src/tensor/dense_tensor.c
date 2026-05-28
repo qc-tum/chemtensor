@@ -1238,7 +1238,7 @@ void dense_tensor_pad_zeros(const struct dense_tensor* restrict t, const ct_long
 ///
 /// \brief Type-cast the entries of a tensor and store them in a newly allocated output tensor.
 ///
-void dense_tensor_cast(const struct dense_tensor* t, const enum numeric_type target_dtype, struct dense_tensor* r)
+void dense_tensor_cast_dtype(const struct dense_tensor* restrict t, const enum numeric_type target_dtype, struct dense_tensor* restrict r)
 {
 	const ct_long nelem = dense_tensor_num_elements(t);
 
@@ -1427,6 +1427,62 @@ void dense_tensor_cast(const struct dense_tensor* t, const enum numeric_type tar
 			// unknown data type
 			assert(false);
 		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Broadcast the entries of 't' to a new tensor with additional leading dimensions.
+///
+void dense_tensor_broadcast(const struct dense_tensor* restrict t, const int ndim_add, const ct_long* dim_add, struct dense_tensor* restrict r)
+{
+	assert(ndim_add >= 0);
+
+	// allocate 'r'
+	{
+		const int ndim_r = ndim_add + t->ndim;
+		const ct_long* dim_r = ct_malloc(ndim_r * sizeof(ct_long));
+		memcpy(dim_r, dim_add, ndim_add * sizeof(ct_long));
+		memcpy(dim_r + ndim_add, t->dim, t->ndim * sizeof(ct_long));
+
+		allocate_dense_tensor(t->dtype, ndim_r, dim_r, r);
+
+		ct_free(dim_r);
+	}
+
+	dense_tensor_broadcast_fill(t, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Broadcast the entries of 't' to 'r'.
+///
+/// The dimensions of 't' must agree with the trailing dimensions of 'r'.
+/// 'r' must have been allocated beforehand.
+///
+void dense_tensor_broadcast_fill(const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+{
+	assert(t->dtype == r->dtype);
+
+	const int ndim_diff = r->ndim - t->ndim;
+	assert(ndim_diff >= 0);
+
+	// check dimension compatibility
+	for (int i = 0; i < t->ndim; i++) {
+		assert(t->dim[i] == r->dim[ndim_diff + i]);
+	}
+
+	const ct_long nt  = dense_tensor_num_elements(t);
+	const ct_long ldr = integer_product(r->dim, ndim_diff);
+
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	for (ct_long j = 0; j < ldr; j++)
+	{
+		// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+		memcpy((int8_t*)r->data + (j*nt) * dtype_size, t->data, nt * dtype_size);
 	}
 }
 
