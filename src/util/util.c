@@ -158,7 +158,43 @@ double uniform_distance(const enum numeric_type dtype, const ct_long n, const vo
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Euclidean norm of a vector.
+/// \brief Euclidean norm of a vector, returned as a single-precision number.
+///
+float norm2f(const enum numeric_type dtype, const ct_long n, const void* x)
+{
+	assert(n >= 0);
+
+	switch (dtype)
+	{
+		case CT_SINGLE_REAL:
+		{
+			return cblas_snrm2(n, x, 1);
+		}
+		case CT_DOUBLE_REAL:
+		{
+			return cblas_dnrm2(n, x, 1);
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			return cblas_scnrm2(n, x, 1);
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			return cblas_dznrm2(n, x, 1);
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Euclidean norm of a vector, returned as a double-precision number.
 ///
 double norm2(const enum numeric_type dtype, const ct_long n, const void* x)
 {

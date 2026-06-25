@@ -24,6 +24,9 @@ void delete_abstract_graph(struct abstract_graph* graph);
 bool abstract_graph_is_consistent(const struct abstract_graph* graph);
 
 
+int abstract_graph_num_edges(const struct abstract_graph* graph);
+
+
 bool abstract_graph_equal(const struct abstract_graph* graph0, const struct abstract_graph* graph1);
 
 

@@ -98,6 +98,25 @@ bool abstract_graph_is_consistent(const struct abstract_graph* graph)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Count the number of (undirected) edges in the graph.
+///
+int abstract_graph_num_edges(const struct abstract_graph* graph)
+{
+	int num_edges = 0;
+	for (int l = 0; l < graph->num_nodes; l++)
+	{
+		num_edges += graph->num_neighbors[l];
+	}
+	// account for double-counting of each edge
+	assert(num_edges % 2 == 0);
+	num_edges /= 2;
+
+	return num_edges;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Whether two graphs are logically identical.
 ///
 bool abstract_graph_equal(const struct abstract_graph* restrict graph0, const struct abstract_graph* restrict graph1)

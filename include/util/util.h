@@ -88,4 +88,6 @@ bool is_identity_permutation(const int* perm, const int n);
 double uniform_distance(const enum numeric_type dtype, const ct_long n, const void* x, const void* y);
 
 
+float norm2f(const enum numeric_type dtype, const ct_long n, const void* x);
+
 double norm2(const enum numeric_type dtype, const ct_long n, const void* x);

@@ -17,6 +17,90 @@
 ///
 /// The implementation follows the Wikipedia definition.
 ///
+void real_spherical_harmonics_f(const qnumber l, const float v[3], float* yv)
+{
+	assert(l >= 0);
+	assert(fabsf(norm2f(CT_SINGLE_REAL, 3, v) - 1) < 1e-6);
+
+	switch (l)
+	{
+		case 0:
+		{
+			// 1 / sqrt(4 pi)
+			yv[0] = 0.28209479177387814347f;
+			break;
+		}
+		case 1:
+		{
+			// sqrt(3 / (4 pi))
+			const float fac = 0.48860251190291992159f;
+			const float x = v[0];
+			const float y = v[1];
+			const float z = v[2];
+
+			yv[0] = fac * y;
+			yv[1] = fac * z;
+			yv[2] = fac * x;
+
+			break;
+		}
+		case 2:
+		{
+			// sqrt(15 / (4 pi))
+			const float fac = 1.0925484305920790705f;
+			// 1 / (2 sqrt(3))
+			const float inv2sq3 = 0.28867513459481288225f;
+			const float x = v[0];
+			const float y = v[1];
+			const float z = v[2];
+
+			yv[0] = fac * x * y;
+			yv[1] = fac * y * z;
+			yv[2] = fac * inv2sq3 * (3 * z*z - 1);
+			yv[3] = fac * x * z;
+			yv[4] = fac * 0.5 * (x*x - y*y);
+
+			break;
+		}
+		case 3:
+		{
+			const float x = v[0];
+			const float y = v[1];
+			const float z = v[2];
+			const float x2 = x*x;
+			const float y2 = y*y;
+			const float _5z2_1 = 5*z*z - 1;
+
+			yv[0] = 0.59004358992664351035f * y * (3*x2 - y2);   // 1/4 sqrt(35 / (2 pi))
+			yv[1] = 2.8906114426405540554f  * x * y * z;         // 1/2 sqrt(105 / pi)
+			yv[2] = 0.45704579946446573616f * y *  _5z2_1;       // 1/4 sqrt(21 / (2 pi))
+			yv[3] = 0.37317633259011539141f * z * (_5z2_1 - 2);  // 1/4 sqrt(7 / pi)
+			yv[4] = 0.45704579946446573616f * x *  _5z2_1;       // 1/4 sqrt(21 / (2 pi))
+			yv[5] = 1.4453057213202770277f  * z * (x2 - y2);     // 1/4 sqrt(105 / pi)
+			yv[6] = 0.59004358992664351035f * x * (x2 - 3*y2);   // 1/4 sqrt(35 / (2 pi))
+
+			break;
+		}
+		default:
+		{
+			// 'l' not supported yet
+			fprintf(stderr, "quantum number l = %i in spherical harmonics evaluation not supported yet\n", l);
+			assert(false);
+			break;
+		}
+	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Evaluate the real-valued spherical harmonics \f$Y_{lm}\f$ for the given 'l' quantum number
+/// at the provided unit vector 'v' (Cartesian coordinates).
+/// The 'm' quantum numbers are enumerated as -l, ..., l.
+/// 'yv' must point to an array with 2*l + 1 entries and is filled by the function.
+///
+/// The implementation follows the Wikipedia definition.
+///
 void real_spherical_harmonics(const qnumber l, const double v[3], double* yv)
 {
 	assert(l >= 0);

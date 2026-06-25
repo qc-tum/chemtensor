@@ -1442,7 +1442,7 @@ void dense_tensor_broadcast(const struct dense_tensor* restrict t, const int ndi
 	// allocate 'r'
 	{
 		const int ndim_r = ndim_add + t->ndim;
-		const ct_long* dim_r = ct_malloc(ndim_r * sizeof(ct_long));
+		ct_long* dim_r = ct_malloc(ndim_r * sizeof(ct_long));
 		memcpy(dim_r, dim_add, ndim_add * sizeof(ct_long));
 		memcpy(dim_r + ndim_add, t->dim, t->ndim * sizeof(ct_long));
 

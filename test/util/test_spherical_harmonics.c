@@ -80,6 +80,33 @@ char* test_real_spherical_harmonics()
 		ct_free(yv);
 	}
 
+	// single-precision version
+
+	const float vf[3] = {
+		(float)v[0],
+		(float)v[1],
+		(float)v[2],
+	};
+
+	for (qnumber l = 0; l <= 3; l++)
+	{
+		float* yvf = ct_malloc((2*l + 1) * sizeof(float));
+		real_spherical_harmonics_f(l, vf, yvf);
+
+		double* yv = ct_malloc((2*l + 1) * sizeof(double));
+		real_spherical_harmonics(l, v, yv);
+
+		for (int im = 0; im < 2*l + 1; im++)
+		{
+			if (fabsf(yvf[im] - (float)yv[im]) > 1e-6) {
+				return "single-precision real-valued spherical harmonics do not match reference";
+			}
+		}
+
+		ct_free(yv);
+		ct_free(yvf);
+	}
+
 	// transformation by Wigner D-matrix must correspond to an
 	// Euler rotation of the unit vector that parametrizes the spherical harmonics
 
