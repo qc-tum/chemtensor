@@ -57,7 +57,10 @@ def quadratic_spin_fermionic_mpo(coeffc, coeffa, sigma: int) -> MPO:
     z = np.array([[1., 0.], [0., -1.]])
     # operator map
     class OID(IntEnum):
-        Id =  0
+        """
+        Local operator identifiers.
+        """
+        I  =  0
         IC =  1
         IA =  2
         IN =  3
@@ -70,7 +73,7 @@ def quadratic_spin_fermionic_mpo(coeffc, coeffa, sigma: int) -> MPO:
         AZ = 10
         ZZ = 11
     opmap = {
-        OID.Id: np.identity(4),
+        OID.I:  np.identity(4),
         OID.IC: np.kron(id2, a_dag),
         OID.IA: np.kron(id2, a_ann),
         OID.IN: np.kron(id2, numop),
@@ -117,11 +120,11 @@ def quadratic_spin_fermionic_mpo(coeffc, coeffa, sigma: int) -> MPO:
     # identities
     for i in range(nsites - 1):
         graph.add_connect_edge(
-            OpGraphEdge(eid_next, [identity_l[i].nid, identity_l[i + 1].nid], [(OID.Id, 1.)]))
+            OpGraphEdge(eid_next, [identity_l[i].nid, identity_l[i + 1].nid], [(OID.I, 1.)]))
         eid_next += 1
     for i in range(1, nsites):
         graph.add_connect_edge(
-            OpGraphEdge(eid_next, [identity_r[i].nid, identity_r[i + 1].nid], [(OID.Id, 1.)]))
+            OpGraphEdge(eid_next, [identity_r[i].nid, identity_r[i + 1].nid], [(OID.I, 1.)]))
         eid_next += 1
     # Z strings
     for i in range(1, nsites - 1):

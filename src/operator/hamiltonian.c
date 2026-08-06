@@ -1660,7 +1660,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 ///
 enum spin_molecular_oid
 {
-	SPIN_MOLECULAR_OID_Id  =  0,  //!< identity
+	SPIN_MOLECULAR_OID_I   =  0,  //!< identity
 	SPIN_MOLECULAR_OID_IC  =  1,  //!< \f$a^{\dagger}_{\downarrow}\f$
 	SPIN_MOLECULAR_OID_IA  =  2,  //!< \f$a_{\downarrow}\f$
 	SPIN_MOLECULAR_OID_IN  =  3,  //!< \f$n_{\downarrow}\f$
@@ -1690,7 +1690,7 @@ enum spin_molecular_oid
 /// \brief Map a molecular operator ID pair (for spin-up and spin-down) to the corresponding spin molecular operator ID.
 static const enum spin_molecular_oid molecular_oid_single_pair_map[5][5] = {
 	//        I                      C                      A                      N                      Z
-	{ SPIN_MOLECULAR_OID_Id, SPIN_MOLECULAR_OID_IC, SPIN_MOLECULAR_OID_IA, SPIN_MOLECULAR_OID_IN, -1                    },  // I
+	{ SPIN_MOLECULAR_OID_I,  SPIN_MOLECULAR_OID_IC, SPIN_MOLECULAR_OID_IA, SPIN_MOLECULAR_OID_IN, -1                    },  // I
 	{ SPIN_MOLECULAR_OID_CI, SPIN_MOLECULAR_OID_CC, SPIN_MOLECULAR_OID_CA, SPIN_MOLECULAR_OID_CN, SPIN_MOLECULAR_OID_CZ },  // C
 	{ SPIN_MOLECULAR_OID_AI, SPIN_MOLECULAR_OID_AC, SPIN_MOLECULAR_OID_AA, SPIN_MOLECULAR_OID_AN, SPIN_MOLECULAR_OID_AZ },  // A
 	{ SPIN_MOLECULAR_OID_NI, SPIN_MOLECULAR_OID_NC, SPIN_MOLECULAR_OID_NA, SPIN_MOLECULAR_OID_NN, SPIN_MOLECULAR_OID_NZ },  // N
@@ -2120,11 +2120,11 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 	// identities connected to left and right boundaries
 	for (int i = 0; i < nsites - 1; i++) {
 		linked_list_append(&edges[i],
-			construct_mpo_graph_edge(vids->identity[MOLECULAR_CONN_LEFT][i], vids->identity[MOLECULAR_CONN_LEFT][i + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+			construct_mpo_graph_edge(vids->identity[MOLECULAR_CONN_LEFT][i], vids->identity[MOLECULAR_CONN_LEFT][i + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 	}
 	for (int i = 1; i < nsites; i++) {
 		linked_list_append(&edges[i],
-			construct_mpo_graph_edge(vids->identity[MOLECULAR_CONN_RIGHT][i], vids->identity[MOLECULAR_CONN_RIGHT][i + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+			construct_mpo_graph_edge(vids->identity[MOLECULAR_CONN_RIGHT][i], vids->identity[MOLECULAR_CONN_RIGHT][i + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 	}
 
 	// a^{\dagger}_{i,\sigma} operators connected to left boundary
@@ -2172,7 +2172,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = j + 1; k < nsites/2; k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][idx][k], vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][idx][k], vids->a_dag_a_dag[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 				}
 			}
@@ -2198,7 +2198,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = i + 1; k < nsites/2; k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][idx][k], vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][idx][k], vids->a_ann_a_ann[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 				}
 			}
@@ -2237,7 +2237,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = imax(i, j) + 1; k < nsites/2; k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][idx][k], vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][idx][k], vids->a_dag_a_ann[MOLECULAR_CONN_LEFT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 				}
 			}
@@ -2280,7 +2280,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = nsites/2 + 1; k < i; k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][idx][k], vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][idx][k], vids->a_dag_a_dag[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 					if (i < j) {
 						linked_list_append(&edges[i],
@@ -2306,7 +2306,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = nsites/2 + 1; k < j; k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][idx][k], vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][idx][k], vids->a_ann_a_ann[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 					if (i > j) {
 						linked_list_append(&edges[j],
@@ -2331,7 +2331,7 @@ static void spin_molecular_mpo_graph_connect_operator_strings(const struct spin_
 					// identities for transition to next site
 					for (int k = nsites/2 + 1; k < imin(i, j); k++) {
 						linked_list_append(&edges[k],
-							construct_mpo_graph_edge(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][idx][k], vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_Id, CID_ONE));
+							construct_mpo_graph_edge(vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][idx][k], vids->a_dag_a_ann[MOLECULAR_CONN_RIGHT][idx][k + 1], SPIN_MOLECULAR_OID_I, CID_ONE));
 					}
 					if (i < j) {
 						linked_list_append(&edges[i],
@@ -2505,7 +2505,7 @@ static enum spin_molecular_oid to_spin_molecular_operator(const struct spin_oid_
 	}
 	// invalid number of operators
 	assert(false);
-	return SPIN_MOLECULAR_OID_Id;
+	return SPIN_MOLECULAR_OID_I;
 }
 
 
@@ -2741,7 +2741,7 @@ static void spin_molecular_mpo_graph_add_term(const struct spin_molecular_mpo_gr
 			const int* vids_l = spin_molecular_mpo_graph_vids_get_pair(vids, &oplist_sorted[0], &oplist_sorted[1], MOLECULAR_CONN_LEFT);
 			const int* vids_r = spin_molecular_mpo_graph_vids_get_pair(vids, &oplist_sorted[2], &oplist_sorted[3], MOLECULAR_CONN_RIGHT);
 			linked_list_append(&edges[nsites/2],
-				construct_mpo_graph_edge_multicids(vids_l[nsites/2], vids_r[nsites/2 + 1], SPIN_MOLECULAR_OID_Id, cids, numcids));
+				construct_mpo_graph_edge_multicids(vids_l[nsites/2], vids_r[nsites/2 + 1], SPIN_MOLECULAR_OID_I, cids, numcids));
 		}
 	}
 	else

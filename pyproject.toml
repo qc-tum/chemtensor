@@ -1,5 +1,6 @@
 [project]
 name = "chemtensor"
+description = "Tensor network algorithms for chemical systems"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Christian B. Mendl", email = "christian.b.mendl@gmail.com" }]
 license = { file = "LICENSE" }
