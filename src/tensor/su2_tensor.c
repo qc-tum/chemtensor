@@ -868,19 +868,17 @@ void su2_tensor_fmove(const struct su2_tensor* restrict t, const int i_ax, struc
 				copy_dense_tensor(t->degensors[ct], r->degensors[cr]);
 				assert(r->degensors[cr]->dtype == r->dtype);
 
-				// ensure that 'alpha' is large enough to store any real numeric type
-				double alpha;
-				numeric_from_double(coeff, numeric_real_type(r->dtype), &alpha);
-				rscale_dense_tensor(&alpha, r->degensors[cr]);
+				ct_realnum alpha;
+				numeric_from_double(coeff, numeric_real_type(r->dtype), alpha);
+				rscale_dense_tensor(alpha, r->degensors[cr]);
 			}
 			else
 			{
-				// ensure that 'alpha' is large enough to store any numeric type
-				dcomplex alpha;
-				numeric_from_double(coeff, r->dtype, &alpha);
+				ct_numeric alpha;
+				numeric_from_double(coeff, r->dtype, alpha);
 
 				// accumulate degeneracy tensor from 't' weighted by 'coeff'
-				dense_tensor_scalar_multiply_add(&alpha, t->degensors[ct], r->degensors[cr]);
+				dense_tensor_scalar_multiply_add(alpha, t->degensors[ct], r->degensors[cr]);
 			}
 		}
 	}
@@ -978,11 +976,10 @@ void su2_tensor_reverse_axis_simple(struct su2_tensor* t, const int i_ax)
 			coeff *= (1 - 2 * (jlist[i_ax] % 2));
 		}
 
-		// ensure that 'alpha' is large enough to store any real numeric type
-		double alpha;
-		numeric_from_double(coeff, numeric_real_type(t->degensors[c]->dtype), &alpha);
+		ct_realnum alpha;
+		numeric_from_double(coeff, numeric_real_type(t->degensors[c]->dtype), alpha);
 
-		rscale_dense_tensor(&alpha, t->degensors[c]);
+		rscale_dense_tensor(alpha, t->degensors[c]);
 	}
 }
 
@@ -2798,7 +2795,7 @@ void su2_tensor_contract_simple(const struct su2_tensor* restrict s, const int* 
 				(*dr) = ct_calloc(1, sizeof(struct dense_tensor));
 
 				// actually multiply dense tensors and store result in 'dr'
-				dense_tensor_dot(&ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, ndim_mult_logical, (*dr));
+				dense_tensor_dot(numeric_one(s->dtype), &ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, ndim_mult_logical, (*dr));
 			}
 			else
 			{
@@ -3095,7 +3092,7 @@ void su2_tensor_contract_yoga(const struct su2_tensor* restrict s, const int i_a
 			{
 				data_yoga.degensors[cr] = ct_malloc(sizeof(struct dense_tensor));
 				// actually multiply dense tensors
-				dense_tensor_dot(&ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, 1, data_yoga.degensors[cr]);
+				dense_tensor_dot(numeric_one(s->dtype), &ds_perm, TENSOR_AXIS_RANGE_TRAILING, &dt_perm, TENSOR_AXIS_RANGE_LEADING, 1, data_yoga.degensors[cr]);
 			}
 			else
 			{
@@ -3620,7 +3617,7 @@ void su2_dense_tensor_dot(const struct su2_tensor* restrict s, const enum tensor
 
 		// multiply dense tensor constructed from 's' with block from 't'
 		struct dense_tensor br;
-		dense_tensor_dot(&dcs_list[c], axrange_s, &bt, axrange_t, ndim_mult, &br);
+		dense_tensor_dot(numeric_one(bt.dtype), &dcs_list[c], axrange_s, &bt, axrange_t, ndim_mult, &br);
 		delete_dense_tensor(&dcs_list[c]);
 		delete_dense_tensor(&bt);
 		assert(br.ndim == r_eff.ndim);

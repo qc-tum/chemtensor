@@ -208,7 +208,7 @@ char* test_sparse_coordinate_tensor_dot()
 
 						// reference calculation
 						struct dense_tensor r_ref;
-						dense_tensor_dot(&s_dns, TENSOR_AXIS_RANGE_TRAILING, &t_dns, TENSOR_AXIS_RANGE_TRAILING, ndim_mult, &r_ref);
+						dense_tensor_dot(numeric_one(idtype), &s_dns, TENSOR_AXIS_RANGE_TRAILING, &t_dns, TENSOR_AXIS_RANGE_TRAILING, ndim_mult, &r_ref);
 
 						struct dense_tensor r_dns;
 						sparse_coordinate_to_dense_tensor(&r, &r_dns);

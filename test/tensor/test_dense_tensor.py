@@ -129,12 +129,14 @@ def dense_tensor_dot_data():
     # random number generator
     rng = np.random.default_rng(524)
 
+    alpha = crandn(1, rng)
     t = crandn((2, 11, 3, 4, 5), rng)
     s = crandn((4, 5, 7, 6), rng)
 
-    t_dot_s = np.tensordot(t, s, 2)
+    t_dot_s = alpha * np.tensordot(t, s, 2)
 
     with h5py.File("data/test_dense_tensor_dot.hdf5", "w") as file:
+        file.attrs["alpha"] = alpha
         file["t"] = t
         file["s"] = s
         file["t_dot_s"] = t_dot_s
@@ -145,8 +147,8 @@ def dense_tensor_dot_update_data():
     # random number generator
     rng = np.random.default_rng(170)
 
-    alpha = np.array( 1.2 - 0.3j).astype(np.complex64)
-    beta  = np.array(-0.7 + 0.8j).astype(np.complex64)
+    alpha = crandn(1, rng).astype(np.complex64)
+    beta  = crandn(1, rng).astype(np.complex64)
 
     t = crandn((2, 11, 3, 4, 5), rng).astype(np.complex64)
     s = crandn((4, 5, 7, 6), rng).astype(np.complex64)
@@ -155,6 +157,8 @@ def dense_tensor_dot_update_data():
     t_dot_s_1 = alpha * np.tensordot(t, s, 2) + beta * t_dot_s_0
 
     with h5py.File("data/test_dense_tensor_dot_update.hdf5", "w") as file:
+        file.attrs["alpha"] = alpha
+        file.attrs["beta"]  = beta
         file["t"] = t
         file["s"] = s
         file["t_dot_s_0"] = t_dot_s_0

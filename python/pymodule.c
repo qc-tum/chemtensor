@@ -3498,8 +3498,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	// ensure that variable size is large enough to store any numeric type
-	dcomplex prefactor;
+	ct_numeric prefactor;
 	{
 		switch (py_state->ttns.a[0].dtype)
 		{
@@ -3510,7 +3509,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a float value");
 					return NULL;
 				}
-				*((float*)&prefactor) = p;
+				*((float*)prefactor) = p;
 				break;
 			}
 			case CT_DOUBLE_REAL:
@@ -3520,7 +3519,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a double value");
 					return NULL;
 				}
-				*((double*)&prefactor) = p;
+				*((double*)prefactor) = p;
 				break;
 			}
 			case CT_SINGLE_COMPLEX:
@@ -3531,7 +3530,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 					return NULL;
 				}
 				scomplex p_single = CMPLXF((float)p.real, (float)p.imag);
-				*((scomplex*)&prefactor) = p_single;
+				*((scomplex*)prefactor) = p_single;
 				break;
 			}
 			case CT_DOUBLE_COMPLEX:
@@ -3541,7 +3540,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 					PyErr_SetString(PyExc_ValueError, "cannot interpret 'prefactor' as a complex number");
 					return NULL;
 				}
-				*((Py_complex*)&prefactor) = p;
+				*((Py_complex*)prefactor) = p;
 				break;
 			}
 			default:
@@ -3565,7 +3564,7 @@ static PyObject* Py_bug_tree_time_step(PyObject* Py_UNUSED(self), PyObject* args
 		return NULL;
 	}
 
-	int ret = bug_tree_time_step(&py_op->ttno, i_root, &prefactor, dt, rel_tol_compress, max_vdim, &py_state->ttns);
+	int ret = bug_tree_time_step(&py_op->ttno, i_root, prefactor, dt, rel_tol_compress, max_vdim, &py_state->ttns);
 	if (ret < 0) {
 		PyErr_SetString(PyExc_RuntimeError, "bug_tree_time_step failed internally");
 		return NULL;

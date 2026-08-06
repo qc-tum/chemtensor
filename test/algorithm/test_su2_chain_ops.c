@@ -248,7 +248,7 @@ char* test_su2_contraction_operator_step_left()
 		conjugate_dense_tensor(&b_dns);
 		assert(dense_tensor_norm2(&b_dns) > 0);
 		struct dense_tensor s;
-		dense_tensor_dot(&l_dns, TENSOR_AXIS_RANGE_TRAILING, &b_dns, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+		dense_tensor_dot(numeric_one(dtype), &l_dns, TENSOR_AXIS_RANGE_TRAILING, &b_dns, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 		delete_dense_tensor(&b_dns);
 		delete_dense_tensor(&l_dns);
 
@@ -261,7 +261,7 @@ char* test_su2_contraction_operator_step_left()
 		su2_to_dense_tensor(&w, &w_dns);
 		assert(dense_tensor_norm2(&w_dns) > 0);
 		delete_dense_tensor(&s);
-		dense_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &w_dns, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+		dense_tensor_dot(numeric_one(dtype), &t, TENSOR_AXIS_RANGE_TRAILING, &w_dns, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 		delete_dense_tensor(&t);
 		delete_dense_tensor(&w_dns);
 
@@ -422,11 +422,11 @@ char* test_su2_mpo_inner_product()
 	scomplex s_ref;
 	{
 		struct dense_tensor t;
-		dense_tensor_dot(&op_mat, TENSOR_AXIS_RANGE_TRAILING, &psi_vec, TENSOR_AXIS_RANGE_LEADING, 1, &t);
+		dense_tensor_dot(numeric_one(psi_vec.dtype), &op_mat, TENSOR_AXIS_RANGE_TRAILING, &psi_vec, TENSOR_AXIS_RANGE_LEADING, 1, &t);
 		assert(t.ndim == 2);  // combined physical axis and trailing virtual bond axis of 'psi'
 		conjugate_dense_tensor(&chi_vec);
 		struct dense_tensor r;
-		dense_tensor_dot(&chi_vec, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 1, &r);
+		dense_tensor_dot(numeric_one(chi_vec.dtype), &chi_vec, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 1, &r);
 		delete_dense_tensor(&t);
 		assert(r.dtype == CT_SINGLE_COMPLEX);
 		assert(r.ndim == 2);  // trailing virtual bond axes of 'chi' and 'psi'
@@ -690,7 +690,7 @@ char* test_su2_apply_local_hamiltonian()
 		struct dense_tensor a_dns;
 		su2_to_dense_tensor(&a, &a_dns);
 		assert(dense_tensor_norm2(&a_dns) > 0);
-		dense_tensor_dot(&a_dns, TENSOR_AXIS_RANGE_TRAILING, &r_dns, TENSOR_AXIS_RANGE_LEADING, 1, &s);
+		dense_tensor_dot(numeric_one(dtype), &a_dns, TENSOR_AXIS_RANGE_TRAILING, &r_dns, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 		delete_dense_tensor(&a_dns);
 		delete_dense_tensor(&r_dns);
 
@@ -703,7 +703,7 @@ char* test_su2_apply_local_hamiltonian()
 		struct dense_tensor w_dns;
 		su2_to_dense_tensor(&w, &w_dns);
 		assert(dense_tensor_norm2(&w_dns) > 0);
-		dense_tensor_dot(&w_dns, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+		dense_tensor_dot(numeric_one(dtype), &w_dns, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 		delete_dense_tensor(&t);
 		delete_dense_tensor(&w_dns);
 		// undo re-ordering
@@ -720,7 +720,7 @@ char* test_su2_apply_local_hamiltonian()
 		struct dense_tensor k;
 		dense_tensor_transpose(perm2, &l_dns, &k);
 		delete_dense_tensor(&l_dns);
-		dense_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+		dense_tensor_dot(numeric_one(dtype), &k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 		delete_dense_tensor(&k);
 		delete_dense_tensor(&t);
 

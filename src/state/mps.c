@@ -166,11 +166,10 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 	{
 		// logical number of entries in MPS tensor
 		const ct_long nelem = integer_product(mps->a[l].dim_logical, mps->a[l].ndim);
-		// ensure that 'alpha' is large enough to store any numeric type
-		dcomplex alpha;
+		ct_numeric alpha;
 		assert(mps->a[l].dtype == dtype);
-		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
-		block_sparse_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &mps->a[l]);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, alpha);
+		block_sparse_tensor_fill_random_normal(alpha, numeric_zero(dtype), rng_state, &mps->a[l]);
 	}
 }
 

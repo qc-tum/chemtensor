@@ -1402,7 +1402,7 @@ char* test_su2_tensor_fuse_axes()
 
 		// perform contraction
 		struct dense_tensor r_dns_perm;
-		dense_tensor_dot(&t_tmp, TENSOR_AXIS_RANGE_TRAILING, &u_fuse_dns, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_perm);
+		dense_tensor_dot(numeric_one(u_fuse_dns.dtype), &t_tmp, TENSOR_AXIS_RANGE_TRAILING, &u_fuse_dns, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_perm);
 		delete_dense_tensor(&t_tmp);
 
 		// transpose the fused axis to become axis 1
@@ -2642,10 +2642,10 @@ char* test_su2_tensor_contract_simple()
 			// contract dense tensors, as reference
 			struct dense_tensor r_dns_ref;
 			if (ordering == 0) {
-				dense_tensor_dot(&s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 2, &r_dns_ref);
+				dense_tensor_dot(numeric_one(s_dns_perm.dtype), &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 2, &r_dns_ref);
 			}
 			else {
-				dense_tensor_dot(&t_dns_perm, TENSOR_AXIS_RANGE_LEADING, &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_ref);
+				dense_tensor_dot(numeric_one(t_dns_perm.dtype), &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, 2, &r_dns_ref);
 			}
 
 			// compare
@@ -2884,7 +2884,7 @@ char* test_su2_tensor_contract_yoga()
 
 		// contract dense tensors, as reference
 		struct dense_tensor r_dns_ref;
-		dense_tensor_dot(&s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 1, &r_dns_ref);
+		dense_tensor_dot(numeric_one(s_dns_perm.dtype), &s_dns_perm, TENSOR_AXIS_RANGE_TRAILING, &t_dns_perm, TENSOR_AXIS_RANGE_LEADING, 1, &r_dns_ref);
 
 		// compare
 		if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-5)) {
@@ -3133,9 +3133,9 @@ char* test_su2_dense_tensor_dot()
 			su2_tensor_delete_charge_sector_by_index(&s, 5);
 
 			// fill degeneracy tensors with random entries
-			dcomplex alpha;
-			numeric_from_double(0.05, s.dtype, &alpha);
-			su2_tensor_fill_random_normal(&alpha, numeric_zero(s.dtype), &rng_state, &s);
+			ct_numeric alpha;
+			numeric_from_double(0.05, s.dtype, alpha);
+			su2_tensor_fill_random_normal(alpha, numeric_zero(s.dtype), &rng_state, &s);
 
 			if (!su2_tensor_is_consistent(&s)) {
 				return "internal consistency check for SU(2) tensor failed";
@@ -3170,9 +3170,9 @@ char* test_su2_dense_tensor_dot()
 
 						allocate_dense_tensor(dtype, ndim_t, dim_t, &t);
 
-						dcomplex alpha;
-						numeric_from_double(0.05, t.dtype, &alpha);
-						dense_tensor_fill_random_normal(&alpha, numeric_zero(t.dtype), &rng_state, &t);
+						ct_numeric alpha;
+						numeric_from_double(0.05, t.dtype, alpha);
+						dense_tensor_fill_random_normal(alpha, numeric_zero(t.dtype), &rng_state, &t);
 					}
 
 					struct dense_tensor r;
@@ -3184,7 +3184,7 @@ char* test_su2_dense_tensor_dot()
 
 					// reference calculation
 					struct dense_tensor r_ref;
-					dense_tensor_dot(&s_dns, axrange_s, &t, axrange_t, ndim_mult, &r_ref);
+					dense_tensor_dot(numeric_one(dtype), &s_dns, axrange_s, &t, axrange_t, ndim_mult, &r_ref);
 
 					// compare
 					if (!dense_tensor_allclose(&r, &r_ref, tol)) {
@@ -3754,7 +3754,7 @@ char* test_su2_tensor_svd()
 					delete_dense_tensor(&s_expanded);
 					delete_dense_tensor(&u_dns);
 					struct dense_tensor usvh_dns;
-					dense_tensor_dot(&us_dns, TENSOR_AXIS_RANGE_TRAILING, &vh_dns, TENSOR_AXIS_RANGE_LEADING, 1, &usvh_dns);
+					dense_tensor_dot(numeric_one(idtype), &us_dns, TENSOR_AXIS_RANGE_TRAILING, &vh_dns, TENSOR_AXIS_RANGE_LEADING, 1, &usvh_dns);
 					delete_dense_tensor(&us_dns);
 					delete_dense_tensor(&vh_dns);
 

@@ -436,11 +436,10 @@ void construct_random_ttno(const enum numeric_type dtype, const int nsites_physi
 	{
 		// logical number of entries in TTNS tensor
 		const ct_long nelem = integer_product(ttno->a[l].dim_logical, ttno->a[l].ndim);
-		// ensure that 'alpha' is large enough to store any numeric type
-		dcomplex alpha;
+		ct_numeric alpha;
 		assert(ttno->a[l].dtype == dtype);
-		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
-		block_sparse_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &ttno->a[l]);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, alpha);
+		block_sparse_tensor_fill_random_normal(alpha, numeric_zero(dtype), rng_state, &ttno->a[l]);
 	}
 }
 

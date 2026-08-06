@@ -61,7 +61,8 @@ void mlip_embedding_from_atomic_data(const struct mlip_atomic_data* atomic_data,
 
 	// node embedding
 	assert(model->species_embedding_weight.ndim == 2);
-	dense_tensor_dot(&atomic_data->node_attrs, TENSOR_AXIS_RANGE_TRAILING,
+	dense_tensor_dot(numeric_one(model->species_embedding_weight.dtype),
+	                 &atomic_data->node_attrs, TENSOR_AXIS_RANGE_TRAILING,
 	                 &model->species_embedding_weight, TENSOR_AXIS_RANGE_TRAILING, 1,
 	                 &embedding->node);
 

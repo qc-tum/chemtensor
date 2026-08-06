@@ -458,7 +458,7 @@ char* test_bug_flow_update_basis_leaf()
 			conjugate_dense_tensor(&a_state_1_ref);
 
 			struct dense_tensor u;
-			dense_tensor_dot(&a_state_1_ref, TENSOR_AXIS_RANGE_LEADING,
+			dense_tensor_dot(numeric_one(a_state_dns.dtype), &a_state_1_ref, TENSOR_AXIS_RANGE_LEADING,
 				&a_state_dns, m <= 1 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, m == 2 ? 2 : 1, &u);
 			if (!dense_tensor_is_isometry(&u, 1e-14, true)) {
 				return "expecting an isometric overlap matrix";

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
 
@@ -374,3 +375,12 @@ static inline bool numeric_is_zero(const enum numeric_type dtype, const void* al
 		}
 	}
 }
+
+
+/// \brief Generic real numeric scalar type large enough to store any concrete real type,
+/// intended for scalar prefactors and coefficients
+typedef int8_t ct_realnum[sizeof(double)];
+
+/// \brief Generic numeric scalar type large enough to store any concrete type,
+/// intended for scalar prefactors and coefficients
+typedef int8_t ct_numeric[sizeof(dcomplex)];

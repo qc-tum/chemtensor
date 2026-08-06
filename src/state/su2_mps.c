@@ -177,11 +177,10 @@ void construct_random_su2_mps(
 	{
 		// logical number of entries in MPS tensor
 		const ct_long nelem = su2_tensor_num_elements_logical(&mps->a[l]);
-		// ensure that 'alpha' is large enough to store any numeric type
-		dcomplex alpha;
+		ct_numeric alpha;
 		assert(mps->a[l].dtype == dtype);
-		numeric_from_double(1.0 / sqrt(nelem), dtype, &alpha);
-		su2_tensor_fill_random_normal(&alpha, numeric_zero(dtype), rng_state, &mps->a[l]);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, alpha);
+		su2_tensor_fill_random_normal(alpha, numeric_zero(dtype), rng_state, &mps->a[l]);
 	}
 }
 

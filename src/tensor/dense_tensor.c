@@ -1912,12 +1912,12 @@ void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_ten
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply (leading or trailing) 'ndim_mult' axes in 's' by 'ndim_mult' axes in 't', and store result in 'r'.
+/// \brief Multiply (leading or trailing) 'ndim_mult' axes in 's' by 'ndim_mult' axes in 't', scale by 'alpha', and store result in 'r'.
 /// Whether to use leading or trailing axes is specified by axis range.
 ///
 /// Memory will be allocated for 'r'.
 ///
-void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r)
+void dense_tensor_dot(const void* alpha, const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r)
 {
 	// data types must agree
 	assert(s->dtype == t->dtype);
@@ -1972,26 +1972,24 @@ void dense_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_a
 	{
 		case CT_SINGLE_REAL:
 		{
-			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, 1.f, s->data, tds, t->data, tdt, 0.f, r->data, n);
+			cblas_sgemm(CblasRowMajor, transa, transb, m, n, k, *((float*)alpha), s->data, tds, t->data, tdt, 0.f, r->data, n);
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, 1.0, s->data, tds, t->data, tdt, 0.0, r->data, n);
+			cblas_dgemm(CblasRowMajor, transa, transb, m, n, k, *((double*)alpha), s->data, tds, t->data, tdt, 0.0, r->data, n);
 			break;
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			const scomplex one  = 1;
 			const scomplex zero = 0;
-			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, &one, s->data, tds, t->data, tdt, &zero, r->data, n);
+			cblas_cgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, &zero, r->data, n);
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			const dcomplex one  = 1;
 			const dcomplex zero = 0;
-			cblas_zgemm(CblasRowMajor, transa, transb, m, n, k, &one, s->data, tds, t->data, tdt, &zero, r->data, n);
+			cblas_zgemm(CblasRowMajor, transa, transb, m, n, k, alpha, s->data, tds, t->data, tdt, &zero, r->data, n);
 			break;
 		}
 		default:
@@ -4444,10 +4442,10 @@ bool dense_tensor_is_isometry(const struct dense_tensor* t, const double tol, co
 	{
 		struct dense_tensor t2;
 		if (!transpose) {
-			dense_tensor_dot(t, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
+			dense_tensor_dot(numeric_one(t->dtype), t, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
 		}
 		else {
-			dense_tensor_dot(t, TENSOR_AXIS_RANGE_TRAILING, t, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
+			dense_tensor_dot(numeric_one(t->dtype), t, TENSOR_AXIS_RANGE_TRAILING, t, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
 		}
 
 		is_isometry = dense_tensor_is_identity(&t2, tol);
@@ -4462,10 +4460,10 @@ bool dense_tensor_is_isometry(const struct dense_tensor* t, const double tol, co
 
 		struct dense_tensor t2;
 		if (!transpose) {
-			dense_tensor_dot(&tc, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
+			dense_tensor_dot(numeric_one(t->dtype), &tc, TENSOR_AXIS_RANGE_LEADING, t, TENSOR_AXIS_RANGE_LEADING, 1, &t2);
 		}
 		else {
-			dense_tensor_dot(t, TENSOR_AXIS_RANGE_TRAILING, &tc, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
+			dense_tensor_dot(numeric_one(t->dtype), t, TENSOR_AXIS_RANGE_TRAILING, &tc, TENSOR_AXIS_RANGE_TRAILING, 1, &t2);
 		}
 
 		is_isometry = dense_tensor_is_identity(&t2, tol);

@@ -138,17 +138,15 @@ void su2_convert_yoga_to_simple_subtree(const struct su2_tensor_data* restrict d
 				{
 					(*ds) = ct_malloc(sizeof(struct dense_tensor));
 					copy_dense_tensor(data_yoga->degensors[idx[j]], (*ds));
-					// 'alpha' can either store a float or double number
-					double alpha;
-					numeric_from_double(coeff, numeric_real_type((*ds)->dtype), &alpha);
-					rscale_dense_tensor(&alpha, (*ds));
+					ct_realnum alpha;
+					numeric_from_double(coeff, numeric_real_type((*ds)->dtype), alpha);
+					rscale_dense_tensor(alpha, (*ds));
 				}
 				else
 				{
-					// ensure that 'alpha' is large enough to store any numeric type
-					dcomplex alpha;
-					numeric_from_double(coeff, (*ds)->dtype, &alpha);
-					dense_tensor_scalar_multiply_add(&alpha, data_yoga->degensors[idx[j]], (*ds));
+					ct_numeric alpha;
+					numeric_from_double(coeff, (*ds)->dtype, alpha);
+					dense_tensor_scalar_multiply_add(alpha, data_yoga->degensors[idx[j]], (*ds));
 				}
 			}
 			assert((*ds) != NULL);

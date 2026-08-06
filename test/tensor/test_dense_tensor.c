@@ -705,6 +705,13 @@ char* test_dense_tensor_dot()
 
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
+	// scalar prefactor
+	dcomplex alpha;
+	// read value from disk
+	if (read_hdf5_attribute(file, "alpha", hdf5_dcomplex_id, &alpha) < 0) {
+		return "reading scalar factor from disk failed";
+	}
+
 	// create tensor 't'
 	struct dense_tensor t;
 	const ct_long tdim[5] = { 2, 11, 3, 4, 5 };
@@ -756,7 +763,7 @@ char* test_dense_tensor_dot()
 
 			// multiply tensors and store result in 't_dot_s'
 			struct dense_tensor t_dot_s;
-			dense_tensor_dot(&tp, axrange_t, &sp, axrange_s, 2, &t_dot_s);
+			dense_tensor_dot(&alpha, &tp, axrange_t, &sp, axrange_s, 2, &t_dot_s);
 
 			// compare
 			if (!dense_tensor_allclose(&t_dot_s, &t_dot_s_ref, 1e-13)) {
@@ -792,8 +799,15 @@ char* test_dense_tensor_dot_update()
 
 	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
-	const scomplex alpha =  1.2f - 0.3f*I;
-	const scomplex beta  = -0.7f + 0.8f*I;
+	// scalar factors
+	scomplex alpha, beta;
+	// read values from disk
+	if (read_hdf5_attribute(file, "alpha", hdf5_scomplex_id, &alpha) < 0) {
+		return "reading scalar factor from disk failed";
+	}
+	if (read_hdf5_attribute(file, "beta", hdf5_scomplex_id, &beta) < 0) {
+		return "reading scalar factor from disk failed";
+	}
 
 	// create tensor 't'
 	struct dense_tensor t;
@@ -1151,7 +1165,7 @@ char* test_dense_tensor_qr()
 
 				// matrix product 'q r' must be equal to 'a'
 				struct dense_tensor qr;
-				dense_tensor_dot(&q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
+				dense_tensor_dot(numeric_one(idtype), &q, TENSOR_AXIS_RANGE_TRAILING, &r, TENSOR_AXIS_RANGE_LEADING, 1, &qr);
 				if (!dense_tensor_allclose(&qr, &a, tol)) {
 					return "matrix product Q R is not equal to original A matrix";
 				}
@@ -1237,7 +1251,7 @@ char* test_dense_tensor_rq()
 
 				// matrix product 'r q' must be equal to 'a'
 				struct dense_tensor rq;
-				dense_tensor_dot(&r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
+				dense_tensor_dot(numeric_one(idtype), &r, TENSOR_AXIS_RANGE_TRAILING, &q, TENSOR_AXIS_RANGE_LEADING, 1, &rq);
 				if (!dense_tensor_allclose(&rq, &a, tol)) {
 					return "matrix product R Q is not equal to original A matrix";
 				}
@@ -1322,7 +1336,7 @@ char* test_dense_tensor_eigh()
 		struct dense_tensor uh;
 		dense_tensor_conjugate_transpose(perm, &u, &uh);
 		struct dense_tensor u_lambda_uh;
-		dense_tensor_dot(&u_lambda, TENSOR_AXIS_RANGE_TRAILING, &uh, TENSOR_AXIS_RANGE_LEADING, 1, &u_lambda_uh);
+		dense_tensor_dot(numeric_one(idtype), &u_lambda, TENSOR_AXIS_RANGE_TRAILING, &uh, TENSOR_AXIS_RANGE_LEADING, 1, &u_lambda_uh);
 		delete_dense_tensor(&uh);
 		delete_dense_tensor(&u_lambda);
 		if (!dense_tensor_allclose(&u_lambda_uh, &a, tol)) {
@@ -1401,7 +1415,7 @@ char* test_dense_tensor_svd()
 			struct dense_tensor us;
 			dense_tensor_multiply_pointwise(&u, &s, TENSOR_AXIS_RANGE_TRAILING, &us);
 			struct dense_tensor usvh;
-			dense_tensor_dot(&us, TENSOR_AXIS_RANGE_TRAILING, &vh, TENSOR_AXIS_RANGE_LEADING, 1, &usvh);
+			dense_tensor_dot(numeric_one(idtype), &us, TENSOR_AXIS_RANGE_TRAILING, &vh, TENSOR_AXIS_RANGE_LEADING, 1, &usvh);
 			delete_dense_tensor(&us);
 			if (!dense_tensor_allclose(&usvh, &a, tol)) {
 				return "matrix product U S V^dag is not equal to original A matrix";
