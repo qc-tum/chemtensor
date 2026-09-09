@@ -47,14 +47,12 @@ char* test_mlip_atomic_data_from_configuration()
 
 		// model parameters
 		qnumber z_table[] = { 1, 6, 8 };
-		ct_realnum r_cut;
-		numeric_from_double(3.0, idtype, r_cut);
 		const struct mlip_model_parameters params = {
 			.z_table = z_table,
 			.num_species = ARRLEN(z_table),
-			.r_cut = r_cut,
 			.dtype = idtype,
 		};
+		numeric_from_double(3.0, idtype, (void*)params.r_cut);
 
 		struct mlip_atomic_data atomic_data;
 		mlip_atomic_data_from_configuration(&config, &params, &atomic_data);

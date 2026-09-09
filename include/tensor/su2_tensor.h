@@ -184,6 +184,10 @@ void su2_dense_tensor_dot(const struct su2_tensor* s, const enum tensor_axis_ran
 	const struct dense_tensor* t, const enum tensor_axis_range axrange_t,
 	const int ndim_mult, struct dense_tensor* r);
 
+void dense_su2_tensor_dot(const struct dense_tensor* s, const enum tensor_axis_range axrange_s,
+	const struct su2_tensor* t, const enum tensor_axis_range axrange_t,
+	const int ndim_mult, struct dense_tensor* r);
+
 
 //________________________________________________________________________________________________________________________
 //

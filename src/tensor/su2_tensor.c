@@ -3368,6 +3368,7 @@ void su2_dense_tensor_dot(const struct su2_tensor* restrict s, const enum tensor
 
 	ct_free(dim_s);
 
+	// number of leading dimensions of 't' as a matrix
 	const int nldt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : t->ndim - ndim_mult);
 
 	// leading dimension of 't' as a matrix
@@ -3718,6 +3719,444 @@ void su2_dense_tensor_dot(const struct su2_tensor* restrict s, const enum tensor
 	ct_free(r_eff.dim);
 	ct_free(t_eff.dim);
 	ct_free(sector_offsets_s);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Compute the dot product of a dense and an SU(2) symmetric tensor, returning the result as a dense tensor.
+///
+void dense_su2_tensor_dot(const struct dense_tensor* restrict s, const enum tensor_axis_range axrange_s,
+	const struct su2_tensor* restrict t, const enum tensor_axis_range axrange_t,
+	const int ndim_mult, struct dense_tensor* restrict r)
+{
+	// data types must agree
+	assert(s->dtype == t->dtype);
+
+	assert(ndim_mult >= 1);
+	assert(s->ndim >= ndim_mult && t->ndim_logical >= ndim_mult);
+
+	// start of 'j' charge sector entries in 't', along each logical axis
+	ct_long** sector_offsets_t = ct_malloc(t->ndim_logical * sizeof(ct_long*));
+
+	// logical dimensions of 't'
+	ct_long* dim_t = ct_calloc(t->ndim_logical, sizeof(ct_long));
+
+	for (int i = 0; i < t->ndim_logical; i++)
+	{
+		assert(t->outer_irreps[i].num > 0);
+		const qnumber j_max = su2_irreducible_list_j_max(&t->outer_irreps[i]);
+		sector_offsets_t[i] = ct_calloc(j_max + 1, sizeof(ct_long));
+		for (int k = 0; k < t->outer_irreps[i].num; k++)
+		{
+			const qnumber j = t->outer_irreps[i].jlist[k];
+			assert(t->dim_degen[i][j] > 0);
+			sector_offsets_t[i][j] = dim_t[i];
+			dim_t[i] += t->dim_degen[i][j] * (j + 1);
+		}
+		assert(dim_t[i] == su2_tensor_dim_logical_axis(t, i));
+	}
+
+	// dimensions of logical to-be contracted axes must match
+	for (int i = 0; i < ndim_mult; i++)
+	{
+		assert(s->dim[(axrange_s == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim         - ndim_mult) + i]
+		     == dim_t[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim_logical - ndim_mult) + i]);
+	}
+
+	// create new tensor 'r' and initialize it with zero entries
+	{
+		// dimensions of new tensor 'r'
+		const int ndim_r = s->ndim + t->ndim_logical - 2*ndim_mult;
+		ct_long* dim_r = ct_malloc(ndim_r * sizeof(ct_long));
+		const int i_ax_offset_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+		const int i_ax_offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+		for (int i = 0; i < s->ndim - ndim_mult; i++)
+		{
+			dim_r[i] = s->dim[i_ax_offset_s + i];
+		}
+		for (int i = 0; i < t->ndim_logical - ndim_mult; i++)
+		{
+			dim_r[(s->ndim - ndim_mult) + i] = dim_t[i_ax_offset_t + i];
+		}
+
+		allocate_zero_dense_tensor(s->dtype, ndim_r, dim_r, r);
+		ct_free(dim_r);
+	}
+
+	ct_free(dim_t);
+
+	// number of leading dimensions of 's' as a matrix
+	const int nlds = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : s->ndim - ndim_mult);
+
+	// leading dimension of 's' as a matrix
+	const ct_long lds = integer_product(s->dim, nlds);
+	// trailing dimension of 's' as a matrix
+	const ct_long tds = integer_product(&s->dim[nlds], s->ndim - nlds);
+
+	// flatten all open axes in 's'
+	struct dense_tensor s_eff = {
+		.data  = s->data,
+		.dtype = s->dtype,
+		.ndim  = 1 + ndim_mult,
+	};
+	s_eff.dim = ct_malloc(s_eff.ndim * sizeof(ct_long));
+	if (axrange_s == TENSOR_AXIS_RANGE_LEADING)
+	{
+		for (int i = 0; i < ndim_mult; i++) {
+			s_eff.dim[i] = s->dim[i];
+		}
+		s_eff.dim[ndim_mult] = tds;
+	}
+	else
+	{
+		s_eff.dim[0] = lds;
+		for (int i = 0; i < ndim_mult; i++) {
+			s_eff.dim[1 + i] = s->dim[nlds + i];
+		}
+	}
+
+	// flatten all open axes in 'r' corresponding to open axes in 's'
+	struct dense_tensor r_eff = {
+		.data  = r->data,
+		.dtype = r->dtype,
+		.ndim  = 1 + t->ndim_logical - ndim_mult,
+	};
+	r_eff.dim = ct_malloc(r_eff.ndim * sizeof(ct_long));
+	r_eff.dim[0] = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? tds : lds);
+	for (int i = 0; i < t->ndim_logical - ndim_mult; i++) {
+		r_eff.dim[1 + i] = r->dim[(s->ndim - ndim_mult) + i];
+	}
+
+	// number of outer dimensions of 't', i.e., number of leaves
+	const int ndim_outer_t = t->ndim_logical + t->ndim_auxiliary;
+
+	// accumulate dense "degeneracy x Clebsch-Gordan tensor" blocks from 't'
+	struct charge_sectors charge_sectors_t_logical;
+	allocate_charge_sectors(t->charge_sectors.nsec, t->ndim_logical, &charge_sectors_t_logical);  // upper bound on required memory
+	struct dense_tensor* dct_list = ct_malloc(t->charge_sectors.nsec * sizeof(struct dense_tensor));
+	charge_sectors_t_logical.nsec = 0;
+	for (ct_long c = 0; c < t->charge_sectors.nsec; c++)
+	{
+		// "degeneracy" tensor corresponding to current charge sector
+		const struct dense_tensor* dt = t->degensors[c];
+		assert(dt->dtype == t->dtype);
+		assert(dt->ndim  == t->ndim_logical);
+
+		// current 'j' quantum numbers
+		const qnumber* jlist_t = &t->charge_sectors.jlists[c * t->charge_sectors.ndim];
+
+		// store Clebsch-Gordan coefficients depending on 'm' quantum numbers in a dense tensor
+		struct dense_tensor ct;
+		{
+			// dimensions of outer 'm' quantum numbers (defined on leaves)
+			int* dim_m_outer = ct_malloc(ndim_outer_t * sizeof(int));
+			int nconfigs = 1;
+			for (int i = 0; i < ndim_outer_t; i++) {
+				dim_m_outer[i] = jlist_t[i] + 1;
+				nconfigs *= dim_m_outer[i];
+			}
+
+			ct_long* dim_ct = ct_malloc(t->ndim_logical * sizeof(ct_long));
+			for (int i = 0; i < t->ndim_logical; i++) {
+				dim_ct[i] = (ct_long)dim_m_outer[i];
+			}
+
+			allocate_zero_dense_tensor(t->dtype, t->ndim_logical, dim_ct, &ct);
+			ct_free(dim_ct);
+
+			ct_long* index_ct = ct_malloc(ct.ndim * sizeof(ct_long));
+
+			// iterate over outer 'm' quantum numbers; auxiliary 'm' quantum numbers are traced out
+			int* im_outer = ct_calloc(ndim_outer_t, sizeof(int));
+			for (int k = 0; k < nconfigs; k++, next_quantum_index(ndim_outer_t, dim_m_outer, im_outer))
+			{
+				// evaluate Clebsch-Gordan coefficients of tree nodes
+				double cg = su2_fuse_split_tree_eval_clebsch_gordan(&t->tree, jlist_t, im_outer);
+				if (cg == 0) {
+					continue;
+				}
+
+				for (int i = 0; i < ct.ndim; i++) {
+					index_ct[i] = (ct_long)im_outer[i];
+				}
+				const ct_long it = tensor_index_to_offset(ct.ndim, ct.dim, index_ct);
+
+				switch (ct.dtype)
+				{
+					case CT_SINGLE_REAL:
+					{
+						float* data = ct.data;
+						data[it] += (float)cg;
+						break;
+					}
+					case CT_DOUBLE_REAL:
+					{
+						double* data = ct.data;
+						data[it] += cg;
+						break;
+					}
+					case CT_SINGLE_COMPLEX:
+					{
+						scomplex* data = ct.data;
+						data[it] += (scomplex)cg;
+						break;
+					}
+					case CT_DOUBLE_COMPLEX:
+					{
+						dcomplex* data = ct.data;
+						data[it] += (dcomplex)cg;
+						break;
+					}
+					default:
+					{
+						// unknown data type
+						assert(false);
+					}
+				}
+			}
+
+			ct_free(im_outer);
+			ct_free(index_ct);
+			ct_free(dim_m_outer);
+		}
+
+		// charge sectors of logical 'j' quantum numbers remain sorted
+		bool existing_sector;
+		if (charge_sectors_t_logical.nsec > 0)
+		{
+			existing_sector = true;
+			for (int i = 0; i < t->ndim_logical; i++) {
+				if (jlist_t[i] != charge_sectors_t_logical.jlists[(charge_sectors_t_logical.nsec - 1) * charge_sectors_t_logical.ndim + i]) {
+					existing_sector = false;
+					break;
+				}
+			}
+		}
+		else
+		{
+			existing_sector = false;
+		}
+		if (existing_sector)
+		{
+			// Kronecker product of degeneracy tensor and Clebsch-Gordan tensor
+			struct dense_tensor dct_kron;
+			dense_tensor_kronecker_product(dt, &ct, &dct_kron);
+			// accumulate
+			dense_tensor_scalar_multiply_add(numeric_one(dct_kron.dtype), &dct_kron, &dct_list[charge_sectors_t_logical.nsec - 1]);
+			delete_dense_tensor(&dct_kron);
+		}
+		else
+		{
+			// new logical charge sector
+			memcpy(&charge_sectors_t_logical.jlists[charge_sectors_t_logical.nsec * charge_sectors_t_logical.ndim],
+			       jlist_t,
+			       charge_sectors_t_logical.ndim * sizeof(qnumber));
+			// Kronecker product of degeneracy tensor and Clebsch-Gordan tensor
+			dense_tensor_kronecker_product(dt, &ct, &dct_list[charge_sectors_t_logical.nsec]);
+			charge_sectors_t_logical.nsec++;
+		}
+
+		delete_dense_tensor(&ct);
+	}
+	assert(charge_sectors_t_logical.nsec > 0);
+	assert(charge_sectors_t_logical.nsec <= t->charge_sectors.nsec);
+	#ifndef NDEBUG
+	// charge sectors must be sorted
+	for (ct_long c = 0; c < charge_sectors_t_logical.nsec - 1; c++)
+	{
+		const struct su2_irreducible_list list0 = {
+			.jlist = &charge_sectors_t_logical.jlists[c * charge_sectors_t_logical.ndim],
+			.num   = charge_sectors_t_logical.ndim,
+		};
+		const struct su2_irreducible_list list1 = {
+			.jlist = &charge_sectors_t_logical.jlists[(c + 1) * charge_sectors_t_logical.ndim],
+			.num   = charge_sectors_t_logical.ndim,
+		};
+		assert(compare_su2_irreducible_lists(&list0, &list1) < 0);
+	}
+	#endif
+
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long c = 0; c < charge_sectors_t_logical.nsec; c++)
+	{
+		// current 'j' quantum numbers
+		const qnumber* jlist_t = &charge_sectors_t_logical.jlists[c * charge_sectors_t_logical.ndim];
+
+		// extract the dense block of 's' corresponding to the current block from 't'
+		struct dense_tensor bs;
+		{
+			const int i_ax_offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0: t->ndim_logical - ndim_mult);
+
+			ct_long*  dim_bs = ct_malloc(s_eff.ndim * sizeof(ct_long));
+			ct_long** idx_bs = ct_malloc(s_eff.ndim * sizeof(ct_long*));
+			if (axrange_s == TENSOR_AXIS_RANGE_LEADING)
+			{
+				for (int i = 0; i < ndim_mult; i++)
+				{
+					const qnumber j = jlist_t[i_ax_offset_t + i];
+					dim_bs[i] = t->dim_degen[i_ax_offset_t + i][j] * (j + 1);
+					idx_bs[i] = ct_malloc(dim_bs[i] * sizeof(ct_long));
+					for (ct_long k = 0; k < dim_bs[i]; k++) {
+						idx_bs[i][k] = sector_offsets_t[i_ax_offset_t + i][j] + k;
+					}
+				}
+				dim_bs[ndim_mult] = s_eff.dim[ndim_mult];
+				idx_bs[ndim_mult] = ct_malloc(dim_bs[ndim_mult] * sizeof(ct_long));
+				for (ct_long k = 0; k < dim_bs[ndim_mult]; k++) {
+					idx_bs[ndim_mult][k] = k;
+				}
+			}
+			else
+			{
+				dim_bs[0] = s_eff.dim[0];
+				idx_bs[0] = ct_malloc(dim_bs[0] * sizeof(ct_long));
+				for (ct_long k = 0; k < dim_bs[0]; k++) {
+					idx_bs[0][k] = k;
+				}
+				for (int i = 0; i < ndim_mult; i++)
+				{
+					const qnumber j = jlist_t[i_ax_offset_t + i];
+					dim_bs[1 + i] = t->dim_degen[i_ax_offset_t + i][j] * (j + 1);
+					idx_bs[1 + i] = ct_malloc(dim_bs[1 + i] * sizeof(ct_long));
+					for (ct_long k = 0; k < dim_bs[1 + i]; k++) {
+						idx_bs[1 + i][k] = sector_offsets_t[i_ax_offset_t + i][j] + k;
+					}
+				}
+			}
+
+			dense_tensor_block(&s_eff, dim_bs, (const ct_long**)idx_bs, &bs);
+
+			for (int i = 0; i < s_eff.ndim; i++) {
+				ct_free(idx_bs[i]);
+			}
+			ct_free(idx_bs);
+			ct_free(dim_bs);
+		}
+
+		// multiply block from 's' with dense tensor constructed from 't'
+		struct dense_tensor br;
+		dense_tensor_dot(numeric_one(bs.dtype), &bs, axrange_s, &dct_list[c], axrange_t, ndim_mult, &br);
+		delete_dense_tensor(&dct_list[c]);
+		delete_dense_tensor(&bs);
+		assert(br.ndim == r_eff.ndim);
+
+		// add 'br' to output tensor
+		{
+			const int i_ax_offset_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0);
+
+			// first entry corresponds to flattened open axes of 's'
+			ct_long* offsets_r = ct_calloc(r_eff.ndim, sizeof(ct_long));
+			for (int i = 0; i < t->ndim_logical - ndim_mult; i++)
+			{
+				const qnumber j = jlist_t[i_ax_offset_t + i];
+				offsets_r[1 + i] = sector_offsets_t[i_ax_offset_t + i][j];
+			}
+
+			ct_long* index_r = ct_malloc(r_eff.ndim * sizeof(ct_long));
+
+			const ct_long nelem_br = dense_tensor_num_elements(&br);
+			ct_long* index_br = ct_calloc(br.ndim, sizeof(ct_long));
+
+			switch (br.dtype)
+			{
+				case CT_SINGLE_REAL:
+				{
+					const float* br_data = (float*)br.data;
+					float* r_eff_data = (float*)r_eff.data;
+
+					for (ct_long k = 0; k < nelem_br; k++, next_tensor_index(br.ndim, br.dim, index_br))
+					{
+						for (int i = 0; i < br.ndim; i++) {
+							index_r[i] = offsets_r[i] + index_br[i];
+						}
+						const ct_long or = tensor_index_to_offset(r_eff.ndim, r_eff.dim, index_r);
+
+						#pragma omp atomic
+						r_eff_data[or] += br_data[k];
+					}
+
+					break;
+				}
+				case CT_DOUBLE_REAL:
+				{
+					const double* br_data = (double*)br.data;
+					double* r_eff_data = (double*)r_eff.data;
+
+					for (ct_long k = 0; k < nelem_br; k++, next_tensor_index(br.ndim, br.dim, index_br))
+					{
+						for (int i = 0; i < br.ndim; i++) {
+							index_r[i] = offsets_r[i] + index_br[i];
+						}
+						const ct_long or = tensor_index_to_offset(r_eff.ndim, r_eff.dim, index_r);
+
+						#pragma omp atomic
+						r_eff_data[or] += br_data[k];
+					}
+
+					break;
+				}
+				case CT_SINGLE_COMPLEX:
+				{
+					const scomplex* br_data = (scomplex*)br.data;
+					scomplex* r_eff_data = (scomplex*)r_eff.data;
+
+					for (ct_long k = 0; k < nelem_br; k++, next_tensor_index(br.ndim, br.dim, index_br))
+					{
+						for (int i = 0; i < br.ndim; i++) {
+							index_r[i] = offsets_r[i] + index_br[i];
+						}
+						const ct_long or = tensor_index_to_offset(r_eff.ndim, r_eff.dim, index_r);
+
+						// "omp atomic" not supported for complex types
+						#pragma omp critical
+						r_eff_data[or] += br_data[k];
+					}
+
+					break;
+				}
+				case CT_DOUBLE_COMPLEX:
+				{
+					const dcomplex* br_data = (dcomplex*)br.data;
+					dcomplex* r_eff_data = (dcomplex*)r_eff.data;
+
+					for (ct_long k = 0; k < nelem_br; k++, next_tensor_index(br.ndim, br.dim, index_br))
+					{
+						for (int i = 0; i < br.ndim; i++) {
+							index_r[i] = offsets_r[i] + index_br[i];
+						}
+						const ct_long or = tensor_index_to_offset(r_eff.ndim, r_eff.dim, index_r);
+
+						// "omp atomic" not supported for complex types
+						#pragma omp critical
+						r_eff_data[or] += br_data[k];
+					}
+
+					break;
+				}
+				default:
+				{
+					// unknown data type
+					assert(false);
+				}
+			}
+
+			ct_free(index_br);
+			ct_free(index_r);
+			ct_free(offsets_r);
+		}
+
+		delete_dense_tensor(&br);
+	}
+
+	ct_free(dct_list);
+	delete_charge_sectors(&charge_sectors_t_logical);
+	for (int i = 0; i < t->ndim_logical; i++) {
+		ct_free(sector_offsets_t[i]);
+	}
+	ct_free(r_eff.dim);
+	ct_free(s_eff.dim);
+	ct_free(sector_offsets_t);
 }
 
 

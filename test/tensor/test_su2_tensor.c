@@ -3175,24 +3175,31 @@ char* test_su2_dense_tensor_dot()
 						dense_tensor_fill_random_normal(alpha, numeric_zero(t.dtype), &rng_state, &t);
 					}
 
-					struct dense_tensor r;
-					su2_dense_tensor_dot(&s, axrange_s, &t, axrange_t, ndim_mult, &r);
+					struct dense_tensor r[2];
+					su2_dense_tensor_dot(&s, axrange_s, &t, axrange_t, ndim_mult, &r[0]);
+					dense_su2_tensor_dot(&t, axrange_t, &s, axrange_s, ndim_mult, &r[1]);
 
-					if (dense_tensor_norm2(&r) == 0) {
+					if ((dense_tensor_norm2(&r[0]) == 0) || (dense_tensor_norm2(&r[1]) == 0)) {
 						return "expecting a non-zero tensor resulting from dot product of an SU(2) symmetric and a dense tensor";
 					}
 
 					// reference calculation
-					struct dense_tensor r_ref;
-					dense_tensor_dot(numeric_one(dtype), &s_dns, axrange_s, &t, axrange_t, ndim_mult, &r_ref);
+					struct dense_tensor r_ref[2];
+					dense_tensor_dot(numeric_one(dtype), &s_dns, axrange_s, &t, axrange_t, ndim_mult, &r_ref[0]);
+					dense_tensor_dot(numeric_one(dtype), &t, axrange_t, &s_dns, axrange_s, ndim_mult, &r_ref[1]);
 
 					// compare
-					if (!dense_tensor_allclose(&r, &r_ref, tol)) {
+					if (!dense_tensor_allclose(&r[0], &r_ref[0], tol)) {
 						return "dot product of an SU(2) symmetric and a dense tensor does not agree with reference tensor";
 					}
+					if (!dense_tensor_allclose(&r[1], &r_ref[1], tol)) {
+						return "dot product of a dense and an SU(2) symmetric tensor does not agree with reference tensor";
+					}
 
-					delete_dense_tensor(&r_ref);
-					delete_dense_tensor(&r);
+					delete_dense_tensor(&r_ref[1]);
+					delete_dense_tensor(&r_ref[0]);
+					delete_dense_tensor(&r[1]);
+					delete_dense_tensor(&r[0]);
 					delete_dense_tensor(&t);
 				}
 			}

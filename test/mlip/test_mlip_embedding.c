@@ -46,7 +46,7 @@ char* test_mlip_embedding_from_atomic_data()
 		.l_max = 2,
 		.num_channels = 8,
 		.num_layers = 2,
-		.dtype = config.positions.dtype,
+		.dtype = CT_DOUBLE_REAL,
 	};
 	// z_table
 	{
@@ -63,7 +63,6 @@ char* test_mlip_embedding_from_atomic_data()
 	}
 	// cutoff radius
 	{
-		params.r_cut = ct_malloc(sizeof(double));
 		if (read_hdf5_attribute(file, "r_cut", H5T_NATIVE_DOUBLE, params.r_cut) < 0) {
 			return "reading 'r_cut' attribute from disk failed";
 		}
@@ -73,6 +72,14 @@ char* test_mlip_embedding_from_atomic_data()
 		if (read_hdf5_attribute(file, "p_cut", H5T_NATIVE_INT, &params.p_cut) < 0) {
 			return "reading 'p_cut' attribute from disk failed";
 		}
+	}
+	// average number of neighbors (unused)
+	{
+		memcpy(params.avg_num_neighbors, numeric_one(CT_DOUBLE_REAL), sizeof(double));
+	}
+
+	if (!mlip_model_parameters_are_consistent(&params)) {
+		return "internal consistency check of MLIP model parameters failed";
 	}
 
 	struct mlip_model model = {
@@ -86,10 +93,6 @@ char* test_mlip_embedding_from_atomic_data()
 		if (read_hdf5_dataset(file, "species_embedding_weight", H5T_NATIVE_DOUBLE, model.species_embedding_weight.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
-	}
-
-	if (!mlip_model_is_consistent(&model)) {
-		return "internal consistency check of MLIP model failed";
 	}
 
 	struct mlip_atomic_data atomic_data;
@@ -157,7 +160,8 @@ char* test_mlip_embedding_from_atomic_data()
 	delete_dense_tensor(&node_embedding_ref);
 	delete_mlip_embedding(&embedding);
 	delete_mlip_atomic_data(&atomic_data);
-	delete_mlip_model(&model);
+	delete_dense_tensor(&model.species_embedding_weight);
+	ct_free(params.z_table);
 	ct_free(config.atomic_numbers);
 	delete_dense_tensor(&config.positions);
 

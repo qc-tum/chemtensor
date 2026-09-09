@@ -141,6 +141,7 @@ char* test_su2_apply_local_hamiltonian();
 char* test_ttno_inner_product();
 char* test_mlip_atomic_data_from_configuration();
 char* test_mlip_embedding_from_atomic_data();
+char* test_mlip_interaction_first_layer();
 char* test_dmrg_singlesite();
 char* test_dmrg_twosite();
 char* test_su2_dmrg_singlesite();
@@ -292,6 +293,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_ttno_inner_product),
 		TEST_FUNCTION_ENTRY(test_mlip_atomic_data_from_configuration),
 		TEST_FUNCTION_ENTRY(test_mlip_embedding_from_atomic_data),
+		TEST_FUNCTION_ENTRY(test_mlip_interaction_first_layer),
 		TEST_FUNCTION_ENTRY(test_dmrg_singlesite),
 		TEST_FUNCTION_ENTRY(test_dmrg_twosite),
 		TEST_FUNCTION_ENTRY(test_su2_dmrg_singlesite),
