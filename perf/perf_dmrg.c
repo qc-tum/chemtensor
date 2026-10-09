@@ -86,14 +86,14 @@ int main()
 	const double ticks_per_sec = (double)get_tick_resolution();
 
 	// run two-site DMRG
-	const int num_sweeps      = 2;
-	const int maxiter_lanczos = 25;
-	double tol_split          = 1e-8;
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
-	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
-	printf("Running two-site DMRG (using num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g)... ", num_sweeps, maxiter_lanczos, tol_split);
+	struct dmrg_twosite_options options;
+	dmrg_twosite_default_options(&options);
+	options.max_num_sweeps = 2;
+	options.max_vdim = max_vdim;
+	struct dmrg_twosite_info info;
+	printf("Running two-site DMRG (using max_num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g)... ", options.max_num_sweeps, options.maxiter_lanczos, options.tol_split);
 	const uint64_t tick_start = get_time_ticks();
-	int ret = dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy);
+	int ret = dmrg_twosite(&hamiltonian, &options, &psi, &info);
 	const uint64_t tick_end = get_time_ticks();
 	if (ret < 0) {
 		fprintf(stderr, "'dmrg_twosite' failed internally");
@@ -112,17 +112,16 @@ int main()
 	printf("\n");
 	printf("splitting entropies for each bond: ");
 	for (int l = 0; l < nsites - 1; l++) {
-		printf("%g ", entropy[l]);
+		printf("%g ", info.entropy[l]);
 	}
 	printf("\n");
 
 	printf("energy after each DMRG sweep:\n");
-	for (int i = 0; i < num_sweeps; i++) {
-		printf("%i: %.15g\n", i + 1, en_sweeps[i]);
+	for (int i = 0; i < info.num_sweeps; i++) {
+		printf("%i: %.15g\n", i + 1, info.en_sweeps[i]);
 	}
 
-	ct_free(entropy);
-	ct_free(en_sweeps);
+	delete_dmrg_twosite_info(&info);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);
 

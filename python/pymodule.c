@@ -3239,57 +3239,68 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 {
 	// MPO representing the Hamiltonian
 	PyMPOObject* py_mpo;
-	// number of DMRG sweeps
-	int num_sweeps = 5;
-	// maximum number of Lanczos iterations
-	int maxiter_lanczos = 20;
-	// SVD splitting tolerance
-	double tol_split = 1e-10;
-	// maximum virtual bond dimension of MPS
-	ct_long max_vdim = 256;
+	// DMRG options
+	struct dmrg_twosite_options options;
+	dmrg_twosite_default_options(&options);
 	// quantum number sector of the to-be optimized MPS
 	qnumber qnum_sector = 0;
 	// random number generator seed (for filling tensor entries of initial MPS)
 	uint64_t rng_seed = 42;
 
 	// parse input arguments
-	char* kwlist[] = { "", "num_sweeps", "maxiter_lanczos", "tol_split", "max_vdim", "qnum_sector", "rng_seed", NULL };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|iidlil", kwlist,
+	char* kwlist[] = { "", "delta_en_tol", "max_num_sweeps", "maxiter_lanczos", "tol_split", "max_vdim", "qnum_sector", "rng_seed", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diidlil", kwlist,
 			&py_mpo,
-			&num_sweeps,
-			&maxiter_lanczos,
-			&tol_split,
-			&max_vdim,
+			&options.delta_en_tol,
+			&options.max_num_sweeps,
+			&options.maxiter_lanczos,
+			&options.tol_split,
+			&options.max_vdim,
 			&qnum_sector,
 			&rng_seed)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: dmrg(mpo, num_sweeps=5, maxiter_lanczos=20, tol_split=1e-10, max_vdim=256, qnum_sector=0, rng_seed=42)");
+		char msg[1024];
+		sprintf(msg, "error parsing input; syntax: dmrg(mpo, delta_en_tol=%g, max_num_sweeps=%i, maxiter_lanczos=%i, tol_split=%g, max_vdim=%li, qnum_sector=%i, rng_seed=%li)",
+			options.delta_en_tol,
+			options.max_num_sweeps,
+			options.maxiter_lanczos,
+			options.tol_split,
+			options.max_vdim,
+			qnum_sector,
+			rng_seed);
+		PyErr_SetString(PyExc_SyntaxError, msg);
 		return NULL;
 	}
 	if (py_mpo->mpo.a == NULL) {
 		PyErr_SetString(PyExc_ValueError, "MPO object has not been initialized yet");
 		return NULL;
 	}
-	if (num_sweeps <= 0) {
+	if (options.delta_en_tol < 0) {
 		char msg[1024];
-		sprintf(msg, "'num_sweeps' must be a positive integer, received %i", num_sweeps);
+		sprintf(msg, "'delta_en_tol' must be non-negative, received %g", options.delta_en_tol);
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	if (maxiter_lanczos <= 0) {
+	if (options.max_num_sweeps <= 0) {
 		char msg[1024];
-		sprintf(msg, "'maxiter_lanczos' must be a positive integer, received %i", maxiter_lanczos);
+		sprintf(msg, "'max_num_sweeps' must be a positive integer, received %i", options.max_num_sweeps);
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	if (tol_split < 0 || tol_split > 1) {
+	if (options.maxiter_lanczos <= 0) {
 		char msg[1024];
-		sprintf(msg, "'tol_split' must be in the interval [0, 1], received %g", tol_split);
+		sprintf(msg, "'maxiter_lanczos' must be a positive integer, received %i", options.maxiter_lanczos);
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
-	if (max_vdim <= 0) {
+	if (options.tol_split < 0 || options.tol_split > 1) {
 		char msg[1024];
-		sprintf(msg, "'max_vdim' must be a positive integer, received %li", max_vdim);
+		sprintf(msg, "'tol_split' must be in the interval [0, 1], received %g", options.tol_split);
+		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+	if (options.max_vdim <= 0) {
+		char msg[1024];
+		sprintf(msg, "'max_vdim' must be a positive integer, received %li", options.max_vdim);
 		PyErr_SetString(PyExc_ValueError, msg);
 		return NULL;
 	}
@@ -3306,31 +3317,29 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	// initial state vector as MPS
 	struct rng_state rng_state;
 	seed_rng_state(rng_seed, &rng_state);
-	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
+	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.qsite, qnum_sector, options.max_vdim, &rng_state, &py_psi->mps);
 	if (mps_norm(&py_psi->mps) == 0) {
 		PyErr_WarnEx(PyExc_RuntimeWarning, "initial random MPS has norm zero (possibly due to mismatching quantum numbers)", 1);
 	}
 
 	// run two-site DMRG
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
-	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
-	int ret = dmrg_twosite(&py_mpo->mpo, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &py_psi->mps, en_sweeps, entropy);
+	struct dmrg_twosite_info info;
+	int ret = dmrg_twosite(&py_mpo->mpo, &options, &py_psi->mps, &info);
 	if (ret < 0) {
-		ct_free(entropy);
-		ct_free(en_sweeps);
+		delete_dmrg_twosite_info(&info);
 		PyMPS_dealloc(py_psi);
 		PyErr_SetString(PyExc_RuntimeError, "two-site DMRG failed internally (likely since Krylov subspace method did not converge)");
 		return NULL;
 	}
 
 	// store 'en_sweeps' in a Python list
-	PyObject* py_en_sweeps = PyList_New(num_sweeps);
+	PyObject* py_en_sweeps = PyList_New(info.num_sweeps);
 	if (py_en_sweeps == NULL) {
 		PyErr_SetString(PyExc_RuntimeError, "create 'en_sweeps' return value list");
 		return NULL;
 	}
-	for (int i = 0; i < num_sweeps; i++) {
-		if (PyList_SetItem(py_en_sweeps, i, PyFloat_FromDouble(en_sweeps[i])) < 0) {
+	for (int i = 0; i < info.num_sweeps; i++) {
+		if (PyList_SetItem(py_en_sweeps, i, PyFloat_FromDouble(info.en_sweeps[i])) < 0) {
 			Py_DECREF(py_en_sweeps);
 			PyErr_SetString(PyExc_RuntimeError, "set 'en_sweeps' list item");
 			return NULL;
@@ -3344,7 +3353,7 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 		return NULL;
 	}
 	for (int i = 0; i < nsites - 1; i++) {
-		if (PyList_SetItem(py_entropy, i, PyFloat_FromDouble(entropy[i])) < 0) {
+		if (PyList_SetItem(py_entropy, i, PyFloat_FromDouble(info.entropy[i])) < 0) {
 			Py_DECREF(py_entropy);
 			PyErr_SetString(PyExc_RuntimeError, "set 'entropy' list item");
 			return NULL;
@@ -3352,8 +3361,7 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	}
 
 	// clean up
-	ct_free(entropy);
-	ct_free(en_sweeps);
+	delete_dmrg_twosite_info(&info);
 
 	return PyTuple_Pack(3, py_psi, py_en_sweeps, py_entropy);
 }
@@ -3665,7 +3673,7 @@ static PyMethodDef methods[] = {
 		.ml_name  = "dmrg",
 		.ml_meth  = (PyCFunction)Py_dmrg,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
-		.ml_doc   = "Run the two-site DMRG algorithm for the Hamiltonian provided as MPO.\nSyntax: dmrg(mpo, num_sweeps=5, maxiter_lanczos=20, tol_split=1e-10, max_vdim=256, qnum_sector=0, rng_seed=42)",
+		.ml_doc   = "Run the two-site DMRG algorithm for the Hamiltonian provided as MPO.\nSyntax: dmrg(mpo, delta_en_tol=1e-8, max_num_sweeps=6, maxiter_lanczos=20, tol_split=1e-10, max_vdim=256, qnum_sector=0, rng_seed=42)",
 	},
 	{
 		.ml_name  = "operator_average_coefficient_gradient",

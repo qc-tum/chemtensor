@@ -69,13 +69,19 @@ int main()
 	#endif
 
 	// run two-site DMRG
-	const int num_sweeps      = 4;
-	const int maxiter_lanczos = 5;
-	double tol_split          = 1e-8;
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
-	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
-	printf("Running two-site DMRG for SU(2) symmetric tensors (using num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g)... ", num_sweeps, maxiter_lanczos, tol_split);
-	if (su2_dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy) < 0) {
+	struct su2_dmrg_twosite_options options;
+	su2_dmrg_twosite_default_options(&options);
+	options.max_num_sweeps  = 4;
+	options.maxiter_lanczos = 5;
+	options.tol_split       = 1e-8;
+	options.max_vdim        = max_vdim;
+	struct su2_dmrg_twosite_info info;
+	printf("Running two-site DMRG for SU(2) symmetric tensors (using delta_en_tol = %g, max_num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g)... ",
+		options.delta_en_tol,
+		options.max_num_sweeps,
+		options.maxiter_lanczos,
+		options.tol_split);
+	if (su2_dmrg_twosite(&hamiltonian, &options, &psi, &info) < 0) {
 		fprintf(stderr, "'su2_dmrg_twosite' failed internally");
 		return -2;
 	}
@@ -88,7 +94,7 @@ int main()
 	printf("\n");
 	printf("splitting entropies for each bond: ");
 	for (int l = 0; l < nsites - 1; l++) {
-		printf("%g ", entropy[l]);
+		printf("%g ", info.entropy[l]);
 	}
 	printf("\n");
 
@@ -132,14 +138,13 @@ int main()
 	printf("reference ground state energy: %.15g\n", en_ref);
 
 	printf("energy after each DMRG sweep:\n");
-	for (int i = 0; i < num_sweeps; i++) {
-		printf("%i: %.15g, diff to reference: %g\n", i + 1, en_sweeps[i], en_sweeps[i] - en_ref);
+	for (int i = 0; i < info.num_sweeps; i++) {
+		printf("%i: %.15g, diff to reference: %g\n", i + 1, info.en_sweeps[i], info.en_sweeps[i] - en_ref);
 	}
 
 	delete_dense_tensor(&w_ref);
 	delete_dense_tensor(&hmat);
-	ct_free(entropy);
-	ct_free(en_sweeps);
+	delete_su2_dmrg_twosite_info(&info);
 	delete_su2_mps(&psi);
 	delete_su2_mpo(&hamiltonian);
 

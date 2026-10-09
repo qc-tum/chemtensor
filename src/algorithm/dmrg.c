@@ -1,6 +1,7 @@
 /// \file dmrg.c
 /// \brief DMRG algorithm.
 
+#include <math.h>
 #include <stdio.h>
 #include "dmrg.h"
 #include "chain_ops.h"
@@ -149,15 +150,43 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Set default single-site DMRG options.
+///
+void dmrg_singlesite_default_options(struct dmrg_singlesite_options* options)
+{
+	options->delta_en_tol    = 1e-8;
+	options->max_num_sweeps  = 6;
+	options->maxiter_lanczos = 20;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete the single-site DMRG information (free memory).
+///
+void delete_dmrg_singlesite_info(struct dmrg_singlesite_info* info)
+{
+	ct_free(info->en_sweeps);
+	info->num_sweeps = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Run the single-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local single-site optimizations.
 /// The input 'psi' is used as the starting state and is updated in-place during the optimization. Its virtual bond dimensions cannot increase.
 ///
-int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, struct mps* psi, double* en_sweeps)
+int dmrg_singlesite(const struct mpo* hamiltonian, const struct dmrg_singlesite_options* options, struct mps* psi, struct dmrg_singlesite_info* info)
 {
 	// number of lattice sites
 	const int nsites = hamiltonian->nsites;
 	assert(nsites == psi->nsites);
 	assert(nsites >= 1);
+
+	// validity check of options
+	assert(options->delta_en_tol >= 0);
+	assert(options->max_num_sweeps > 0);
+	assert(options->maxiter_lanczos > 0);
 
 	// currently only double precision supported
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
@@ -177,8 +206,9 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 		copy_block_sparse_tensor(&lblocks[0], &lblocks[i]);
 	}
 
-	// TODO: number of sweeps should be determined by tolerance and some convergence measure
-	for (int n = 0; n < num_sweeps; n++)
+	info->en_sweeps = ct_calloc(options->max_num_sweeps, sizeof(double));
+
+	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
 		double en;
 
@@ -186,7 +216,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 		for (int i = 0; i < nsites - 1; i++)
 		{
 			struct block_sparse_tensor a_opt;
-			int ret = minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], maxiter_lanczos, &en, &a_opt);
+			int ret = minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], options->maxiter_lanczos, &en, &a_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -206,7 +236,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 		for (int i = nsites - 1; i > 0; i--)
 		{
 			struct block_sparse_tensor a_opt;
-			int ret = minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], maxiter_lanczos, &en, &a_opt);
+			int ret = minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], options->maxiter_lanczos, &en, &a_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -237,8 +267,14 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 			delete_block_sparse_tensor(&t);
 		}
 
-		// record energy after each sweep
-		en_sweeps[n] = en;
+		// record number of sweeps and energy after each sweep
+		info->num_sweeps = n + 1;
+		info->en_sweeps[n] = en;
+
+		// stopping criterion based on relative energy difference
+		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
+			break;
+		}
 	}
 
 	// clean up
@@ -256,16 +292,48 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const int num_sweeps, const i
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Set default two-site DMRG options.
+///
+void dmrg_twosite_default_options(struct dmrg_twosite_options* options)
+{
+	options->delta_en_tol    = 1e-8;
+	options->max_num_sweeps  = 6;
+	options->maxiter_lanczos = 20;
+	options->tol_split       = 1e-10;
+	options->max_vdim        = 256;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete the two-site DMRG information (free memory).
+///
+void delete_dmrg_twosite_info(struct dmrg_twosite_info* info)
+{
+	ct_free(info->entropy);
+	ct_free(info->en_sweeps);
+	info->num_sweeps = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Run the two-site DMRG algorithm: Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
 /// The input 'psi' is used as the starting state and is updated in-place during the optimization.
 ///
-int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const ct_long max_vdim,
-	struct mps* psi, double* restrict en_sweeps, double* restrict entropy)
+int dmrg_twosite(const struct mpo* hamiltonian, const struct dmrg_twosite_options* options, struct mps* psi, struct dmrg_twosite_info* info)
 {
 	// number of lattice sites
 	const int nsites = hamiltonian->nsites;
 	assert(nsites == psi->nsites);
 	assert(nsites >= 2);
+
+	// validity check of options
+	assert(options->delta_en_tol >= 0);
+	assert(options->max_num_sweeps > 0);
+	assert(options->maxiter_lanczos > 0);
+	assert(options->tol_split >= 0);
+	assert(options->max_vdim > 0);
 
 	// currently only double precision supported
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
@@ -291,8 +359,10 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 		mpo_merge_tensor_pair(&hamiltonian->a[i], &hamiltonian->a[i + 1], &h2[i]);
 	}
 
-	// TODO: number of sweeps should be determined by tolerance and some convergence measure
-	for (int n = 0; n < num_sweeps; n++)
+	info->en_sweeps = ct_calloc(options->max_num_sweeps, sizeof(double));
+	info->entropy   = ct_malloc((nsites - 1) * sizeof(double));
+
+	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
 		double en;
 
@@ -307,7 +377,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 
 			// minimize local two-site energy using merged tensor as starting point
 			struct block_sparse_tensor a_opt;
-			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, options->maxiter_lanczos, &en, &a_opt);
 			delete_block_sparse_tensor(&a_cur);
 			if (ret < 0) {
 				return ret;
@@ -316,8 +386,8 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 			// split optimized two-site MPS tensor into two tensors
 			const ct_long d_pair[2] = { psi->d, psi->d };
 			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
-			struct trunc_info info;
-			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &info);
+			struct trunc_info trunc_info;
+			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, options->tol_split, options->max_vdim, false, SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &trunc_info);
 			if (ret < 0) {
 				return ret;
 			}
@@ -339,7 +409,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 
 			// minimize local two-site energy using merged tensor as starting point
 			struct block_sparse_tensor a_opt;
-			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			int ret = minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, options->maxiter_lanczos, &en, &a_opt);
 			delete_block_sparse_tensor(&a_cur);
 			if (ret < 0) {
 				return ret;
@@ -348,14 +418,14 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 			// split optimized two-site MPS tensor into two tensors
 			const ct_long d_pair[2] = { psi->d, psi->d };
 			const qnumber* qsite_pair[2] = { psi->qsite, psi->qsite };
-			struct trunc_info info;
-			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, tol_split, max_vdim, false, SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &info);
+			struct trunc_info trunc_info;
+			ret = mps_split_tensor_svd(&a_opt, d_pair, qsite_pair, options->tol_split, options->max_vdim, false, SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &trunc_info);
 			if (ret < 0) {
 				return ret;
 			}
 			delete_block_sparse_tensor(&a_opt);
 			// record entropy
-			entropy[i] = info.entropy;
+			info->entropy[i] = trunc_info.entropy;
 
 			// update the right blocks
 			delete_block_sparse_tensor(&rblocks[i]);
@@ -377,8 +447,14 @@ int dmrg_twosite(const struct mpo* hamiltonian, const int num_sweeps, const int 
 			delete_block_sparse_tensor(&t);
 		}
 
-		// record energy after each sweep
-		en_sweeps[n] = en;
+		// record number of sweeps and energy after each sweep
+		info->num_sweeps = n + 1;
+		info->en_sweeps[n] = en;
+
+		// stopping criterion based on relative energy difference
+		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
+			break;
+		}
 	}
 
 	// clean up

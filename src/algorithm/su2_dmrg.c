@@ -1,6 +1,7 @@
 /// \file su2_dmrg.c
 /// \brief DMRG algorithm for SU(2) symmetric tensors.
 
+#include <math.h>
 #include <stdio.h>
 #include "su2_dmrg.h"
 #include "su2_chain_ops.h"
@@ -151,16 +152,44 @@ static int su2_minimize_local_energy(const struct su2_tensor* restrict w, const 
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Set default single-site DMRG options for SU(2) symmetric tensors.
+///
+void su2_dmrg_singlesite_default_options(struct su2_dmrg_singlesite_options* options)
+{
+	options->delta_en_tol    = 1e-8;
+	options->max_num_sweeps  = 6;
+	options->maxiter_lanczos = 20;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete the single-site DMRG information for SU(2) symmetric tensors (free memory).
+///
+void delete_su2_dmrg_singlesite_info(struct su2_dmrg_singlesite_info* info)
+{
+	ct_free(info->en_sweeps);
+	info->num_sweeps = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Run the single-site DMRG algorithm for SU(2) symmetric tensors:
 /// Approximate the ground state as MPS via left and right sweeps and local single-site optimizations.
 /// The input 'psi' is used as the starting state and is updated in-place during the optimization. Its virtual bond dimensions cannot increase.
 ///
-int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, struct su2_mps* psi, double* en_sweeps)
+int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_singlesite_options* options, struct su2_mps* psi, struct su2_dmrg_singlesite_info* info)
 {
 	// number of lattice sites
 	const int nsites = hamiltonian->nsites;
 	assert(nsites == psi->nsites);
 	assert(nsites >= 1);
+
+	// validity check of options
+	assert(options->delta_en_tol >= 0);
+	assert(options->max_num_sweeps > 0);
+	assert(options->maxiter_lanczos > 0);
 
 	// currently only double precision supported
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
@@ -180,8 +209,9 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 		copy_su2_tensor(&lblocks[0], &lblocks[i]);
 	}
 
-	// TODO: number of sweeps should be determined by tolerance and some convergence measure
-	for (int n = 0; n < num_sweeps; n++)
+	info->en_sweeps = ct_calloc(options->max_num_sweeps, sizeof(double));
+
+	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
 		double en;
 
@@ -189,7 +219,7 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 		for (int i = 0; i < nsites - 1; i++)
 		{
 			struct su2_tensor a_opt;
-			int ret = su2_minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], maxiter_lanczos, &en, &a_opt);
+			int ret = su2_minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], options->maxiter_lanczos, &en, &a_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -209,7 +239,7 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 		for (int i = nsites - 1; i > 0; i--)
 		{
 			struct su2_tensor a_opt;
-			int ret = su2_minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], maxiter_lanczos, &en, &a_opt);
+			int ret = su2_minimize_local_energy(&hamiltonian->a[i], &lblocks[i], &rblocks[i], &psi->a[i], options->maxiter_lanczos, &en, &a_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -236,8 +266,14 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 			delete_su2_tensor(&a_head);
 		}
 
-		// record energy after each sweep
-		en_sweeps[n] = en;
+		// record number of sweeps and energy after each sweep
+		info->num_sweeps = n + 1;
+		info->en_sweeps[n] = en;
+
+		// stopping criterion based on relative energy difference
+		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
+			break;
+		}
 	}
 
 	// clean up
@@ -255,17 +291,49 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const int num_sweeps,
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Set default two-site DMRG options for SU(2) symmetric tensors.
+///
+void su2_dmrg_twosite_default_options(struct su2_dmrg_twosite_options* options)
+{
+	options->delta_en_tol    = 1e-8;
+	options->max_num_sweeps  = 6;
+	options->maxiter_lanczos = 20;
+	options->tol_split       = 1e-10;
+	options->max_vdim        = 256;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete the two-site DMRG information for SU(2) symmetric tensors (free memory).
+///
+void delete_su2_dmrg_twosite_info(struct su2_dmrg_twosite_info* info)
+{
+	ct_free(info->entropy);
+	ct_free(info->en_sweeps);
+	info->num_sweeps = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Run the two-site DMRG algorithm for SU(2) symmetric tensors:
 /// Approximate the ground state as MPS via left and right sweeps and local two-site optimizations.
 /// The input 'psi' is used as the starting state and is updated in-place during the optimization.
 ///
-int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, const int maxiter_lanczos, const double tol_split, const ct_long max_vdim,
-	struct su2_mps* psi, double* restrict en_sweeps, double* restrict entropy)
+int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_twosite_options* options, struct su2_mps* psi, struct su2_dmrg_twosite_info* info)
 {
 	// number of lattice sites
 	const int nsites = hamiltonian->nsites;
 	assert(nsites == psi->nsites);
 	assert(nsites >= 2);
+
+	// validity check of options
+	assert(options->delta_en_tol >= 0);
+	assert(options->max_num_sweeps > 0);
+	assert(options->maxiter_lanczos > 0);
+	assert(options->tol_split >= 0);
+	assert(options->max_vdim > 0);
 
 	// currently only double precision supported
 	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
@@ -291,8 +359,10 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, co
 		su2_mpo_merge_tensor_pair(&hamiltonian->a[i], &hamiltonian->a[i + 1], &h2[i]);
 	}
 
-	// TODO: number of sweeps should be determined by tolerance and some convergence measure
-	for (int n = 0; n < num_sweeps; n++)
+	info->en_sweeps = ct_calloc(options->max_num_sweeps, sizeof(double));
+	info->entropy   = ct_malloc((nsites - 1) * sizeof(double));
+
+	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
 		double en;
 
@@ -322,15 +392,15 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, co
 
 			// minimize local two-site energy using merged tensor as starting point
 			struct su2_tensor a_opt;
-			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, options->maxiter_lanczos, &en, &a_opt);
 			delete_su2_tensor(&a_cur);
 			if (ret < 0) {
 				return ret;
 			}
 
 			// split optimized two-site MPS tensor into two tensors
-			struct trunc_info info;
-			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, tol_split, max_vdim, SU2_SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &info);
+			struct trunc_info trunc_info;
+			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, options->tol_split, options->max_vdim, SU2_SVD_DISTR_RIGHT, &psi->a[i], &psi->a[i + 1], &trunc_info);
 			if (ret < 0) {
 				return ret;
 			}
@@ -371,15 +441,15 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, co
 
 			// minimize local two-site energy using merged tensor as starting point
 			struct su2_tensor a_opt;
-			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, maxiter_lanczos, &en, &a_opt);
+			int ret = su2_minimize_local_energy(&h2[i], &lblocks[i], &rblocks[i + 1], &a_cur, options->maxiter_lanczos, &en, &a_opt);
 			delete_su2_tensor(&a_cur);
 			if (ret < 0) {
 				return ret;
 			}
 
 			// split optimized two-site MPS tensor into two tensors
-			struct trunc_info info;
-			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, tol_split, max_vdim, SU2_SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &info);
+			struct trunc_info trunc_info;
+			ret = su2_mps_split_tensor_svd(&a_opt, site_irreps, (const ct_long**)site_dim_degen, options->tol_split, options->max_vdim, SU2_SVD_DISTR_LEFT, &psi->a[i], &psi->a[i + 1], &trunc_info);
 			if (ret < 0) {
 				return ret;
 			}
@@ -389,7 +459,7 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, co
 			delete_su2_irreducible_list(&site_irreps[1]);
 			delete_su2_tensor(&a_opt);
 			// record entropy
-			entropy[i] = info.entropy;
+			info->entropy[i] = trunc_info.entropy;
 
 			// update the right blocks
 			delete_su2_tensor(&rblocks[i]);
@@ -407,8 +477,14 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const int num_sweeps, co
 			delete_su2_tensor(&a_head);
 		}
 
-		// record energy after each sweep
-		en_sweeps[n] = en;
+		// record number of sweeps and energy after each sweep
+		info->num_sweeps = n + 1;
+		info->en_sweeps[n] = en;
+
+		// stopping criterion based on relative energy difference
+		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
+			break;
+		}
 	}
 
 	// clean up

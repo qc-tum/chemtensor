@@ -132,23 +132,26 @@ char* test_dmrg_singlesite()
 
 	// run DMRG
 
-	const int num_sweeps = 6;
-	const int maxiter_lanczos = 25;
+	struct dmrg_singlesite_options options = {
+		.delta_en_tol    = 1e-10,
+		.max_num_sweeps  = 6,
+		.maxiter_lanczos = 25,
+	};
 
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
+	struct dmrg_singlesite_info info;
 
-	if (dmrg_singlesite(&hamiltonian, num_sweeps, maxiter_lanczos, &psi, en_sweeps) < 0) {
+	if (dmrg_singlesite(&hamiltonian, &options, &psi, &info) < 0) {
 		return "'dmrg_singlesite' failed internally";
 	}
 
 	// compare with reference data
 
 	// energies
-	double* en_sweeps_ref = ct_malloc(num_sweeps * sizeof(double));
+	double* en_sweeps_ref = ct_malloc(options.max_num_sweeps * sizeof(double));
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
-	if (uniform_distance(CT_DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
+	if (uniform_distance(CT_DOUBLE_REAL, info.num_sweeps, info.en_sweeps, en_sweeps_ref) > 1e-12) {
 		return "reference energies of DMRG sweeps do not match reference";
 	}
 
@@ -217,7 +220,7 @@ char* test_dmrg_singlesite()
 	}
 
 	ct_free(en_sweeps_ref);
-	ct_free(en_sweeps);
+	delete_dmrg_singlesite_info(&info);
 	delete_mps(&psi_ref);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);
@@ -356,28 +359,29 @@ char* test_dmrg_twosite()
 
 	// run DMRG
 
-	const int num_sweeps = 4;
-	const int maxiter_lanczos = 25;
-	double tol_split;
-	if (read_hdf5_attribute(file, "tol_split", H5T_NATIVE_DOUBLE, &tol_split) < 0) {
+	struct dmrg_twosite_options options;
+	dmrg_twosite_default_options(&options);
+	options.max_num_sweeps = 4;
+	options.maxiter_lanczos = 25;
+	if (read_hdf5_attribute(file, "tol_split", H5T_NATIVE_DOUBLE, &options.tol_split) < 0) {
 		return "reading splitting tolerance from disk failed";
 	}
-	const ct_long max_vdim = ipow(d, nsites / 2);
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
-	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
+	options.max_vdim = ipow(d, nsites / 2);
 
-	if (dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy) < 0) {
+	struct dmrg_twosite_info info;
+
+	if (dmrg_twosite(&hamiltonian, &options, &psi, &info) < 0) {
 		return "'dmrg_twosite' failed internally";
 	}
 
 	// compare with reference data
 
 	// energies
-	double* en_sweeps_ref = ct_malloc(num_sweeps * sizeof(double));
+	double* en_sweeps_ref = ct_malloc(options.max_num_sweeps * sizeof(double));
 	if (read_hdf5_dataset(file, "en_sweeps", H5T_NATIVE_DOUBLE, en_sweeps_ref) < 0) {
 		return "reading reference energies of DMRG sweeps from disk failed";
 	}
-	if (uniform_distance(CT_DOUBLE_REAL, num_sweeps, en_sweeps, en_sweeps_ref) > 1e-12) {
+	if (uniform_distance(CT_DOUBLE_REAL, info.num_sweeps, info.en_sweeps, en_sweeps_ref) > 1e-12) {
 		return "reference energies of DMRG sweeps do not match reference";
 	}
 
@@ -445,9 +449,8 @@ char* test_dmrg_twosite()
 		return "overlap between optimized and reference state vector must have absolute value 1";
 	}
 
-	ct_free(entropy);
 	ct_free(en_sweeps_ref);
-	ct_free(en_sweeps);
+	delete_dmrg_twosite_info(&info);
 	delete_mps(&psi_ref);
 	delete_mps(&psi);
 	delete_mpo(&hamiltonian);

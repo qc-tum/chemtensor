@@ -51,12 +51,14 @@ char* test_su2_dmrg_singlesite()
 
 	// run DMRG
 
-	const int num_sweeps = 3;
-	const int maxiter_lanczos = 5;
+	struct su2_dmrg_singlesite_options options;
+	su2_dmrg_singlesite_default_options(&options);
+	options.max_num_sweeps  = 3;
+	options.maxiter_lanczos = 5;
 
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
+	struct su2_dmrg_singlesite_info info;
 
-	if (su2_dmrg_singlesite(&hamiltonian, num_sweeps, maxiter_lanczos, &psi, en_sweeps) < 0) {
+	if (su2_dmrg_singlesite(&hamiltonian, &options, &psi, &info) < 0) {
 		return "'su2_dmrg_singlesite' failed internally";
 	}
 
@@ -67,7 +69,7 @@ char* test_su2_dmrg_singlesite()
 	// expectation value <psi | H | psi>
 	double avr_ref;
 	su2_mpo_inner_product(&psi, &hamiltonian, &psi, &avr_ref);
-	if (fabs(en_sweeps[num_sweeps - 1] - avr_ref) / fabs(avr_ref) > 1e-13) {
+	if (fabs(info.en_sweeps[info.num_sweeps - 1] - avr_ref) / fabs(avr_ref) > 1e-13) {
 		return "final energy of single-site DMRG sweeps for SU(2) symmetric tensors does not match reference expectation value";
 	}
 
@@ -106,11 +108,11 @@ char* test_su2_dmrg_singlesite()
 	delete_dense_tensor(&hamiltonian_mat);
 
 	// compare
-	if (fabs(en_sweeps[num_sweeps - 1] - en_ref) / fabs(en_ref) > 1e-13) {
+	if (fabs(info.en_sweeps[info.num_sweeps - 1] - en_ref) / fabs(en_ref) > 1e-13) {
 		return "final energy of single-site DMRG sweeps for SU(2) symmetric tensors does not match reference ground state energy";
 	}
 
-	ct_free(en_sweeps);
+	delete_su2_dmrg_singlesite_info(&info);
 	delete_su2_mps(&psi);
 	delete_su2_mpo(&hamiltonian);
 
@@ -159,15 +161,16 @@ char* test_su2_dmrg_twosite()
 
 	// run DMRG
 
-	const int num_sweeps = 4;
-	const int maxiter_lanczos = 5;
-	const double tol_split = 1e-7;
-	const ct_long max_vdim = 312;
+	struct su2_dmrg_twosite_options options;
+	su2_dmrg_twosite_default_options(&options);
+	options.max_num_sweeps  = 4;
+	options.maxiter_lanczos = 5;
+	options.tol_split       = 1e-7;
+	options.max_vdim        = 312;
 
-	double* en_sweeps = ct_malloc(num_sweeps * sizeof(double));
-	double* entropy   = ct_malloc((nsites - 1) * sizeof(double));
+	struct su2_dmrg_twosite_info info;
 
-	if (su2_dmrg_twosite(&hamiltonian, num_sweeps, maxiter_lanczos, tol_split, max_vdim, &psi, en_sweeps, entropy) < 0) {
+	if (su2_dmrg_twosite(&hamiltonian, &options, &psi, &info) < 0) {
 		return "'su2_dmrg_twosite' failed internally";
 	}
 
@@ -178,7 +181,7 @@ char* test_su2_dmrg_twosite()
 	// expectation value <psi | H | psi>
 	double avr_ref;
 	su2_mpo_inner_product(&psi, &hamiltonian, &psi, &avr_ref);
-	if (fabs(en_sweeps[num_sweeps - 1] - avr_ref) / fabs(avr_ref) > 1e-13) {
+	if (fabs(info.en_sweeps[info.num_sweeps - 1] - avr_ref) / fabs(avr_ref) > 1e-13) {
 		return "final energy of single-site DMRG sweeps for SU(2) symmetric tensors does not match reference expectation value";
 	}
 
@@ -217,12 +220,11 @@ char* test_su2_dmrg_twosite()
 	delete_dense_tensor(&hamiltonian_mat);
 
 	// compare
-	if (fabs(en_sweeps[num_sweeps - 1] - en_ref) / fabs(en_ref) > 1e-13) {
+	if (fabs(info.en_sweeps[info.num_sweeps - 1] - en_ref) / fabs(en_ref) > 1e-13) {
 		return "final energy of single-site DMRG sweeps for SU(2) symmetric tensors does not match reference ground state energy";
 	}
 
-	ct_free(entropy);
-	ct_free(en_sweeps);
+	delete_su2_dmrg_twosite_info(&info);
 	delete_su2_mps(&psi);
 	delete_su2_mpo(&hamiltonian);
 
