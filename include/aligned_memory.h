@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <memory.h>
 
 
@@ -20,8 +21,12 @@ static inline void* ct_malloc(size_t size)
 	#ifdef _WIN32
 	return _aligned_malloc(size, CT_MEM_DATA_ALIGN);
 	#else
+	// rounding up would wrap around to a tiny size
+	if (size > SIZE_MAX - (CT_MEM_DATA_ALIGN - 1)) {
+		return NULL;
+	}
 	// round 'size' up to the next multiple of 'CT_MEM_DATA_ALIGN', which must be a power of 2
-	return aligned_alloc(CT_MEM_DATA_ALIGN, (size + CT_MEM_DATA_ALIGN - 1) & (-CT_MEM_DATA_ALIGN));
+	return aligned_alloc(CT_MEM_DATA_ALIGN, (size + CT_MEM_DATA_ALIGN - 1) & ~((size_t)CT_MEM_DATA_ALIGN - 1));
 	#endif
 }
 
@@ -47,9 +52,14 @@ static inline void ct_free(void* memblock)
 ///
 static inline void* ct_calloc(size_t num, size_t size)
 {
-	void* p = ct_malloc(num * size);
+	// check if 'num * size' would overflow
+	if (size != 0 && num > SIZE_MAX / size) {
+		return NULL;
+	}
+	const size_t total = num * size;
+	void* p = ct_malloc(total);
 	if (p != NULL) {
-		memset(p, 0, num * size);
+		memset(p, 0, total);
 	}
 	return p;
 }
