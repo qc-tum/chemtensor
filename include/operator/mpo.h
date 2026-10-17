@@ -51,6 +51,8 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo);
 
 void delete_mpo(struct mpo* mpo);
 
+void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo);
+
 bool mpo_is_consistent(const struct mpo* mpo);
 
 

@@ -37,4 +37,6 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* a, 
 //________________________________________________________________________________________________________________________
 //
 
-void apply_mpo(const struct mpo* op, const struct mps* psi, struct mps* op_psi);
+void apply_mpo_direct(const struct mpo* op, const struct mps* psi, struct mps* op_psi);
+
+int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol, const ct_long max_vdim, struct mps* op_psi);

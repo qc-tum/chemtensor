@@ -170,11 +170,11 @@ char* test_mpo_inner_product()
 }
 
 
-char* test_apply_mpo()
+char* test_apply_mpo_direct()
 {
-	hid_t file = H5Fopen("../test/algorithm/data/test_apply_mpo.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/algorithm/data/test_apply_mpo_direct.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_apply_mpo failed";
+		return "'H5Fopen' in test_apply_mpo_direct failed";
 	}
 
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
@@ -266,7 +266,7 @@ char* test_apply_mpo()
 
 	// apply operator
 	struct mps op_psi;
-	apply_mpo(&op, &psi, &op_psi);
+	apply_mpo_direct(&op, &psi, &op_psi);
 
 	if (!mps_is_consistent(&op_psi)) {
 		return "internal MPS consistency check failed";
@@ -337,6 +337,200 @@ char* test_apply_mpo()
 
 	H5Tclose(hdf5_dcomplex_id);
 	H5Fclose(file);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Norm of the difference of the state vectors represented by two MPS.
+///
+static double mps_difference_norm(const struct mps* chi, const struct mps* psi)
+{
+	struct block_sparse_tensor chi_vec, psi_vec;
+	mps_to_statevector(chi, &chi_vec);
+	mps_to_statevector(psi, &psi_vec);
+
+	struct dense_tensor chi_dns, psi_dns;
+	block_sparse_to_dense_tensor(&chi_vec, &chi_dns);
+	block_sparse_to_dense_tensor(&psi_vec, &psi_dns);
+	delete_block_sparse_tensor(&psi_vec);
+	delete_block_sparse_tensor(&chi_vec);
+
+	// psi - chi
+	dense_tensor_scalar_multiply_add(numeric_neg_one(chi_dns.dtype), &chi_dns, &psi_dns);
+	const double nrm = dense_tensor_norm2(&psi_dns);
+
+	delete_dense_tensor(&psi_dns);
+	delete_dense_tensor(&chi_dns);
+
+	return nrm;
+}
+
+
+char* test_apply_mpo_cbc()
+{
+	struct rng_state rng_state;
+	seed_rng_state(23, &rng_state);
+
+	// local physical dimension and quantum numbers
+	const ct_long d = 3;
+	const qnumber qsite[3] = { 0, 1, -1 };
+
+	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
+	{
+		const double err_tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
+
+		// compare with direct application of the MPO
+
+		for (int nsites = 1; nsites <= 6; nsites++)
+		{
+			struct mpo op;
+			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, 1, -1, 27, &rng_state, &op);
+			// rescale tensors such that overall norm is around 1
+			for (int i = 0; i < nsites; i++)
+			{
+				ct_realnum alpha;
+				numeric_from_double(5.0, idtype, alpha);
+				rscale_block_sparse_tensor(alpha, &op.a[i]);
+			}
+			if (!mpo_is_consistent(&op)) {
+				return "internal MPO consistency check failed";
+			}
+
+			struct mps psi;
+			construct_random_mps((enum numeric_type)idtype, nsites, d, qsite, 1, 13, &rng_state, &psi);
+			// rescale tensors such that overall norm is around 1
+			for (int i = 0; i < nsites; i++)
+			{
+				ct_realnum alpha;
+				numeric_from_double(5.0, idtype, alpha);
+				rscale_block_sparse_tensor(alpha, &psi.a[i]);
+			}
+			if (!mps_is_consistent(&psi)) {
+				return "internal MPS consistency check failed";
+			}
+
+			// reference
+			struct mps op_psi_ref;
+			apply_mpo_direct(&op, &psi, &op_psi_ref);
+			if (!mps_is_consistent(&op_psi_ref)) {
+				return "internal MPS consistency check failed";
+			}
+
+			for (int j = 0; j < 2; j++)  // determines SVD truncation tolerance
+			{
+				const double tol_trunc = (j == 0 ? 0 : 1e-3);
+
+				struct mps op_psi;
+				if (apply_mpo_cbc(&op, &psi, tol_trunc, 1024, &op_psi) < 0) {
+					return "'apply_mpo_cbc' failed internally";
+				}
+				if (!mps_is_consistent(&op_psi)) {
+					return "internal MPS consistency check failed";
+				}
+
+				// compare with reference (relative error, unless the reference is zero)
+				const double nrm_ref = mps_norm(&op_psi_ref);
+				const double err = mps_difference_norm(&op_psi, &op_psi_ref) / (nrm_ref > 0 ? nrm_ref : 1);
+				if (err > (tol_trunc == 0 ? err_tol: 10 * tol_trunc)) {
+					return "result of applying an MPO via Cholesky-based compression does not match reference";
+				}
+
+				// all tensors except the leftmost one must be right-isometries
+				for (int i = 1; i < nsites; i++)
+				{
+					struct block_sparse_tensor a_mat;
+					block_sparse_tensor_flatten_axes(&op_psi.a[i], 1, TENSOR_AXIS_IN, &a_mat);
+					const bool is_isometry = block_sparse_tensor_is_isometry(&a_mat, err_tol, true);
+					delete_block_sparse_tensor(&a_mat);
+					if (!is_isometry) {
+						return "MPS tensor obtained via Cholesky-based compression is not a right-isometry";
+					}
+				}
+
+				delete_mps(&op_psi);
+			}
+
+			delete_mps(&op_psi_ref);
+			delete_mps(&psi);
+			delete_mpo(&op);
+		}
+
+		// truncation based on maximum virtual bond dimension, which must be respected,
+		// and the approximation error must decrease with increasing bond dimension
+		{
+			const int nsites = 6;
+
+			struct mpo op;
+			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, -1, 1, 32, &rng_state, &op);
+			// rescale tensors such that overall norm is around 1
+			for (int i = 0; i < nsites; i++)
+			{
+				ct_realnum alpha;
+				numeric_from_double(7.0, idtype, alpha);
+				rscale_block_sparse_tensor(alpha, &op.a[i]);
+			}
+			if (!mpo_is_consistent(&op)) {
+				return "internal MPO consistency check failed";
+			}
+
+			struct mps psi;
+			construct_random_mps((enum numeric_type)idtype, nsites, d, qsite, 1, 19, &rng_state, &psi);
+			// rescale tensors such that overall norm is around 1
+			for (int i = 0; i < nsites; i++)
+			{
+				ct_realnum alpha;
+				numeric_from_double(7.0, idtype, alpha);
+				rscale_block_sparse_tensor(alpha, &psi.a[i]);
+			}
+			if (!mps_is_consistent(&psi)) {
+				return "internal MPS consistency check failed";
+			}
+
+			struct mps op_psi_ref;
+			apply_mpo_direct(&op, &psi, &op_psi_ref);
+			const double nrm_ref = mps_norm(&op_psi_ref);
+			if (nrm_ref == 0) {
+				return "reference result for truncation test is zero";
+			}
+
+			double err_prev = 2;
+			for (ct_long max_vdim = 2; max_vdim <= 64; max_vdim *= 2)
+			{
+				struct mps op_psi;
+				if (apply_mpo_cbc(&op, &psi, 0., max_vdim, &op_psi) < 0) {
+					return "'apply_mpo_cbc' failed internally";
+				}
+				if (!mps_is_consistent(&op_psi)) {
+					return "internal MPS consistency check failed";
+				}
+
+				for (int i = 0; i < nsites + 1; i++) {
+					if (mps_bond_dim(&op_psi, i) > max_vdim) {
+						return "virtual bond dimension of MPS obtained via Cholesky-based compression exceeds maximum";
+					}
+				}
+
+				const double err = mps_difference_norm(&op_psi, &op_psi_ref) / nrm_ref;
+				if (err > err_prev + err_tol) {
+					return "approximation error of Cholesky-based compression does not decrease with increasing bond dimension";
+				}
+				err_prev = err;
+
+				delete_mps(&op_psi);
+			}
+			// no truncation for maximum bond dimension
+			if (err_prev > err_tol) {
+				return "result of applying an MPO via Cholesky-based compression does not match reference";
+			}
+
+			delete_mps(&op_psi_ref);
+			delete_mps(&psi);
+			delete_mpo(&op);
+		}
+	}
 
 	return 0;
 }

@@ -2,6 +2,7 @@
 /// \brief Matrix product operator (MPO) data structure and functions.
 
 #include <stdio.h>
+#include <math.h>
 #include "mpo.h"
 #include "aligned_memory.h"
 
@@ -191,6 +192,101 @@ void delete_mpo(struct mpo* mpo)
 	ct_free(mpo->qsite);
 	mpo->qsite = NULL;
 	mpo->d = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Construct a matrix product operator with random normal tensor entries, given left and right (dummy) virtual bond quantum numbers and a maximum virtual bond dimension.
+///
+void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo)
+{
+	assert(nsites >= 1);
+	assert(d >= 1);
+
+	// quantum number differences between physical output and input axes, according to the axis directions (out, out, in, in) of an MPO tensor
+	const ct_long d2 = d * d;
+	qnumber* qsite_paired = ct_malloc(d2 * sizeof(qnumber));
+	qnumber_outer_sum(1, qsite, d, -1, qsite, d, qsite_paired);
+
+	// virtual bond quantum numbers
+	ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
+	qnumber** qbonds   = ct_malloc((nsites + 1) * sizeof(qnumber*));
+	// dummy left virtual bond
+	dim_bonds[0] = 1;
+	qbonds[0] = ct_malloc(sizeof(qnumber));
+	qbonds[0][0] = qbond_left;
+	// dummy right virtual bond
+	dim_bonds[nsites] = 1;
+	qbonds[nsites] = ct_malloc(sizeof(qnumber));
+	qbonds[nsites][0] = qbond_right;
+	// virtual bond quantum numbers on left half
+	for (int l = 1; l < (nsites + 1) / 2; l++)
+	{
+		// enumerate all combinations of left bond quantum numbers and local physical quantum number differences
+		const ct_long dim_full = dim_bonds[l - 1] * d2;
+		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
+		qnumber_outer_sum(1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite_paired, d2, qnums_full);
+		dim_bonds[l] = lmin(dim_full, max_vdim);
+		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
+		if (dim_full <= max_vdim) {
+			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
+		}
+		else {
+			// randomly select quantum numbers
+			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
+			rand_choice(dim_full, max_vdim, rng_state, idx);
+			for (ct_long i = 0; i < max_vdim; i++) {
+				qbonds[l][i] = qnums_full[idx[i]];
+			}
+			ct_free(idx);
+		}
+		ct_free(qnums_full);
+	}
+	// virtual bond quantum numbers on right half
+	for (int l = nsites - 1; l >= (nsites + 1) / 2; l--)
+	{
+		// enumerate all combinations of right bond quantum numbers and local physical quantum number differences
+		const ct_long dim_full = dim_bonds[l + 1] * d2;
+		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
+		qnumber_outer_sum(1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite_paired, d2, qnums_full);
+		dim_bonds[l] = lmin(dim_full, max_vdim);
+		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
+		if (dim_full <= max_vdim) {
+			memcpy(qbonds[l], qnums_full, dim_bonds[l] * sizeof(qnumber));
+		}
+		else {
+			// randomly select quantum numbers
+			uint64_t* idx = ct_malloc(max_vdim * sizeof(uint64_t));
+			rand_choice(dim_full, max_vdim, rng_state, idx);
+			for (ct_long i = 0; i < max_vdim; i++) {
+				qbonds[l][i] = qnums_full[idx[i]];
+			}
+			ct_free(idx);
+		}
+		ct_free(qnums_full);
+	}
+
+	ct_free(qsite_paired);
+
+	allocate_mpo(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mpo);
+
+	for (int l = 0; l < nsites + 1; l++) {
+		ct_free(qbonds[l]);
+	}
+	ct_free(qbonds);
+	ct_free(dim_bonds);
+
+	// fill MPO tensor entries with pseudo-random numbers, scaled by 1 / sqrt("number of entries")
+	for (int l = 0; l < nsites; l++)
+	{
+		// logical number of entries in MPO tensor
+		const ct_long nelem = integer_product(mpo->a[l].dim_logical, mpo->a[l].ndim);
+		ct_numeric alpha;
+		assert(mpo->a[l].dtype == dtype);
+		numeric_from_double(1.0 / sqrt(nelem), dtype, alpha);
+		block_sparse_tensor_fill_random_normal(alpha, numeric_zero(dtype), rng_state, &mpo->a[l]);
+	}
 }
 
 

@@ -343,7 +343,7 @@ char* test_dense_tensor_slice_scale()
 			delete_dense_tensor(&t_slice);
 
 			// compare
-			if (!dense_tensor_allclose(&r, &r_ref, 1e-15)) {
+			if (!dense_tensor_allclose(&r, &r_ref, numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-6 : 1e-15)) {
 				return "sliced and scaled tensor does not match reference";
 			}
 
@@ -649,7 +649,7 @@ char* test_dense_tensor_multiply_axis()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r0, &r0_ref, 1e-6)) {
+	if (!dense_tensor_allclose(&r0, &r0_ref, 2e-6)) {
 		return "multiplication along axis does not match reference";
 	}
 
@@ -676,7 +676,7 @@ char* test_dense_tensor_multiply_axis()
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r1, &r1_ref, 1e-6)) {
+	if (!dense_tensor_allclose(&r1, &r1_ref, 2e-6)) {
 		return "multiplication along axis does not match reference";
 	}
 

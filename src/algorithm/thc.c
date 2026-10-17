@@ -137,7 +137,7 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 		for (int sigma = 0; sigma < 2; sigma++)
 		{
 			struct mps kin_psi;
-			apply_mpo(&hamiltonian->mpo_kin[2*i + sigma], psi, &kin_psi);
+			apply_mpo_direct(&hamiltonian->mpo_kin[2*i + sigma], psi, &kin_psi);
 			double trunc_scale;
 			int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &kin_psi, &trunc_scale, info);
 			if (ret < 0) {
@@ -175,7 +175,7 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 		for (int tau = 0; tau < 2; tau++)
 		{
 			struct mps thc1_psi;
-			apply_mpo(&hamiltonian->mpo_thc[2*nu + tau], psi, &thc1_psi);
+			apply_mpo_direct(&hamiltonian->mpo_thc[2*nu + tau], psi, &thc1_psi);
 			double trunc_scale;
 			int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &thc1_psi, &trunc_scale, info);
 			if (ret < 0) {
@@ -191,7 +191,7 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 				for (int sigma = 0; sigma < 2; sigma++)
 				{
 					struct mps thc2_psi;
-					apply_mpo(&hamiltonian->mpo_thc[2*mu + sigma], &thc1_k_psi, &thc2_psi);
+					apply_mpo_direct(&hamiltonian->mpo_thc[2*mu + sigma], &thc1_k_psi, &thc2_psi);
 					double trunc_scale;
 					int ret = mps_compress_rescale(tol, max_vdim, MPS_ORTHONORMAL_LEFT, &thc2_psi, &trunc_scale, info);
 					if (ret < 0) {

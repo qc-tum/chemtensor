@@ -63,7 +63,7 @@ def mpo_inner_product_data():
         file["s"] = s
 
 
-def apply_mpo_data():
+def apply_mpo_direct_data():
 
     rng = np.random.default_rng(975)
 
@@ -86,7 +86,7 @@ def apply_mpo_data():
     for i in range(op.nsites):
         op.a[i] *= 5
 
-    with h5py.File("data/test_apply_mpo.hdf5", "w") as file:
+    with h5py.File("data/test_apply_mpo_direct.hdf5", "w") as file:
         file.attrs["qsite"] = qsite
         for i, qbond in enumerate(qbonds_psi):
             file.attrs[f"qbond_psi_{i}"] = qbond
@@ -100,7 +100,7 @@ def apply_mpo_data():
 
 def main():
     mpo_inner_product_data()
-    apply_mpo_data()
+    apply_mpo_direct_data()
 
 
 if __name__ == "__main__":
