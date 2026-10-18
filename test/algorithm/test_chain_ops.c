@@ -386,30 +386,30 @@ char* test_apply_mpo_cbc()
 
 		for (int nsites = 1; nsites <= 6; nsites++)
 		{
-			struct mpo op;
-			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, 1, -1, 27, &rng_state, &op);
-			// rescale tensors such that overall norm is around 1
-			for (int i = 0; i < nsites; i++)
-			{
-				ct_realnum alpha;
-				numeric_from_double(5.0, idtype, alpha);
-				rscale_block_sparse_tensor(alpha, &op.a[i]);
-			}
-			if (!mpo_is_consistent(&op)) {
-				return "internal MPO consistency check failed";
-			}
-
 			struct mps psi;
 			construct_random_mps((enum numeric_type)idtype, nsites, d, qsite, 1, 13, &rng_state, &psi);
 			// rescale tensors such that overall norm is around 1
 			for (int i = 0; i < nsites; i++)
 			{
 				ct_realnum alpha;
-				numeric_from_double(5.0, idtype, alpha);
+				numeric_from_double(5.0, numeric_real_type(idtype), alpha);
 				rscale_block_sparse_tensor(alpha, &psi.a[i]);
 			}
 			if (!mps_is_consistent(&psi)) {
 				return "internal MPS consistency check failed";
+			}
+
+			struct mpo op;
+			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, 1, -1, 27, &rng_state, &op);
+			// rescale tensors such that overall norm is around 1
+			for (int i = 0; i < nsites; i++)
+			{
+				ct_realnum alpha;
+				numeric_from_double(5.0, numeric_real_type(idtype), alpha);
+				rscale_block_sparse_tensor(alpha, &op.a[i]);
+			}
+			if (!mpo_is_consistent(&op)) {
+				return "internal MPO consistency check failed";
 			}
 
 			// reference
@@ -469,7 +469,7 @@ char* test_apply_mpo_cbc()
 			for (int i = 0; i < nsites; i++)
 			{
 				ct_realnum alpha;
-				numeric_from_double(7.0, idtype, alpha);
+				numeric_from_double(7.0, numeric_real_type(idtype), alpha);
 				rscale_block_sparse_tensor(alpha, &op.a[i]);
 			}
 			if (!mpo_is_consistent(&op)) {
@@ -482,7 +482,7 @@ char* test_apply_mpo_cbc()
 			for (int i = 0; i < nsites; i++)
 			{
 				ct_realnum alpha;
-				numeric_from_double(7.0, idtype, alpha);
+				numeric_from_double(7.0, numeric_real_type(idtype), alpha);
 				rscale_block_sparse_tensor(alpha, &psi.a[i]);
 			}
 			if (!mps_is_consistent(&psi)) {
