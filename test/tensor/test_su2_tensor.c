@@ -1123,7 +1123,7 @@ char* test_su2_tensor_reverse_axis_simple()
 		struct dense_tensor t_ref_dns;
 		if (i_ax_rev < 4)
 		{
-			dense_tensor_multiply_axis(&t_orig_dns, i_ax_rev, &omega_dns, (i_ax_rev == 0 || i_ax_rev == 3) ? TENSOR_AXIS_RANGE_TRAILING : TENSOR_AXIS_RANGE_LEADING, &t_ref_dns);
+			dense_tensor_multiply_axes(&t_orig_dns, i_ax_rev, &omega_dns, (i_ax_rev == 0 || i_ax_rev == 3) ? TENSOR_AXIS_RANGE_TRAILING : TENSOR_AXIS_RANGE_LEADING, 1, &t_ref_dns);
 		}
 		else if (i_ax_rev == 4)
 		{
@@ -1951,7 +1951,7 @@ char* test_su2_tensor_split_axis()
 
 	// contract with dense splitting tensor to obtain reference tensor
 	struct dense_tensor r_dns_ref;
-	dense_tensor_multiply_axis(&t_dns, i_ax_split, &u_split_dns, TENSOR_AXIS_RANGE_LEADING, &r_dns_ref);
+	dense_tensor_multiply_axes(&t_dns, i_ax_split, &u_split_dns, TENSOR_AXIS_RANGE_LEADING, 1, &r_dns_ref);
 
 	// compare
 	if (!dense_su2_tensor_allclose(&r_dns_ref, &r, 1e-13)) {
@@ -3023,12 +3023,12 @@ char* test_su2_to_dense_tensor()
 
 		if (i == 0)
 		{
-			dense_tensor_multiply_axis(&t_dns, i, &w, TENSOR_AXIS_RANGE_TRAILING, &r);
+			dense_tensor_multiply_axes(&t_dns, i, &w, TENSOR_AXIS_RANGE_TRAILING, 1, &r);
 		}
 		else
 		{
 			struct dense_tensor s = r;  // copy internal data pointers
-			dense_tensor_multiply_axis(&s, i, &w, TENSOR_AXIS_RANGE_TRAILING, &r);
+			dense_tensor_multiply_axes(&s, i, &w, TENSOR_AXIS_RANGE_TRAILING, 1, &r);
 			delete_dense_tensor(&s);
 		}
 

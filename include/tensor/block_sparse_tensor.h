@@ -162,7 +162,7 @@ void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct blo
 
 void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_tensor* s, const struct dense_tensor* t, const enum tensor_axis_range axrange, struct block_sparse_tensor* r);
 
-void block_sparse_tensor_multiply_axis(const struct block_sparse_tensor* s, const int i_ax, const struct block_sparse_tensor* t, const enum tensor_axis_range axrange_t, struct block_sparse_tensor* r);
+void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* s, const int i_ax_start, const struct block_sparse_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* r);
 
 void block_sparse_tensor_dot(const struct block_sparse_tensor* s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* r);
 

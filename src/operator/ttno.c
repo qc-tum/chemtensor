@@ -797,7 +797,7 @@ static void ttno_contract_subtree(const struct ttno* ttno, const int i_site, con
 
 		// contract current tensor with child
 		struct block_sparse_tensor t;
-		block_sparse_tensor_multiply_axis(&contracted->tensor, i_ax_c, &child.tensor, axrange_c, &t);
+		block_sparse_tensor_multiply_axes(&contracted->tensor, i_ax_c, &child.tensor, axrange_c, 1, &t);
 
 		// update axis descriptions
 		struct ttno_tensor_axis_desc* new_axis_desc = ct_malloc(t.ndim * sizeof(struct ttno_tensor_axis_desc));

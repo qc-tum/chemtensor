@@ -103,20 +103,20 @@ def dense_tensor_multiply_pointwise_data():
             file[f"t_mult_s{i}"] = t_mult_s[i]
 
 
-def dense_tensor_multiply_axis_data():
+def dense_tensor_multiply_axes_data():
 
     # random number generator
     rng = np.random.default_rng(193)
 
-    s = crandn((3, 8, 5, 7), rng).astype(np.complex64)
+    s = crandn((3, 8, 5, 1, 2, 7), rng).astype(np.complex64)
 
-    t0 = crandn((6, 4, 5), rng).astype(np.complex64)
-    r0 = np.einsum(s, (0, 1, 5, 4), t0, (2, 3, 5), (0, 1, 2, 3, 4))
+    t0 = crandn((6, 4, 5, 1, 2), rng).astype(np.complex64)
+    r0 = np.einsum(s, (0, 1, 5, 6, 7, 4), t0, (2, 3, 5, 6, 7), (0, 1, 2, 3, 4))
 
-    t1 = crandn((5, 2, 6), rng).astype(np.complex64)
-    r1 = np.einsum(s, (0, 1, 5, 4), t1, (5, 2, 3), (0, 1, 2, 3, 4))
+    t1 = crandn((5, 1, 2, 9, 6), rng).astype(np.complex64)
+    r1 = np.einsum(s, (0, 1, 5, 6, 7, 4), t1, (5, 6, 7, 2, 3), (0, 1, 2, 3, 4))
 
-    with h5py.File("data/test_dense_tensor_multiply_axis.hdf5", "w") as file:
+    with h5py.File("data/test_dense_tensor_multiply_axes.hdf5", "w") as file:
         file["s"] = s
         file["t0"] = t0
         file["r0"] = r0
@@ -364,7 +364,7 @@ def main():
     dense_tensor_slice_data()
     dense_tensor_pad_zeros_data()
     dense_tensor_multiply_pointwise_data()
-    dense_tensor_multiply_axis_data()
+    dense_tensor_multiply_axes_data()
     dense_tensor_dot_data()
     dense_tensor_dot_update_data()
     dense_tensor_kronecker_product_data()

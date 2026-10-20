@@ -1787,77 +1787,85 @@ void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* restrict s,
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply the 'i_ax' axis of 's' with the leading or trailing axis of 't', preserving the overall dimension ordering of 's'.
+/// \brief Multiply the 'i_ax_start, ..., i_ax_start + ndim_mult - 1' axes of 's' with the leading or trailing axes of 't', preserving the overall dimension ordering of 's'.
 ///
-void dense_tensor_multiply_axis(const struct dense_tensor* restrict s, const int i_ax, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, struct dense_tensor* restrict r)
+void dense_tensor_multiply_axes(const struct dense_tensor* restrict s, const int i_ax_start, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* restrict r)
 {
 	// data types must agree
 	assert(s->dtype == t->dtype);
-	// 't' must have a degree of at least 1
-	assert(t->ndim >= 1);
-	// 'i_ax' must be a valid axis index for 's'
-	assert(0 <= i_ax && i_ax < s->ndim);
+
+	assert(ndim_mult >= 1);
+	// 't' must have a degree of at least 'ndim_mult'
+	assert(t->ndim >= ndim_mult);
+	// to-be contracted axes indices must be valid for 's'
+	assert(0 <= i_ax_start && i_ax_start + ndim_mult <= s->ndim);
 	// to-be contracted dimensions must match
-	assert(s->dim[i_ax] == t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - 1]);
+	for (int i = 0; i < ndim_mult; i++) {
+		assert(s->dim[i_ax_start + i] == t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? i : t->ndim - ndim_mult + i]);
+	}
 
 	// allocate output tensor
 	{
-		ct_long* rdim = ct_malloc((s->ndim + t->ndim - 2) * sizeof(ct_long));
-		memcpy( rdim, s->dim, i_ax * sizeof(ct_long));
-		memcpy(&rdim[i_ax], &t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 1 : 0], (t->ndim - 1) * sizeof(ct_long));
-		memcpy(&rdim[i_ax + t->ndim - 1], &s->dim[i_ax + 1], (s->ndim - i_ax - 1) * sizeof(ct_long));
-		allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2, rdim, r);
+		ct_long* rdim = ct_malloc((s->ndim + t->ndim - 2*ndim_mult) * sizeof(ct_long));
+		memcpy( rdim, s->dim, i_ax_start * sizeof(ct_long));
+		memcpy(&rdim[i_ax_start], &t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0], (t->ndim - ndim_mult) * sizeof(ct_long));
+		memcpy(&rdim[i_ax_start + t->ndim - ndim_mult], &s->dim[i_ax_start + ndim_mult], (s->ndim - i_ax_start - ndim_mult) * sizeof(ct_long));
+		allocate_dense_tensor(s->dtype, s->ndim + t->ndim - 2*ndim_mult, rdim, r);
 		ct_free(rdim);
 	}
 
-	dense_tensor_multiply_axis_update(numeric_one(s->dtype), s, i_ax, t, axrange_t, numeric_zero(s->dtype), r);
+	dense_tensor_multiply_axes_update(numeric_one(s->dtype), s, i_ax_start, t, axrange_t, ndim_mult, numeric_zero(s->dtype), r);
 }
 
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Multiply the 'i_ax' axis of 's' with the leading or trailing axis of 't', preserving the overall dimension ordering of 's',
+/// \brief Multiply the 'i_ax_start, ..., i_ax_start + ndim_mult - 1' axes of 's' with the leading or trailing axes of 't', preserving the overall dimension ordering of 's',
 /// scale by 'alpha' and add result to 'r' scaled by beta: r <- alpha * s @ t + beta * r.
 ///
 /// Assuming that 'r' has the appropriate dimensions.
 ///
-void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_tensor* restrict s, const int i_ax, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const void* beta, struct dense_tensor* restrict r)
+void dense_tensor_multiply_axes_update(const void* alpha, const struct dense_tensor* restrict s, const int i_ax_start, const struct dense_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, const void* beta, struct dense_tensor* restrict r)
 {
 	// data types must agree
 	assert(s->dtype == t->dtype);
 	assert(s->dtype == r->dtype);
-	// 't' must have a degree of at least 1
-	assert(t->ndim >= 1);
-	// 'i_ax' must be a valid axis index for 's'
-	assert(0 <= i_ax && i_ax < s->ndim);
+
+	assert(ndim_mult >= 1);
+	// 't' must have a degree of at least 'ndim_mult'
+	assert(t->ndim >= ndim_mult);
+	// to-be contracted axes indices must be valid for 's'
+	assert(0 <= i_ax_start && i_ax_start + ndim_mult <= s->ndim);
 	// to-be contracted dimensions must match
-	assert(s->dim[i_ax] == t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - 1]);
+	for (int i = 0; i < ndim_mult; i++) {
+		assert(s->dim[i_ax_start + i] == t->dim[axrange_t == TENSOR_AXIS_RANGE_LEADING ? i : t->ndim - ndim_mult + i]);
+	}
 	// 'r' must have appropriate degree and dimensions
-	assert(r->ndim == s->ndim + t->ndim - 2);
-	for (int i = 0; i < i_ax; i++) {
+	assert(r->ndim == s->ndim + t->ndim - 2*ndim_mult);
+	for (int i = 0; i < i_ax_start; i++) {
 		assert(r->dim[i] == s->dim[i]);
 	}
-	for (int i = 0; i < t->ndim - 1; i++) {
-		assert(r->dim[i_ax + i] == t->dim[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? 1 : 0) + i]);
+	for (int i = 0; i < t->ndim - ndim_mult; i++) {
+		assert(r->dim[i_ax_start + i] == t->dim[(axrange_t == TENSOR_AXIS_RANGE_LEADING ? ndim_mult : 0) + i]);
 	}
-	for (int i = i_ax + 1; i < s->ndim; i++) {
-		assert(r->dim[t->ndim - 2 + i] == s->dim[i]);
+	for (int i = i_ax_start + ndim_mult; i < s->ndim; i++) {
+		assert(r->dim[t->ndim - 2*ndim_mult + i] == s->dim[i]);
 	}
 
 	// outer dimension of 's' and 'r' as a matrix
-	const ct_long dim_outer = integer_product(s->dim, i_ax);
+	const ct_long dim_outer = integer_product(s->dim, i_ax_start);
 	// inner dimension of 's' as a matrix
-	const ct_long dim_inner_s = integer_product(&s->dim[i_ax], s->ndim - i_ax);
+	const ct_long dim_inner_s = integer_product(&s->dim[i_ax_start], s->ndim - i_ax_start);
 	// inner dimension of 'r' as a matrix
-	const ct_long dim_inner_r = integer_product(&r->dim[i_ax], r->ndim - i_ax);
+	const ct_long dim_inner_r = integer_product(&r->dim[i_ax_start], r->ndim - i_ax_start);
 	// trailing dimension of 't' as a matrix
-	const ct_long tdt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? integer_product(&t->dim[1], t->ndim - 1) : t->dim[t->ndim - 1]);
+	const ct_long tdt = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? integer_product(&t->dim[ndim_mult], t->ndim - ndim_mult) : integer_product(&t->dim[t->ndim - ndim_mult], ndim_mult));
 
 	const int transa = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? CblasTrans : CblasNoTrans);
 
-	const ct_long m = integer_product(&r->dim[i_ax], t->ndim - 1);
-	const ct_long k = s->dim[i_ax];
-	const ct_long n = integer_product(&s->dim[i_ax + 1], s->ndim - i_ax - 1);
+	const ct_long m = integer_product(&r->dim[i_ax_start], t->ndim - ndim_mult);
+	const ct_long k = integer_product(&s->dim[i_ax_start], ndim_mult);
+	const ct_long n = integer_product(&s->dim[i_ax_start + ndim_mult], s->ndim - i_ax_start - ndim_mult);
 
 	switch (s->dtype)
 	{

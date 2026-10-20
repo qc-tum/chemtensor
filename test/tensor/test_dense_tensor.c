@@ -338,7 +338,7 @@ char* test_dense_tensor_slice_scale()
 				dense_tensor_diagonal_matrix(&s, &s_diag);
 			}
 			struct dense_tensor r_ref;
-			dense_tensor_multiply_axis(&t_slice, i_ax, &s_diag, TENSOR_AXIS_RANGE_TRAILING, &r_ref);
+			dense_tensor_multiply_axes(&t_slice, i_ax, &s_diag, TENSOR_AXIS_RANGE_TRAILING, 1, &r_ref);
 			delete_dense_tensor(&s_diag);
 			delete_dense_tensor(&t_slice);
 
@@ -606,19 +606,19 @@ char* test_dense_tensor_multiply_pointwise()
 }
 
 
-char* test_dense_tensor_multiply_axis()
+char* test_dense_tensor_multiply_axes()
 {
-	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_axis.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_dense_tensor_multiply_axes.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_dense_tensor_multiply_axis failed";
+		return "'H5Fopen' in test_dense_tensor_multiply_axes failed";
 	}
 
 	const hid_t hdf5_scomplex_id = construct_hdf5_single_complex_dtype(false);
 
 	// create tensor 's'
 	struct dense_tensor s;
-	const ct_long sdim[4] = { 3, 8, 5, 7 };
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 4, sdim, &s);
+	const ct_long sdim[] = { 3, 8, 5, 1, 2, 7 };
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ARRLEN(sdim), sdim, &s);
 	// read values from disk
 	if (read_hdf5_dataset(file, "s", hdf5_scomplex_id, s.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -626,37 +626,38 @@ char* test_dense_tensor_multiply_axis()
 
 	// create tensor 't0'
 	struct dense_tensor t0;
-	const ct_long t0_dim[3] = { 6, 4, 5 };
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t0_dim,  &t0);
+	const ct_long t0_dim[] = { 6, 4, 5, 1, 2 };
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ARRLEN(t0_dim), t0_dim,  &t0);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t0", hdf5_scomplex_id, t0.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
-	const int i_ax = 2;
+	const int i_ax_start = 2;
+	const int ndim_mult  = 3;
 
-	// multiply along axis
+	// multiply along axes
 	struct dense_tensor r0;
-	dense_tensor_multiply_axis(&s, i_ax, &t0, TENSOR_AXIS_RANGE_TRAILING, &r0);
+	dense_tensor_multiply_axes(&s, i_ax_start, &t0, TENSOR_AXIS_RANGE_TRAILING, ndim_mult, &r0);
 
 	// reference tensor
-	const ct_long r0_ref_dim[5] = { 3, 8, 6, 4, 7 };
+	const ct_long r0_ref_dim[] = { 3, 8, 6, 4, 7 };
 	struct dense_tensor r0_ref;
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r0_ref_dim, &r0_ref);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ARRLEN(r0_ref_dim), r0_ref_dim, &r0_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r0", hdf5_scomplex_id, r0_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r0, &r0_ref, 2e-6)) {
-		return "multiplication along axis does not match reference";
+	if (!dense_tensor_allclose(&r0, &r0_ref, 5e-6)) {
+		return "multiplication along axes does not match reference";
 	}
 
 	// create tensor 't1'
 	struct dense_tensor t1;
-	const ct_long t1_dim[3] = { 5, 2, 6 };
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 3, t1_dim,  &t1);
+	const ct_long t1_dim[] = { 5, 1, 2, 9, 6 };
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ARRLEN(t1_dim), t1_dim,  &t1);
 	// read values from disk
 	if (read_hdf5_dataset(file, "t1", hdf5_scomplex_id, t1.data) < 0) {
 		return "reading tensor entries from disk failed";
@@ -664,20 +665,20 @@ char* test_dense_tensor_multiply_axis()
 
 	// multiply along axis
 	struct dense_tensor r1;
-	dense_tensor_multiply_axis(&s, i_ax, &t1, TENSOR_AXIS_RANGE_LEADING, &r1);
+	dense_tensor_multiply_axes(&s, i_ax_start, &t1, TENSOR_AXIS_RANGE_LEADING, ndim_mult, &r1);
 
 	// reference tensor
-	const ct_long r1_ref_dim[5] = { 3, 8, 2, 6, 7 };
+	const ct_long r1_ref_dim[] = { 3, 8, 9, 6, 7 };
 	struct dense_tensor r1_ref;
-	allocate_dense_tensor(CT_SINGLE_COMPLEX, 5, r1_ref_dim, &r1_ref);
+	allocate_dense_tensor(CT_SINGLE_COMPLEX, ARRLEN(r1_ref_dim), r1_ref_dim, &r1_ref);
 	// read values from disk
 	if (read_hdf5_dataset(file, "r1", hdf5_scomplex_id, r1_ref.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
 
 	// compare
-	if (!dense_tensor_allclose(&r1, &r1_ref, 2e-6)) {
-		return "multiplication along axis does not match reference";
+	if (!dense_tensor_allclose(&r1, &r1_ref, 5e-6)) {
+		return "multiplication along axes does not match reference";
 	}
 
 	// clean up

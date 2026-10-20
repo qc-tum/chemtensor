@@ -273,13 +273,7 @@ char* test_su2_contraction_operator_step_left()
 		struct dense_tensor a_dns;
 		su2_to_dense_tensor(&a, &a_dns);
 		assert(dense_tensor_norm2(&a_dns) > 0);
-		// group leading two axes of 'a'
-		const ct_long dim_a_mat[2] = { a_dns.dim[0] * a_dns.dim[1], a_dns.dim[2] };
-		reshape_dense_tensor(2, dim_a_mat, &a_dns);
-		// group axes 1 and 2 of 't'
-		const ct_long dim_t[4] = { t.dim[0], t.dim[1] * t.dim[2], t.dim[3], t.dim[4] };
-		reshape_dense_tensor(4, dim_t, &t);
-		dense_tensor_multiply_axis(&t, 1, &a_dns, TENSOR_AXIS_RANGE_LEADING, &l_next_ref);
+		dense_tensor_multiply_axes(&t, 1, &a_dns, TENSOR_AXIS_RANGE_LEADING, 2, &l_next_ref);
 		delete_dense_tensor(&t);
 		delete_dense_tensor(&a_dns);
 

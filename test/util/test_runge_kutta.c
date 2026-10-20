@@ -27,7 +27,7 @@ static void ode_func(const double t, const struct block_sparse_tensor* restrict 
 	for (int i = 0; i < 3; i++)
 	{
 		struct block_sparse_tensor t;
-		block_sparse_tensor_multiply_axis(i == 0 ? y : &s, i, fdata->nonlintensors[i], TENSOR_AXIS_RANGE_TRAILING, &t);
+		block_sparse_tensor_multiply_axes(i == 0 ? y : &s, i, fdata->nonlintensors[i], TENSOR_AXIS_RANGE_TRAILING, 1, &t);
 		if (i > 0) {
 			delete_block_sparse_tensor(&s);
 		}

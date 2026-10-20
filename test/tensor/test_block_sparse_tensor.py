@@ -340,27 +340,33 @@ def block_sparse_tensor_multiply_pointwise_vector_data():
             file[f"s_mult_t{i}"] = s_mult_t[i]
 
 
-def block_sparse_tensor_multiply_axis_data():
+def block_sparse_tensor_multiply_axes_data():
 
     # random number generator
     rng = np.random.default_rng(730)
 
-    i_ax = 2
+    i_ax_start = 2
+    ndim_mult  = 3
 
     # dimensions
-    s_dim  = (7, 4, 11, 5)
-    t0_dim = (s_dim[i_ax],) + (6, 9)
-    t1_dim = (8, 3) + (s_dim[i_ax],)
+    s_dim  = (7, 4, 2, 11, 1, 5)
+    t0_dim = s_dim[i_ax_start:i_ax_start+ndim_mult] + (6, 9)
+    t1_dim = (8, 3) + s_dim[i_ax_start:i_ax_start+ndim_mult]
 
     # axis directions
     s_axis_dir  = rng.choice((1, -1), size=len(s_dim))
-    t0_axis_dir = np.concatenate(((-s_axis_dir[i_ax],), rng.choice((1, -1), size=len(t0_dim)-1)))
-    t1_axis_dir = np.concatenate((rng.choice((1, -1), size=len(t1_dim)-1), (-s_axis_dir[i_ax],)))
+    s_axis_dir_contract = np.array(s_axis_dir[i_ax_start:i_ax_start+ndim_mult])
+    t0_axis_dir = np.concatenate((-s_axis_dir_contract,
+                                  rng.choice((1, -1), size=len(t0_dim)-ndim_mult)))
+    t1_axis_dir = np.concatenate((rng.choice((1, -1), size=len(t1_dim)-ndim_mult),
+                                  -s_axis_dir_contract))
 
     # quantum numbers
     s_qnums  = [rng.integers(-2, 3, size=d).astype(np.int32) for d in s_dim]
-    t0_qnums = [s_qnums[i_ax]] + [rng.integers(-2, 3, size=d).astype(np.int32) for d in t0_dim[1:]]
-    t1_qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in t1_dim[:-1]] + [s_qnums[i_ax]]
+    t0_qnums = s_qnums[i_ax_start:i_ax_start+ndim_mult] \
+               + [rng.integers(-2, 3, size=d).astype(np.int32) for d in t0_dim[ndim_mult:]]
+    t1_qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in t1_dim[:-ndim_mult]] \
+               + s_qnums[i_ax_start:i_ax_start+ndim_mult]
 
     # dense tensors
     s  = crandn(s_dim,  rng)
@@ -370,12 +376,17 @@ def block_sparse_tensor_multiply_axis_data():
     enforce_qsparsity(s,  [ s_axis_dir[i] *  s_qnums[i] for i in range( s.ndim)])
     enforce_qsparsity(t0, [t0_axis_dir[i] * t0_qnums[i] for i in range(t0.ndim)])
     enforce_qsparsity(t1, [t1_axis_dir[i] * t1_qnums[i] for i in range(t1.ndim)])
+    assert np.linalg.norm(s ) > 0
+    assert np.linalg.norm(t0) > 0
+    assert np.linalg.norm(t1) > 0
 
-    # contract with axis 'i_ax' of 's'
-    r0 = np.einsum(s, (0, 1, 5, 4), t0, (5, 2, 3), (0, 1, 2, 3, 4))
-    r1 = np.einsum(s, (0, 1, 5, 4), t1, (2, 3, 5), (0, 1, 2, 3, 4))
+    # contract with axes 'i_ax_start, ..., i_ax_start + ndim_mult - 1' of 's'
+    r0 = np.einsum(s, (0, 1, 5, 6, 7, 4), t0, (5, 6, 7, 2, 3), (0, 1, 2, 3, 4))
+    r1 = np.einsum(s, (0, 1, 5, 6, 7, 4), t1, (2, 3, 5, 6, 7), (0, 1, 2, 3, 4))
+    assert np.linalg.norm(r0) > 0
+    assert np.linalg.norm(r1) > 0
 
-    with h5py.File("data/test_block_sparse_tensor_multiply_axis.hdf5", "w") as file:
+    with h5py.File("data/test_block_sparse_tensor_multiply_axes.hdf5", "w") as file:
         file["s"]  = s
         file["t0"] = t0
         file["r0"] = r0
@@ -739,7 +750,7 @@ def main():
     block_sparse_tensor_matricize_axis_data()
     block_sparse_tensor_slice_data()
     block_sparse_tensor_multiply_pointwise_vector_data()
-    block_sparse_tensor_multiply_axis_data()
+    block_sparse_tensor_multiply_axes_data()
     block_sparse_tensor_dot_data()
     block_sparse_tensor_concatenate_data()
     block_sparse_tensor_block_diag_data()

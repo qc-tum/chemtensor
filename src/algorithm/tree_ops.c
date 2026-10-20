@@ -121,7 +121,7 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 		assert(avg_bonds[k].ndim == 3);
 		struct block_sparse_tensor tmp;
 		const int i_ax = (k < i_site ? n : n + 1);
-		block_sparse_tensor_multiply_axis(&psi_avg, i_ax, &avg_bonds[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(&psi_avg, i_ax, &avg_bonds[k], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(&psi_avg);
 		psi_avg = tmp;  // copy internal data pointers
 	}
@@ -403,7 +403,7 @@ void apply_local_ttno_tensor(const struct block_sparse_tensor* restrict op, cons
 		assert(envs[n].ndim == 3);
 		struct block_sparse_tensor tmp;
 		const int i_ax = (k < i_site ? n : n + 1);
-		block_sparse_tensor_multiply_axis(&psi_envs, i_ax, &envs[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(&psi_envs, i_ax, &envs[n], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(&psi_envs);
 		psi_envs = tmp;  // copy internal data pointers
 	}

@@ -214,9 +214,9 @@ void dense_tensor_multiply_pointwise(const struct dense_tensor* s, const struct 
 
 void dense_tensor_multiply_pointwise_fill(const struct dense_tensor* s, const struct dense_tensor* t, const enum tensor_axis_range axrange, struct dense_tensor* r);
 
-void dense_tensor_multiply_axis(const struct dense_tensor* s, const int i_ax, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, struct dense_tensor* r);
+void dense_tensor_multiply_axes(const struct dense_tensor* s, const int i_ax_start, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* r);
 
-void dense_tensor_multiply_axis_update(const void* alpha, const struct dense_tensor* s, const int i_ax, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const void* beta, struct dense_tensor* r);
+void dense_tensor_multiply_axes_update(const void* alpha, const struct dense_tensor* s, const int i_ax_start, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, const void* beta, struct dense_tensor* r);
 
 void dense_tensor_dot(const void* alpha, const struct dense_tensor* s, const enum tensor_axis_range axrange_s, const struct dense_tensor* t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct dense_tensor* r);
 

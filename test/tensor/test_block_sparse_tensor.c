@@ -825,11 +825,11 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 }
 
 
-char* test_block_sparse_tensor_multiply_axis()
+char* test_block_sparse_tensor_multiply_axes()
 {
-	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_multiply_axis.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_multiply_axes.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0) {
-		return "'H5Fopen' in test_block_sparse_tensor_multiply_axis failed";
+		return "'H5Fopen' in test_block_sparse_tensor_multiply_axes failed";
 	}
 
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
@@ -838,8 +838,8 @@ char* test_block_sparse_tensor_multiply_axis()
 	{
 		// read dense tensor from disk
 		struct dense_tensor s_dns;
-		const ct_long s_dim[4] = { 7, 4, 11, 5 };
-		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, s_dim, &s_dns);
+		const ct_long s_dim[6] = { 7, 4, 2, 11, 1, 5 };
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 6, s_dim, &s_dns);
 		if (read_hdf5_dataset(file, "s", hdf5_dcomplex_id, s_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
 		}
@@ -877,8 +877,8 @@ char* test_block_sparse_tensor_multiply_axis()
 		char varname[1024];
 
 		struct dense_tensor t_dns;
-		const ct_long t_dim[2][3] = { { 11, 6, 9 }, { 8, 3, 11 } };
-		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 3, t_dim[i], &t_dns);
+		const ct_long t_dim[2][5] = { { 2, 11, 1, 6, 9 }, { 8, 3, 2, 11, 1 } };
+		allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, t_dim[i], &t_dns);
 		sprintf(varname, "t%i", i);
 		if (read_hdf5_dataset(file, varname, hdf5_dcomplex_id, t_dns.data) < 0) {
 			return "reading tensor entries from disk failed";
@@ -911,12 +911,13 @@ char* test_block_sparse_tensor_multiply_axis()
 		delete_dense_tensor(&t_dns);
 	}
 
-	const int i_ax = 2;
+	const int i_ax_start = 2;
+	const int ndim_mult  = 3;
 
 	for (int i = 0; i < 2; i++)
 	{
 		struct block_sparse_tensor r;
-		block_sparse_tensor_multiply_axis(&s, i_ax, &t[i], i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, &r);
+		block_sparse_tensor_multiply_axes(&s, i_ax_start, &t[i], i == 0 ? TENSOR_AXIS_RANGE_LEADING : TENSOR_AXIS_RANGE_TRAILING, ndim_mult, &r);
 
 		// reference tensor
 		struct dense_tensor r_ref;
@@ -930,7 +931,7 @@ char* test_block_sparse_tensor_multiply_axis()
 
 		// compare
 		if (!dense_block_sparse_tensor_allclose(&r_ref, &r, 1e-13)) {
-			return "multiplication along axis for block-sparse tensors does not match reference";
+			return "multiplication along axes for block-sparse tensors does not match reference";
 		}
 
 		delete_dense_tensor(&r_ref);

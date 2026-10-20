@@ -24,7 +24,7 @@ char* test_dense_tensor_pad_zeros();
 char* test_dense_tensor_broadcast();
 char* test_dense_tensor_cast_dtype();
 char* test_dense_tensor_multiply_pointwise();
-char* test_dense_tensor_multiply_axis();
+char* test_dense_tensor_multiply_axes();
 char* test_dense_tensor_dot();
 char* test_dense_tensor_dot_update();
 char* test_dense_tensor_kronecker_product();
@@ -46,7 +46,7 @@ char* test_block_sparse_tensor_reshape();
 char* test_block_sparse_tensor_matricize_axis();
 char* test_block_sparse_tensor_slice();
 char* test_block_sparse_tensor_multiply_pointwise_vector();
-char* test_block_sparse_tensor_multiply_axis();
+char* test_block_sparse_tensor_multiply_axes();
 char* test_block_sparse_tensor_dot();
 char* test_block_sparse_tensor_concatenate();
 char* test_block_sparse_tensor_block_diag();
@@ -177,7 +177,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_dense_tensor_broadcast),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_cast_dtype),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_pointwise),
-		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_axis),
+		TEST_FUNCTION_ENTRY(test_dense_tensor_multiply_axes),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_dot_update),
 		TEST_FUNCTION_ENTRY(test_dense_tensor_kronecker_product),
@@ -199,7 +199,7 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_matricize_axis),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_slice),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_pointwise_vector),
-		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_axis),
+		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_multiply_axes),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_dot),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_concatenate),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_block_diag),

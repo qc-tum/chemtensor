@@ -593,7 +593,7 @@ void local_ttns_inner_product(const struct block_sparse_tensor* restrict chi, co
 
 		assert(inner_bonds[k].ndim == 2);
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_axis(&psi_envs, i_ax, &inner_bonds[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(&psi_envs, i_ax, &inner_bonds[k], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(&psi_envs);
 		psi_envs = tmp;  // copy internal data pointers
 	}
@@ -765,7 +765,7 @@ static double ttns_orthonormalize_qr_subtree(const int i_site, const int i_paren
 		ttns_orthonormalize_qr_subtree(k, i_site, ttns, &r_child);
 
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_axis(&ttns->a[i_site], i_ax, &r_child, TENSOR_AXIS_RANGE_TRAILING, &tmp);
+		block_sparse_tensor_multiply_axes(&ttns->a[i_site], i_ax, &r_child, TENSOR_AXIS_RANGE_TRAILING, 1, &tmp);
 		delete_block_sparse_tensor(&ttns->a[i_site]);
 		ttns->a[i_site] = tmp;  // copy internal data pointers
 
@@ -871,7 +871,7 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 
 		// multiply current 'u' with child tensor
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_axis(&ttns->a[i_child], i_ax_c, &u_list[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(&ttns->a[i_child], i_ax_c, &u_list[n], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(&ttns->a[i_child]);
 		ttns->a[i_child] = tmp;  // copy internal data pointers
 
@@ -898,7 +898,7 @@ static int ttns_compress_subtree(const int i_site, const int i_parent, const dou
 		conjugate_block_sparse_tensor(&u_list[n]);
 		block_sparse_tensor_reverse_axis_directions(&u_list[n]);
 		struct block_sparse_tensor tmp;
-		block_sparse_tensor_multiply_axis(&ttns->a[i_site], i_ax, &u_list[n], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(&ttns->a[i_site], i_ax, &u_list[n], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(&ttns->a[i_site]);
 		ttns->a[i_site] = tmp;  // copy internal data pointers
 
@@ -1075,7 +1075,7 @@ static void ttns_contract_subtree(const struct ttns* ttns, const int i_site, con
 
 		// contract current tensor with child
 		struct block_sparse_tensor t;
-		block_sparse_tensor_multiply_axis(&contracted->tensor, i_ax_c, &child.tensor, axrange_c, &t);
+		block_sparse_tensor_multiply_axes(&contracted->tensor, i_ax_c, &child.tensor, axrange_c, 1, &t);
 
 		// update axis descriptions
 		struct ttns_tensor_axis_desc* new_axis_desc = ct_malloc(t.ndim * sizeof(struct ttns_tensor_axis_desc));

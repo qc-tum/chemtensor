@@ -840,18 +840,13 @@ int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol,
 		// contract left block with MPS and MPO tensors
 		struct block_sparse_tensor t;
 		{
-			struct block_sparse_tensor s;
-			block_sparse_tensor_dot(&lblocks[i], TENSOR_AXIS_RANGE_TRAILING, &psi->a[i], TENSOR_AXIS_RANGE_LEADING, 1, &s);
-			assert(s.ndim == 4);
-			// merge axes for sliced multiplication
-			block_sparse_tensor_flatten_axes(&s, 1, TENSOR_AXIS_IN, &t);
-			delete_block_sparse_tensor(&s);
-			const int perm[4] = { 0, 2, 1, 3 };
-			block_sparse_tensor_transpose(perm, &op->a[i], &s);
+			block_sparse_tensor_dot(&lblocks[i], TENSOR_AXIS_RANGE_TRAILING, &psi->a[i], TENSOR_AXIS_RANGE_LEADING, 1, &t);
+			assert(t.ndim == 4);
 			struct block_sparse_tensor w;
-			block_sparse_tensor_flatten_axes(&s, 0, TENSOR_AXIS_OUT, &w);
-			delete_block_sparse_tensor(&s);
-			block_sparse_tensor_multiply_axis(&t, 1, &w, TENSOR_AXIS_RANGE_LEADING, &s);
+			const int perm[4] = { 0, 2, 1, 3 };
+			block_sparse_tensor_transpose(perm, &op->a[i], &w);
+			struct block_sparse_tensor s;
+			block_sparse_tensor_multiply_axes(&t, 1, &w, TENSOR_AXIS_RANGE_LEADING, 2, &s);
 			delete_block_sparse_tensor(&t);
 			delete_block_sparse_tensor(&w);
 			assert(s.ndim == 4);

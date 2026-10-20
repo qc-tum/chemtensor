@@ -81,7 +81,7 @@ static void bug_ode_func_basis_update_leaf_2(const double time, const struct blo
 	assert(fdata->env->ndim == 3);
 
 	struct block_sparse_tensor t;
-	block_sparse_tensor_multiply_axis(y, 1, fdata->op, TENSOR_AXIS_RANGE_TRAILING, &t);
+	block_sparse_tensor_multiply_axes(y, 1, fdata->op, TENSOR_AXIS_RANGE_TRAILING, 1, &t);
 	block_sparse_tensor_dot(fdata->env, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, ret);
 	delete_block_sparse_tensor(&t);
 	scale_block_sparse_tensor(fdata->prefactor, ret);
@@ -113,7 +113,7 @@ void bug_flow_update_basis(const struct ttno* hamiltonian, const int i_site, con
 
 	// multiply parent bond by 's0'
 	assert(s0->ndim == 2);
-	block_sparse_tensor_multiply_axis(&state_ai_prev, i_ax_p, s0, TENSOR_AXIS_RANGE_LEADING, &state->a[i_site]);
+	block_sparse_tensor_multiply_axes(&state_ai_prev, i_ax_p, s0, TENSOR_AXIS_RANGE_LEADING, 1, &state->a[i_site]);
 
 	assert(state->topology.num_neighbors[i_site] > 0);
 	if (state->topology.num_neighbors[i_site] == 1)
@@ -402,7 +402,7 @@ static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_si
 
 		struct block_sparse_tensor tmp;
 		const int i_ax = (k < i_site ? n : n + 1);
-		block_sparse_tensor_multiply_axis(c0, i_ax, &augment_maps[k], TENSOR_AXIS_RANGE_LEADING, &tmp);
+		block_sparse_tensor_multiply_axes(c0, i_ax, &augment_maps[k], TENSOR_AXIS_RANGE_LEADING, 1, &tmp);
 		delete_block_sparse_tensor(c0);
 		*c0 = tmp;  // copy internal data pointers
 	}
