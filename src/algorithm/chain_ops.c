@@ -11,6 +11,31 @@
 ///
 /// \brief Create a dummy right operator block.
 ///
+/// The right operator blocks use the axes ordering convention
+/// (virtual bond connected to 'a', virtual bond connected to 'w', virtual bond connected to conjugated 'b', outer virtual bond).
+///
+///        ╭─────────╮
+///        │         │
+///     ─>─2         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///     ─<─1    r    3─<─
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///     ─<─0         │
+///        │         │
+///        ╰─────────╯
+///
 void create_dummy_operator_block_right(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict r)
 {
@@ -48,7 +73,80 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Create a dummy reduced right operator block.
+///
+///        ╭─────────╮
+///        │         │
+///     ─<─1         │
+///        │         │
+///        │         │
+///        │         │
+///        │    r    2─<─
+///        │         │
+///        │         │
+///        │         │
+///     ─<─0         │
+///        │         │
+///        ╰─────────╯
+///
+static void create_dummy_operator_block_right_reduced(const struct block_sparse_tensor* restrict a,
+	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict r)
+{
+	assert(a->ndim == 3);
+	assert(w->ndim == 4);
+
+	// for now requiring dummy trailing virtual bond dimensions
+	assert(a->dim_logical[2] == 1);
+	assert(w->dim_logical[3] == 1);
+
+	const enum numeric_type dtype = a->dtype;
+
+	const ct_long dim[4] = { 1, 1, 1, 1 };
+	const enum tensor_axis_direction axis_dir[4] = {
+		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT,
+		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
+	};
+	const qnumber* qnums[6] = {
+		a->qnums_logical[2], w->qnums_logical[3],
+		a->qnums_logical[2], w->qnums_logical[3],
+	};
+	struct block_sparse_tensor t;
+	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
+	assert(t.blocks[0] != NULL);
+	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+	block_sparse_tensor_flatten_axes(&t, 2, TENSOR_AXIS_IN, r);
+	delete_block_sparse_tensor(&t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Create a dummy left operator block.
+///
+/// The left operator blocks use the axes ordering convention
+/// (outer virtual bond, virtual bond connected to 'a', virtual bond connected to 'w', virtual bond connected to conjugated 'b').
+///
+///        ╭─────────╮
+///        │         │
+///        │         3─>─
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///     ─<─0    l    2─<─
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         │
+///        │         1─<─
+///        │         │
+///        ╰─────────╯
 ///
 void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict l)
@@ -80,6 +178,56 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 	struct block_sparse_tensor t;
 	block_sparse_tensor_flatten_axes(&s, 0, TENSOR_AXIS_OUT, &t);
 	delete_block_sparse_tensor(&s);
+	block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, l);
+	delete_block_sparse_tensor(&t);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Create a dummy reduced left operator block.
+///
+///        ╭─────────╮
+///        │         │
+///        │         1─<─
+///        │         │
+///        │         │
+///        │         │
+///     ─<─0    l    │
+///        │         │
+///        │         │
+///        │         │
+///        │         2─<─
+///        │         │
+///        ╰─────────╯
+///
+/// Note that the reduced left block uses a reversed axis order.
+///
+static void create_dummy_reduced_operator_block_left(const struct block_sparse_tensor* restrict a,
+	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict l)
+{
+	assert(a->ndim == 3);
+	assert(w->ndim == 4);
+
+	// for now requiring dummy leading virtual bond dimensions
+	assert(a->dim_logical[0] == 1);
+	assert(w->dim_logical[0] == 1);
+
+	const enum numeric_type dtype = a->dtype;
+
+	const ct_long dim[4] = { 1, 1, 1, 1 };
+	const enum tensor_axis_direction axis_dir[4] = {
+		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT,
+		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
+	};
+	const qnumber* qnums[4] = {
+		w->qnums_logical[0], a->qnums_logical[0],
+		w->qnums_logical[0], a->qnums_logical[0],
+	};
+	struct block_sparse_tensor t;
+	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
+	assert(t.blocks[0] != NULL);
+	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, l);
 	delete_block_sparse_tensor(&t);
 }
@@ -126,19 +274,11 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 
 	// multiply with 'w' tensor
-	// re-order first three dimensions
-	const int perm0[5] = { 1, 2, 0, 3, 4 };
 	struct block_sparse_tensor t;
-	block_sparse_tensor_transpose(perm0, &s, &t);
+	block_sparse_tensor_multiply_axes(&s, 1, w, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-	delete_block_sparse_tensor(&t);
 
 	// multiply with conjugated 'b' tensor
-	// undo re-ordering and temporarily make trailing dimension in 's' the leading dimension
-	const int perm1[5] = { 4, 2, 0, 1, 3 };
-	block_sparse_tensor_transpose(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
 	struct block_sparse_tensor br = *b;  // copy internal data pointers
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
 	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
@@ -149,19 +289,15 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 		struct block_sparse_tensor bc;
 		copy_block_sparse_tensor(&br, &bc);
 		conjugate_block_sparse_tensor(&bc);
-		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, &s);
+		block_sparse_tensor_multiply_axes(&t, 2, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
 		delete_block_sparse_tensor(&bc);
 	}
 	else
 	{
-		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &br, TENSOR_AXIS_RANGE_TRAILING, 2, &s);
+		block_sparse_tensor_multiply_axes(&t, 2, &br, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
 	}
 	ct_free(br.axis_dir);
 	delete_block_sparse_tensor(&t);
-	// restore original trailing dimension
-	const int perm2[4] = { 1, 2, 3, 0 };
-	block_sparse_tensor_transpose(perm2, &s, r_next);
-	delete_block_sparse_tensor(&s);
 }
 
 
@@ -194,7 +330,7 @@ void contraction_operator_step_right(const struct block_sparse_tensor* restrict 
 ///        │       │         │         │
 ///        ╰───────╯         ╰─────────╯
 ///
-void contraction_operator_step_right_reduced(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
+static void contraction_operator_step_right_reduced(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict b,
 	const struct block_sparse_tensor* restrict w, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict r_next)
 {
 	assert(a->ndim == 3);
@@ -207,19 +343,11 @@ void contraction_operator_step_right_reduced(const struct block_sparse_tensor* r
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 
 	// multiply with 'w' tensor
-	// re-order first three dimensions
-	const int perm0[4] = { 1, 2, 0, 3 };
 	struct block_sparse_tensor t;
-	block_sparse_tensor_transpose(perm0, &s, &t);
+	block_sparse_tensor_multiply_axes(&s, 1, w, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-	delete_block_sparse_tensor(&t);
 
 	// multiply with conjugated 'b' tensor
-	// undo re-ordering
-	const int perm1[4] = { 2, 0, 1, 3 };
-	block_sparse_tensor_transpose(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
 	struct block_sparse_tensor br = *b;  // copy internal data pointers
 	br.axis_dir = ct_malloc(br.ndim * sizeof(enum tensor_axis_direction));
 	memcpy(br.axis_dir, b->axis_dir, br.ndim * sizeof(enum tensor_axis_direction));
@@ -230,12 +358,12 @@ void contraction_operator_step_right_reduced(const struct block_sparse_tensor* r
 		struct block_sparse_tensor bc;
 		copy_block_sparse_tensor(&br, &bc);
 		conjugate_block_sparse_tensor(&bc);
-		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
+		block_sparse_tensor_multiply_axes(&t, 2, &bc, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
 		delete_block_sparse_tensor(&bc);
 	}
 	else
 	{
-		block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, &br, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
+		block_sparse_tensor_multiply_axes(&t, 2, &br, TENSOR_AXIS_RANGE_TRAILING, 2, r_next);
 	}
 	ct_free(br.axis_dir);
 	delete_block_sparse_tensor(&t);
@@ -300,25 +428,53 @@ void contraction_operator_step_left(const struct block_sparse_tensor* restrict a
 	ct_free(br.axis_dir);
 
 	// multiply with 'w' tensor
-	// re-order last three dimensions
-	const int perm0[5] = { 0, 1, 4, 2, 3 };
 	struct block_sparse_tensor t;
-	block_sparse_tensor_transpose(perm0, &s, &t);
+	block_sparse_tensor_multiply_axes(&s, 2, w, TENSOR_AXIS_RANGE_LEADING, 2, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(&t, TENSOR_AXIS_RANGE_TRAILING, w, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-	delete_block_sparse_tensor(&t);
 
 	// multiply with 'a' tensor
-	// undo re-ordering, and temporarily make leading dimension in 's' the trailing dimension
-	const int perm1[5] = { 1, 3, 4, 2, 0 };
-	block_sparse_tensor_transpose(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_LEADING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+	block_sparse_tensor_multiply_axes(&t, 1, a, TENSOR_AXIS_RANGE_LEADING, 2, l_next);
 	delete_block_sparse_tensor(&t);
-	// restore original leading dimension
-	const int perm2[4] = { 3, 0, 1, 2 };
-	block_sparse_tensor_transpose(perm2, &s, l_next);
-	delete_block_sparse_tensor(&s);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Contraction step from left to right for a reduced left block.
+///
+/// To-be contracted tensor network:
+///
+///                                ^
+///                                │
+///        ╭─────────╮         ╭───1───╮
+///        │         │         │       │
+///        │         1─<─   ─<─0   w   3─<─
+///        │         │         │       │
+///        │         │         ╰───2───╯
+///        │         │             │
+///     ─<─0    l    │             ^
+///        │         │             │
+///        │         │         ╭───1───╮
+///        │         │         │       │
+///        │         2─<─   ─<─0   a   2─<─
+///        │         │         │       │
+///        ╰─────────╯         ╰───────╯
+///
+static void contraction_operator_step_left_reduced(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict w,
+	const struct block_sparse_tensor* restrict l, struct block_sparse_tensor* restrict l_next)
+{
+	// multiply with 'a' tensor
+	struct block_sparse_tensor t;
+	block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_TRAILING, a, TENSOR_AXIS_RANGE_LEADING, 1, &t);
+	assert(t.ndim == 4);
+
+	// multiply with 'w' tensor
+	struct block_sparse_tensor wt;
+	const int perm[4] = { 0, 2, 1, 3 };
+	block_sparse_tensor_transpose(perm, w, &wt);
+	block_sparse_tensor_multiply_axes(&t, 1, &wt, TENSOR_AXIS_RANGE_LEADING, 2, l_next);
+	delete_block_sparse_tensor(&t);
+	delete_block_sparse_tensor(&wt);
 }
 
 
@@ -440,29 +596,18 @@ void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 
 	// multiply with 'w' tensor
-	// re-order first three dimensions
-	const int perm0[5] = { 1, 2, 0, 3, 4 };
 	struct block_sparse_tensor t;
-	block_sparse_tensor_transpose(perm0, &s, &t);
+	block_sparse_tensor_multiply_axes(&s, 1, w, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
+	assert(t.ndim == 5);
+
+	// make the right outer virtual bond the leading dimension
+	const int perm[5] = { 4, 0, 1, 2, 3 };
+	block_sparse_tensor_transpose(perm, &t, &s);
 	delete_block_sparse_tensor(&t);
-	// undo re-ordering
-	const int perm1[5] = { 2, 0, 1, 3, 4 };
-	block_sparse_tensor_transpose(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
 
 	// multiply with 'l' tensor
-	// re-order last three dimensions
-	const int perm2[4] = { 0, 3, 1, 2 };
-	struct block_sparse_tensor k;
-	block_sparse_tensor_transpose(perm2, l, &k);
-	block_sparse_tensor_dot(&k, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-	delete_block_sparse_tensor(&k);
-	delete_block_sparse_tensor(&t);
-
-	// trace out outer virtual bonds (assumed to be low-dimensional)
-	block_sparse_tensor_cyclic_partial_trace(&s, 1, b);
+	block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_LEADING, &s, TENSOR_AXIS_RANGE_LEADING, 3, b);
 	delete_block_sparse_tensor(&s);
 }
 
@@ -498,9 +643,8 @@ void apply_local_hamiltonian(const struct block_sparse_tensor* restrict a, const
 ///        ╰─────────╯         ╰───────╯         ╰─────────╯
 ///
 /// The dotted outline marks the output tensor.
-/// The outer virtual bonds are contracted as well.
 ///
-void apply_local_hamiltonian_reduced(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict w,
+static void apply_local_hamiltonian_reduced(const struct block_sparse_tensor* restrict a, const struct block_sparse_tensor* restrict w,
 	const struct block_sparse_tensor* restrict l, const struct block_sparse_tensor* restrict r, struct block_sparse_tensor* restrict b)
 {
 	assert(a->ndim == 3);
@@ -513,21 +657,19 @@ void apply_local_hamiltonian_reduced(const struct block_sparse_tensor* restrict 
 	block_sparse_tensor_dot(a, TENSOR_AXIS_RANGE_TRAILING, r, TENSOR_AXIS_RANGE_LEADING, 1, &s);
 
 	// multiply with 'w' tensor
-	// re-order first three dimensions
-	const int perm0[4] = { 1, 2, 0, 3 };
 	struct block_sparse_tensor t;
-	block_sparse_tensor_transpose(perm0, &s, &t);
+	block_sparse_tensor_multiply_axes(&s, 1, w, TENSOR_AXIS_RANGE_TRAILING, 2, &t);
 	delete_block_sparse_tensor(&s);
-	block_sparse_tensor_dot(w, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-	delete_block_sparse_tensor(&t);
-	// undo re-ordering, with the two leading axes in reversed order to match the trailing axes of 'l'
-	const int perm1[4] = { 0, 2, 1, 3 };
-	block_sparse_tensor_transpose(perm1, &s, &t);
-	delete_block_sparse_tensor(&s);
+	assert(t.ndim == 4);
 
-	// multiply with 'l' tensor
-	block_sparse_tensor_dot(l, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, b);
+	// reverse the trailing axes of 'l' to match the ordering of 't'
+	const int perm[3] = { 0, 2, 1 };
+	block_sparse_tensor_transpose(perm, l, &s);
+
+	// multiply with transposed 'l' tensor
+	block_sparse_tensor_dot(&s, TENSOR_AXIS_RANGE_TRAILING, &t, TENSOR_AXIS_RANGE_LEADING, 2, b);
 	delete_block_sparse_tensor(&t);
+	delete_block_sparse_tensor(&s);
 }
 
 
@@ -621,138 +763,6 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Create a dummy reduced right operator block.
-///
-///        ╭─────────╮
-///        │         │
-///     ─<─1         │
-///        │         │
-///        │         │
-///        │         │
-///        │    r    2─<─
-///        │         │
-///        │         │
-///        │         │
-///     ─<─0         │
-///        │         │
-///        ╰─────────╯
-///
-void create_dummy_operator_block_right_reduced(const struct block_sparse_tensor* restrict a,
-	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict r)
-{
-	assert(a->ndim == 3);
-	assert(w->ndim == 4);
-
-	// for now requiring dummy trailing virtual bond dimensions
-	assert(a->dim_logical[2] == 1);
-	assert(w->dim_logical[3] == 1);
-
-	const enum numeric_type dtype = a->dtype;
-
-	const ct_long dim[4] = { 1, 1, 1, 1 };
-	const enum tensor_axis_direction axis_dir[4] = {
-		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT,
-		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
-	};
-	const qnumber* qnums[6] = {
-		a->qnums_logical[2], w->qnums_logical[3],
-		a->qnums_logical[2], w->qnums_logical[3],
-	};
-	struct block_sparse_tensor t;
-	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
-	assert(t.blocks[0] != NULL);
-	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
-	block_sparse_tensor_flatten_axes(&t, 2, TENSOR_AXIS_IN, r);
-	delete_block_sparse_tensor(&t);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Create a dummy reduced left operator block.
-///
-///        ╭─────────╮
-///        │         │
-///        │         1─<─
-///        │         │
-///        │         │
-///        │         │
-///     ─<─0    l    │
-///        │         │
-///        │         │
-///        │         │
-///        │         2─<─
-///        │         │
-///        ╰─────────╯
-///
-void create_dummy_reduced_operator_block_left(const struct block_sparse_tensor* restrict a,
-	const struct block_sparse_tensor* restrict w, struct block_sparse_tensor* restrict l)
-{
-	assert(a->ndim == 3);
-	assert(w->ndim == 4);
-
-	// for now requiring dummy leading virtual bond dimensions
-	assert(a->dim_logical[0] == 1);
-	assert(w->dim_logical[0] == 1);
-
-	const enum numeric_type dtype = a->dtype;
-
-	const ct_long dim[4] = { 1, 1, 1, 1 };
-	const enum tensor_axis_direction axis_dir[4] = {
-		TENSOR_AXIS_OUT, TENSOR_AXIS_OUT,
-		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
-	};
-	const qnumber* qnums[4] = {
-		w->qnums_logical[0], a->qnums_logical[0],
-		w->qnums_logical[0], a->qnums_logical[0],
-	};
-	struct block_sparse_tensor t;
-	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
-	assert(t.blocks[0] != NULL);
-	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
-	block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, l);
-	delete_block_sparse_tensor(&t);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Compute the right isometry 'q' of the RQ decomposition of an MPS-type tensor 'a',
-/// interpreted as matrix with the left virtual bond as row and the physical and right virtual bond as column dimension.
-///
-/// The 'r' matrix of the decomposition is discarded.
-///
-static int mps_tensor_right_isometry(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q)
-{
-	assert(a->ndim == 3);
-	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
-
-	// combine physical and right virtual bond axis
-	struct block_sparse_tensor a_mat;
-	block_sparse_tensor_flatten_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
-
-	// perform RQ decomposition
-	struct block_sparse_tensor r, q_mat;
-	int ret = block_sparse_tensor_rq(&a_mat, QR_REDUCED, &r, &q_mat);
-	delete_block_sparse_tensor(&a_mat);
-	if (ret < 0) {
-		return ret;
-	}
-	delete_block_sparse_tensor(&r);
-
-	// split physical and right virtual bond axis again
-	const ct_long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
-	const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
-	const qnumber* qnums_logical_right[2] = { a->qnums_logical[1], a->qnums_logical[2] };
-	block_sparse_tensor_split_axis(&q_mat, 1, dim_logical_right, axis_dir_right, qnums_logical_right, q);
-	delete_block_sparse_tensor(&q_mat);
-
-	return 0;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
 /// \brief Apply an operator represented as MPO to a state in MPS form,
 /// based on a direct contraction of physical axes and grouping of virtual bonds.
 ///
@@ -800,6 +810,42 @@ void apply_mpo_direct(const struct mpo* op, const struct mps* psi, struct mps* o
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Compute the right isometry 'q' of the RQ decomposition of an MPS-type tensor 'a',
+/// interpreted as matrix with the left virtual bond as row and the physical and right virtual bond as column dimension.
+///
+/// The 'r' matrix of the decomposition is discarded.
+///
+static int mps_tensor_right_isometry(const struct block_sparse_tensor* restrict a, struct block_sparse_tensor* restrict q)
+{
+	assert(a->ndim == 3);
+	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
+
+	// combine physical and right virtual bond axis
+	struct block_sparse_tensor a_mat;
+	block_sparse_tensor_flatten_axes(a, 1, TENSOR_AXIS_IN, &a_mat);
+
+	// perform RQ decomposition
+	struct block_sparse_tensor r, q_mat;
+	int ret = block_sparse_tensor_rq(&a_mat, QR_REDUCED, &r, &q_mat);
+	delete_block_sparse_tensor(&a_mat);
+	if (ret < 0) {
+		return ret;
+	}
+	delete_block_sparse_tensor(&r);
+
+	// split physical and right virtual bond axis again
+	const ct_long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
+	const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
+	const qnumber* qnums_logical_right[2] = { a->qnums_logical[1], a->qnums_logical[2] };
+	block_sparse_tensor_split_axis(&q_mat, 1, dim_logical_right, axis_dir_right, qnums_logical_right, q);
+	delete_block_sparse_tensor(&q_mat);
+
+	return 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Apply an operator represented as MPO to a state in MPS form
 /// using the Cholesky-based compression (CBC) method described in
 /// "Efficient application of tensor network operators to tensor network states".
@@ -840,15 +886,8 @@ int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol,
 		// contract left block with MPS and MPO tensors
 		struct block_sparse_tensor t;
 		{
-			block_sparse_tensor_dot(&lblocks[i], TENSOR_AXIS_RANGE_TRAILING, &psi->a[i], TENSOR_AXIS_RANGE_LEADING, 1, &t);
-			assert(t.ndim == 4);
-			struct block_sparse_tensor w;
-			const int perm[4] = { 0, 2, 1, 3 };
-			block_sparse_tensor_transpose(perm, &op->a[i], &w);
 			struct block_sparse_tensor s;
-			block_sparse_tensor_multiply_axes(&t, 1, &w, TENSOR_AXIS_RANGE_LEADING, 2, &s);
-			delete_block_sparse_tensor(&t);
-			delete_block_sparse_tensor(&w);
+			contraction_operator_step_left_reduced(&psi->a[i], &op->a[i], &lblocks[i], &s);
 			assert(s.ndim == 4);
 			// flatten right virtual bonds of 'op * psi'
 			block_sparse_tensor_flatten_axes(&s, 2, TENSOR_AXIS_IN, &t);
