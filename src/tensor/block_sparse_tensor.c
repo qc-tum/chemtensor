@@ -1,8 +1,9 @@
 /// \file block_sparse_tensor.c
 /// \brief Block-sparse tensor structure.
 
-#include <memory.h>
 #include <math.h>
+#include <memory.h>
+#include <complex.h>
 #include "block_sparse_tensor.h"
 #include "cblas_ct.h"
 #include "aligned_memory.h"
