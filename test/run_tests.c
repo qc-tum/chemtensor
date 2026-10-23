@@ -54,7 +54,6 @@ char* test_block_sparse_tensor_qr();
 char* test_block_sparse_tensor_rq();
 char* test_block_sparse_tensor_svd();
 char* test_block_sparse_tensor_augment_identity_blocks();
-char* test_block_sparse_tensor_serialize();
 char* test_block_sparse_tensor_get_entry();
 char* test_sparse_coordinate_tensor_transpose();
 char* test_sparse_coordinate_tensor_dot();
@@ -207,7 +206,6 @@ int main()
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_rq),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_svd),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_augment_identity_blocks),
-		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_serialize),
 		TEST_FUNCTION_ENTRY(test_block_sparse_tensor_get_entry),
 		TEST_FUNCTION_ENTRY(test_sparse_coordinate_tensor_transpose),
 		TEST_FUNCTION_ENTRY(test_sparse_coordinate_tensor_dot),

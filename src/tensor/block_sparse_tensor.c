@@ -55,6 +55,9 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		t->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
 		t->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		allocate_zero_dense_tensor(dtype, ndim, dim, t->blocks[0]);
+		assert(dense_tensor_num_elements(t->blocks[0]) == 1);
+		t->data = t->blocks[0]->data;
+		t->nelem = 1;
 
 		return;
 	}
@@ -116,9 +119,10 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		}
 	}
 
-	// allocate dense tensor blocks
+	// allocate (still empty) dense tensor blocks and count total number of entries
 	const ct_long nblocks = integer_product(t->dim_blocks, ndim);
 	t->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	t->nelem = 0;
 	ct_long* index_block = ct_calloc(ndim, sizeof(ct_long));
 	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(ndim, t->dim_blocks, index_block))
 	{
@@ -138,8 +142,10 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		for (int i = 0; i < ndim; i++) {
 			bdim[i] = qcounts[i][index_block[i]].count;
 		}
-		allocate_zero_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
+		allocate_empty_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
 		ct_free(bdim);
+
+		t->nelem += dense_tensor_num_elements(t->blocks[k]);
 	}
 	ct_free(index_block);
 
@@ -148,6 +154,26 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		ct_free(qcounts[i]);
 	}
 	ct_free(qcounts);
+
+	const size_t dtype_size = sizeof_numeric_type(t->dtype);
+
+	// contiguous array for block entries
+	t->data = ct_calloc(t->nelem, dtype_size);
+
+	// set dense block data pointers
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	int8_t* pentries = (int8_t*)t->data;
+	for (ct_long k = 0; k < nblocks; k++)
+	{
+		struct dense_tensor* b = t->blocks[k];
+		if (b != NULL)
+		{
+			// set data pointer
+			b->data = pentries;
+			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
+			pentries += nbytes;
+		}
+	}
 }
 
 
@@ -167,14 +193,7 @@ void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* restric
 ///
 void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 {
-	if (t->ndim == 0)  // special case
-	{
-		delete_dense_tensor(t->blocks[0]);
-		ct_free(t->blocks[0]);
-		ct_free(t->blocks);
-
-		return;
-	}
+	// special case t->ndim == 0 is handled correctly
 
 	// free dense tensor blocks
 	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
@@ -182,13 +201,18 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 	{
 		if (t->blocks[k] != NULL)
 		{
-			delete_dense_tensor(t->blocks[k]);
+			delete_empty_dense_tensor(t->blocks[k]);
 			ct_free(t->blocks[k]);
 			t->blocks[k] = NULL;
 		}
 	}
 	ct_free(t->blocks);
 	t->blocks = NULL;
+
+	// free block entries
+	ct_free(t->data);
+	t->data = NULL;
+	t->nelem = 0;
 
 	for (int i = 0; i < t->ndim; i++)
 	{
@@ -212,9 +236,10 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst)
 {
 	dst->dtype = src->dtype;
+	dst->ndim  = src->ndim;
+	dst->nelem = src->nelem;
 
 	const int ndim = src->ndim;
-	dst->ndim = ndim;
 
 	if (ndim == 0)  // special case
 	{
@@ -230,6 +255,10 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 		dst->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
 		dst->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		copy_dense_tensor(src->blocks[0], dst->blocks[0]);
+		assert(dense_tensor_num_elements(dst->blocks[0]) == 1);
+		// set data pointer
+		dst->data = dst->blocks[0]->data;
+		assert(dst->nelem == 1);
 
 		return;
 	}
@@ -257,19 +286,25 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 		memcpy(dst->qnums_logical[i], src->qnums_logical[i], src->dim_logical[i] * sizeof(qnumber));
 	}
 
+	// copy contiguous array for block entries
+	const size_t dtype_size = sizeof_numeric_type(dst->dtype);
+	dst->data = ct_malloc(dst->nelem * dtype_size);
+	memcpy(dst->data, src->data, dst->nelem * dtype_size);
+
 	// copy dense tensor blocks
 	const ct_long nblocks = integer_product(src->dim_blocks, ndim);
 	dst->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
-	#pragma omp parallel for schedule(dynamic)
 	for (ct_long k = 0; k < nblocks; k++)
 	{
 		if (src->blocks[k] == NULL) {
 			continue;
 		}
 
-		// allocate and copy dense tensor block
+		// copy empty dense tensor block
 		dst->blocks[k] = ct_calloc(1, sizeof(struct dense_tensor));
-		copy_dense_tensor(src->blocks[k], dst->blocks[k]);
+		allocate_empty_dense_tensor(src->blocks[k]->dtype, src->blocks[k]->ndim, src->blocks[k]->dim, dst->blocks[k]);
+		// preserve relative pointer offsets (relevant in case blocks are reshuffled)
+		dst->blocks[k]->data = dst->data + (src->blocks[k]->data - src->data);
 	}
 }
 
@@ -317,20 +352,31 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 ///
 double block_sparse_tensor_norm2(const struct block_sparse_tensor* t)
 {
-	double nrm = 0;
-
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	#pragma omp parallel for schedule(dynamic) reduction(+: nrm)
-	for (ct_long k = 0; k < nblocks; k++)
+	switch (t->dtype)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			nrm += square(dense_tensor_norm2(b));
+		case CT_SINGLE_REAL:
+		{
+			return cblas_snrm2(t->nelem, t->data, 1);
+		}
+		case CT_DOUBLE_REAL:
+		{
+			return cblas_dnrm2(t->nelem, t->data, 1);
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			return cblas_scnrm2(t->nelem, t->data, 1);
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			return cblas_dznrm2(t->nelem, t->data, 1);
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
+			return 0;
 		}
 	}
-	nrm = sqrt(nrm);
-
-	return nrm;
 }
 
 
@@ -415,13 +461,32 @@ void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor*
 ///
 void scale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t)
 {
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	switch (t->dtype)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			scale_dense_tensor(alpha, b);
+		case CT_SINGLE_REAL:
+		{
+			cblas_sscal(t->nelem, *((float*)alpha), t->data, 1);
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			cblas_dscal(t->nelem, *((double*)alpha), t->data, 1);
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			cblas_cscal(t->nelem, alpha, t->data, 1);
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			cblas_zscal(t->nelem, alpha, t->data, 1);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }
@@ -435,13 +500,32 @@ void scale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t)
 ///
 void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t)
 {
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	switch (t->dtype)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			rscale_dense_tensor(alpha, b);
+		case CT_SINGLE_REAL:
+		{
+			cblas_sscal(t->nelem, *((float*)alpha), t->data, 1);
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			cblas_dscal(t->nelem, *((double*)alpha), t->data, 1);
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			cblas_csscal(t->nelem, *((float*)alpha), t->data, 1);
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			cblas_zdscal(t->nelem, *((double*)alpha), t->data, 1);
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }
@@ -453,18 +537,36 @@ void rscale_block_sparse_tensor(const void* alpha, struct block_sparse_tensor* t
 ///
 void conjugate_block_sparse_tensor(struct block_sparse_tensor* t)
 {
-	if (is_real_numeric_type(t->dtype)) {
-		// no effect
-		return;
-	}
-
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	switch (t->dtype)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			conjugate_dense_tensor(b);
+		case CT_SINGLE_REAL:
+		case CT_DOUBLE_REAL:
+		{
+			// no effect
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			scomplex* data = t->data;
+			for (ct_long i = 0; i < t->nelem; i++)
+			{
+				data[i] = conjf(data[i]);
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			dcomplex* data = t->data;
+			for (ct_long i = 0; i < t->nelem; i++)
+			{
+				data[i] = conj(data[i]);
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
 }
@@ -497,15 +599,75 @@ void block_sparse_tensor_set_identity_blocks(struct block_sparse_tensor* t)
 ///
 void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t)
 {
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	// not using OpenMP parallelization here due to random state
-	for (ct_long k = 0; k < nblocks; k++)
+	switch (t->dtype)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			dense_tensor_fill_random_normal(alpha, shift, rng_state, b);
+		case CT_SINGLE_REAL:
+		{
+			float* data = t->data;
+			const float a = *((float*)alpha);
+			const float s = *((float*)shift);
+			for (ct_long j = 0; j < t->nelem; j++) {
+				data[j] = a * randnf(rng_state) + s;
+			}
+			break;
+		}
+		case CT_DOUBLE_REAL:
+		{
+			double* data = t->data;
+			const double a = *((double*)alpha);
+			const double s = *((double*)shift);
+			for (ct_long j = 0; j < t->nelem; j++) {
+				data[j] = a * randn(rng_state) + s;
+			}
+			break;
+		}
+		case CT_SINGLE_COMPLEX:
+		{
+			scomplex* data = t->data;
+			const scomplex a = *((scomplex*)alpha);
+			const scomplex s = *((scomplex*)shift);
+			for (ct_long j = 0; j < t->nelem; j++) {
+				data[j] = a * crandnf(rng_state) + s;
+			}
+			break;
+		}
+		case CT_DOUBLE_COMPLEX:
+		{
+			dcomplex* data = t->data;
+			const dcomplex a = *((dcomplex*)alpha);
+			const dcomplex s = *((dcomplex*)shift);
+			for (ct_long j = 0; j < t->nelem; j++) {
+				data[j] = a * crandn(rng_state) + s;
+			}
+			break;
+		}
+		default:
+		{
+			// unknown data type
+			assert(false);
 		}
 	}
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Redirect the data pointer and corresponding dense block pointers to 'new_root'
+///
+void block_sparse_tensor_redirect_data_pointer(struct block_sparse_tensor* t, void* new_root)
+{
+	const ct_long shift = new_root - t->data;
+
+	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
+	for (ct_long k = 0; k < nblocks; k++)
+	{
+		if (t->blocks[k] == NULL) {
+			continue;
+		}
+		t->blocks[k]->data += shift;
+	}
+
+	t->data = new_root;
 }
 
 
@@ -785,7 +947,8 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 void block_sparse_tensor_transpose(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
 {
 	r->dtype = t->dtype;
-	r->ndim = t->ndim;
+	r->ndim  = t->ndim;
+	r->nelem = t->nelem;
 
 	if (t->ndim == 0)  // special case
 	{
@@ -801,8 +964,12 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 		r->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
 		r->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
 		allocate_dense_tensor(r->dtype, 0, NULL, r->blocks[0]);
+		assert(dense_tensor_num_elements(r->blocks[0]) == 1);
 		// copy single number
 		memcpy(r->blocks[0]->data, t->blocks[0]->data, sizeof_numeric_type(t->blocks[0]->dtype));
+		// set data pointer
+		r->data = r->blocks[0]->data;
+		assert(r->nelem == 1);
 
 		return;
 	}
@@ -837,11 +1004,16 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 		memcpy(r->qnums_blocks[i], t->qnums_blocks[perm[i]], r->dim_blocks[i] * sizeof(qnumber));
 	}
 
-	// dense tensor blocks
+	// allocate (still empty) dense tensor blocks
 	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
 	r->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
-	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	ct_long* block_map = ct_calloc(nblocks, sizeof(ct_long));
+	ct_long* index_block_t = ct_calloc(t->ndim, sizeof(ct_long));
+	ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
+	#ifndef NDEBUG
+	ct_long nelem_r = 0;
+	#endif
+	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block_t))
 	{
 		const struct dense_tensor* bt = t->blocks[k];
 		if (bt == NULL) {
@@ -850,23 +1022,68 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 		assert(bt->ndim == t->ndim);
 		assert(bt->dtype == t->dtype);
 
-		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
-		offset_to_tensor_index(t->ndim, t->dim_blocks, k, index_block_t);
-
 		// corresponding block index in 'r'
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
 		for (int i = 0; i < t->ndim; i++) {
 			index_block_r[i] = index_block_t[perm[i]];
 		}
-		ct_long j = tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r);
+		const ct_long j = tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r);
+		block_map[j] = k;
 
-		// transpose dense tensor block
 		r->blocks[j] = ct_calloc(1, sizeof(struct dense_tensor));
-		dense_tensor_transpose(perm, bt, r->blocks[j]);
 
-		ct_free(index_block_r);
-		ct_free(index_block_t);	
+		// dimensions of new block
+		ct_long* br_dim = ct_malloc(bt->ndim * sizeof(ct_long));
+		for (int i = 0; i < bt->ndim; i++) {
+			br_dim[i] = bt->dim[perm[i]];
+		}
+
+		// create new empty block
+		allocate_empty_dense_tensor(bt->dtype, bt->ndim, br_dim, r->blocks[j]);
+
+		ct_free(br_dim);
+
+		#ifndef NDEBUG
+		nelem_r += dense_tensor_num_elements(r->blocks[j]);
+		#endif
 	}
+	ct_free(index_block_r);
+	ct_free(index_block_t);
+	#ifndef NDEBUG
+	assert(nelem_r == r->nelem);
+	#endif
+
+	const size_t dtype_size = sizeof_numeric_type(r->dtype);
+
+	// contiguous array for block entries
+	r->data = ct_malloc(r->nelem * dtype_size);
+
+	// set dense block data pointers
+	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
+	int8_t* pentries = (int8_t*)r->data;
+	for (ct_long j = 0; j < nblocks; j++)
+	{
+		struct dense_tensor* br = r->blocks[j];
+		if (br != NULL)
+		{
+			// set data pointer
+			br->data = pentries;
+			const size_t nbytes = dense_tensor_num_elements(br) * dtype_size;
+			pentries += nbytes;
+		}
+	}
+
+	// transpose the dense blocks
+	#pragma omp parallel for schedule(dynamic)
+	for (ct_long j = 0; j < nblocks; j++)
+	{
+		struct dense_tensor* br = r->blocks[j];
+		if (br == NULL) {
+			continue;
+		}
+		dense_tensor_transpose_fill(perm, t->blocks[block_map[j]], br);
+	}
+
+	ct_free(block_map);
 }
 
 
@@ -3110,78 +3327,6 @@ void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tenso
 
 	delete_block_sparse_tensor(&tlist[1]);
 	ct_free(qnums_aug);
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Overall number of entries in the blocks of the tensor.
-///
-ct_long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t)
-{
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-
-	ct_long nelem = 0;
-	for (ct_long k = 0; k < nblocks; k++)
-	{
-		if (t->blocks[k] != NULL) {
-			nelem += dense_tensor_num_elements(t->blocks[k]);
-		}
-	}
-
-	return nelem;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Store the block entries in a linear array.
-///
-void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries)
-{
-	const size_t dtype_size = sizeof_numeric_type(t->dtype);
-
-	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
-	int8_t* pentries = (int8_t*)entries;
-
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	for (ct_long k = 0; k < nblocks; k++)
-	{
-		const struct dense_tensor* b = t->blocks[k];
-		if (b != NULL)
-		{
-			assert(b->dtype == t->dtype);
-			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
-			memcpy(pentries, b->data, nbytes);
-			pentries += nbytes;
-		}
-	}
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Fill the block entries from a linear array.
-///
-void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, const void* entries)
-{
-	const size_t dtype_size = sizeof_numeric_type(t->dtype);
-
-	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
-	const int8_t* pentries = (const int8_t*)entries;
-
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	for (ct_long k = 0; k < nblocks; k++)
-	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL)
-		{
-			assert(b->dtype == t->dtype);
-			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
-			memcpy(b->data, pentries, nbytes);
-			pentries += nbytes;
-		}
-	}
 }
 
 

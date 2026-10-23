@@ -681,35 +681,6 @@ def block_sparse_tensor_augment_identity_blocks_data():
             file[f"t_ext{i}"] = t_ext[i]
 
 
-def block_sparse_tensor_serialize_data():
-
-    # random number generator
-    rng = np.random.default_rng(273)
-
-    # dimensions
-    dims = (11, 3, 5, 8)
-
-    # tensor degree
-    ndim = len(dims)
-
-    # axis directions
-    axis_dir = rng.choice((1, -1), size=ndim)
-
-    # quantum numbers
-    qnums = [rng.integers(-3, 4, size=d).astype(np.int32) for d in dims]
-
-    # dense tensor representation
-    t = crandn(dims, rng).astype(np.complex64)
-    # enforce sparsity pattern based on quantum numbers
-    enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
-
-    with h5py.File("data/test_block_sparse_tensor_serialize.hdf5", "w") as file:
-        file["t"] = t
-        file.attrs["axis_dir"] = axis_dir
-        for i, qn in enumerate(qnums):
-            file.attrs[f"qnums{i}"] = qn
-
-
 def block_sparse_tensor_get_entry_data():
 
     # random number generator
@@ -758,7 +729,6 @@ def main():
     block_sparse_tensor_rq_data()
     block_sparse_tensor_svd_data()
     block_sparse_tensor_augment_identity_blocks_data()
-    block_sparse_tensor_serialize_data()
     block_sparse_tensor_get_entry_data()
 
 

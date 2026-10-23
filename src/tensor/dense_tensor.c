@@ -74,6 +74,35 @@ void allocate_zero_dense_tensor(const enum numeric_type dtype, const int ndim, c
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Allocate memory for a dense tensor, except the actual data entries.
+///
+void allocate_empty_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t)
+{
+	t->dtype = dtype;
+
+	assert(ndim >= 0);
+	t->ndim = ndim;
+
+	if (ndim > 0)
+	{
+		t->dim = ct_malloc(ndim * sizeof(ct_long));
+		memcpy(t->dim, dim, ndim * sizeof(ct_long));
+	}
+	else    // ndim == 0
+	{
+		// ct_malloc(0) not guaranteed to return NULL
+		t->dim = NULL;
+	}
+
+	// dimensions must be strictly positive
+	assert(dense_tensor_num_elements(t) > 0);
+
+	t->data = NULL;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Delete a dense tensor (free memory).
 ///
 void delete_dense_tensor(struct dense_tensor* t)
@@ -81,6 +110,20 @@ void delete_dense_tensor(struct dense_tensor* t)
 	ct_free(t->data);
 	t->data = NULL;
 
+	if (t->ndim > 0)
+	{
+		ct_free(t->dim);
+	}
+	t->ndim = 0;
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Delete an empty dense tensor (free memory), i.e., omitting the data entries.
+///
+void delete_empty_dense_tensor(struct dense_tensor* t)
+{
 	if (t->ndim > 0)
 	{
 		ct_free(t->dim);
@@ -798,11 +841,44 @@ static void fuse_permutation_axes(const struct dimension_permutation* restrict d
 ///
 void dense_tensor_transpose(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
 {
-	// TODO: consider using an optimized library like https://github.com/springer13/hptt
-
 	if (t->ndim == 0)
 	{
 		allocate_dense_tensor(t->dtype, 0, NULL, r);
+	}
+	else
+	{
+		// ensure that 'perm' is a valid permutation
+		assert(is_permutation(perm, t->ndim));
+
+		// dimensions of new tensor 'r'
+		ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
+		for (int i = 0; i < t->ndim; i++) {
+			rdim[i] = t->dim[perm[i]];
+		}
+		// create new tensor 'r'
+		allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
+		ct_free(rdim);
+	}
+
+	dense_tensor_transpose_fill(perm, t, r);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Generalized transpose of a tensor 't' such that
+/// the i-th axis in the output tensor 'r' is the perm[i]-th axis of the input tensor 't'.
+/// 'r' must have been allocated beforehand.
+///
+void dense_tensor_transpose_fill(const int* restrict perm, const struct dense_tensor* restrict t, struct dense_tensor* restrict r)
+{
+	// TODO: consider using an optimized library such as https://github.com/springer13/hptt
+
+	assert(r->dtype == t->dtype);
+	assert(r->ndim  == t->ndim);
+
+	if (t->ndim == 0)
+	{
 		// copy single scalar entry
 		memcpy(r->data, t->data, sizeof_numeric_type(t->dtype));
 		return;
@@ -811,14 +887,10 @@ void dense_tensor_transpose(const int* restrict perm, const struct dense_tensor*
 	// ensure that 'perm' is a valid permutation
 	assert(is_permutation(perm, t->ndim));
 
-	// dimensions of new tensor 'r'
-	ct_long* rdim = ct_malloc(t->ndim * sizeof(ct_long));
+	// check dimensions of new tensor 'r'
 	for (int i = 0; i < t->ndim; i++) {
-		rdim[i] = t->dim[perm[i]];
+		assert(r->dim[i] == t->dim[perm[i]]);
 	}
-	// create new tensor 'r'
-	allocate_dense_tensor(t->dtype, t->ndim, rdim, r);
-	ct_free(rdim);
 
 	// effective dimensions and permutation
 	const struct dimension_permutation dp = { .dim = t->dim, .perm = (int*)perm, .ndim = t->ndim };

@@ -37,15 +37,15 @@ static void apply_local_hamiltonian_wrapper_d(const ct_long n, const void* restr
 
 	// interpret input vector as MPS tensor entries
 	assert(hdata->a->dtype == CT_DOUBLE_REAL);
-	assert(n == block_sparse_tensor_num_elements_blocks(hdata->a));
-	block_sparse_tensor_deserialize_entries(hdata->a, v);
+	assert(hdata->a->nelem == n);
+	block_sparse_tensor_redirect_data_pointer(hdata->a, (void*)v);
 
 	struct block_sparse_tensor ha;
 	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
 
 	assert(ha.dtype == CT_DOUBLE_REAL);
-	assert(n == block_sparse_tensor_num_elements_blocks(&ha));
-	block_sparse_tensor_serialize_entries(&ha, ret);
+	assert(ha.nelem == n);
+	memcpy(ret, ha.data, ha.nelem * sizeof(double));
 
 	delete_block_sparse_tensor(&ha);
 }
@@ -66,15 +66,15 @@ static void apply_local_hamiltonian_wrapper_z(const ct_long n, const void* restr
 
 	// interpret input vector as MPS tensor entries
 	assert(hdata->a->dtype == CT_DOUBLE_COMPLEX);
-	assert(n == block_sparse_tensor_num_elements_blocks(hdata->a));
-	block_sparse_tensor_deserialize_entries(hdata->a, v);
+	assert(hdata->a->nelem == n);
+	block_sparse_tensor_redirect_data_pointer(hdata->a, (void*)v);
 
 	struct block_sparse_tensor ha;
 	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
 
 	assert(ha.dtype == CT_DOUBLE_COMPLEX);
-	assert(n == block_sparse_tensor_num_elements_blocks(&ha));
-	block_sparse_tensor_serialize_entries(&ha, ret);
+	assert(ha.nelem == n);
+	memcpy(ret, ha.data, ha.nelem * sizeof(dcomplex));
 
 	delete_block_sparse_tensor(&ha);
 }
@@ -91,16 +91,10 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 	assert(w->dtype == r->dtype);
 	assert(w->dtype == a_start->dtype);
 
-	const ct_long n = block_sparse_tensor_num_elements_blocks(a_start);
-	void* vstart = ct_malloc(n * sizeof_numeric_type(a_start->dtype));
-	block_sparse_tensor_serialize_entries(a_start, vstart);
+	struct block_sparse_tensor a_iter = *a_start;  // copy internal data pointers
+	struct local_hamiltonian_data hdata = { .w = w, .l = l, .r = r, .a = &a_iter };
 
-	// using 'a_opt' as temporary tensor for iterations
 	allocate_block_sparse_tensor_like(a_start, a_opt);
-
-	struct local_hamiltonian_data hdata = { .w = w, .l = l, .r = r, .a = a_opt };
-
-	void* u_opt = ct_malloc(n * sizeof_numeric_type(a_start->dtype));
 
 	switch (a_start->dtype)
 	{
@@ -112,7 +106,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 		}
 		case CT_DOUBLE_REAL:
 		{
-			int ret = eigensystem_krylov_symmetric(n, apply_local_hamiltonian_wrapper_d, &hdata, vstart, maxiter, 1, en_min, u_opt);
+			int ret = eigensystem_krylov_symmetric(a_start->nelem, apply_local_hamiltonian_wrapper_d, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
 			if (ret < 0) {
 				return ret;
 			}
@@ -126,7 +120,7 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			int ret = eigensystem_krylov_hermitian(n, apply_local_hamiltonian_wrapper_z, &hdata, vstart, maxiter, 1, en_min, u_opt);
+			int ret = eigensystem_krylov_hermitian(a_start->nelem, apply_local_hamiltonian_wrapper_z, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
 			if (ret < 0) {
 				return ret;
 			}
@@ -138,11 +132,6 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 			assert(false);
 		}
 	}
-
-	block_sparse_tensor_deserialize_entries(a_opt, u_opt);
-
-	ct_free(u_opt);
-	ct_free(vstart);
 
 	return 0;
 }

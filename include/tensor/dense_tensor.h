@@ -32,7 +32,11 @@ void allocate_dense_tensor(const enum numeric_type dtype, const int ndim, const 
 
 void allocate_zero_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t);
 
+void allocate_empty_dense_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, struct dense_tensor* t);
+
 void delete_dense_tensor(struct dense_tensor* t);
+
+void delete_empty_dense_tensor(struct dense_tensor* t);
 
 void copy_dense_tensor(const struct dense_tensor* src, struct dense_tensor* dst);
 
@@ -147,6 +151,8 @@ void dense_tensor_fill_random_normal(const void* alpha, const void* shift, struc
 // transposition
 
 void dense_tensor_transpose(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
+
+void dense_tensor_transpose_fill(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 
 void dense_tensor_conjugate_transpose(const int* perm, const struct dense_tensor* t, struct dense_tensor* r);
 

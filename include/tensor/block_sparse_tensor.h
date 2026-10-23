@@ -14,15 +14,18 @@
 /// \brief Block-sparse tensor structure.
 ///
 /// Sparsity structure is imposed by additive quantum numbers.
+/// The data of all blocks is stored in a single contiguous array.
 ///
 struct block_sparse_tensor
 {
+	void* data;                             //!< serialized data entries of dense blocks
 	struct dense_tensor** blocks;           //!< dense blocks, array of size dim_blocks[0] x ... x dim_blocks[ndim-1]; contains NULL pointers for non-conserved quantum numbers
 	ct_long* dim_blocks;                    //!< block dimensions
 	ct_long* dim_logical;                   //!< logical dimensions of the overall tensor
 	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
 	qnumber** qnums_blocks;                 //!< block quantum numbers along each axis (must be sorted and pairwise different)
 	qnumber** qnums_logical;                //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
+	ct_long nelem;                          //!< cumulative number of entries in all blocks (length of data array)
 	enum numeric_type dtype;                //!< numeric data type
 	int ndim;                               //!< number of dimensions (degree)
 };
@@ -77,6 +80,8 @@ void conjugate_block_sparse_tensor(struct block_sparse_tensor* t);
 void block_sparse_tensor_set_identity_blocks(struct block_sparse_tensor* t);
 
 void block_sparse_tensor_fill_random_normal(const void* alpha, const void* shift, struct rng_state* rng_state, struct block_sparse_tensor* t);
+
+void block_sparse_tensor_redirect_data_pointer(struct block_sparse_tensor* t, void* new_root);
 
 
 //________________________________________________________________________________________________________________________
@@ -208,18 +213,6 @@ bool block_sparse_tensor_is_isometry(const struct block_sparse_tensor* t, const 
 // augmentation
 
 void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tensor* t, const bool transpose, struct block_sparse_tensor* ret);
-
-
-//________________________________________________________________________________________________________________________
-//
-
-// (de)serialization
-
-ct_long block_sparse_tensor_num_elements_blocks(const struct block_sparse_tensor* t);
-
-void block_sparse_tensor_serialize_entries(const struct block_sparse_tensor* t, void* entries);
-
-void block_sparse_tensor_deserialize_entries(struct block_sparse_tensor* t, const void* entries);
 
 
 //________________________________________________________________________________________________________________________
