@@ -248,7 +248,7 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const struct dmrg_singlesite_
 			const ct_long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
 			const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 			qnumber qzero[1] = { 0 };
-			const qnumber* qnums[3] = { psi->a[0].qnums_logical[0], qzero, psi->a[0].qnums_logical[0] };
+			const qnumber* qnums[3] = { psi->a[0].axis_qnums_logical[0], qzero, psi->a[0].axis_qnums_logical[0] };
 			allocate_block_sparse_tensor(psi->a[0].dtype, 3, dim, axis_dir, qnums, &t);
 
 			mps_local_orthonormalize_rq(&psi->a[0], &t);
@@ -428,7 +428,7 @@ int dmrg_twosite(const struct mpo* hamiltonian, const struct dmrg_twosite_option
 			const ct_long dim[3] = { psi->a[0].dim_logical[0], 1, psi->a[0].dim_logical[0] };
 			const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 			qnumber qzero[1] = { 0 };
-			const qnumber* qnums[3] = { psi->a[0].qnums_logical[0], qzero, psi->a[0].qnums_logical[0] };
+			const qnumber* qnums[3] = { psi->a[0].axis_qnums_logical[0], qzero, psi->a[0].axis_qnums_logical[0] };
 			allocate_block_sparse_tensor(psi->a[0].dtype, 3, dim, axis_dir, qnums, &t);
 
 			mps_local_orthonormalize_rq(&psi->a[0], &t);

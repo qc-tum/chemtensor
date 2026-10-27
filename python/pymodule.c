@@ -103,7 +103,7 @@ static PyObject* PyMPS_bond_quantum_numbers(PyMPSObject* self, PyObject* args)
 	}
 
 	const ct_long bond_dim = mps_bond_dim(&self->mps, i);
-	const qnumber* qnums = (i < self->mps.nsites) ? self->mps.a[i].qnums_logical[0] : self->mps.a[self->mps.nsites - 1].qnums_logical[2];
+	const qnumber* qnums = (i < self->mps.nsites) ? self->mps.a[i].axis_qnums_logical[0] : self->mps.a[self->mps.nsites - 1].axis_qnums_logical[2];
 
 	PyObject* list = PyList_New(bond_dim);
 	if (list == NULL) {
@@ -667,7 +667,7 @@ static PyObject* PyMPO_bond_quantum_numbers(PyMPOObject* self, PyObject* args)
 	}
 
 	const ct_long bond_dim = mpo_bond_dim(&self->mpo, i);
-	const qnumber* qnums = (i < self->mpo.nsites) ? self->mpo.a[i].qnums_logical[0] : self->mpo.a[self->mpo.nsites - 1].qnums_logical[3];
+	const qnumber* qnums = (i < self->mpo.nsites) ? self->mpo.a[i].axis_qnums_logical[0] : self->mpo.a[self->mpo.nsites - 1].axis_qnums_logical[3];
 
 	PyObject* list = PyList_New(bond_dim);
 	if (list == NULL) {
@@ -1196,7 +1196,7 @@ static PyObject* PyTTNS_bond_quantum_numbers(PyTTNSObject* self, PyObject* args)
 		PyErr_SetString(PyExc_RuntimeError, "create list");
 		return NULL;
 	}
-	const qnumber* qnums = self->ttns.a[i].qnums_logical[i_ax];
+	const qnumber* qnums = self->ttns.a[i].axis_qnums_logical[i_ax];
 	for (ct_long k = 0; k < bond_dim; k++) {
 		if (PyList_SetItem(list, k, PyLong_FromLong(qnums[k])) < 0) {
 			Py_DECREF(list);

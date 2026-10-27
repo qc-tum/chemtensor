@@ -117,7 +117,7 @@ char* test_block_sparse_tensor_get_block()
 		qnumber qsum = 0;
 		for (int i = 0; i < t.ndim; i++)
 		{
-			qsum += t.axis_dir[i] * t.qnums_blocks[i][index_block[i]];
+			qsum += t.axis_dir[i] * t.axis_qnums_sorted[i][index_block[i]];
 		}
 		if (qsum != 0) {
 			continue;
@@ -130,7 +130,7 @@ char* test_block_sparse_tensor_get_block()
 		qnumber* qnums_block = ct_malloc(ndim * sizeof(qnumber*));
 		for (int i = 0; i < ndim; i++)
 		{
-			qnums_block[i] = t.qnums_blocks[i][index_block[i]];
+			qnums_block[i] = t.axis_qnums_sorted[i][index_block[i]];
 		}
 
 		struct dense_tensor* b = block_sparse_tensor_get_block(&t, qnums_block);
@@ -509,7 +509,7 @@ char* test_block_sparse_tensor_reshape()
 
 	// split axis again
 	struct block_sparse_tensor s;
-	block_sparse_tensor_split_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.qnums_logical + i_ax), &s);
+	block_sparse_tensor_split_axis(&t_flat, i_ax, t.dim_logical + i_ax, t.axis_dir + i_ax, (const qnumber**)(t.axis_qnums_logical + i_ax), &s);
 
 	// compare
 	if (!block_sparse_tensor_allclose(&s, &t, 0.)) {

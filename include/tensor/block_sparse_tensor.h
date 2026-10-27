@@ -23,9 +23,9 @@ struct block_sparse_tensor
 	ct_long* dim_blocks;                    //!< block dimensions
 	ct_long* dim_logical;                   //!< logical dimensions of the overall tensor
 	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
-	qnumber** qnums_blocks;                 //!< block quantum numbers along each axis (must be sorted and pairwise different)
-	qnumber** qnums_logical;                //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
-	ct_long nelem;                          //!< cumulative number of entries in all blocks (length of data array)
+	qnumber** axis_qnums_sorted;            //!< unique quantum numbers along each axis (must be sorted and pairwise different)
+	qnumber** axis_qnums_logical;           //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
+	ct_long nelem;                          //!< cumulative number of entries in all blocks (length of 'data' array)
 	enum numeric_type dtype;                //!< numeric data type
 	int ndim;                               //!< number of dimensions (degree)
 };

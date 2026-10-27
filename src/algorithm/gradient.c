@@ -87,12 +87,12 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		// physical dimensions
 		assert(dw.dim_logical[1] == psi->d);
 		assert(dw.dim_logical[2] == psi->d);
-		assert(qnumber_all_equal(psi->d, dw.qnums_logical[1], psi->qsite));
-		assert(qnumber_all_equal(psi->d, dw.qnums_logical[2], psi->qsite));
+		assert(qnumber_all_equal(psi->d, dw.axis_qnums_logical[1], psi->qsite));
+		assert(qnumber_all_equal(psi->d, dw.axis_qnums_logical[2], psi->qsite));
 		for (int i = 0; i < 4; i++)
 		{
 			assert(dw.dim_logical[i] == mpo.a[l].dim_logical[i]);
-			assert(qnumber_all_equal(dw.dim_logical[i], dw.qnums_logical[i], mpo.a[l].qnums_logical[i]));
+			assert(qnumber_all_equal(dw.dim_logical[i], dw.axis_qnums_logical[i], mpo.a[l].axis_qnums_logical[i]));
 			assert(dw.axis_dir[i] == -mpo.a[l].axis_dir[i]);
 		}
 
@@ -103,8 +103,8 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		for (int i = 0; i < assembly->graph.num_edges[l]; i++)
 		{
 			const struct mpo_graph_edge* edge = &assembly->graph.edges[l][i];
-			assert(assembly->graph.verts[l    ][edge->vids[0]].qnum == dw.qnums_logical[0][edge->vids[0]]);
-			assert(assembly->graph.verts[l + 1][edge->vids[1]].qnum == dw.qnums_logical[3][edge->vids[1]]);
+			assert(assembly->graph.verts[l    ][edge->vids[0]].qnum == dw.axis_qnums_logical[0][edge->vids[0]]);
+			assert(assembly->graph.verts[l + 1][edge->vids[1]].qnum == dw.axis_qnums_logical[3][edge->vids[1]]);
 
 			for (int j = 0; j < edge->nopics; j++)
 			{

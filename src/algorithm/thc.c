@@ -298,7 +298,7 @@ int thc_spin_molecular_hamiltonian_to_matrix(const struct thc_spin_molecular_ham
 		// remove dummy virtual bond axes for multiplication
 		assert(g.ndim == 4);
 		assert(g.dim_logical[0] == 1 && g.dim_logical[3] == 1);
-		assert(g.qnums_logical[0][0] == 0 && g.qnums_logical[3][0] == 0);
+		assert(g.axis_qnums_logical[0][0] == 0 && g.axis_qnums_logical[3][0] == 0);
 		assert(g.axis_dir[1] == TENSOR_AXIS_OUT);
 		assert(g.axis_dir[2] == TENSOR_AXIS_IN);
 		struct block_sparse_tensor gl, gr;

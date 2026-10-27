@@ -107,7 +107,7 @@ char* test_ttns_vdot()
 	if (chi_vec.dim_logical[1] != 1 || psi_vec.dim_logical[1] != 1) {
 		return "auxiliary dimension in vector representation of a TTNS must be 1";
 	}
-	if (chi_vec.qnums_logical[1][0] != qnum_sector || psi_vec.qnums_logical[1][0] != qnum_sector) {
+	if (chi_vec.axis_qnums_logical[1][0] != qnum_sector || psi_vec.axis_qnums_logical[1][0] != qnum_sector) {
 		return "auxiliary dimension in vector representation of a TTNS does not contain expected quantum number sector";
 	}
 

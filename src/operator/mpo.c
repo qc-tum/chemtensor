@@ -312,8 +312,8 @@ bool mpo_is_consistent(const struct mpo* mpo)
 		if (mpo->a[i].dim_logical[1] != mpo->d || mpo->a[i].dim_logical[2] != mpo->d) {
 			return false;
 		}
-		if (!qnumber_all_equal(mpo->d, mpo->a[i].qnums_logical[1], mpo->qsite) ||
-		    !qnumber_all_equal(mpo->d, mpo->a[i].qnums_logical[2], mpo->qsite)) {
+		if (!qnumber_all_equal(mpo->d, mpo->a[i].axis_qnums_logical[1], mpo->qsite) ||
+		    !qnumber_all_equal(mpo->d, mpo->a[i].axis_qnums_logical[2], mpo->qsite)) {
 			return false;
 		}
 	}
@@ -324,7 +324,7 @@ bool mpo_is_consistent(const struct mpo* mpo)
 		if (mpo->a[i].dim_logical[3] != mpo->a[i + 1].dim_logical[0]) {
 			return false;
 		}
-		if (!qnumber_all_equal(mpo->a[i].dim_logical[3], mpo->a[i].qnums_logical[3], mpo->a[i + 1].qnums_logical[0])) {
+		if (!qnumber_all_equal(mpo->a[i].dim_logical[3], mpo->a[i].axis_qnums_logical[3], mpo->a[i + 1].axis_qnums_logical[0])) {
 			return false;
 		}
 	}

@@ -56,8 +56,8 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,  TENSOR_AXIS_OUT,
 	};
 	const qnumber* qnums[6] = {
-		a->qnums_logical[2], w->qnums_logical[3], b->qnums_logical[2],
-		a->qnums_logical[2], w->qnums_logical[3], b->qnums_logical[2],
+		a->axis_qnums_logical[2], w->axis_qnums_logical[3], b->axis_qnums_logical[2],
+		a->axis_qnums_logical[2], w->axis_qnums_logical[3], b->axis_qnums_logical[2],
 	};
 	struct block_sparse_tensor s;
 	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
@@ -107,8 +107,8 @@ static void create_dummy_operator_block_right_reduced(const struct block_sparse_
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
 	};
 	const qnumber* qnums[6] = {
-		a->qnums_logical[2], w->qnums_logical[3],
-		a->qnums_logical[2], w->qnums_logical[3],
+		a->axis_qnums_logical[2], w->axis_qnums_logical[3],
+		a->axis_qnums_logical[2], w->axis_qnums_logical[3],
 	};
 	struct block_sparse_tensor t;
 	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
@@ -168,8 +168,8 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,  TENSOR_AXIS_OUT,
 	};
 	const qnumber* qnums[6] = {
-		a->qnums_logical[0], w->qnums_logical[0], b->qnums_logical[0],
-		a->qnums_logical[0], w->qnums_logical[0], b->qnums_logical[0],
+		a->axis_qnums_logical[0], w->axis_qnums_logical[0], b->axis_qnums_logical[0],
+		a->axis_qnums_logical[0], w->axis_qnums_logical[0], b->axis_qnums_logical[0],
 	};
 	struct block_sparse_tensor s;
 	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
@@ -221,8 +221,8 @@ static void create_dummy_reduced_operator_block_left(const struct block_sparse_t
 		TENSOR_AXIS_IN,  TENSOR_AXIS_IN,
 	};
 	const qnumber* qnums[4] = {
-		w->qnums_logical[0], a->qnums_logical[0],
-		w->qnums_logical[0], a->qnums_logical[0],
+		w->axis_qnums_logical[0], a->axis_qnums_logical[0],
+		w->axis_qnums_logical[0], a->axis_qnums_logical[0],
 	};
 	struct block_sparse_tensor t;
 	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
@@ -836,7 +836,7 @@ static int mps_tensor_right_isometry(const struct block_sparse_tensor* restrict 
 	// split physical and right virtual bond axis again
 	const ct_long dim_logical_right[2] = { a->dim_logical[1], a->dim_logical[2] };
 	const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
-	const qnumber* qnums_logical_right[2] = { a->qnums_logical[1], a->qnums_logical[2] };
+	const qnumber* qnums_logical_right[2] = { a->axis_qnums_logical[1], a->axis_qnums_logical[2] };
 	block_sparse_tensor_split_axis(&q_mat, 1, dim_logical_right, axis_dir_right, qnums_logical_right, q);
 	delete_block_sparse_tensor(&q_mat);
 
@@ -914,7 +914,7 @@ int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol,
 			// restore right virtual bonds of 'op' and 'psi' as separate axes
 			const ct_long dim_logical_right[2] = { op->a[i].dim_logical[3], psi->a[i].dim_logical[2] };
 			const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_IN, TENSOR_AXIS_IN };
-			const qnumber* qnums_logical_right[2] = { op->a[i].qnums_logical[3], psi->a[i].qnums_logical[2] };
+			const qnumber* qnums_logical_right[2] = { op->a[i].axis_qnums_logical[3], psi->a[i].axis_qnums_logical[2] };
 			block_sparse_tensor_split_axis(&sv, 1, dim_logical_right, axis_dir_right, qnums_logical_right, &lblocks[i + 1]);
 			delete_block_sparse_tensor(&sv);
 			assert(lblocks[i + 1].ndim == 3);

@@ -579,7 +579,7 @@ bool ttno_is_consistent(const struct ttno* ttno)
 				if (ttno->a[l].dim_logical[i] != d_loc) {
 					return false;
 				}
-				if (!qnumber_all_equal(d_loc, ttno->a[l].qnums_logical[i], q_loc)) {
+				if (!qnumber_all_equal(d_loc, ttno->a[l].axis_qnums_logical[i], q_loc)) {
 					return false;
 				}
 				if (ttno->a[l].axis_dir[i] != (axis_desc[l][i].type == TTNO_TENSOR_AXIS_PHYS_OUT ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN)) {
@@ -620,8 +620,8 @@ bool ttno_is_consistent(const struct ttno* ttno)
 				return false;
 			}
 			if (!qnumber_all_equal(ttno->a[l].dim_logical[i_ax_neigh_lk],
-					ttno->a[l].qnums_logical[i_ax_neigh_lk],
-					ttno->a[k].qnums_logical[i_ax_neigh_kl])) {
+					ttno->a[l].axis_qnums_logical[i_ax_neigh_lk],
+					ttno->a[k].axis_qnums_logical[i_ax_neigh_kl])) {
 				return false;
 			}
 			if (ttno->a[l].axis_dir[i_ax_neigh_lk] != (k < l ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN)) {

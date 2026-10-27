@@ -196,7 +196,7 @@ bool mps_is_consistent(const struct mps* mps)
 		if (mps->a[i].dim_logical[1] != mps->d) {
 			return false;
 		}
-		if (!qnumber_all_equal(mps->d, mps->a[i].qnums_logical[1], mps->qsite)) {
+		if (!qnumber_all_equal(mps->d, mps->a[i].axis_qnums_logical[1], mps->qsite)) {
 			return false;
 		}
 	}
@@ -207,7 +207,7 @@ bool mps_is_consistent(const struct mps* mps)
 		if (mps->a[i].dim_logical[2] != mps->a[i + 1].dim_logical[0]) {
 			return false;
 		}
-		if (!qnumber_all_equal(mps->a[i].dim_logical[2], mps->a[i].qnums_logical[2], mps->a[i + 1].qnums_logical[0])) {
+		if (!qnumber_all_equal(mps->a[i].dim_logical[2], mps->a[i].axis_qnums_logical[2], mps->a[i + 1].axis_qnums_logical[0])) {
 			return false;
 		}
 	}
@@ -328,10 +328,10 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 		const ct_long dim[4] = { 1, 1, 1, 1 };
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN, TENSOR_AXIS_OUT };
 		const qnumber* qnums[4] = {
-			psi->a[psi->nsites - 1].qnums_logical[2],
-			chi->a[chi->nsites - 1].qnums_logical[2],
-			psi->a[psi->nsites - 1].qnums_logical[2],
-			chi->a[chi->nsites - 1].qnums_logical[2], };
+			psi->a[psi->nsites - 1].axis_qnums_logical[2],
+			chi->a[chi->nsites - 1].axis_qnums_logical[2],
+			psi->a[psi->nsites - 1].axis_qnums_logical[2],
+			chi->a[chi->nsites - 1].axis_qnums_logical[2], };
 		struct block_sparse_tensor t;
 		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
 		assert(t.blocks[0] != NULL);
@@ -441,14 +441,14 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 	       psi->a[0].dim_logical[0]);
 	assert(qnumber_all_equal(
 			chi->a[0].dim_logical[0],
-			chi->a[0].qnums_blocks[0],
-			psi->a[0].qnums_blocks[0]));
+			chi->a[0].axis_qnums_logical[0],
+			psi->a[0].axis_qnums_logical[0]));
 	assert(chi->a[nsites - 1].dim_logical[2] ==
 	       psi->a[nsites - 1].dim_logical[2]);
 	assert(qnumber_all_equal(
 			chi->a[nsites - 1].dim_logical[2],
-			chi->a[nsites - 1].qnums_blocks[2],
-			psi->a[nsites - 1].qnums_blocks[2]));
+			chi->a[nsites - 1].axis_qnums_logical[2],
+			psi->a[nsites - 1].axis_qnums_logical[2]));
 
 	// initialize return MPS
 	allocate_empty_mps(nsites, chi->d, chi->qsite, ret);
@@ -520,7 +520,7 @@ void mps_local_orthonormalize_qr(struct block_sparse_tensor* restrict a, struct 
 	for (int i = 0; i < 2; i++)
 	{
 		qnums_logical_left[i] = ct_malloc(dim_logical_left[i] * sizeof(qnumber));
-		memcpy(qnums_logical_left[i], a->qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
+		memcpy(qnums_logical_left[i], a->axis_qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[0] == TENSOR_AXIS_OUT && a->axis_dir[1] == TENSOR_AXIS_OUT);
 	const enum tensor_axis_direction axis_dir_left[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
@@ -567,7 +567,7 @@ void mps_local_orthonormalize_rq(struct block_sparse_tensor* restrict a, struct 
 	for (int i = 0; i < 2; i++)
 	{
 		qnums_logical_right[i] = ct_malloc(dim_logical_right[i] * sizeof(qnumber));
-		memcpy(qnums_logical_right[i], a->qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
+		memcpy(qnums_logical_right[i], a->axis_qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
 	const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
@@ -624,7 +624,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		const ct_long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
 		const enum tensor_axis_direction axis_dir_tail[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_tail[1] = { 0 };
-		const qnumber* qnums_tail[3] = { mps->a[i].qnums_logical[2], qsite_tail, mps->a[i].qnums_logical[2] };
+		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
 		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
 		assert(a_tail.dim_blocks[0] == 1 && a_tail.dim_blocks[1] == 1 && a_tail.dim_blocks[2] == 1);
@@ -697,7 +697,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		const ct_long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
 		const enum tensor_axis_direction axis_dir_head[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_head[1] = { 0 };
-		const qnumber* qnums_head[3] = { mps->a[0].qnums_logical[0], qsite_head, mps->a[0].qnums_logical[0] };
+		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
 		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
 		assert(a_head.dim_blocks[0] == 1 && a_head.dim_blocks[1] == 1 && a_head.dim_blocks[2] == 1);
@@ -771,7 +771,7 @@ int mps_local_orthonormalize_left_svd(const double tol, const ct_long max_vdim, 
 	for (int i = 0; i < 2; i++)
 	{
 		qnums_logical_left[i] = ct_malloc(dim_logical_left[i] * sizeof(qnumber));
-		memcpy(qnums_logical_left[i], a->qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
+		memcpy(qnums_logical_left[i], a->axis_qnums_logical[i], dim_logical_left[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[0] == TENSOR_AXIS_OUT && a->axis_dir[1] == TENSOR_AXIS_OUT);
 	const enum tensor_axis_direction axis_dir_left[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
@@ -822,7 +822,7 @@ int mps_local_orthonormalize_right_svd(const double tol, const ct_long max_vdim,
 	for (int i = 0; i < 2; i++)
 	{
 		qnums_logical_right[i] = ct_malloc(dim_logical_right[i] * sizeof(qnumber));
-		memcpy(qnums_logical_right[i], a->qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
+		memcpy(qnums_logical_right[i], a->axis_qnums_logical[1 + i], dim_logical_right[i] * sizeof(qnumber));
 	}
 	assert(a->axis_dir[1] == TENSOR_AXIS_OUT && a->axis_dir[2] == TENSOR_AXIS_IN);
 	const enum tensor_axis_direction axis_dir_right[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
@@ -890,7 +890,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		const ct_long dim_tail[3] = { mps->a[i].dim_logical[2], 1, mps->a[i].dim_logical[2] };
 		const enum tensor_axis_direction axis_dir_tail[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_tail[1] = { 0 };
-		const qnumber* qnums_tail[3] = { mps->a[i].qnums_logical[2], qsite_tail, mps->a[i].qnums_logical[2] };
+		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
 		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
 		assert(a_tail.dim_blocks[0] == 1 && a_tail.dim_blocks[1] == 1 && a_tail.dim_blocks[2] == 1);
@@ -984,7 +984,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		const ct_long dim_head[3] = { mps->a[0].dim_logical[0], 1, mps->a[0].dim_logical[0] };
 		const enum tensor_axis_direction axis_dir_head[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		qnumber qsite_head[1] = { 0 };
-		const qnumber* qnums_head[3] = { mps->a[0].qnums_logical[0], qsite_head, mps->a[0].qnums_logical[0] };
+		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
 		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
 		assert(a_head.dim_blocks[0] == 1 && a_head.dim_blocks[1] == 1 && a_head.dim_blocks[2] == 1);
@@ -1146,8 +1146,8 @@ int mps_split_tensor_svd(const struct block_sparse_tensor* restrict a, const ct_
 
 	// restore original virtual bonds and physical axes
 	assert(a_twosite.ndim == 4);
-	block_sparse_tensor_split_axis(&m0, 0, a_twosite.dim_logical,     a_twosite.axis_dir,     (const qnumber**) a_twosite.qnums_logical,      a0);
-	block_sparse_tensor_split_axis(&m1, 1, a_twosite.dim_logical + 2, a_twosite.axis_dir + 2, (const qnumber**)(a_twosite.qnums_logical + 2), a1);
+	block_sparse_tensor_split_axis(&m0, 0, a_twosite.dim_logical,     a_twosite.axis_dir,     (const qnumber**) a_twosite.axis_qnums_logical,      a0);
+	block_sparse_tensor_split_axis(&m1, 1, a_twosite.dim_logical + 2, a_twosite.axis_dir + 2, (const qnumber**)(a_twosite.axis_qnums_logical + 2), a1);
 
 	delete_block_sparse_tensor(&m1);
 	delete_block_sparse_tensor(&m0);
@@ -1244,7 +1244,7 @@ int save_mps(const char* filename, const struct mps* mps)
 	{
 		char varname[128];
 		sprintf(varname, "qbond_%i", i);
-		const qnumber* qbond = (i < mps->nsites ? mps->a[i].qnums_logical[0] : mps->a[mps->nsites - 1].qnums_logical[2]);
+		const qnumber* qbond = (i < mps->nsites ? mps->a[i].axis_qnums_logical[0] : mps->a[mps->nsites - 1].axis_qnums_logical[2]);
 		if (write_hdf5_vector_attribute(file, varname, H5T_STD_I32LE, H5T_NATIVE_INT, mps_bond_dim(mps, i), qbond) < 0)
 		{
 			fprintf(stderr, "writing '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);

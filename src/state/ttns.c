@@ -339,7 +339,7 @@ bool ttns_is_consistent(const struct ttns* ttns)
 					if (ttns->a[l].dim_logical[i] != 1) {
 						return false;
 					}
-					if (ttns->a[l].qnums_logical[i][0] != 0) {
+					if (ttns->a[l].axis_qnums_logical[i][0] != 0) {
 						return false;
 					}
 				}
@@ -402,8 +402,8 @@ bool ttns_is_consistent(const struct ttns* ttns)
 				return false;
 			}
 			if (!qnumber_all_equal(ttns->a[l].dim_logical[i_ax_neigh_lk],
-					ttns->a[l].qnums_logical[i_ax_neigh_lk],
-					ttns->a[k].qnums_logical[i_ax_neigh_kl])) {
+					ttns->a[l].axis_qnums_logical[i_ax_neigh_lk],
+					ttns->a[k].axis_qnums_logical[i_ax_neigh_kl])) {
 				return false;
 			}
 			if (ttns->a[l].axis_dir[i_ax_neigh_lk] != (k < l ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN)) {

@@ -65,7 +65,7 @@ static inline qnumber ttns_quantum_number_sector(const struct ttns* ttns)
 	assert(ttns->a[l].ndim >= 2);
 	assert(ttns->a[l].dim_logical[ttns->a[l].ndim - 1] == 1);
 
-	return ttns->a[l].qnums_logical[ttns->a[l].ndim - 1][0];
+	return ttns->a[l].axis_qnums_logical[ttns->a[l].ndim - 1][0];
 }
 
 
