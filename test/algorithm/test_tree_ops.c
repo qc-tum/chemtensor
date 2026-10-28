@@ -128,10 +128,10 @@ char* test_ttno_inner_product()
 		struct block_sparse_tensor t_vdot_ref;
 		block_sparse_tensor_dot(&chi_vec_conj, TENSOR_AXIS_RANGE_TRAILING, &op_psi_ref, TENSOR_AXIS_RANGE_TRAILING, 2, &t_vdot_ref);
 		assert(t_vdot_ref.ndim == 0);
-		assert(t_vdot_ref.blocks[0] != NULL);
-		assert(t_vdot_ref.blocks[0]->data != NULL);
+		assert(t_vdot_ref.nelem == 1);
+		assert(t_vdot_ref.nblocks == 1);
 
-		s_ref = *((dcomplex*)t_vdot_ref.blocks[0]->data);
+		s_ref = *((dcomplex*)t_vdot_ref.data);
 
 		delete_block_sparse_tensor(&t_vdot_ref);
 		delete_block_sparse_tensor(&chi_vec_conj);

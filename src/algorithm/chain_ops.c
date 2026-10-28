@@ -61,8 +61,9 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 	};
 	struct block_sparse_tensor s;
 	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
-	assert(s.blocks[0] != NULL);
-	memcpy(s.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+	assert(s.nelem == 1);
+	assert(s.nblocks == 1);
+	memcpy(s.data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	struct block_sparse_tensor t;
 	block_sparse_tensor_flatten_axes(&s, 4, TENSOR_AXIS_IN, &t);
 	delete_block_sparse_tensor(&s);
@@ -112,8 +113,9 @@ static void create_dummy_operator_block_right_reduced(const struct block_sparse_
 	};
 	struct block_sparse_tensor t;
 	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
-	assert(t.blocks[0] != NULL);
-	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+	assert(t.nelem == 1);
+	assert(t.nblocks == 1);
+	memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	block_sparse_tensor_flatten_axes(&t, 2, TENSOR_AXIS_IN, r);
 	delete_block_sparse_tensor(&t);
 }
@@ -173,8 +175,9 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 	};
 	struct block_sparse_tensor s;
 	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
-	assert(s.blocks[0] != NULL);
-	memcpy(s.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+	assert(s.nelem == 1);
+	assert(s.nblocks == 1);
+	memcpy(s.data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	struct block_sparse_tensor t;
 	block_sparse_tensor_flatten_axes(&s, 0, TENSOR_AXIS_OUT, &t);
 	delete_block_sparse_tensor(&s);
@@ -226,8 +229,9 @@ static void create_dummy_reduced_operator_block_left(const struct block_sparse_t
 	};
 	struct block_sparse_tensor t;
 	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
-	assert(t.blocks[0] != NULL);
-	memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+	assert(t.nelem == 1);
+	assert(t.nblocks == 1);
+	memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
 	block_sparse_tensor_flatten_axes(&t, 0, TENSOR_AXIS_OUT, l);
 	delete_block_sparse_tensor(&t);
 }
@@ -544,8 +548,9 @@ void mpo_inner_product(const struct mps* chi, const struct mpo* op, const struct
 	// 'r' should now be a 1 x 1 tensor
 	assert(r.ndim == 2);
 	assert(r.dim_logical[0] == 1 && r.dim_logical[1] == 1);
-	assert(r.blocks[0] != NULL);
-	memcpy(ret, r.blocks[0]->data, sizeof_numeric_type(dtype));
+	assert(r.nelem == 1);
+	assert(r.nblocks == 1);
+	memcpy(ret, r.data, sizeof_numeric_type(dtype));
 	delete_block_sparse_tensor(&r);
 }
 

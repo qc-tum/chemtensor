@@ -57,7 +57,7 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 		assert(r.dim_logical[0] == 1 && r.dim_logical[1] == 1);
 
 		// 'r' is logically zero in case quantum numbers do not match
-		if (r.blocks[0] == NULL)
+		if (r.nblocks == 0)
 		{
 			memset(avr, 0, sizeof_numeric_type(assembly->dtype));
 
@@ -72,8 +72,10 @@ void operator_average_coefficient_gradient(const struct mpo_assembly* assembly, 
 			return;
 		}
 
-		assert(r.blocks[0]->dtype == assembly->dtype);
-		memcpy(avr, r.blocks[0]->data, sizeof_numeric_type(r.blocks[0]->dtype));
+		assert(r.nelem == 1);
+		assert(r.nblocks == 1);
+		assert(r.dtype == assembly->dtype);
+		memcpy(avr, r.data, sizeof_numeric_type(r.dtype));
 
 		delete_block_sparse_tensor(&r);
 	}

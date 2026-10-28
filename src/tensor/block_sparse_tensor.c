@@ -11,6 +11,29 @@
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Utility function for setting the linear list of block pointers and corresponding table indices.
+///
+static inline void block_sparse_tensor_fill_block_list_indices(struct block_sparse_tensor* t)
+{
+	ct_long* index_block = ct_calloc(t->ndim, sizeof(ct_long));
+	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
+	ct_long c = 0;
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(t->ndim, t->dim_sorted, index_block))
+	{
+		if (t->block_table[k] == NULL) {
+			continue;
+		}
+		t->block_list[c] = t->block_table[k];
+		memcpy(&t->table_index_list[c * t->ndim], index_block, t->ndim * sizeof(ct_long));
+		c++;
+	}
+	assert(c == t->nblocks);
+	ct_free(index_block);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Temporary data structure for enumerating quantum numbers and their multiplicities.
 ///
 struct qnumber_count
@@ -44,8 +67,10 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 
 	if (ndim == 0)  // special case
 	{
+		t->table_index_list = NULL;
+
 		t->dim_logical = NULL;
-		t->dim_blocks  = NULL;
+		t->dim_sorted  = NULL;
 
 		t->axis_dir = NULL;
 
@@ -53,12 +78,16 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		t->axis_qnums_sorted  = NULL;
 
 		// allocate memory for a single block
-		t->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
-		t->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_zero_dense_tensor(dtype, ndim, dim, t->blocks[0]);
-		assert(dense_tensor_num_elements(t->blocks[0]) == 1);
-		t->data = t->blocks[0]->data;
+		struct dense_tensor* b = ct_calloc(1, sizeof(struct dense_tensor));
+		allocate_zero_dense_tensor(dtype, ndim, dim, b);
+		assert(dense_tensor_num_elements(b) == 1);
+		t->block_table = ct_calloc(1, sizeof(struct dense_tensor*));
+		t->block_list  = ct_calloc(1, sizeof(struct dense_tensor*));
+		t->block_table[0] = b;
+		t->block_list[0]  = b;
+		t->data = b->data;
 		t->nelem = 1;
+		t->nblocks = 1;
 
 		return;
 	}
@@ -66,7 +95,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 	t->dim_logical = ct_malloc(ndim * sizeof(ct_long));
 	memcpy(t->dim_logical, dim, ndim * sizeof(ct_long));
 
-	t->dim_blocks = ct_calloc(ndim, sizeof(ct_long));
+	t->dim_sorted = ct_calloc(ndim, sizeof(ct_long));
 
 	t->axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	memcpy(t->axis_dir, axis_dir, ndim * sizeof(enum tensor_axis_direction));
@@ -111,7 +140,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 
 		qsort(qcounts[i], nqc, sizeof(struct qnumber_count), compare_qnumber_count);
 
-		t->dim_blocks[i] = nqc;
+		t->dim_sorted[i] = nqc;
 
 		// store quantum numbers
 		t->axis_qnums_sorted[i] = ct_calloc(nqc, sizeof(qnumber));
@@ -121,11 +150,12 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 	}
 
 	// allocate (still empty) dense tensor blocks and count total number of entries
-	const ct_long nblocks = integer_product(t->dim_blocks, ndim);
-	t->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+	const ct_long max_nblocks = integer_product(t->dim_sorted, ndim);
+	t->block_table = ct_calloc(max_nblocks, sizeof(struct dense_tensor*));
 	t->nelem = 0;
+	t->nblocks = 0;
 	ct_long* index_block = ct_calloc(ndim, sizeof(ct_long));
-	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(ndim, t->dim_blocks, index_block))
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(ndim, t->dim_sorted, index_block))
 	{
 		// probe whether quantum numbers sum to zero
 		qnumber qsum = 0;
@@ -138,17 +168,24 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		}
 
 		// allocate dense tensor block
-		t->blocks[k] = ct_calloc(1, sizeof(struct dense_tensor));
+		struct dense_tensor* b = ct_calloc(1, sizeof(struct dense_tensor));
 		ct_long* bdim = ct_malloc(ndim * sizeof(ct_long));
 		for (int i = 0; i < ndim; i++) {
 			bdim[i] = qcounts[i][index_block[i]].count;
 		}
-		allocate_empty_dense_tensor(dtype, ndim, bdim, t->blocks[k]);
+		allocate_empty_dense_tensor(dtype, ndim, bdim, b);
 		ct_free(bdim);
+		t->block_table[k] = b;
 
-		t->nelem += dense_tensor_num_elements(t->blocks[k]);
+		t->nelem += dense_tensor_num_elements(b);
+		t->nblocks++;
 	}
 	ct_free(index_block);
+	assert(t->nblocks <= max_nblocks);
+
+	t->block_list = ct_malloc(t->nblocks * sizeof(struct dense_tensor*)); 
+	t->table_index_list = ct_malloc(t->nblocks * ndim * sizeof(ct_long));
+	block_sparse_tensor_fill_block_list_indices(t);
 
 	for (int i = 0; i < ndim; i++)
 	{
@@ -164,16 +201,15 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 	// set dense block data pointers
 	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 	int8_t* pentries = (int8_t*)t->data;
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < t->nblocks; k++)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL)
-		{
-			// set data pointer
-			b->data = pentries;
-			const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
-			pentries += nbytes;
-		}
+		struct dense_tensor* b = t->block_list[k];
+		assert(b != NULL);
+
+		// set data pointer
+		b->data = pentries;
+		const size_t nbytes = dense_tensor_num_elements(b) * dtype_size;
+		pentries += nbytes;
 	}
 }
 
@@ -196,25 +232,6 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 {
 	// special case t->ndim == 0 is handled correctly
 
-	// free dense tensor blocks
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	for (ct_long k = 0; k < nblocks; k++)
-	{
-		if (t->blocks[k] != NULL)
-		{
-			delete_empty_dense_tensor(t->blocks[k]);
-			ct_free(t->blocks[k]);
-			t->blocks[k] = NULL;
-		}
-	}
-	ct_free(t->blocks);
-	t->blocks = NULL;
-
-	// free block entries
-	ct_free(t->data);
-	t->data = NULL;
-	t->nelem = 0;
-
 	for (int i = 0; i < t->ndim; i++)
 	{
 		ct_free(t->axis_qnums_sorted[i]);
@@ -225,8 +242,26 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 
 	ct_free(t->axis_dir);
 
-	ct_free(t->dim_blocks);
+	ct_free(t->dim_sorted);
 	ct_free(t->dim_logical);
+
+	ct_free(t->table_index_list);
+
+	// free dense tensor blocks
+	for (ct_long k = 0; k < t->nblocks; k++)
+	{
+		delete_empty_dense_tensor(t->block_list[k]);
+		ct_free(t->block_list[k]);
+	}
+	ct_free(t->block_list);
+	ct_free(t->block_table);
+	t->block_list  = NULL;
+	t->block_table = NULL;
+
+	// free block entries
+	ct_free(t->data);
+	t->data = NULL;
+	t->nelem = 0;
 }
 
 
@@ -236,36 +271,42 @@ void delete_block_sparse_tensor(struct block_sparse_tensor* t)
 ///
 void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, struct block_sparse_tensor* restrict dst)
 {
-	dst->dtype = src->dtype;
-	dst->ndim  = src->ndim;
-	dst->nelem = src->nelem;
+	dst->nelem   = src->nelem;
+	dst->nblocks = src->nblocks;
+	dst->dtype   = src->dtype;
+	dst->ndim    = src->ndim;
 
 	const int ndim = src->ndim;
 
 	if (ndim == 0)  // special case
 	{
+		dst->table_index_list = NULL;
+
 		dst->dim_logical = NULL;
-		dst->dim_blocks  = NULL;
+		dst->dim_sorted  = NULL;
 
 		dst->axis_dir = NULL;
 
 		dst->axis_qnums_logical = NULL;
 		dst->axis_qnums_sorted  = NULL;
 
-		// allocate memory for a single block
-		dst->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
-		dst->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
-		copy_dense_tensor(src->blocks[0], dst->blocks[0]);
-		assert(dense_tensor_num_elements(dst->blocks[0]) == 1);
-		// set data pointer
-		dst->data = dst->blocks[0]->data;
+		// copy the single block
+		struct dense_tensor* b = ct_calloc(1, sizeof(struct dense_tensor));
+		copy_dense_tensor(src->block_list[0], b);
+		assert(dense_tensor_num_elements(b) == 1);
+		dst->block_table = ct_calloc(1, sizeof(struct dense_tensor*));
+		dst->block_list  = ct_calloc(1, sizeof(struct dense_tensor*));
+		dst->block_table[0] = b;
+		dst->block_list[0]  = b;
+		dst->data = b->data;
 		assert(dst->nelem == 1);
+		assert(dst->nblocks == 1);
 
 		return;
 	}
 
-	dst->dim_blocks = ct_calloc(ndim, sizeof(ct_long));
-	memcpy(dst->dim_blocks, src->dim_blocks, ndim * sizeof(ct_long));
+	dst->dim_sorted = ct_malloc(ndim * sizeof(ct_long));
+	memcpy(dst->dim_sorted, src->dim_sorted, ndim * sizeof(ct_long));
 
 	dst->dim_logical = ct_malloc(ndim * sizeof(ct_long));
 	memcpy(dst->dim_logical, src->dim_logical, ndim * sizeof(ct_long));
@@ -276,8 +317,8 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 	dst->axis_qnums_sorted = ct_calloc(ndim, sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		dst->axis_qnums_sorted[i] = ct_malloc(src->dim_blocks[i] * sizeof(qnumber));
-		memcpy(dst->axis_qnums_sorted[i], src->axis_qnums_sorted[i], src->dim_blocks[i] * sizeof(qnumber));
+		dst->axis_qnums_sorted[i] = ct_malloc(src->dim_sorted[i] * sizeof(qnumber));
+		memcpy(dst->axis_qnums_sorted[i], src->axis_qnums_sorted[i], src->dim_sorted[i] * sizeof(qnumber));
 	}
 
 	dst->axis_qnums_logical = ct_calloc(ndim, sizeof(qnumber*));
@@ -293,20 +334,28 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 	memcpy(dst->data, src->data, dst->nelem * dtype_size);
 
 	// copy dense tensor blocks
-	const ct_long nblocks = integer_product(src->dim_blocks, ndim);
-	dst->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
-	for (ct_long k = 0; k < nblocks; k++)
+	const ct_long max_nblocks = integer_product(src->dim_sorted, ndim);
+	dst->block_table = ct_calloc(max_nblocks,  sizeof(struct dense_tensor*));
+	ct_long* index_block = ct_calloc(ndim, sizeof(ct_long));
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(ndim, dst->dim_sorted, index_block))
 	{
-		if (src->blocks[k] == NULL) {
+		if (src->block_table[k] == NULL) {
 			continue;
 		}
 
 		// copy empty dense tensor block
-		dst->blocks[k] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_empty_dense_tensor(src->blocks[k]->dtype, src->blocks[k]->ndim, src->blocks[k]->dim, dst->blocks[k]);
+		struct dense_tensor* b = ct_calloc(1, sizeof(struct dense_tensor));
+		allocate_empty_dense_tensor(src->block_table[k]->dtype, src->block_table[k]->ndim, src->block_table[k]->dim, b);
 		// preserve relative pointer offsets (relevant in case blocks are reshuffled)
-		dst->blocks[k]->data = dst->data + (src->blocks[k]->data - src->data);
+		b->data = dst->data + (src->block_table[k]->data - src->data);
+		dst->block_table[k] = b;
 	}
+	ct_free(index_block);
+
+	// block list and table indices
+	dst->block_list = ct_malloc(dst->nblocks * sizeof(struct dense_tensor*));
+	dst->table_index_list = ct_malloc(dst->nblocks * dst->ndim * sizeof(ct_long));
+	block_sparse_tensor_fill_block_list_indices(dst);
 }
 
 
@@ -323,7 +372,7 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 	for (int i = 0; i < t->ndim; i++)
 	{
 		index[i] = -1;
-		for (ct_long j = 0; j < t->dim_blocks[i]; j++)
+		for (ct_long j = 0; j < t->dim_sorted[i]; j++)
 		{
 			if (t->axis_qnums_sorted[i][j] == qnums[i]) {
 				index[i] = j;
@@ -337,11 +386,11 @@ struct dense_tensor* block_sparse_tensor_get_block(const struct block_sparse_ten
 		}
 	}
 
-	ct_long o = tensor_index_to_offset(t->ndim, t->dim_blocks, index);
+	ct_long k = tensor_index_to_offset(t->ndim, t->dim_sorted, index);
 
 	ct_free(index);
 
-	return t->blocks[o];
+	return t->block_table[k];
 }
 
 
@@ -403,43 +452,38 @@ void block_sparse_tensor_reverse_axis_directions(struct block_sparse_tensor* t)
 void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor* t, const int i_ax)
 {
 	assert(0 <= i_ax && i_ax < t->ndim);
-	
-	// allocate new dense tensor block pointers
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	struct dense_tensor** blocks_new = ct_calloc(nblocks, sizeof(struct dense_tensor*));
+
+	// allocate new dense tensor block table
+	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
+	struct dense_tensor** block_table_new = ct_calloc(max_nblocks, sizeof(struct dense_tensor*));
 	ct_long* index_block = ct_calloc(t->ndim, sizeof(ct_long));
-	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block))
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(t->ndim, t->dim_sorted, index_block))
 	{
-		// probe whether quantum numbers sum to zero
-		qnumber qsum = 0;
-		for (int i = 0; i < t->ndim; i++)
-		{
-			qsum += t->axis_dir[i] * t->axis_qnums_sorted[i][index_block[i]];
-		}
-		if (qsum != 0) {
+		if (t->block_table[k] == NULL) {
 			continue;
 		}
 
-		assert(t->blocks[k] != NULL);
-
 		const ct_long ib_i_ax_ref = index_block[i_ax];
 		// new index after sign flip
-		index_block[i_ax] = t->dim_blocks[i_ax] - ib_i_ax_ref - 1;
-		const ct_long k_new = tensor_index_to_offset(t->ndim, t->dim_blocks, index_block);
+		index_block[i_ax] = t->dim_sorted[i_ax] - ib_i_ax_ref - 1;
+		const ct_long k_new = tensor_index_to_offset(t->ndim, t->dim_sorted, index_block);
 		index_block[i_ax] = ib_i_ax_ref;  // restore
 
 		// copy dense tensor pointer
-		blocks_new[k_new] = t->blocks[k];
+		block_table_new[k_new] = t->block_table[k];
 	}
 	ct_free(index_block);
-	ct_free(t->blocks);
-	t->blocks = blocks_new;
+	ct_free(t->block_table);
+	t->block_table = block_table_new;
+
+	// re-create linear block list and table indices
+	block_sparse_tensor_fill_block_list_indices(t);
 
 	// flip block quantum number signs along axis 'i_ax'
-	qnumber* qnums_blocks_i_ax_new = ct_malloc(t->dim_blocks[i_ax] * sizeof(qnumber));
-	for (ct_long j = 0; j < t->dim_blocks[i_ax]; j++) {
+	qnumber* qnums_blocks_i_ax_new = ct_malloc(t->dim_sorted[i_ax] * sizeof(qnumber));
+	for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++) {
 		// ensure that block quantum numbers remain sorted
-		qnums_blocks_i_ax_new[j] = -t->axis_qnums_sorted[i_ax][t->dim_blocks[i_ax] - j - 1];
+		qnums_blocks_i_ax_new[j] = -t->axis_qnums_sorted[i_ax][t->dim_sorted[i_ax] - j - 1];
 	}
 	ct_free(t->axis_qnums_sorted[i_ax]);
 	t->axis_qnums_sorted[i_ax] = qnums_blocks_i_ax_new;
@@ -582,14 +626,10 @@ void block_sparse_tensor_set_identity_blocks(struct block_sparse_tensor* t)
 	assert(t->ndim == 2);
 	assert(t->axis_dir[0] != t->axis_dir[1]);
 
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < t->nblocks; k++)
 	{
-		struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			dense_tensor_set_identity(b);
-		}
+		dense_tensor_set_identity(t->block_list[k]);
 	}
 }
 
@@ -659,13 +699,9 @@ void block_sparse_tensor_redirect_data_pointer(struct block_sparse_tensor* t, vo
 {
 	const ct_long shift = new_root - t->data;
 
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < t->nblocks; k++)
 	{
-		if (t->blocks[k] == NULL) {
-			continue;
-		}
-		t->blocks[k]->data += shift;
+		t->block_list[k]->data += shift;
 	}
 
 	t->data = new_root;
@@ -680,20 +716,15 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 {
 	allocate_zero_dense_tensor(s->dtype, s->ndim, s->dim_logical, t);
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(s->dim_blocks, s->ndim);
+	// for each block...
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < s->nblocks; k++)
 	{
-		const struct dense_tensor* b = s->blocks[k];
-		if (b == NULL) {
-			continue;
-		}
+		const struct dense_tensor* b = s->block_list[k];
 		assert(b->ndim == s->ndim);
 		assert(b->dtype == s->dtype);
 
-		ct_long* index_block = ct_malloc(s->ndim * sizeof(ct_long));
-		offset_to_tensor_index(s->ndim, s->dim_blocks, k, index_block);
+		const ct_long* index_block = &s->table_index_list[k * s->ndim];
 
 		// fan-out dense to logical indices
 		ct_long** index_map = ct_calloc(s->ndim, sizeof(ct_long*));
@@ -787,8 +818,6 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 			ct_free(index_map[i]);
 		}
 		ct_free(index_map);
-
-		ct_free(index_block);
 	}
 }
 
@@ -824,20 +853,15 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 		assert(t->dim[i] == s->dim_logical[i]);
 	}
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(s->dim_blocks, s->ndim);
+	// for each block...
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < s->nblocks; k++)
 	{
-		struct dense_tensor* b = s->blocks[k];
-		if (b == NULL) {
-			continue;
-		}
+		struct dense_tensor* b = s->block_list[k];
 		assert(b->ndim == s->ndim);
-		assert(b->dtype == t->dtype);
+		assert(b->dtype == s->dtype);
 
-		ct_long* index_block = ct_malloc(s->ndim * sizeof(ct_long));
-		offset_to_tensor_index(s->ndim, s->dim_blocks, k, index_block);
+		const ct_long* index_block = &s->table_index_list[k * s->ndim];
 
 		// fan-out dense to logical indices
 		ct_long** index_map = ct_calloc(s->ndim, sizeof(ct_long*));
@@ -932,8 +956,6 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 			ct_free(index_map[i]);
 		}
 		ct_free(index_map);
-
-		ct_free(index_block);
 	}
 }
 
@@ -947,14 +969,17 @@ void dense_to_block_sparse_tensor_entries(const struct dense_tensor* restrict t,
 ///
 void block_sparse_tensor_transpose(const int* restrict perm, const struct block_sparse_tensor* restrict t, struct block_sparse_tensor* restrict r)
 {
-	r->dtype = t->dtype;
-	r->ndim  = t->ndim;
-	r->nelem = t->nelem;
+	r->nelem   = t->nelem;
+	r->nblocks = t->nblocks;
+	r->dtype   = t->dtype;
+	r->ndim    = t->ndim;
 
 	if (t->ndim == 0)  // special case
 	{
+		r->table_index_list = NULL;
+
 		r->dim_logical = NULL;
-		r->dim_blocks  = NULL;
+		r->dim_sorted  = NULL;
 
 		r->axis_dir = NULL;
 
@@ -962,15 +987,19 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 		r->axis_qnums_sorted  = NULL;
 
 		// allocate memory for a single block
-		r->blocks = ct_calloc(1, sizeof(struct dense_tensor*));
-		r->blocks[0] = ct_calloc(1, sizeof(struct dense_tensor));
-		allocate_dense_tensor(r->dtype, 0, NULL, r->blocks[0]);
-		assert(dense_tensor_num_elements(r->blocks[0]) == 1);
+		struct dense_tensor* b = ct_calloc(1, sizeof(struct dense_tensor));
+		allocate_dense_tensor(r->dtype, 0, NULL, b);
+		assert(dense_tensor_num_elements(b) == 1);
 		// copy single number
-		memcpy(r->blocks[0]->data, t->blocks[0]->data, sizeof_numeric_type(t->blocks[0]->dtype));
+		memcpy(b->data, t->block_list[0]->data, sizeof_numeric_type(t->block_list[0]->dtype));
+		r->block_table = ct_calloc(1, sizeof(struct dense_tensor*));
+		r->block_list  = ct_calloc(1, sizeof(struct dense_tensor*));
+		r->block_table[0] = b;
+		r->block_list[0]  = b;
 		// set data pointer
-		r->data = r->blocks[0]->data;
+		r->data = b->data;
 		assert(r->nelem == 1);
+		assert(r->nblocks == 1);
 
 		return;
 	}
@@ -980,12 +1009,12 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 
 	// dimensions
 	r->dim_logical = ct_malloc(t->ndim * sizeof(ct_long));
-	r->dim_blocks  = ct_malloc(t->ndim * sizeof(ct_long));
+	r->dim_sorted  = ct_malloc(t->ndim * sizeof(ct_long));
 	r->axis_dir    = ct_malloc(t->ndim * sizeof(enum tensor_axis_direction));
 	for (int i = 0; i < t->ndim; i++)
 	{
 		r->dim_logical[i] = t->dim_logical[perm[i]];
-		r->dim_blocks [i] = t->dim_blocks [perm[i]];
+		r->dim_sorted [i] = t->dim_sorted [perm[i]];
 		r->axis_dir   [i] = t->axis_dir   [perm[i]];
 	}
 
@@ -1001,57 +1030,58 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 	r->axis_qnums_sorted = ct_calloc(t->ndim, sizeof(qnumber*));
 	for (int i = 0; i < t->ndim; i++)
 	{
-		r->axis_qnums_sorted[i] = ct_malloc(r->dim_blocks[i] * sizeof(qnumber));
-		memcpy(r->axis_qnums_sorted[i], t->axis_qnums_sorted[perm[i]], r->dim_blocks[i] * sizeof(qnumber));
+		r->axis_qnums_sorted[i] = ct_malloc(r->dim_sorted[i] * sizeof(qnumber));
+		memcpy(r->axis_qnums_sorted[i], t->axis_qnums_sorted[perm[i]], r->dim_sorted[i] * sizeof(qnumber));
 	}
 
 	// allocate (still empty) dense tensor blocks
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	r->blocks = ct_calloc(nblocks, sizeof(struct dense_tensor*));
-	ct_long* block_map = ct_calloc(nblocks, sizeof(ct_long));
-	ct_long* index_block_t = ct_calloc(t->ndim, sizeof(ct_long));
+	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
+	r->block_table = ct_calloc(max_nblocks, sizeof(struct dense_tensor*));
+	ct_long* block_map = ct_calloc(max_nblocks, sizeof(ct_long));
 	ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
 	#ifndef NDEBUG
 	ct_long nelem_r = 0;
 	#endif
-	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(t->ndim, t->dim_blocks, index_block_t))
+	for (ct_long k = 0; k < t->nblocks; k++)
 	{
-		const struct dense_tensor* bt = t->blocks[k];
-		if (bt == NULL) {
-			continue;
-		}
+		const struct dense_tensor* bt = t->block_list[k];
 		assert(bt->ndim == t->ndim);
 		assert(bt->dtype == t->dtype);
+
+		const ct_long* index_block_t = &t->table_index_list[k * t->ndim];
 
 		// corresponding block index in 'r'
 		for (int i = 0; i < t->ndim; i++) {
 			index_block_r[i] = index_block_t[perm[i]];
 		}
-		const ct_long j = tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r);
+		const ct_long j = tensor_index_to_offset(r->ndim, r->dim_sorted, index_block_r);
 		block_map[j] = k;
 
-		r->blocks[j] = ct_calloc(1, sizeof(struct dense_tensor));
-
+		// create new empty block
+		struct dense_tensor* br = ct_calloc(1, sizeof(struct dense_tensor));
 		// dimensions of new block
 		ct_long* br_dim = ct_malloc(bt->ndim * sizeof(ct_long));
 		for (int i = 0; i < bt->ndim; i++) {
 			br_dim[i] = bt->dim[perm[i]];
 		}
-
-		// create new empty block
-		allocate_empty_dense_tensor(bt->dtype, bt->ndim, br_dim, r->blocks[j]);
-
+		allocate_empty_dense_tensor(bt->dtype, bt->ndim, br_dim, br);
 		ct_free(br_dim);
 
+		r->block_table[j] = br;
+
 		#ifndef NDEBUG
-		nelem_r += dense_tensor_num_elements(r->blocks[j]);
+		nelem_r += dense_tensor_num_elements(r->block_table[j]);
 		#endif
 	}
 	ct_free(index_block_r);
-	ct_free(index_block_t);
 	#ifndef NDEBUG
 	assert(nelem_r == r->nelem);
 	#endif
+
+	// block list and table indices
+	r->block_list = ct_malloc(r->nblocks * sizeof(struct dense_tensor*));
+	r->table_index_list = ct_malloc(r->nblocks * r->ndim * sizeof(ct_long));
+	block_sparse_tensor_fill_block_list_indices(r);
 
 	const size_t dtype_size = sizeof_numeric_type(r->dtype);
 
@@ -1061,27 +1091,23 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 	// set dense block data pointers
 	// casting to int8_t* to ensure that pointer arithmetic is performed in terms of bytes
 	int8_t* pentries = (int8_t*)r->data;
-	for (ct_long j = 0; j < nblocks; j++)
+	for (ct_long j = 0; j < r->nblocks; j++)
 	{
-		struct dense_tensor* br = r->blocks[j];
-		if (br != NULL)
-		{
-			// set data pointer
-			br->data = pentries;
-			const size_t nbytes = dense_tensor_num_elements(br) * dtype_size;
-			pentries += nbytes;
-		}
+		// set data pointer
+		r->block_list[j]->data = pentries;
+		const size_t nbytes = dense_tensor_num_elements(r->block_list[j]) * dtype_size;
+		pentries += nbytes;
 	}
 
 	// transpose the dense blocks
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long j = 0; j < nblocks; j++)
+	for (ct_long j = 0; j < max_nblocks; j++)  // have to iterate over table for correct 'block_map' index
 	{
-		struct dense_tensor* br = r->blocks[j];
+		struct dense_tensor* br = r->block_table[j];
 		if (br == NULL) {
 			continue;
 		}
-		dense_tensor_transpose_fill(perm, t->blocks[block_map[j]], br);
+		dense_tensor_transpose_fill(perm, t->block_list[block_map[j]], br);
 	}
 
 	ct_free(block_map);
@@ -1225,25 +1251,20 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 	{
 		ct_long* index_map_block = ct_malloc(r->dim_logical[i_ax] * sizeof(ct_long));
 		construct_logical_to_block_index_maps(
-			r->axis_qnums_logical[i_ax], r->dim_logical[i_ax], r->axis_qnums_sorted[i_ax], r->dim_blocks[i_ax],
+			r->axis_qnums_logical[i_ax], r->dim_logical[i_ax], r->axis_qnums_sorted[i_ax], r->dim_sorted[i_ax],
 			index_map_block, index_map_fanin);
 		ct_free(index_map_block);
 	}
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
+	// for each block...
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < t->nblocks; k++)
 	{
-		const struct dense_tensor* bt = t->blocks[k];
-		if (bt == NULL) {
-			continue;
-		}
+		const struct dense_tensor* bt = t->block_list[k];
 		assert(bt->ndim == t->ndim);
 		assert(bt->dtype == t->dtype);
 
-		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
-		offset_to_tensor_index(t->ndim, t->dim_blocks, k, index_block_t);
+		const ct_long* index_block_t = &t->table_index_list[k * t->ndim];
 
 		const qnumber qnums_i_ax[2] = {
 			t->axis_qnums_sorted[i_ax    ][index_block_t[i_ax    ]],
@@ -1259,7 +1280,7 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 			index_block_r[i] = index_block_t[i];
 		}
 		index_block_r[i_ax] = -1;
-		for (ct_long j = 0; j < r->dim_blocks[i_ax]; j++)
+		for (ct_long j = 0; j < r->dim_sorted[i_ax]; j++)
 		{
 			if (r->axis_qnums_sorted[i_ax][j] == qnum_flat) {
 				index_block_r[i_ax] = j;
@@ -1271,7 +1292,7 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 		{
 			index_block_r[i - 1] = index_block_t[i];
 		}
-		struct dense_tensor* br = r->blocks[tensor_index_to_offset(r->ndim, r->dim_blocks, index_block_r)];
+		struct dense_tensor* br = r->block_table[tensor_index_to_offset(r->ndim, r->dim_sorted, index_block_r)];
 		assert(br != NULL);
 		assert(br->ndim == r->ndim);
 		assert(br->dtype == r->dtype);
@@ -1322,7 +1343,6 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 		ct_free(index_slice_bt);
 
 		ct_free(index_map_block);
-		ct_free(index_block_t);
 		ct_free(index_block_r);
 	}
 
@@ -1398,25 +1418,20 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 	{
 		ct_long* index_map_block = ct_malloc(t->dim_logical[i_ax] * sizeof(ct_long));
 		construct_logical_to_block_index_maps(
-			t->axis_qnums_logical[i_ax], t->dim_logical[i_ax], t->axis_qnums_sorted[i_ax], t->dim_blocks[i_ax],
+			t->axis_qnums_logical[i_ax], t->dim_logical[i_ax], t->axis_qnums_sorted[i_ax], t->dim_sorted[i_ax],
 			index_map_block, index_map_fanin);
 		ct_free(index_map_block);
 	}
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
+	// for each block...
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < r->nblocks; k++)
 	{
-		const struct dense_tensor* br = r->blocks[k];
-		if (br == NULL) {
-			continue;
-		}
+		const struct dense_tensor* br = r->block_list[k];
 		assert(br->ndim == r->ndim);
 		assert(br->dtype == r->dtype);
 
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
+		const ct_long* index_block_r = &r->table_index_list[k * r->ndim];
 
 		const qnumber qnums_i_ax[2] = {
 			r->axis_qnums_sorted[i_ax    ][index_block_r[i_ax    ]],
@@ -1432,7 +1447,7 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 			index_block_t[i] = index_block_r[i];
 		}
 		index_block_t[i_ax] = -1;
-		for (ct_long j = 0; j < t->dim_blocks[i_ax]; j++)
+		for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++)
 		{
 			if (t->axis_qnums_sorted[i_ax][j] == qnum_flat) {
 				index_block_t[i_ax] = j;
@@ -1444,7 +1459,7 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 		{
 			index_block_t[i] = index_block_r[i + 1];
 		}
-		const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+		const struct dense_tensor* bt = t->block_table[tensor_index_to_offset(t->ndim, t->dim_sorted, index_block_t)];
 		assert(bt != NULL);
 		assert(bt->ndim == t->ndim);
 		assert(bt->dtype == t->dtype);
@@ -1496,7 +1511,6 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 
 		ct_free(index_map_block);
 		ct_free(index_block_t);
-		ct_free(index_block_r);
 	}
 
 	ct_free(index_map_fanin);
@@ -1692,20 +1706,15 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		ct_free(r_dim_logical);
 	}
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
+	// for each block...
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < r->nblocks; k++)
 	{
-		struct dense_tensor* br = r->blocks[k];
-		if (br == NULL) {
-			continue;
-		}
+		struct dense_tensor* br = r->block_list[k];
 		assert(br->ndim == r->ndim);
 		assert(br->dtype == r->dtype);
 
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
+		const ct_long* index_block_r = &r->table_index_list[k * r->ndim];
 
 		const qnumber qnum = r->axis_qnums_sorted[i_ax][index_block_r[i_ax]];
 
@@ -1713,7 +1722,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
 		memcpy(index_block_t, index_block_r, t->ndim * sizeof(ct_long));
 		index_block_t[i_ax] = -1;
-		for (ct_long j = 0; j < t->dim_blocks[i_ax]; j++)
+		for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++)
 		{
 			if (t->axis_qnums_sorted[i_ax][j] == qnum) {
 				index_block_t[i_ax] = j;
@@ -1722,7 +1731,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		}
 		assert(index_block_t[i_ax] != -1);
 
-		const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+		const struct dense_tensor* bt = t->block_table[tensor_index_to_offset(t->ndim, t->dim_sorted, index_block_t)];
 		assert(bt != NULL);
 		assert(bt->ndim == t->ndim);
 		assert(bt->dtype == t->dtype);
@@ -1765,7 +1774,6 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		ct_free(ind_block);
 		ct_free(index_map_fanin_t);
 		ct_free(index_map_fanout_r);
-		ct_free(index_block_r);
 		ct_free(index_block_t);
 	}
 }
@@ -1794,36 +1802,30 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 	// construct new block-sparse tensor 'r'
 	allocate_block_sparse_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim_logical + ndim_trace, t->axis_dir + ndim_trace, (const qnumber**)(t->axis_qnums_logical + ndim_trace), r);
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks_r = integer_product(r->dim_blocks, r->ndim);
-	const ct_long nblocks_p = integer_product(t->dim_blocks, ndim_trace);
+	// for each block in 'r'...
+	const ct_long max_nblocks_p = integer_product(t->dim_sorted, ndim_trace);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks_r; k++)
+	for (ct_long k = 0; k < r->nblocks; k++)
 	{
-		struct dense_tensor* br = r->blocks[k];
-		if (br == NULL) {
-			continue;
-		}
+		struct dense_tensor* br = r->block_list[k];
 
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
+		const ct_long* index_block_r = &r->table_index_list[k * r->ndim];
 
 		// require zero initialization
 		ct_long* index_block_t = ct_calloc(t->ndim, sizeof(ct_long));
 		memcpy(index_block_t + ndim_trace, index_block_r, r->ndim * sizeof(ct_long));
 
-		for (ct_long j = 0; j < nblocks_p; j++, next_tensor_index(ndim_trace, t->dim_blocks, index_block_t))
+		for (ct_long j = 0; j < max_nblocks_p; j++, next_tensor_index(ndim_trace, t->dim_sorted, index_block_t))
 		{
 			// duplicate leading 'ndim_trace' indices at the end
 			memcpy(index_block_t + ndim_trace + r->ndim, index_block_t, ndim_trace * sizeof(ct_long));
 
-			const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+			const struct dense_tensor* bt = t->block_table[tensor_index_to_offset(t->ndim, t->dim_sorted, index_block_t)];
 			assert(bt != NULL);
 
 			dense_tensor_cyclic_partial_trace_update(bt, ndim_trace, br);
 		}
 
-		ct_free(index_block_r);
 		ct_free(index_block_t);
 	}
 }
@@ -1846,12 +1848,12 @@ void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct blo
 	}
 
 	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
+	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < max_nblocks; k++)  // iterate over block tables because block lists might be ordered differently
 	{
-		const struct dense_tensor* bs = s->blocks[k];
-		struct dense_tensor* bt       = t->blocks[k];
+		const struct dense_tensor* bs = s->block_table[k];
+		struct dense_tensor* bt       = t->block_table[k];
 		if (bt == NULL) {
 			continue;
 		}
@@ -1880,21 +1882,21 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->axis_dir, (const qnumber**)s->axis_qnums_logical, r);
 
 	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
+	const ct_long max_nblocks = integer_product(r->dim_sorted, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < max_nblocks; k++)  // iterate over block tables because block lists might be ordered differently
 	{
-		struct dense_tensor* br = r->blocks[k];
+		struct dense_tensor* br = r->block_table[k];
 		if (br == NULL) {
 			continue;
 		}
 
 		// corresponding block in 's'
-		const struct dense_tensor* bs = s->blocks[k];
+		const struct dense_tensor* bs = s->block_table[k];
 		assert(bs != NULL);
 
 		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
+		offset_to_tensor_index(r->ndim, r->dim_sorted, k, index_block_r);
 
 		// fan-out dense to logical indices
 		ct_long* index_map = ct_calloc(br->dim[i_ax], sizeof(ct_long));
@@ -1942,7 +1944,7 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 	for (int i = 0; i < ndim_mult; i++)
 	{
 		assert(s->dim_logical[i_ax_start + i] ==  t->dim_logical[i_mt + i]);
-		assert(s->dim_blocks [i_ax_start + i] ==  t->dim_blocks [i_mt + i]);
+		assert(s->dim_sorted [i_ax_start + i] ==  t->dim_sorted [i_mt + i]);
 		assert(s->axis_dir   [i_ax_start + i] == -t->axis_dir   [i_mt + i]);
 		// quantum numbers must match entrywise
 		assert(qnumber_all_equal(s->dim_logical[i_ax_start + i], s->axis_qnums_logical[i_ax_start + i], t->axis_qnums_logical[i_mt + i]));
@@ -1978,18 +1980,13 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 	const void* one = numeric_one(s->dtype);
 
 	// for each dense block of 'r'...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < r->nblocks; k++)
 	{
-		struct dense_tensor* br = r->blocks[k];
-		if (br == NULL) {
-			continue;
-		}
+		struct dense_tensor* br = r->block_list[k];
 		assert(br->ndim == r->ndim);
 
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
+		const ct_long* index_block_r = &r->table_index_list[k * r->ndim];
 
 		ct_long* index_block_s = ct_malloc(s->ndim * sizeof(ct_long));
 		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
@@ -1998,9 +1995,9 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 		memcpy(&index_block_s[i_ax_start + ndim_mult], &index_block_r[i_ax_start + t->ndim - ndim_mult], (s->ndim - i_ax_start - ndim_mult) * sizeof(ct_long));
 
 		// for each quantum number combination of the to-be contracted axes...
-		const ct_long ncontract = integer_product(t->dim_blocks + i_mt, ndim_mult);
+		const ct_long ncontract = integer_product(t->dim_sorted + i_mt, ndim_mult);
 		ct_long* index_contract = ct_calloc(ndim_mult, sizeof(ct_long));
-		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_blocks + i_mt, index_contract))
+		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_sorted + i_mt, index_contract))
 		{
 			memcpy(&index_block_s[i_ax_start], index_contract, ndim_mult * sizeof(ct_long));
 			memcpy(&index_block_t[i_mt], index_contract, ndim_mult * sizeof(ct_long));
@@ -2025,8 +2022,8 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 			assert(qsum == 0);
 			#endif
 
-			const struct dense_tensor* bs = s->blocks[tensor_index_to_offset(s->ndim, s->dim_blocks, index_block_s)];
-			const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+			const struct dense_tensor* bs = s->block_table[tensor_index_to_offset(s->ndim, s->dim_sorted, index_block_s)];
+			const struct dense_tensor* bt = t->block_table[tensor_index_to_offset(t->ndim, t->dim_sorted, index_block_t)];
 			assert(bs != NULL);
 			assert(bt != NULL);
 
@@ -2035,7 +2032,6 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 		}
 
 		ct_free(index_contract);
-		ct_free(index_block_r);
 		ct_free(index_block_t);
 		ct_free(index_block_s);
 	}
@@ -2063,11 +2059,11 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 	for (int i = 0; i < ndim_mult; i++)
 	{
 		assert(s->dim_logical[shift_s + i] ==  t->dim_logical[shift_t + i]);
-		assert(s->dim_blocks [shift_s + i] ==  t->dim_blocks [shift_t + i]);
+		assert(s->dim_sorted [shift_s + i] ==  t->dim_sorted [shift_t + i]);
 		assert(s->axis_dir   [shift_s + i] == -t->axis_dir   [shift_t + i]);
 		// quantum numbers must match entrywise
 		assert(qnumber_all_equal(t->dim_logical[shift_t + i], s->axis_qnums_logical[shift_s + i], t->axis_qnums_logical[shift_t + i]));
-		assert(qnumber_all_equal(t->dim_blocks [shift_t + i], s->axis_qnums_sorted [shift_s + i], t->axis_qnums_sorted [shift_t + i]));
+		assert(qnumber_all_equal(t->dim_sorted [shift_t + i], s->axis_qnums_sorted [shift_s + i], t->axis_qnums_sorted [shift_t + i]));
 	}
 
 	const void* one = numeric_one(s->dtype);
@@ -2079,12 +2075,12 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		assert(s->ndim == ndim_mult && t->ndim == ndim_mult);
 
 		allocate_block_sparse_tensor(s->dtype, 0, NULL, NULL, NULL, r);
-		assert(r->blocks[0] != NULL);
+		assert(r->block_table[0] != NULL);
 
 		// for each quantum number combination of the to-be contracted axes...
-		const ct_long ncontract = integer_product(s->dim_blocks, ndim_mult);
+		const ct_long ncontract = integer_product(s->dim_sorted, ndim_mult);
 		ct_long* index_contract = ct_calloc(ndim_mult, sizeof(ct_long));
-		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, s->dim_blocks, index_contract))
+		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, s->dim_sorted, index_contract))
 		{
 			// probe whether quantum numbers in 's' sum to zero
 			qnumber qsum = 0;
@@ -2096,14 +2092,14 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 				continue;
 			}
 
-			const ct_long ib = tensor_index_to_offset(s->ndim, s->dim_blocks, index_contract);
-			const struct dense_tensor* bs = s->blocks[ib];
-			const struct dense_tensor* bt = t->blocks[ib];
+			const ct_long ib = tensor_index_to_offset(s->ndim, s->dim_sorted, index_contract);
+			const struct dense_tensor* bs = s->block_table[ib];
+			const struct dense_tensor* bt = t->block_table[ib];
 			assert(bs != NULL);
 			assert(bt != NULL);
 
 			// actually multiply dense tensor blocks and add result to block in 'r'
-			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, one, r->blocks[0]);
+			dense_tensor_dot_update(one, bs, axrange_s, bt, axrange_t, ndim_mult, one, r->block_table[0]);
 		}
 
 		ct_free(index_contract);
@@ -2158,26 +2154,20 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 	}
 
 	// for each dense block of 'r'...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long k = 0; k < nblocks; k++)
+	for (ct_long k = 0; k < r->nblocks; k++)
 	{
-		struct dense_tensor* br = r->blocks[k];
-		if (br == NULL) {
-			continue;
-		}
+		struct dense_tensor* br = r->block_list[k];
 		assert(br->ndim == r->ndim);
 
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
+		const ct_long* index_block_r = &r->table_index_list[k * r->ndim];
 		ct_long* index_block_s = ct_malloc(s->ndim * sizeof(ct_long));
 		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
 
-		offset_to_tensor_index(r->ndim, r->dim_blocks, k, index_block_r);
-
 		// for each quantum number combination of the to-be contracted axes...
-		const ct_long ncontract = integer_product(t->dim_blocks + shift_t, ndim_mult);
+		const ct_long ncontract = integer_product(t->dim_sorted + shift_t, ndim_mult);
 		ct_long* index_contract = ct_calloc(ndim_mult, sizeof(ct_long));
-		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_blocks + shift_t, index_contract))
+		for (ct_long m = 0; m < ncontract; m++, next_tensor_index(ndim_mult, t->dim_sorted + shift_t, index_contract))
 		{
 			for (int i = 0; i < s->ndim - ndim_mult; i++) {
 				index_block_s[offset_s + i] = index_block_r[i];
@@ -2211,8 +2201,8 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			assert(qsum == 0);
 			#endif
 
-			const struct dense_tensor* bs = s->blocks[tensor_index_to_offset(s->ndim, s->dim_blocks, index_block_s)];
-			const struct dense_tensor* bt = t->blocks[tensor_index_to_offset(t->ndim, t->dim_blocks, index_block_t)];
+			const struct dense_tensor* bs = s->block_table[tensor_index_to_offset(s->ndim, s->dim_sorted, index_block_s)];
+			const struct dense_tensor* bt = t->block_table[tensor_index_to_offset(t->ndim, t->dim_sorted, index_block_t)];
 			assert(bs != NULL);
 			assert(bt != NULL);
 
@@ -2223,7 +2213,6 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 		ct_free(index_contract);
 		ct_free(index_block_t);
 		ct_free(index_block_s);
-		ct_free(index_block_r);
 	}
 }
 
@@ -2306,17 +2295,11 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 	}
 
 	// for each dense block of 'r'...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long kr = 0; kr < nblocks; kr++)
+	for (ct_long kr = 0; kr < r->nblocks; kr++)
 	{
-		struct dense_tensor* br = r->blocks[kr];
-		if (br == NULL) {
-			continue;
-		}
-
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, kr, index_block_r);
+		struct dense_tensor* br = r->block_list[kr];
+		const ct_long* index_block_r = &r->table_index_list[kr * r->ndim];
 
 		struct dense_tensor* tlist_blocks = ct_malloc(num_tensors * sizeof(struct dense_tensor));
 
@@ -2329,7 +2312,7 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 		for (int j = 0; j < num_tensors; j++)
 		{
 			bool found = false;
-			for (ct_long l = 0; l < tlist[j].dim_blocks[i_ax]; l++) {
+			for (ct_long l = 0; l < tlist[j].dim_sorted[i_ax]; l++) {
 				if (tlist[j].axis_qnums_sorted[i_ax][l] == qnum_i_ax) {
 					index_block_t[i_ax] = l;
 					found = true;
@@ -2340,8 +2323,8 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 				continue;
 			}
 
-			const ct_long kt = tensor_index_to_offset(tlist[j].ndim, tlist[j].dim_blocks, index_block_t);
-			const struct dense_tensor* bt = tlist[j].blocks[kt];
+			const ct_long kt = tensor_index_to_offset(tlist[j].ndim, tlist[j].dim_sorted, index_block_t);
+			const struct dense_tensor* bt = tlist[j].block_table[kt];
 			assert(bt != NULL);
 
 			// copy pointers, not actual data
@@ -2353,7 +2336,6 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 		dense_tensor_concatenate_fill(tlist_blocks, num_tlist_blocks, i_ax, br);
 
 		ct_free(tlist_blocks);
-		ct_free(index_block_r);
 		ct_free(index_block_t);
 	}
 }
@@ -2400,9 +2382,9 @@ static void create_block_sparse_tensor_qnumber_counter(const struct block_sparse
 	qcounter->qnum_counts = ct_malloc(t->ndim * sizeof(ct_long*));
 	for (int i = 0; i < t->ndim; i++)
 	{
-		qcounter->qnum_counts[i] = ct_malloc(t->dim_blocks[i] * sizeof(ct_long));
+		qcounter->qnum_counts[i] = ct_malloc(t->dim_sorted[i] * sizeof(ct_long));
 		count_quantum_numbers(
-			t->axis_qnums_logical[i], t->dim_logical[i], t->axis_qnums_sorted[i], t->dim_blocks[i],
+			t->axis_qnums_logical[i], t->dim_logical[i], t->axis_qnums_sorted[i], t->dim_sorted[i],
 			qcounter->qnum_counts[i]);
 	}
 }
@@ -2520,17 +2502,11 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 	ct_long* zero_list = ct_calloc(r->ndim, sizeof(ct_long));
 
 	// for each dense block of 'r'...
-	const ct_long nblocks = integer_product(r->dim_blocks, r->ndim);
 	#pragma omp parallel for schedule(dynamic)
-	for (ct_long kr = 0; kr < nblocks; kr++)
+	for (ct_long kr = 0; kr < r->nblocks; kr++)
 	{
-		struct dense_tensor* br = r->blocks[kr];
-		if (br == NULL) {
-			continue;
-		}
-
-		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
-		offset_to_tensor_index(r->ndim, r->dim_blocks, kr, index_block_r);
+		struct dense_tensor* br = r->block_list[kr];
+		const ct_long* index_block_r = &r->table_index_list[kr * r->ndim];
 
 		// block quantum numbers
 		qnumber* qnums_block = ct_malloc(r->ndim * sizeof(qnumber));
@@ -2560,7 +2536,7 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 				// 'tlist[j]' can contain current block quantum numbers along some of its axes
 				for (int i = 0; i < r->ndim; i++) {
 					if (i_ax_indicator[i]) {
-						for (ct_long k = 0; k < tlist[j].dim_blocks[i]; k++) {
+						for (ct_long k = 0; k < tlist[j].dim_sorted[i]; k++) {
 							if (tlist[j].axis_qnums_sorted[i][k] == qnums_block[i]) {
 								offset[i] += qcounter[j].qnum_counts[i][k];
 								break;
@@ -2577,7 +2553,6 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 			ct_free(tlist_blocks);
 			ct_free(offset);
 			ct_free(qnums_block);
-			ct_free(index_block_r);
 			continue;
 		}
 
@@ -2590,7 +2565,8 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 					break;
 				}
 			}
-			if (must_pad) {
+			if (must_pad)
+			{
 				struct dense_tensor tmp;
 				dense_tensor_pad_zeros(&tlist_blocks[num_tlist_blocks - 1], zero_list, offset, &tmp);
 				delete_dense_tensor(&tlist_blocks[num_tlist_blocks - 1]);
@@ -2607,7 +2583,6 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 		ct_free(tlist_blocks);
 		ct_free(offset);
 		ct_free(qnums_block);
-		ct_free(index_block_r);
 	}
 
 	ct_free(zero_list);
@@ -2640,9 +2615,9 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 	qnumber* qnums_interm = ct_calloc(a->dim_logical[0], sizeof(qnumber));
 
 	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
-	for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+	for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 	{
-		for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+		for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 		{
 			// probe whether quantum numbers sum to zero
 			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
@@ -2650,7 +2625,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 				continue;
 			}
 
-			const struct dense_tensor* b = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* b = a->block_table[i*a->dim_sorted[1] + j];
 			assert(b != NULL);
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
@@ -2715,11 +2690,11 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 	// perform QR decompositions of the individual blocks
 	bool failed = false;
 	#pragma omp parallel for schedule(dynamic) collapse(2)
-	for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+	for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 	{
-		for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+		for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 		{
-			const struct dense_tensor* ba = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* ba = a->block_table[i*a->dim_sorted[1] + j];
 			if (ba == NULL) {
 				continue;
 			}
@@ -2732,16 +2707,16 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 			assert(r->axis_qnums_sorted[1][j] == a->axis_qnums_sorted[1][j]);
 			// connecting axis contains only the quantum numbers of non-empty blocks in 'a', so cannot use the block index from 'a'
 			ct_long k;
-			for (k = 0; k < q->dim_blocks[1]; k++) {
+			for (k = 0; k < q->dim_sorted[1]; k++) {
 				if (q->axis_qnums_sorted[1][k] == a->axis_qnums_sorted[1][j]) {
 					break;
 				}
 			}
-			assert(k < q->dim_blocks[1]);
+			assert(k < q->dim_sorted[1]);
 			assert(q->axis_qnums_sorted[1][k] == a->axis_qnums_sorted[1][j]);
 			assert(r->axis_qnums_sorted[0][k] == a->axis_qnums_sorted[1][j]);
-			struct dense_tensor* bq = q->blocks[i*q->dim_blocks[1] + k];
-			struct dense_tensor* br = r->blocks[k*r->dim_blocks[1] + j];
+			struct dense_tensor* bq = q->block_table[i*q->dim_sorted[1] + k];
+			struct dense_tensor* br = r->block_table[k*r->dim_sorted[1] + j];
 			assert(bq != NULL);
 			assert(br != NULL);
 
@@ -2782,9 +2757,9 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
 
 	// loop over first dimension is outer loop to ensure that logical quantum numbers are sorted
-	for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+	for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 	{
-		for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+		for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 		{
 			// probe whether quantum numbers sum to zero
 			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
@@ -2792,7 +2767,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 				continue;
 			}
 
-			const struct dense_tensor* b = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* b = a->block_table[i*a->dim_sorted[1] + j];
 			assert(b != NULL);
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
@@ -2857,11 +2832,11 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 	// perform RQ decompositions of the individual blocks
 	bool failed = false;
 	#pragma omp parallel for schedule(dynamic) collapse(2)
-	for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+	for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 	{
-		for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+		for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 		{
-			const struct dense_tensor* ba = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* ba = a->block_table[i*a->dim_sorted[1] + j];
 			if (ba == NULL) {
 				continue;
 			}
@@ -2874,16 +2849,16 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 			assert(q->axis_qnums_sorted[1][j] == a->axis_qnums_sorted[1][j]);
 			// connecting axis contains only the quantum numbers of non-empty blocks in 'a', so cannot use the block index from 'a'
 			ct_long k;
-			for (k = 0; k < q->dim_blocks[0]; k++) {
+			for (k = 0; k < q->dim_sorted[0]; k++) {
 				if (q->axis_qnums_sorted[0][k] == a->axis_qnums_sorted[0][i]) {
 					break;
 				}
 			}
-			assert(k < q->dim_blocks[0]);
+			assert(k < q->dim_sorted[0]);
 			assert(q->axis_qnums_sorted[0][k] == a->axis_qnums_sorted[0][i]);
 			assert(r->axis_qnums_sorted[1][k] == a->axis_qnums_sorted[0][i]);
-			struct dense_tensor* br = r->blocks[i*r->dim_blocks[1] + k];
-			struct dense_tensor* bq = q->blocks[k*q->dim_blocks[1] + j];
+			struct dense_tensor* br = r->block_table[i*r->dim_sorted[1] + k];
+			struct dense_tensor* bq = q->block_table[k*q->dim_sorted[1] + j];
 			assert(br != NULL);
 			assert(bq != NULL);
 
@@ -2924,9 +2899,9 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	qnumber* qnums_interm = ct_calloc(a->dim_logical[1], sizeof(qnumber));
 
 	// loop over second dimension is outer loop to ensure that logical quantum numbers are sorted
-	for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+	for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 	{
-		for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+		for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 		{
 			// probe whether quantum numbers sum to zero
 			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
@@ -2934,7 +2909,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 				continue;
 			}
 
-			const struct dense_tensor* b = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* b = a->block_table[i*a->dim_sorted[1] + j];
 			assert(b != NULL);
 			assert(b->ndim == 2);
 			assert(b->dtype == a->dtype);
@@ -3005,11 +2980,11 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	// perform SVD decompositions of the individual blocks
 	bool failed = false;
 	#pragma omp parallel for schedule(dynamic) collapse(2)
-	for (ct_long i = 0; i < a->dim_blocks[0]; i++)
+	for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 	{
-		for (ct_long j = 0; j < a->dim_blocks[1]; j++)
+		for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 		{
-			const struct dense_tensor* ba = a->blocks[i*a->dim_blocks[1] + j];
+			const struct dense_tensor* ba = a->block_table[i*a->dim_sorted[1] + j];
 			if (ba == NULL) {
 				continue;
 			}
@@ -3022,16 +2997,16 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 			assert(vh->axis_qnums_sorted[1][j] == a->axis_qnums_sorted[1][j]);
 			// connecting axis contains only the quantum numbers of non-empty blocks in 'a', so cannot use the block index from 'a'
 			ct_long k;
-			for (k = 0; k < u->dim_blocks[1]; k++) {
+			for (k = 0; k < u->dim_sorted[1]; k++) {
 				if (u->axis_qnums_sorted[1][k] == a->axis_qnums_sorted[1][j]) {
 					break;
 				}
 			}
-			assert(k < u->dim_blocks[1]);
+			assert(k < u->dim_sorted[1]);
 			assert( u->axis_qnums_sorted[1][k] == a->axis_qnums_sorted[1][j]);
 			assert(vh->axis_qnums_sorted[0][k] == a->axis_qnums_sorted[1][j]);
-			struct dense_tensor* bu  =  u->blocks[i* u->dim_blocks[1] + k];
-			struct dense_tensor* bvh = vh->blocks[k*vh->dim_blocks[1] + j];
+			struct dense_tensor* bu  =  u->block_table[i* u->dim_sorted[1] + k];
+			struct dense_tensor* bvh = vh->block_table[k*vh->dim_sorted[1] + j];
 			assert(bu  != NULL);
 			assert(bvh != NULL);
 			assert(bu->dim[1] == bvh->dim[0]);
@@ -3118,37 +3093,40 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 	// block dimensions and quantum numbers must now also agree
 	for (int i = 0; i < s->ndim; i++)
 	{
-		assert(s->dim_blocks[i] == t->dim_blocks[i]);
-		assert(qnumber_all_equal(s->dim_blocks[i], s->axis_qnums_sorted[i], t->axis_qnums_sorted[i]));
+		assert(s->dim_sorted[i] == t->dim_sorted[i]);
+		assert(qnumber_all_equal(s->dim_sorted[i], s->axis_qnums_sorted[i], t->axis_qnums_sorted[i]));
 	}
 
-	// for each block with matching quantum numbers...
-	const ct_long nblocks = integer_product(s->dim_blocks, s->ndim);
-	ct_long* index_block = ct_calloc(s->ndim, sizeof(ct_long));
-	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(s->ndim, s->dim_blocks, index_block))
+	// iterate over block table...
+	const ct_long max_nblocks = integer_product(s->dim_sorted, s->ndim);
+	for (ct_long k = 0; k < max_nblocks; k++)
 	{
-		// probe whether quantum numbers sum to zero
-		qnumber qsum = 0;
-		for (int i = 0; i < s->ndim; i++)
+		// retrieve and compare blocks;
+		const struct dense_tensor* bs = s->block_table[k];
+		const struct dense_tensor* bt = t->block_table[k];
+		// a dense block can be absent even for matching quantum numbers
+		if (bs == NULL)
 		{
-			qsum += s->axis_dir[i] * s->axis_qnums_sorted[i][index_block[i]];
+			if (bt == NULL) {
+				continue;
+			}
+			if (!dense_tensor_is_zero(bt, tol)) {
+				return false;
+			}
 		}
-		if (qsum != 0) {
-			continue;
-		}
-
-		// retrieve and compare blocks
-		const struct dense_tensor* bs = s->blocks[k];
-		const struct dense_tensor* bt = t->blocks[k];
-		assert(bs != NULL);
-		assert(bt != NULL);
-		if (!dense_tensor_allclose(bs, bt, tol))
+		else if (bt == NULL)
 		{
-			ct_free(index_block);
-			return false;
+			if (!dense_tensor_is_zero(bs, tol)) {
+				return false;
+			}
+		}
+		else
+		{
+			if (!dense_tensor_allclose(bs, bt, tol)) {
+				return false;
+			}
 		}
 	}
-	ct_free(index_block);
 
 	return true;
 }
@@ -3197,15 +3175,28 @@ bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const 
 		return false;
 	}
 
-	// individual blocks must be identity matrices
-	const ct_long nblocks = integer_product(t->dim_blocks, t->ndim);
-	for (ct_long k = 0; k < nblocks; k++)
+	// individual diagonal blocks must be identity matrices
+	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
+	ct_long index_block[2];
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(t->ndim, t->dim_sorted, index_block))
 	{
-		const struct dense_tensor* b = t->blocks[k];
-		if (b != NULL) {
-			if (!dense_tensor_is_identity(b, tol)) {
-				return false;
-			}
+		// probe whether quantum numbers sum to zero
+		const qnumber qsum =
+			  t->axis_dir[0] * t->axis_qnums_sorted[0][index_block[0]]
+			+ t->axis_dir[1] * t->axis_qnums_sorted[1][index_block[1]];
+		if (qsum != 0)
+		{
+			assert(t->block_table[k] == NULL);
+			continue;
+		}
+
+		const struct dense_tensor* b = t->block_table[k];
+		if (b == NULL) {
+			// missing diagonal block
+			return false;
+		}
+		if (!dense_tensor_is_identity(b, tol)) {
+			return false;
 		}
 	}
 
@@ -3266,13 +3257,13 @@ void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tenso
 	qnumber* qnums_aug = ct_malloc(t->dim_logical[i_ax] * sizeof(qnumber));
 	ct_long dim_aug = 0;
 
-	for (ct_long i = 0; i < t->dim_blocks[i_ax]; i++)
+	for (ct_long i = 0; i < t->dim_sorted[i_ax]; i++)
 	{
 		const qnumber qnum = t->axis_qnums_sorted[i_ax][i];
 
 		// test whether current quantum number is absent along other axis
 		bool absent = true;
-		for (ct_long j = 0; j < t->dim_blocks[1 - i_ax]; j++)
+		for (ct_long j = 0; j < t->dim_sorted[1 - i_ax]; j++)
 		{
 			if (t->axis_qnums_sorted[1 - i_ax][j] == qnum) {
 				absent = false;
@@ -3348,7 +3339,7 @@ void create_block_sparse_tensor_entry_accessor(const struct block_sparse_tensor*
 		acc->index_map_block_entries[i] = ct_malloc(t->dim_logical[i] * sizeof(ct_long));
 
 		construct_logical_to_block_index_maps(
-			t->axis_qnums_logical[i], t->dim_logical[i], t->axis_qnums_sorted[i], t->dim_blocks[i],
+			t->axis_qnums_logical[i], t->dim_logical[i], t->axis_qnums_sorted[i], t->dim_sorted[i],
 			acc->index_map_blocks[i], acc->index_map_block_entries[i]);
 	}
 }
@@ -3384,10 +3375,10 @@ void* block_sparse_tensor_get_entry(const struct block_sparse_tensor_entry_acces
 		assert(0 <= index[i] && index[i] < acc->tensor->dim_logical[i]);
 		index_block[i] = acc->index_map_blocks[i][index[i]];
 	}
-	const ct_long ob = tensor_index_to_offset(acc->tensor->ndim, acc->tensor->dim_blocks, index_block);
+	const ct_long ob = tensor_index_to_offset(acc->tensor->ndim, acc->tensor->dim_sorted, index_block);
 	ct_free(index_block);
 
-	const struct dense_tensor* block = acc->tensor->blocks[ob];
+	const struct dense_tensor* block = acc->tensor->block_table[ob];
 	if (block == NULL) {
 		// logical entry is zero
 		return NULL;

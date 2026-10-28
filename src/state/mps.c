@@ -334,8 +334,9 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 			chi->a[chi->nsites - 1].axis_qnums_logical[2], };
 		struct block_sparse_tensor t;
 		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
-		assert(t.blocks[0] != NULL);
-		memcpy(t.blocks[0]->data, numeric_one(dtype), sizeof_numeric_type(dtype));
+		assert(t.nelem == 1);
+		assert(t.nblocks == 1);
+		memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
 		block_sparse_tensor_flatten_axes(&t, 2, TENSOR_AXIS_IN, &r);
 		delete_block_sparse_tensor(&t);
 	}
@@ -359,8 +360,9 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 	// 'r' should now be a 1 x 1 tensor
 	assert(r.ndim == 2);
 	assert(r.dim_logical[0] == 1 && r.dim_logical[1] == 1);
-	assert(r.blocks[0] != NULL);
-	memcpy(ret, r.blocks[0]->data, sizeof_numeric_type(dtype));
+	assert(r.nelem == 1);
+	assert(r.nblocks == 1);
+	memcpy(ret, r.data, sizeof_numeric_type(dtype));
 	delete_block_sparse_tensor(&r);
 }
 
@@ -459,11 +461,11 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 		copy_block_sparse_tensor(&chi->a[0], &ret->a[0]);
 
 		// add individual dense tensors
-		const ct_long nblocks = integer_product(ret->a[0].dim_blocks, ret->a[0].ndim);
-		for (ct_long k = 0; k < nblocks; k++)
+		const ct_long max_nblocks = integer_product(ret->a[0].dim_sorted, ret->a[0].ndim);
+		for (ct_long k = 0; k < max_nblocks; k++)
 		{
-			struct dense_tensor* a = psi->a[0].blocks[k];
-			struct dense_tensor* b = ret->a[0].blocks[k];
+			struct dense_tensor* a = psi->a[0].block_table[k];
+			struct dense_tensor* b = ret->a[0].block_table[k];
 			if (a != NULL) {
 				assert(b != NULL);
 				dense_tensor_scalar_multiply_add(numeric_one(a->dtype), a, b);
@@ -627,10 +629,11 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
 		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
-		assert(a_tail.dim_blocks[0] == 1 && a_tail.dim_blocks[1] == 1 && a_tail.dim_blocks[2] == 1);
+		assert(a_tail.dim_sorted[0] == 1 && a_tail.dim_sorted[1] == 1 && a_tail.dim_sorted[2] == 1);
 		// set single entry to 1
-		assert(a_tail.blocks[0] != NULL);
-		memcpy(a_tail.blocks[0]->data, numeric_one(a_tail.blocks[0]->dtype), sizeof_numeric_type(a_tail.blocks[0]->dtype));
+		assert(a_tail.nelem == 1);
+		assert(a_tail.nblocks == 1);
+		memcpy(a_tail.data, numeric_one(a_tail.dtype), sizeof_numeric_type(a_tail.dtype));
 
 		// orthonormalize last MPS tensor
 		mps_local_orthonormalize_qr(&mps->a[i], &a_tail);
@@ -638,28 +641,29 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
 		double norm = 0;
 		// 'a_tail' can be logically zero in case quantum numbers do not match
-		if (a_tail.blocks[0] != NULL)
+		if (a_tail.nelem > 0)
 		{
-			switch (a_tail.blocks[0]->dtype)
+			assert(a_tail.nelem == 1);
+			switch (a_tail.dtype)
 			{
 				case CT_SINGLE_REAL:
 				{
-					norm = *((float*)a_tail.blocks[0]->data);
+					norm = *((float*)a_tail.data);
 					break;
 				}
 				case CT_DOUBLE_REAL:
 				{
-					norm = *((double*)a_tail.blocks[0]->data);
+					norm = *((double*)a_tail.data);
 					break;
 				}
 				case CT_SINGLE_COMPLEX:
 				{
-					norm = crealf(*((scomplex*)a_tail.blocks[0]->data));
+					norm = crealf(*((scomplex*)a_tail.data));
 					break;
 				}
 				case CT_DOUBLE_COMPLEX:
 				{
-					norm = creal(*((dcomplex*)a_tail.blocks[0]->data));
+					norm = creal(*((dcomplex*)a_tail.data));
 					break;
 				}
 				default:
@@ -700,10 +704,11 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
 		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
-		assert(a_head.dim_blocks[0] == 1 && a_head.dim_blocks[1] == 1 && a_head.dim_blocks[2] == 1);
+		assert(a_head.dim_sorted[0] == 1 && a_head.dim_sorted[1] == 1 && a_head.dim_sorted[2] == 1);
 		// set single entry to 1
-		assert(a_head.blocks[0] != NULL);
-		memcpy(a_head.blocks[0]->data, numeric_one(a_head.blocks[0]->dtype), sizeof_numeric_type(a_head.blocks[0]->dtype));
+		assert(a_head.nelem == 1);
+		assert(a_head.nblocks == 1);
+		memcpy(a_head.data, numeric_one(a_head.dtype), sizeof_numeric_type(a_head.dtype));
 
 		// orthonormalize first MPS tensor
 		mps_local_orthonormalize_rq(&mps->a[0], &a_head);
@@ -711,28 +716,29 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		// retrieve normalization factor (real-valued since diagonal of 'r' matrix is real)
 		double norm = 0;
 		// 'a_head' can be logically zero in case quantum numbers do not match
-		if (a_head.blocks[0] != NULL)
+		if (a_head.nelem > 0)
 		{
-			switch (a_head.blocks[0]->dtype)
+			assert(a_head.nelem == 1);
+			switch (a_head.dtype)
 			{
 				case CT_SINGLE_REAL:
 				{
-					norm = *((float*)a_head.blocks[0]->data);
+					norm = *((float*)a_head.data);
 					break;
 				}
 				case CT_DOUBLE_REAL:
 				{
-					norm = *((double*)a_head.blocks[0]->data);
+					norm = *((double*)a_head.data);
 					break;
 				}
 				case CT_SINGLE_COMPLEX:
 				{
-					norm = crealf(*((scomplex*)a_head.blocks[0]->data));
+					norm = crealf(*((scomplex*)a_head.data));
 					break;
 				}
 				case CT_DOUBLE_COMPLEX:
 				{
-					norm = creal(*((dcomplex*)a_head.blocks[0]->data));
+					norm = creal(*((dcomplex*)a_head.data));
 					break;
 				}
 				default:
@@ -893,10 +899,11 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
 		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
-		assert(a_tail.dim_blocks[0] == 1 && a_tail.dim_blocks[1] == 1 && a_tail.dim_blocks[2] == 1);
+		assert(a_tail.dim_sorted[0] == 1 && a_tail.dim_sorted[1] == 1 && a_tail.dim_sorted[2] == 1);
 		// set single entry to 1
-		assert(a_tail.blocks[0] != NULL);
-		memcpy(a_tail.blocks[0]->data, numeric_one(a_tail.blocks[0]->dtype), sizeof_numeric_type(a_tail.blocks[0]->dtype));
+		assert(a_tail.nelem == 1);
+		assert(a_tail.nblocks == 1);
+		memcpy(a_tail.data, numeric_one(a_tail.dtype), sizeof_numeric_type(a_tail.dtype));
 
 		// orthonormalize last MPS tensor
 		int ret = mps_local_orthonormalize_left_svd(tol, max_vdim, renormalize, &mps->a[i], &a_tail, &info[i]);
@@ -906,12 +913,13 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		assert(a_tail.dtype == mps->a[i].dtype);
 		assert(a_tail.dim_logical[0] == 1 && a_tail.dim_logical[1] == 1 && a_tail.dim_logical[2] == 1);
 		// quantum numbers for 'a_tail' should match due to preceeding QR orthonormalization
-		assert(a_tail.blocks[0] != NULL);
-		switch (a_tail.blocks[0]->dtype)
+		assert(a_tail.nelem == 1);
+		assert(a_tail.nblocks == 1);
+		switch (a_tail.dtype)
 		{
 			case CT_SINGLE_REAL:
 			{
-				float d = *((float*)a_tail.blocks[0]->data);
+				float d = *((float*)a_tail.data);
 				// absorb potential phase factor into MPS tensor
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_SINGLE_REAL), &mps->a[i]);
@@ -921,7 +929,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_DOUBLE_REAL:
 			{
-				double d = *((double*)a_tail.blocks[0]->data);
+				double d = *((double*)a_tail.data);
 				// absorb potential phase factor into MPS tensor
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_DOUBLE_REAL), &mps->a[i]);
@@ -931,7 +939,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_SINGLE_COMPLEX:
 			{
-				scomplex d = *((scomplex*)a_tail.blocks[0]->data);
+				scomplex d = *((scomplex*)a_tail.data);
 				// absorb potential phase factor into MPS tensor
 				float abs_d = cabsf(d);
 				if (abs_d != 0) {
@@ -943,7 +951,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_DOUBLE_COMPLEX:
 			{
-				dcomplex d = *((dcomplex*)a_tail.blocks[0]->data);
+				dcomplex d = *((dcomplex*)a_tail.data);
 				// absorb potential phase factor into MPS tensor
 				double abs_d = cabs(d);
 				if (abs_d != 0) {
@@ -987,10 +995,11 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
 		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
-		assert(a_head.dim_blocks[0] == 1 && a_head.dim_blocks[1] == 1 && a_head.dim_blocks[2] == 1);
+		assert(a_head.dim_sorted[0] == 1 && a_head.dim_sorted[1] == 1 && a_head.dim_sorted[2] == 1);
 		// set single entry to 1
-		assert(a_head.blocks[0] != NULL);
-		memcpy(a_head.blocks[0]->data, numeric_one(a_head.blocks[0]->dtype), sizeof_numeric_type(a_head.blocks[0]->dtype));
+		assert(a_head.nelem == 1);
+		assert(a_head.nblocks == 1);
+		memcpy(a_head.data, numeric_one(a_head.dtype), sizeof_numeric_type(a_head.dtype));
 
 		// orthonormalize first MPS tensor
 		int ret = mps_local_orthonormalize_right_svd(tol, max_vdim, renormalize, &mps->a[0], &a_head, &info[0]);
@@ -1000,12 +1009,13 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		assert(a_head.dtype == mps->a[0].dtype);
 		assert(a_head.dim_logical[0] == 1 && a_head.dim_logical[1] == 1 && a_head.dim_logical[2] == 1);
 		// quantum numbers for 'a_head' should match due to preceeding QR orthonormalization
-		assert(a_head.blocks[0] != NULL);
-		switch (a_head.blocks[0]->dtype)
+		assert(a_head.nelem == 1);
+		assert(a_head.nblocks == 1);
+		switch (a_head.dtype)
 		{
 			case CT_SINGLE_REAL:
 			{
-				float d = *((float*)a_head.blocks[0]->data);
+				float d = *((float*)a_head.data);
 				// absorb potential phase factor into MPS tensor
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_SINGLE_REAL), &mps->a[0]);
@@ -1015,7 +1025,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_DOUBLE_REAL:
 			{
-				double d = *((double*)a_head.blocks[0]->data);
+				double d = *((double*)a_head.data);
 				// absorb potential phase factor into MPS tensor
 				if (d < 0) {
 					scale_block_sparse_tensor(numeric_neg_one(CT_DOUBLE_REAL), &mps->a[0]);
@@ -1025,7 +1035,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_SINGLE_COMPLEX:
 			{
-				scomplex d = *((scomplex*)a_head.blocks[0]->data);
+				scomplex d = *((scomplex*)a_head.data);
 				// absorb potential phase factor into MPS tensor
 				float abs_d = cabsf(d);
 				if (abs_d != 0) {
@@ -1037,7 +1047,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 			}
 			case CT_DOUBLE_COMPLEX:
 			{
-				dcomplex d = *((dcomplex*)a_head.blocks[0]->data);
+				dcomplex d = *((dcomplex*)a_head.data);
 				// absorb potential phase factor into MPS tensor
 				double abs_d = cabs(d);
 				if (abs_d != 0) {

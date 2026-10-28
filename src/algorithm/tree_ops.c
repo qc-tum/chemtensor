@@ -35,8 +35,9 @@ void ttno_inner_product(const struct ttns* chi, const struct ttno* op, const str
 
 	// copy scalar entry
 	assert(avg_bonds[i_root].ndim == 0);
-	assert(avg_bonds[i_root].blocks[0] != NULL);
-	memcpy(ret, avg_bonds[i_root].blocks[0]->data, sizeof_numeric_type(avg_bonds[i_root].dtype));
+	assert(avg_bonds[i_root].nelem == 1);
+	assert(avg_bonds[i_root].nblocks == 1);
+	memcpy(ret, avg_bonds[i_root].data, sizeof_numeric_type(avg_bonds[i_root].dtype));
 
 	for (int l = 0; l < psi->topology.num_nodes; l++) {
 		delete_block_sparse_tensor(&avg_bonds[l]);
@@ -372,7 +373,8 @@ void local_ttno_inner_product(const struct block_sparse_tensor* restrict chi, co
 	if (i_parent == -1)  // root node
 	{
 		assert(avg_bonds[i_site].ndim == 0);
-		assert(avg_bonds[i_site].blocks[0] != NULL);
+		assert(avg_bonds[i_site].nelem == 1);
+		assert(avg_bonds[i_site].nblocks == 1);
 	}
 	else {
 		assert(avg_bonds[i_site].ndim == 3);

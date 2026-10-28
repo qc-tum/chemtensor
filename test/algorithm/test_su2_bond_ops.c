@@ -24,8 +24,8 @@ static void su2_to_block_sparse_tensor(const struct su2_tensor* s, struct block_
 	
 	allocate_block_sparse_tensor(s->dtype, s->ndim_logical, s_dns.dim, axis_dir, (const qnumber**)qnums, t);
 
-	assert(t->blocks[0] != NULL);
-	memcpy(t->blocks[0]->data, s_dns.data, dense_tensor_num_elements(&s_dns) * sizeof_numeric_type(s_dns.dtype));
+	assert(t->nblocks == 1);
+	memcpy(t->data, s_dns.data, dense_tensor_num_elements(&s_dns) * sizeof_numeric_type(s_dns.dtype));
 
 	for (int i = 0; i < s->ndim_logical; i++) {
 		ct_free(qnums[i]);

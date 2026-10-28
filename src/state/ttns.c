@@ -552,9 +552,10 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 	}
 
 	assert(inner_bonds[i_root].ndim == 0);
-	assert(inner_bonds[i_root].blocks[0] != NULL);
+	assert(inner_bonds[i_root].nelem == 1);
+	assert(inner_bonds[i_root].nblocks == 1);
 	// copy scalar entry
-	memcpy(ret, inner_bonds[i_root].blocks[0]->data, sizeof_numeric_type(inner_bonds[i_root].dtype));
+	memcpy(ret, inner_bonds[i_root].data, sizeof_numeric_type(inner_bonds[i_root].dtype));
 
 	for (int l = 0; l < nsites; l++) {
 		delete_block_sparse_tensor(&inner_bonds[l]);

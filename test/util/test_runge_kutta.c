@@ -40,13 +40,9 @@ static void ode_func(const double t, const struct block_sparse_tensor* restrict 
 	// square and scale entries of 'k'
 	const double scaling = sin(M_PI * (0.25 + 5*t));
 	// for each block in 'k'...
-	const ct_long nblocks = integer_product(k.dim_blocks, k.ndim);
-	for (ct_long i = 0; i < nblocks; i++)
+	for (ct_long i = 0; i < k.nblocks; i++)
 	{
-		struct dense_tensor* block = k.blocks[i];
-		if (block == NULL) {
-			continue;
-		}
+		struct dense_tensor* block = k.block_list[i];
 		dcomplex* data = block->data;
 		const ct_long nelem = dense_tensor_num_elements(block);
 		for (ct_long j = 0; j < nelem; j++) {

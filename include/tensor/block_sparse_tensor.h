@@ -19,13 +19,16 @@
 struct block_sparse_tensor
 {
 	void* data;                             //!< serialized data entries of dense blocks
-	struct dense_tensor** blocks;           //!< dense blocks, array of size dim_blocks[0] x ... x dim_blocks[ndim-1]; contains NULL pointers for non-conserved quantum numbers
-	ct_long* dim_blocks;                    //!< block dimensions
+	struct dense_tensor** block_table;      //!< table of dense block pointers, array of size dim_sorted[0] x ... x dim_sorted[ndim-1]; contains NULL pointers for non-conserved quantum numbers
+	struct dense_tensor** block_list;       //!< linear array of non-zero block pointers
+	ct_long* table_index_list;              //!< table indices for each non-zero block (determining its quantum numbers); array of size nblocks x ndim
 	ct_long* dim_logical;                   //!< logical dimensions of the overall tensor
+	ct_long* dim_sorted;                    //!< number of unique quantum numbers along each axis, specifying block table dimensions
 	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
-	qnumber** axis_qnums_sorted;            //!< unique quantum numbers along each axis (must be sorted and pairwise different)
 	qnumber** axis_qnums_logical;           //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
+	qnumber** axis_qnums_sorted;            //!< unique quantum numbers along each axis (must be sorted and pairwise different)
 	ct_long nelem;                          //!< cumulative number of entries in all blocks (length of 'data' array)
+	ct_long nblocks;                        //!< number of non-zero blocks (length of 'block_list' array)
 	enum numeric_type dtype;                //!< numeric data type
 	int ndim;                               //!< number of dimensions (degree)
 };

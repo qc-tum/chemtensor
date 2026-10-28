@@ -109,9 +109,9 @@ char* test_block_sparse_tensor_get_block()
 	struct block_sparse_tensor t;
 	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
 
-	const ct_long nblocks = integer_product(t.dim_blocks, t.ndim);
+	const ct_long max_nblocks = integer_product(t.dim_sorted, t.ndim);
 	ct_long* index_block = ct_calloc(t.ndim, sizeof(ct_long));
-	for (ct_long k = 0; k < nblocks; k++, next_tensor_index(t.ndim, t.dim_blocks, index_block))
+	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(t.ndim, t.dim_sorted, index_block))
 	{
 		// probe whether quantum numbers in 't' sum to zero
 		qnumber qsum = 0;
@@ -123,7 +123,7 @@ char* test_block_sparse_tensor_get_block()
 			continue;
 		}
 
-		struct dense_tensor* b_ref = t.blocks[k];
+		struct dense_tensor* b_ref = t.block_table[k];
 		assert(b_ref != NULL);
 		assert(b_ref->ndim == t.ndim);
 
