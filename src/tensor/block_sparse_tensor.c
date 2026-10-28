@@ -3177,7 +3177,7 @@ bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const 
 
 	// individual diagonal blocks must be identity matrices
 	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
-	ct_long index_block[2];
+	ct_long index_block[2] = { 0 };
 	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(t->ndim, t->dim_sorted, index_block))
 	{
 		// probe whether quantum numbers sum to zero
