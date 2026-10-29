@@ -357,6 +357,26 @@ void LAPACK_zheevd_base(
 
 // eigendecomposition of symmetric tridiagonal matrices
 
+#define LAPACK_ssteqr_base LAPACK_GLOBAL(ssteqr,SSTEQR)
+void LAPACK_ssteqr_base(
+    char const* compz,
+    lapack_int const* n,
+    float* D,
+    float* E,
+    float* Z, lapack_int const* ldz,
+    float* work,
+    lapack_int* info
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    , size_t
+#endif
+);
+#ifdef LAPACK_FORTRAN_STRLEN_END
+    #define LAPACK_ssteqr(...) LAPACK_ssteqr_base(__VA_ARGS__, 1)
+#else
+    #define LAPACK_ssteqr(...) LAPACK_ssteqr_base(__VA_ARGS__)
+#endif
+
+
 #define LAPACK_dsteqr_base LAPACK_GLOBAL(dsteqr,DSTEQR)
 void LAPACK_dsteqr_base(
 	char const* compz,
@@ -515,6 +535,7 @@ void LAPACK_zgesvd_base(
 
 // eigendecomposition of symmetric tridiagonal matrices
 
+#define LAPACK_ssteqr ssteqr_
 #define LAPACK_dsteqr dsteqr_
 
 // singular value decomposition of general matrices
