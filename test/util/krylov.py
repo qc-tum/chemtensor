@@ -23,8 +23,8 @@ def lanczos_iteration(afunc, vstart, numiter):
     assert nrmv > 0
     vstart = vstart / nrmv
 
-    alpha = np.zeros(numiter)
-    beta  = np.zeros(numiter-1)
+    alpha = np.zeros(numiter, dtype=vstart.real.dtype)
+    beta  = np.zeros(numiter-1, dtype=vstart.real.dtype)
 
     v = np.zeros((numiter, len(vstart)), dtype=vstart.dtype)
     v[0] = vstart
@@ -34,7 +34,7 @@ def lanczos_iteration(afunc, vstart, numiter):
         alpha[j] = np.vdot(w, v[j]).real
         w -= alpha[j]*v[j] + (beta[j-1]*v[j-1] if j > 0 else 0)
         beta[j] = np.linalg.norm(w)
-        if beta[j] < 100*len(vstart)*np.finfo(float).eps:
+        if beta[j] < 100*len(vstart)*np.finfo(vstart.dtype).eps:
             warnings.warn(
                 f"beta[{j}] ~= 0 encountered during Lanczos iteration.",
                 RuntimeWarning)
@@ -58,7 +58,7 @@ def eigh_krylov(afunc, vstart, numiter, numeig):
     # diagonalize Hessenberg matrix
     w_hess, u_hess = eigh_tridiag(alpha, beta)
     # compute Ritz eigenvectors
-    u_ritz = v @ u_hess[:, 0:numeig]
+    u_ritz = v @ u_hess[:, :numeig]
     return (w_hess[0:numeig], u_ritz)
 
 

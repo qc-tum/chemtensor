@@ -26,6 +26,35 @@ struct local_hamiltonian_data
 ///
 /// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
 ///
+static void apply_local_hamiltonian_wrapper_s(const ct_long n, const void* restrict data, const float* restrict v, float* restrict ret)
+{
+	// suppress unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
+	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
+
+	// interpret input vector as MPS tensor entries
+	assert(hdata->a->dtype == CT_SINGLE_REAL);
+	assert(hdata->a->nelem == n);
+	block_sparse_tensor_redirect_data_pointer(hdata->a, (void*)v);
+
+	struct block_sparse_tensor ha;
+	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
+
+	assert(ha.dtype == CT_SINGLE_REAL);
+	assert(ha.nelem == n);
+	memcpy(ret, ha.data, ha.nelem * sizeof(float));
+
+	delete_block_sparse_tensor(&ha);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
+///
 static void apply_local_hamiltonian_wrapper_d(const ct_long n, const void* restrict data, const double* restrict v, double* restrict ret)
 {
 	// suppress unused parameter warning
@@ -46,6 +75,35 @@ static void apply_local_hamiltonian_wrapper_d(const ct_long n, const void* restr
 	assert(ha.dtype == CT_DOUBLE_REAL);
 	assert(ha.nelem == n);
 	memcpy(ret, ha.data, ha.nelem * sizeof(double));
+
+	delete_block_sparse_tensor(&ha);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
+///
+static void apply_local_hamiltonian_wrapper_c(const ct_long n, const void* restrict data, const scomplex* restrict v, scomplex* restrict ret)
+{
+	// suppress unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
+	struct local_hamiltonian_data* hdata = (struct local_hamiltonian_data*)data;
+
+	// interpret input vector as MPS tensor entries
+	assert(hdata->a->dtype == CT_SINGLE_COMPLEX);
+	assert(hdata->a->nelem == n);
+	block_sparse_tensor_redirect_data_pointer(hdata->a, (void*)v);
+
+	struct block_sparse_tensor ha;
+	apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
+
+	assert(ha.dtype == CT_SINGLE_COMPLEX);
+	assert(ha.nelem == n);
+	memcpy(ret, ha.data, ha.nelem * sizeof(scomplex));
 
 	delete_block_sparse_tensor(&ha);
 }
@@ -100,13 +158,17 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 	{
 		case CT_SINGLE_REAL:
 		{
-			// not implemented yet
-			assert(false);
+			float en_min_f;
+			int ret = eigensystem_krylov_symmetric_s(a_start->nelem, apply_local_hamiltonian_wrapper_s, &hdata, a_start->data, maxiter, 1, &en_min_f, a_opt->data);
+			if (ret < 0) {
+				return ret;
+			}
+			(*en_min) = (double)en_min_f;
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			int ret = eigensystem_krylov_symmetric(a_start->nelem, apply_local_hamiltonian_wrapper_d, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
+			int ret = eigensystem_krylov_symmetric_d(a_start->nelem, apply_local_hamiltonian_wrapper_d, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
 			if (ret < 0) {
 				return ret;
 			}
@@ -114,13 +176,17 @@ static int minimize_local_energy(const struct block_sparse_tensor* restrict w, c
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			// not implemented yet
-			assert(false);
+			float en_min_f;
+			int ret = eigensystem_krylov_symmetric_c(a_start->nelem, apply_local_hamiltonian_wrapper_c, &hdata, a_start->data, maxiter, 1, &en_min_f, a_opt->data);
+			if (ret < 0) {
+				return ret;
+			}
+			(*en_min) = (double)en_min_f;
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			int ret = eigensystem_krylov_hermitian(a_start->nelem, apply_local_hamiltonian_wrapper_z, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
+			int ret = eigensystem_krylov_symmetric_z(a_start->nelem, apply_local_hamiltonian_wrapper_z, &hdata, a_start->data, maxiter, 1, en_min, a_opt->data);
 			if (ret < 0) {
 				return ret;
 			}
@@ -176,9 +242,6 @@ int dmrg_singlesite(const struct mpo* hamiltonian, const struct dmrg_singlesite_
 	assert(options->delta_en_tol >= 0);
 	assert(options->max_num_sweeps > 0);
 	assert(options->maxiter_lanczos > 0);
-
-	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);
@@ -323,9 +386,6 @@ int dmrg_twosite(const struct mpo* hamiltonian, const struct dmrg_twosite_option
 	assert(options->maxiter_lanczos > 0);
 	assert(options->tol_split >= 0);
 	assert(options->max_vdim > 0);
-
-	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = mps_orthonormalize_qr(psi, MPS_ORTHONORMAL_RIGHT);

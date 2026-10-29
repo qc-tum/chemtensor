@@ -25,6 +25,8 @@ void dmrg_singlesite_default_options(struct dmrg_singlesite_options* options);
 ///
 /// \brief Statistical information obtained while running the single-site DMRG algorithm.
 ///
+/// The energy values are stored in double precision, independent of the precision used for the DMRG run.
+///
 struct dmrg_singlesite_info
 {
 	double* en_sweeps;  //!< energy after each sweep
@@ -56,6 +58,8 @@ void dmrg_twosite_default_options(struct dmrg_twosite_options* options);
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Statistical information obtained while running the two-site DMRG algorithm.
+///
+/// The entropy and energy values are stored in double precision, independent of the precision used for the DMRG run.
 ///
 struct dmrg_twosite_info
 {

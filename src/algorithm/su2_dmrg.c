@@ -26,6 +26,36 @@ struct su2_local_hamiltonian_data
 ///
 /// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
 ///
+static void su2_apply_local_hamiltonian_wrapper_s(const ct_long n, const void* restrict data, const float* restrict v, float* restrict ret)
+{
+	// suppress unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
+	struct su2_local_hamiltonian_data* hdata = (struct su2_local_hamiltonian_data*)data;
+
+	// interpret input vector as MPS tensor entries
+	assert(hdata->a->dtype == CT_SINGLE_REAL);
+	assert(n == su2_tensor_num_elements_degensors(hdata->a));
+	su2_tensor_deserialize_renormalized_entries(hdata->a, v);
+
+	struct su2_tensor ha;
+	su2_apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
+
+	assert(ha.dtype == CT_SINGLE_REAL);
+	assert(n == su2_tensor_num_elements_degensors(&ha));
+	assert(charge_sectors_equal(&ha.charge_sectors, &hdata->a->charge_sectors));
+	su2_tensor_serialize_renormalized_entries(&ha, ret);
+
+	delete_su2_tensor(&ha);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
+///
 static void su2_apply_local_hamiltonian_wrapper_d(const ct_long n, const void* restrict data, const double* restrict v, double* restrict ret)
 {
 	// suppress unused parameter warning
@@ -44,6 +74,36 @@ static void su2_apply_local_hamiltonian_wrapper_d(const ct_long n, const void* r
 	su2_apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
 
 	assert(ha.dtype == CT_DOUBLE_REAL);
+	assert(n == su2_tensor_num_elements_degensors(&ha));
+	assert(charge_sectors_equal(&ha.charge_sectors, &hdata->a->charge_sectors));
+	su2_tensor_serialize_renormalized_entries(&ha, ret);
+
+	delete_su2_tensor(&ha);
+}
+
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Wrapper function for applying a site-local Hamiltonian operator, required for Lanczos iteration.
+///
+static void su2_apply_local_hamiltonian_wrapper_c(const ct_long n, const void* restrict data, const scomplex* restrict v, scomplex* restrict ret)
+{
+	// suppress unused parameter warning
+	#ifdef NDEBUG
+	(void)n;
+	#endif
+
+	struct su2_local_hamiltonian_data* hdata = (struct su2_local_hamiltonian_data*)data;
+
+	// interpret input vector as MPS tensor entries
+	assert(hdata->a->dtype == CT_SINGLE_COMPLEX);
+	assert(n == su2_tensor_num_elements_degensors(hdata->a));
+	su2_tensor_deserialize_renormalized_entries(hdata->a, v);
+
+	struct su2_tensor ha;
+	su2_apply_local_hamiltonian(hdata->a, hdata->w, hdata->l, hdata->r, &ha);
+
+	assert(ha.dtype == CT_SINGLE_COMPLEX);
 	assert(n == su2_tensor_num_elements_degensors(&ha));
 	assert(charge_sectors_equal(&ha.charge_sectors, &hdata->a->charge_sectors));
 	su2_tensor_serialize_renormalized_entries(&ha, ret);
@@ -108,13 +168,17 @@ static int su2_minimize_local_energy(const struct su2_tensor* restrict w, const 
 	{
 		case CT_SINGLE_REAL:
 		{
-			// not implemented yet
-			assert(false);
+			float en_min_f;
+			int ret = eigensystem_krylov_symmetric_s(n, su2_apply_local_hamiltonian_wrapper_s, &hdata, vstart, maxiter, 1, &en_min_f, u_opt);
+			if (ret < 0) {
+				return ret;
+			}
+			(*en_min) = (double)en_min_f;
 			break;
 		}
 		case CT_DOUBLE_REAL:
 		{
-			int ret = eigensystem_krylov_symmetric(n, su2_apply_local_hamiltonian_wrapper_d, &hdata, vstart, maxiter, 1, en_min, u_opt);
+			int ret = eigensystem_krylov_symmetric_d(n, su2_apply_local_hamiltonian_wrapper_d, &hdata, vstart, maxiter, 1, en_min, u_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -122,13 +186,17 @@ static int su2_minimize_local_energy(const struct su2_tensor* restrict w, const 
 		}
 		case CT_SINGLE_COMPLEX:
 		{
-			// not implemented yet
-			assert(false);
+			float en_min_f;
+			int ret = eigensystem_krylov_symmetric_c(n, su2_apply_local_hamiltonian_wrapper_c, &hdata, vstart, maxiter, 1, &en_min_f, u_opt);
+			if (ret < 0) {
+				return ret;
+			}
+			(*en_min) = (double)en_min_f;
 			break;
 		}
 		case CT_DOUBLE_COMPLEX:
 		{
-			int ret = eigensystem_krylov_hermitian(n, su2_apply_local_hamiltonian_wrapper_z, &hdata, vstart, maxiter, 1, en_min, u_opt);
+			int ret = eigensystem_krylov_symmetric_z(n, su2_apply_local_hamiltonian_wrapper_z, &hdata, vstart, maxiter, 1, en_min, u_opt);
 			if (ret < 0) {
 				return ret;
 			}
@@ -190,9 +258,6 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg
 	assert(options->delta_en_tol >= 0);
 	assert(options->max_num_sweeps > 0);
 	assert(options->maxiter_lanczos > 0);
-
-	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = su2_mps_orthonormalize_qr(psi, SU2_MPS_ORTHONORMAL_RIGHT);
@@ -334,9 +399,6 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_tw
 	assert(options->maxiter_lanczos > 0);
 	assert(options->tol_split >= 0);
 	assert(options->max_vdim > 0);
-
-	// currently only double precision supported
-	assert(numeric_real_type(hamiltonian->a[0].dtype) == CT_DOUBLE_REAL);
 
 	// right-normalize input matrix product state
 	double nrm = su2_mps_orthonormalize_qr(psi, SU2_MPS_ORTHONORMAL_RIGHT);

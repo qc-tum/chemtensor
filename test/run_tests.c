@@ -103,10 +103,14 @@ char* test_bipartite_graph_maximum_cardinality_matching();
 char* test_bipartite_graph_minimum_vertex_cover();
 char* test_integer_hermite_normal_form();
 char* test_integer_backsubstitute();
+char* test_lanczos_iteration_s();
 char* test_lanczos_iteration_d();
+char* test_lanczos_iteration_c();
 char* test_lanczos_iteration_z();
-char* test_eigensystem_krylov_symmetric();
-char* test_eigensystem_krylov_hermitian();
+char* test_eigensystem_krylov_symmetric_s();
+char* test_eigensystem_krylov_symmetric_d();
+char* test_eigensystem_krylov_symmetric_c();
+char* test_eigensystem_krylov_symmetric_z();
 char* test_runge_kutta_4_block_sparse();
 char* test_real_spherical_harmonics();
 char* test_wigner_small_d();
@@ -255,10 +259,14 @@ int main()
 		TEST_FUNCTION_ENTRY(test_bipartite_graph_minimum_vertex_cover),
 		TEST_FUNCTION_ENTRY(test_integer_hermite_normal_form),
 		TEST_FUNCTION_ENTRY(test_integer_backsubstitute),
+		TEST_FUNCTION_ENTRY(test_lanczos_iteration_s),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_d),
+		TEST_FUNCTION_ENTRY(test_lanczos_iteration_c),
 		TEST_FUNCTION_ENTRY(test_lanczos_iteration_z),
-		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric),
-		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_hermitian),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric_s),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric_d),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric_c),
+		TEST_FUNCTION_ENTRY(test_eigensystem_krylov_symmetric_z),
 		TEST_FUNCTION_ENTRY(test_runge_kutta_4_block_sparse),
 		TEST_FUNCTION_ENTRY(test_real_spherical_harmonics),
 		TEST_FUNCTION_ENTRY(test_wigner_small_d),

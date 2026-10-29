@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def crandn(size=None, rng: np.random.Generator=None):
+def crandn(size=None, rng: np.random.Generator | None = None):
     """
     Draw random samples from the standard complex normal (Gaussian) distribution.
     """
