@@ -2,11 +2,12 @@
 /// \brief DMRG algorithm for SU(2) symmetric tensors.
 
 #include <math.h>
-#include <stdio.h>
 #include "su2_dmrg.h"
 #include "su2_chain_ops.h"
 #include "krylov.h"
 #include "aligned_memory.h"
+#include "timing.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -259,10 +260,23 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg
 	assert(options->max_num_sweeps > 0);
 	assert(options->maxiter_lanczos > 0);
 
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Starting single-site DMRG for SU(2) symmetric tensors on a %i-site system (using delta_en_tol = %g, max_num_sweeps = %i, maxiter_lanczos = %i)...\n",
+			nsites,
+			options->delta_en_tol,
+			options->max_num_sweeps,
+			options->maxiter_lanczos);
+	}
+
+	// get the tick resolution
+	const double ticks_per_sec = (double)get_tick_resolution();
+
+	const uint64_t tick_start_dmrg = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 	// right-normalize input matrix product state
 	double nrm = su2_mps_orthonormalize_qr(psi, SU2_MPS_ORTHONORMAL_RIGHT);
 	if (nrm == 0) {
-		printf("Warning: in 'su2_dmrg_singlesite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
+		logprint("Warning: in 'su2_dmrg_singlesite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
 	}
 
 	// left and right operator blocks
@@ -278,6 +292,8 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg
 
 	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
+		const uint64_t tick_start_sweep = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 		double en;
 
 		// sweep from left to right
@@ -335,9 +351,26 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg
 		info->num_sweeps = n + 1;
 		info->en_sweeps[n] = en;
 
+		const uint64_t tick_end_sweep = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+		if (ct_verbosity > CT_VERBOSITY_NONE) {
+			logprint("    sweep %i done, current energy: %g\n", info->num_sweeps, en);
+		}
+		if (ct_verbosity == CT_VERBOSITY_TIMING) {
+			logprint("    wall clock time for sweep: %g seconds\n", (tick_end_sweep - tick_start_sweep) / ticks_per_sec);
+		}
+
 		// stopping criterion based on relative energy difference
-		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
-			break;
+		if (n > 0)
+		{
+			const double delta_en = fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1);
+			if (delta_en < options->delta_en_tol)
+			{
+				if (ct_verbosity > CT_VERBOSITY_NONE) {
+					logprint("    stopping early after sweep %i due to small relative energy difference %g\n", info->num_sweeps, delta_en);
+				}
+				break;
+			}
 		}
 	}
 
@@ -349,6 +382,21 @@ int su2_dmrg_singlesite(const struct su2_mpo* hamiltonian, const struct su2_dmrg
 	}
 	ct_free(rblocks);
 	ct_free(lblocks);
+
+	const uint64_t tick_end_dmrg = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+	if (ct_verbosity > CT_VERBOSITY_NONE)
+	{
+		logprint("Completed single-site DMRG algorithm for SU(2) symmetric tensors.\n");
+
+		logprint("energy after each DMRG sweep:\n");
+		for (int n = 0; n < info->num_sweeps; n++) {
+			logprint("%i: %.15g\n", n + 1, info->en_sweeps[n]);
+		}
+	}
+	if (ct_verbosity == CT_VERBOSITY_TIMING) {
+		logprint("wall clock time for DMRG: %g seconds\n", (tick_end_dmrg - tick_start_dmrg) / ticks_per_sec);
+	}
 
 	return 0;
 }
@@ -400,10 +448,25 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_tw
 	assert(options->tol_split >= 0);
 	assert(options->max_vdim > 0);
 
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Starting two-site DMRG for SU(2) symmetric tensors on a %i-site system (using delta_en_tol = %g, max_num_sweeps = %i, maxiter_lanczos = %i, tol_split = %g, max_vdim = %li)...\n",
+			nsites,
+			options->delta_en_tol,
+			options->max_num_sweeps,
+			options->maxiter_lanczos,
+			options->tol_split,
+			options->max_vdim);
+	}
+
+	// get the tick resolution
+	const double ticks_per_sec = (double)get_tick_resolution();
+
+	const uint64_t tick_start_dmrg = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 	// right-normalize input matrix product state
 	double nrm = su2_mps_orthonormalize_qr(psi, SU2_MPS_ORTHONORMAL_RIGHT);
 	if (nrm == 0) {
-		printf("Warning: in 'su2_dmrg_twosite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
+		logprint("Warning: in 'su2_dmrg_twosite': initial MPS has norm zero (possibly due to mismatching quantum numbers)\n");
 	}
 
 	// left and right operator blocks
@@ -426,6 +489,8 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_tw
 
 	for (int n = 0; n < options->max_num_sweeps; n++)
 	{
+		const uint64_t tick_start_sweep = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 		double en;
 
 		// sweep from left to right
@@ -543,9 +608,26 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_tw
 		info->num_sweeps = n + 1;
 		info->en_sweeps[n] = en;
 
+		const uint64_t tick_end_sweep = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+		if (ct_verbosity > CT_VERBOSITY_NONE) {
+			logprint("    sweep %i done, current energy: %g\n", info->num_sweeps, en);
+		}
+		if (ct_verbosity == CT_VERBOSITY_TIMING) {
+			logprint("    wall clock time for sweep: %g seconds\n", (tick_end_sweep - tick_start_sweep) / ticks_per_sec);
+		}
+
 		// stopping criterion based on relative energy difference
-		if (n > 0 && fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1) < options->delta_en_tol) {
-			break;
+		if (n > 0)
+		{
+			const double delta_en = fabs(info->en_sweeps[n] - info->en_sweeps[n - 1]) / fmax(fabs(info->en_sweeps[n]), 1);
+			if (delta_en < options->delta_en_tol)
+			{
+				if (ct_verbosity > CT_VERBOSITY_NONE) {
+					logprint("    stopping early after sweep %i due to small relative energy difference %g\n", info->num_sweeps, delta_en);
+				}
+				break;
+			}
 		}
 	}
 
@@ -562,6 +644,32 @@ int su2_dmrg_twosite(const struct su2_mpo* hamiltonian, const struct su2_dmrg_tw
 	}
 	ct_free(rblocks);
 	ct_free(lblocks);
+
+	const uint64_t tick_end_dmrg = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+	if (ct_verbosity > CT_VERBOSITY_NONE)
+	{
+		logprint("Completed two-site DMRG algorithm for SU(2) symmetric tensors.\n");
+
+		logprint("psi logical bond dimensions: ");
+		for (int i = 0; i < nsites + 1; i++) {
+			logprint("%li ", su2_mps_bond_dim(psi, i));
+		}
+		logprint("\n");
+		logprint("splitting entropies for each bond: ");
+		for (int i = 0; i < nsites - 1; i++) {
+			logprint("%g ", info->entropy[i]);
+		}
+		logprint("\n");
+
+		logprint("energy after each DMRG sweep:\n");
+		for (int n = 0; n < info->num_sweeps; n++) {
+			logprint("%i: %.15g\n", n + 1, info->en_sweeps[n]);
+		}
+	}
+	if (ct_verbosity == CT_VERBOSITY_TIMING) {
+		logprint("wall clock time for DMRG: %g seconds\n", (tick_end_dmrg - tick_start_dmrg) / ticks_per_sec);
+	}
 
 	return 0;
 }

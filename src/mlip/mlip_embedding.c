@@ -3,10 +3,10 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <stdio.h>
 #include "mlip_embedding.h"
 #include "spherical_harmonics.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -108,7 +108,7 @@ void mlip_embedding_from_atomic_data(const struct mlip_atomic_data* atomic_data,
 				}
 				else
 				{
-					printf("Warning: in 'construct_mlip_embedding': encountered zero difference vector between atomic positions; evaluation of spherical harmonics is not well-defined");
+					logprint("Warning: in 'construct_mlip_embedding': encountered zero difference vector between atomic positions; evaluation of spherical harmonics is not well-defined\n");
 					// ensure that input to spherical harmonics function is valid
 					vec[0] = 0;
 					vec[1] = 0;
@@ -170,7 +170,7 @@ void mlip_embedding_from_atomic_data(const struct mlip_atomic_data* atomic_data,
 				}
 				else
 				{
-					printf("Warning: in 'construct_mlip_embedding': encountered zero difference vector between atomic positions; evaluation of spherical harmonics is not well-defined");
+					logprint("Warning: in 'construct_mlip_embedding': encountered zero difference vector between atomic positions; evaluation of spherical harmonics is not well-defined\n");
 					// ensure that input to spherical harmonics function is valid
 					vec[0] = 0;
 					vec[1] = 0;

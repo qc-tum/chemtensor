@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <complex.h>
-#include <stdio.h>
 #include "su2_mps.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -61,7 +61,7 @@ void allocate_su2_mps(
 		assert(su2_tensor_is_consistent(&mps->a[l]));
 
 		if (mps->a[l].charge_sectors.nsec == 0) {
-			printf("Warning: in 'allocate_su2_mps': SU(2) tensor at site %i has no charge sectors\n", l);
+			logprint("Warning: in 'allocate_su2_mps': SU(2) tensor at site %i has no charge sectors\n", l);
 		}
 	}
 }

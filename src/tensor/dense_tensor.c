@@ -5,11 +5,11 @@
 #include <math.h>
 #include <memory.h>
 #include <complex.h>
-#include <stdio.h>
 #include "dense_tensor.h"
 #include "cblas_ct.h"
 #include "lapack_ct.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -2629,7 +2629,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int nlp = n;
 				LAPACK_sgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -2638,7 +2638,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_sgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2668,7 +2668,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int klp = k;
 				LAPACK_sorgqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sorgqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -2677,7 +2677,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_sorgqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sorgqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sorgqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -2721,7 +2721,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int nlp = n;
 				LAPACK_dgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -2730,7 +2730,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_dgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2760,7 +2760,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int klp = k;
 				LAPACK_dorgqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dorgqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -2769,7 +2769,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_dorgqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dorgqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dorgqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -2813,7 +2813,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int nlp = n;
 				LAPACK_cgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -2822,7 +2822,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_cgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2852,7 +2852,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int klp = k;
 				LAPACK_cungqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cungqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -2861,7 +2861,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_cungqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cungqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cungqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -2905,7 +2905,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int nlp = n;
 				LAPACK_zgeqrf(&mlp, &nlp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -2914,7 +2914,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_zgeqrf(&mlp, &nlp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgeqrf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgeqrf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -2944,7 +2944,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int klp = k;
 				LAPACK_zungqr(&mlp, &llp, &klp, NULL, &mlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zungqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -2953,7 +2953,7 @@ int dense_tensor_qr_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_zungqr(&mlp, &llp, &klp, t, &mlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zungqr' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zungqr' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -3060,7 +3060,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_sgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3069,7 +3069,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_sgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3102,7 +3102,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_sorgrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -3111,7 +3111,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_sorgrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sorgrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -3159,7 +3159,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_dgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3168,7 +3168,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_dgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3201,7 +3201,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_dorgrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -3210,7 +3210,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_dorgrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dorgrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dorgrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -3258,7 +3258,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_cgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3267,7 +3267,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_cgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3300,7 +3300,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_cungrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -3309,7 +3309,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_cungrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cungrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -3357,7 +3357,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_zgerqf(&mlp, &nlp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3366,7 +3366,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_zgerqf(&mlp, &nlp, t + tshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgerqf' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgerqf' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3399,7 +3399,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				const lapack_int tlp = ldt;
 				LAPACK_zungrq(&llp, &nlp, &klp, NULL, &tlp, NULL, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				lwork = (lapack_int)work_size;
@@ -3408,7 +3408,7 @@ int dense_tensor_rq_fill(const struct dense_tensor* restrict a, const enum qr_mo
 				LAPACK_zungrq(&llp, &nlp, &klp, t + rshift_row, &tlp, tau, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zungrq' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zungrq' failed, return value: %i\n", info);
 					return -2;
 				}
 				// copy entries into 'q'
@@ -3464,7 +3464,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_ssyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'ssyev' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork = (lapack_int)work_size;
@@ -3477,7 +3477,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			ct_free(adata);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'ssyev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3493,7 +3493,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_dsyev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'dsyev' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork = (lapack_int)work_size;
@@ -3506,7 +3506,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			ct_free(adata);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'dsyev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3522,7 +3522,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_cheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'cheev' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork = (lapack_int)work_size;
@@ -3537,7 +3537,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'cheev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3553,7 +3553,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_zheev("N", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, NULL, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'zheev' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork = (lapack_int)work_size;
@@ -3568,7 +3568,7 @@ int dense_tensor_eigvalsh(const struct dense_tensor* restrict a, struct dense_te
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheev' failed, return value: %i\n", info);
+				logerror("LAPACK function 'zheev' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3645,7 +3645,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_ssyevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'ssyevd' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork  = (lapack_int)work_size;
@@ -3657,7 +3657,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			ct_free(iwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'ssyevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'ssyevd' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3690,7 +3690,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_dsyevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'dsyevd' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork  = (lapack_int)work_size;
@@ -3702,7 +3702,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			ct_free(iwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'dsyevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'dsyevd' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3740,7 +3740,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_cheevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'cheevd' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork  = (lapack_int)work_size;
@@ -3755,7 +3755,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'cheevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'cheevd' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3793,7 +3793,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			// "L" corresponds to "U" due to column-major order convention of LAPACK
 			LAPACK_zheevd("V", "L", &nlp, NULL, &nlp, NULL, &work_size, &lwork, &rwork_size, &lrwork, &iwork_size, &liwork, &info);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'zheevd' failed, return value: %i\n", info);
 				return -1;
 			}
 			lwork  = (lapack_int)work_size;
@@ -3808,7 +3808,7 @@ int dense_tensor_eigh_fill(const struct dense_tensor* restrict a, struct dense_t
 			ct_free(rwork);
 			ct_free(work);
 			if (info != 0) {
-				fprintf(stderr, "LAPACK function 'zheevd' failed, return value: %i\n", info);
+				logerror("LAPACK function 'zheevd' failed, return value: %i\n", info);
 				return -1;
 			}
 
@@ -3907,7 +3907,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_sgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3916,7 +3916,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				LAPACK_sgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3934,7 +3934,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_sgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3943,7 +3943,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				LAPACK_sgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'sgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'sgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3966,7 +3966,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_dgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -3975,7 +3975,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				LAPACK_dgesvd("S", "O", &nlp, &mlp, u->data, &klp, s->data, vh->data, &nlp, NULL, &klp, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -3993,7 +3993,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_dgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -4002,7 +4002,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				LAPACK_dgesvd("O", "S", &nlp, &mlp, vh->data, &nlp, s->data, NULL, &nlp, u->data, &klp, work, &lwork, &info);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'dgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'dgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -4025,7 +4025,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_cgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -4036,7 +4036,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				ct_free(rwork);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -4054,7 +4054,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_cgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -4065,7 +4065,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				ct_free(rwork);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'cgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'cgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -4088,7 +4088,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_zgesvd("S", "O", &nlp, &mlp, NULL, &klp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -4099,7 +4099,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				ct_free(rwork);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}
@@ -4117,7 +4117,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				const lapack_int klp = k;
 				LAPACK_zgesvd("O", "S", &nlp, &mlp, NULL, &nlp, NULL, NULL, &nlp, NULL, &klp, &work_size, &lwork, NULL, &info);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 				lwork = (lapack_int)work_size;
@@ -4128,7 +4128,7 @@ int dense_tensor_svd_fill(const struct dense_tensor* restrict a, struct dense_te
 				ct_free(rwork);
 				ct_free(work);
 				if (info != 0) {
-					fprintf(stderr, "LAPACK function 'zgesvd' failed, return value: %i\n", info);
+					logerror("LAPACK function 'zgesvd' failed, return value: %i\n", info);
 					return -1;
 				}
 			}

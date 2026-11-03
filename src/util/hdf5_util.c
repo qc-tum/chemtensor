@@ -1,8 +1,8 @@
 /// \file hdf5_util.c
 /// \brief HDF5 utility functions.
 
-#include <stdio.h>
 #include "hdf5_util.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -14,14 +14,14 @@ herr_t get_hdf5_dataset_ndims(const hid_t file, const char* name, int* ndims)
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
 	{
-		fprintf(stderr, "'H5Dopen' for '%s' failed\n", name);
+		logerror("'H5Dopen' for '%s' failed\n", name);
 		return -1;
 	}
 
 	hid_t space = H5Dget_space(dset);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Dget_space'for '%s' failed\n", name);
+		logerror("'H5Dget_space'for '%s' failed\n", name);
 		return -1;
 	}
 
@@ -43,14 +43,14 @@ herr_t get_hdf5_dataset_dims(const hid_t file, const char* name, hsize_t* dims)
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
 	{
-		fprintf(stderr, "'H5Dopen' for '%s' failed\n", name);
+		logerror("'H5Dopen' for '%s' failed\n", name);
 		return -1;
 	}
 
 	hid_t space = H5Dget_space(dset);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Dget_space' for '%s' failed\n", name);
+		logerror("'H5Dget_space' for '%s' failed\n", name);
 		return -1;
 	}
 
@@ -73,14 +73,14 @@ herr_t read_hdf5_dataset(const hid_t file, const char* name, hid_t mem_type, voi
 	hid_t dset = H5Dopen(file, name, H5P_DEFAULT);
 	if (dset < 0)
 	{
-		fprintf(stderr, "'H5Dopen' for '%s' failed\n", name);
+		logerror("'H5Dopen' for '%s' failed\n", name);
 		return -1;
 	}
 
 	herr_t status = H5Dread(dset, mem_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Dread' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Dread' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
@@ -100,7 +100,7 @@ herr_t write_hdf5_dataset(const hid_t file, const char* name, int degree, const 
 	hid_t space = H5Screate_simple(degree, dims, NULL);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Screate_simple' for '%s' failed\n", name);
+		logerror("'H5Screate_simple' for '%s' failed\n", name);
 		return -1;
 	}
 
@@ -109,7 +109,7 @@ herr_t write_hdf5_dataset(const hid_t file, const char* name, int degree, const 
 	herr_t status = H5Pset_obj_track_times(cplist, 0);
 	if (status < 0)
 	{
-		fprintf(stderr, "creating property list failed, return value: %d\n", status);
+		logerror("creating property list failed, return value: %d\n", status);
 		return status;
 	}
 
@@ -117,7 +117,7 @@ herr_t write_hdf5_dataset(const hid_t file, const char* name, int degree, const 
 	hid_t dset = H5Dcreate(file, name, mem_type_store, space, H5P_DEFAULT, cplist, H5P_DEFAULT);
 	if (dset < 0)
 	{
-		fprintf(stderr, "'H5Dcreate' for '%s' failed\n", name);
+		logerror("'H5Dcreate' for '%s' failed\n", name);
 		return -1;
 	}
 
@@ -125,7 +125,7 @@ herr_t write_hdf5_dataset(const hid_t file, const char* name, int degree, const 
 	status = H5Dwrite(dset, mem_type_input, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Dwrite' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Dwrite' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
@@ -146,14 +146,14 @@ herr_t get_hdf5_attribute_dims(const hid_t file, const char* name, hsize_t* dims
 	hid_t attr = H5Aopen(file, name, H5P_DEFAULT);
 	if (attr < 0)
 	{
-		fprintf(stderr, "'H5Aopen' for '%s' failed\n", name);
+		logerror("'H5Aopen' for '%s' failed\n", name);
 		return -1;
 	}
 
 	hid_t space = H5Aget_space(attr);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Aget_space' for '%s' failed\n", name);
+		logerror("'H5Aget_space' for '%s' failed\n", name);
 		return -1;
 	}
 
@@ -176,21 +176,21 @@ herr_t read_hdf5_attribute(const hid_t file, const char* name, hid_t mem_type, v
 	hid_t attr = H5Aopen(file, name, H5P_DEFAULT);
 	if (attr < 0)
 	{
-		fprintf(stderr, "'H5Aopen' for '%s' failed\n", name);
+		logerror("'H5Aopen' for '%s' failed\n", name);
 		return -1;
 	}
 
 	herr_t status = H5Aread(attr, mem_type, data);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Aread' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Aread' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
 	status = H5Aclose(attr);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Aclose' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Aclose' for '%s' failed, return value: %d\n", name, status);
 		return -1;
 	}
 
@@ -207,34 +207,34 @@ herr_t write_hdf5_scalar_attribute(const hid_t file, const char* name, hid_t mem
 	hid_t space = H5Screate(H5S_SCALAR);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Screate' for '%s' failed\n", name);
+		logerror("'H5Screate' for '%s' failed\n", name);
 		return -1;
 	}
 
 	hid_t attr = H5Acreate(file, name, mem_type_store, space, H5P_DEFAULT, H5P_DEFAULT);
 	if (attr < 0)
 	{
-		fprintf(stderr, "'H5Acreate' for '%s' failed\n", name);
+		logerror("'H5Acreate' for '%s' failed\n", name);
 		return -1;
 	}
 
 	herr_t status = H5Awrite(attr, mem_type_input, data);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Awrite' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Awrite' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
 	status = H5Aclose(attr);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Aclose' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Aclose' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 	status = H5Sclose(space);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Sclose' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Sclose' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
@@ -252,34 +252,34 @@ herr_t write_hdf5_vector_attribute(const hid_t file, const char* name, hid_t mem
 	hid_t space = H5Screate_simple(1, dims, NULL);
 	if (space < 0)
 	{
-		fprintf(stderr, "'H5Screate_simple' for '%s' failed\n", name);
+		logerror("'H5Screate_simple' for '%s' failed\n", name);
 		return -1;
 	}
 
 	hid_t attr = H5Acreate(file, name, mem_type_store, space, H5P_DEFAULT, H5P_DEFAULT);
 	if (attr < 0)
 	{
-		fprintf(stderr, "'H5Acreate' for '%s' failed\n", name);
+		logerror("'H5Acreate' for '%s' failed\n", name);
 		return -1;
 	}
 
 	herr_t status = H5Awrite(attr, mem_type_input, data);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Awrite' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Awrite' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
 	status = H5Aclose(attr);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Aclose' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Aclose' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 	status = H5Sclose(space);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Sclose' for '%s' failed, return value: %d\n", name, status);
+		logerror("'H5Sclose' for '%s' failed, return value: %d\n", name, status);
 		return status;
 	}
 
@@ -297,7 +297,7 @@ hid_t construct_hdf5_single_complex_dtype(const bool storage)
 	hid_t type_id = H5Tcreate(H5T_COMPOUND, sizeof(scomplex));
 	if (type_id < 0)
 	{
-		fprintf(stderr, "'H5Tcreate' failed for single complex data type\n");
+		logerror("'H5Tcreate' failed for single complex data type\n");
 		return -1;
 	}
 
@@ -305,13 +305,13 @@ hid_t construct_hdf5_single_complex_dtype(const bool storage)
 	herr_t status = H5Tinsert(type_id, "r", 0, storage ? H5T_IEEE_F32LE : H5T_NATIVE_FLOAT);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Tinsert' failed for single complex data type (real part), return value: %d\n", status);
+		logerror("'H5Tinsert' failed for single complex data type (real part), return value: %d\n", status);
 		return -1;
 	}
 	status = H5Tinsert(type_id, "i", sizeof(float), storage ? H5T_IEEE_F32LE : H5T_NATIVE_FLOAT);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Tinsert' failed for single complex data type (imaginary part), return value: %d\n", status);
+		logerror("'H5Tinsert' failed for single complex data type (imaginary part), return value: %d\n", status);
 		return -1;
 	}
 
@@ -329,7 +329,7 @@ hid_t construct_hdf5_double_complex_dtype(const bool storage)
 	hid_t type_id = H5Tcreate(H5T_COMPOUND, sizeof(dcomplex));
 	if (type_id < 0)
 	{
-		fprintf(stderr, "'H5Tcreate' failed for double complex data type\n");
+		logerror("'H5Tcreate' failed for double complex data type\n");
 		return -1;
 	}
 
@@ -337,13 +337,13 @@ hid_t construct_hdf5_double_complex_dtype(const bool storage)
 	herr_t status = H5Tinsert(type_id, "r", 0, storage ? H5T_IEEE_F64LE : H5T_NATIVE_DOUBLE);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Tinsert' failed for double complex data type (real part), return value: %d\n", status);
+		logerror("'H5Tinsert' failed for double complex data type (real part), return value: %d\n", status);
 		return -1;
 	}
 	status = H5Tinsert(type_id, "i", sizeof(double), storage ? H5T_IEEE_F64LE : H5T_NATIVE_DOUBLE);
 	if (status < 0)
 	{
-		fprintf(stderr, "'H5Tinsert' failed for double complex data type (imaginary part), return value: %d\n", status);
+		logerror("'H5Tinsert' failed for double complex data type (imaginary part), return value: %d\n", status);
 		return -1;
 	}
 

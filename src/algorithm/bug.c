@@ -6,6 +6,8 @@
 #include "tree_ops.h"
 #include "runge_kutta.h"
 #include "aligned_memory.h"
+#include "timing.h"
+#include "logging.h"
 
 
 static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_site, const int i_parent,
@@ -419,6 +421,18 @@ static void bug_time_step_subtree(const struct ttno* hamiltonian, const int i_si
 ///
 int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const void* prefactor, const double dt, const double rel_tol_compress, const ct_long max_vdim, struct ttns* state)
 {
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Performing a rank-augmenting BUG time integration step on a tree topology (with i_root = %i, dt = %g, rel_tol_compress = %g, max_vdim = %li)...\n",
+			i_root,
+			dt,
+			rel_tol_compress,
+			max_vdim);
+	}
+
+	// get the tick resolution
+	const double ticks_per_sec = (double)get_tick_resolution();
+	const uint64_t tick_start  = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 	const int nsites = hamiltonian->topology.num_nodes;
 
 	struct block_sparse_tensor* avg_bonds = ct_malloc(nsites * sizeof(struct block_sparse_tensor));
@@ -453,6 +467,15 @@ int bug_tree_time_step(const struct ttno* hamiltonian, const int i_root, const v
 	ct_free(augment_maps);
 	ct_free(avg_bonds_augmented);
 	ct_free(avg_bonds);
+
+	const uint64_t tick_end = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Completed BUG time integration.\n");
+	}
+	if (ct_verbosity == CT_VERBOSITY_TIMING) {
+		logprint("wall clock time for BUG integration step: %g seconds\n", (tick_end - tick_start) / ticks_per_sec);
+	}
 
 	return 0;
 }

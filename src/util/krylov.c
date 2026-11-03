@@ -4,12 +4,12 @@
 #include <math.h>
 #include <complex.h>
 #include <assert.h>
-#include <stdio.h>
 #include "krylov.h"
 #include "cblas_ct.h"
 #include "lapack_ct.h"
 #include "aligned_memory.h"
 #include "util.h"
+#include "logging.h"
 
 
 #ifndef FLT_EPSILON
@@ -360,7 +360,7 @@ int eigensystem_krylov_symmetric_s(const ct_long n, lanczos_linear_func_s afunc,
 		ct_free(h_dns_t);
 
 		if (!is_symm) {
-			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_s' is not symmetric; overall error: %g\n", err);
+			logprint("Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_s' is not symmetric; overall error: %g\n", err);
 		}
 	}
 	#endif
@@ -372,7 +372,7 @@ int eigensystem_krylov_symmetric_s(const ct_long n, lanczos_linear_func_s afunc,
 	lanczos_iteration_s(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
 	if (numiter < numeig) {
-		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		logerror("Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
 		return -1;
 	}
 
@@ -384,7 +384,7 @@ int eigensystem_krylov_symmetric_s(const ct_long n, lanczos_linear_func_s afunc,
 	LAPACK_ssteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'ssteqr' failed, return value: %i\n", info);
+		logerror("LAPACK function 'ssteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 
@@ -446,7 +446,7 @@ int eigensystem_krylov_symmetric_d(const ct_long n, lanczos_linear_func_d afunc,
 		ct_free(h_dns_t);
 
 		if (!is_symm) {
-			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_d' is not symmetric; overall error: %g\n", err);
+			logprint("Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_d' is not symmetric; overall error: %g\n", err);
 		}
 	}
 	#endif
@@ -458,7 +458,7 @@ int eigensystem_krylov_symmetric_d(const ct_long n, lanczos_linear_func_d afunc,
 	lanczos_iteration_d(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
 	if (numiter < numeig) {
-		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		logerror("Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
 		return -1;
 	}
 
@@ -470,7 +470,7 @@ int eigensystem_krylov_symmetric_d(const ct_long n, lanczos_linear_func_d afunc,
 	LAPACK_dsteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
+		logerror("LAPACK function 'dsteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 
@@ -532,7 +532,7 @@ int eigensystem_krylov_symmetric_c(const ct_long n, lanczos_linear_func_c afunc,
 		ct_free(h_dns_t);
 
 		if (!is_symm) {
-			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_c' is not Hermitian; overall error: %g\n", err);
+			logprint("Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_c' is not Hermitian; overall error: %g\n", err);
 		}
 	}
 	#endif
@@ -544,7 +544,7 @@ int eigensystem_krylov_symmetric_c(const ct_long n, lanczos_linear_func_c afunc,
 	lanczos_iteration_c(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
 	if (numiter < numeig) {
-		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		logerror("Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
 		return -1;
 	}
 
@@ -556,7 +556,7 @@ int eigensystem_krylov_symmetric_c(const ct_long n, lanczos_linear_func_c afunc,
 	LAPACK_ssteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
+		logerror("LAPACK function 'dsteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 
@@ -626,7 +626,7 @@ int eigensystem_krylov_symmetric_z(const ct_long n, lanczos_linear_func_z afunc,
 		ct_free(h_dns_t);
 
 		if (!is_symm) {
-			fprintf(stderr, "Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_z' is not Hermitian; overall error: %g\n", err);
+			logprint("Warning: linear function 'afunc' in 'eigensystem_krylov_symmetric_z' is not Hermitian; overall error: %g\n", err);
 		}
 	}
 	#endif
@@ -638,7 +638,7 @@ int eigensystem_krylov_symmetric_z(const ct_long n, lanczos_linear_func_z afunc,
 	lanczos_iteration_z(n, afunc, adata, vstart, maxiter, alpha, beta, v, &numiter);
 
 	if (numiter < numeig) {
-		fprintf(stderr, "Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
+		logerror("Lanczos iteration stopped after %i iterations, cannot compute %i eigenvalues\n", numiter, numeig);
 		return -1;
 	}
 
@@ -650,7 +650,7 @@ int eigensystem_krylov_symmetric_z(const ct_long n, lanczos_linear_func_z afunc,
 	LAPACK_dsteqr("I", &numiterlp, alpha, beta, u, &numiterlp, work, &info);
 	ct_free(work);
 	if (info != 0) {
-		fprintf(stderr, "LAPACK function 'dsteqr' failed, return value: %i\n", info);
+		logerror("LAPACK function 'dsteqr' failed, return value: %i\n", info);
 		return -2;
 	}
 

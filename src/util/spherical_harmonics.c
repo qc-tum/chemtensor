@@ -2,10 +2,10 @@
 /// \brief Evaluate spherical harmonics.
 
 #include <math.h>
-#include <stdio.h>
 #include <assert.h>
 #include "spherical_harmonics.h"
 #include "util.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -84,7 +84,7 @@ void real_spherical_harmonics_f(const qnumber l, const float v[3], float* yv)
 		default:
 		{
 			// 'l' not supported yet
-			fprintf(stderr, "quantum number l = %i in spherical harmonics evaluation not supported yet\n", l);
+			logerror("quantum number l = %i in spherical harmonics evaluation not supported yet\n", l);
 			assert(false);
 			break;
 		}
@@ -168,7 +168,7 @@ void real_spherical_harmonics(const qnumber l, const double v[3], double* yv)
 		default:
 		{
 			// 'l' not supported yet
-			fprintf(stderr, "quantum number l = %i in spherical harmonics evaluation not supported yet\n", l);
+			logerror("quantum number l = %i in spherical harmonics evaluation not supported yet\n", l);
 			assert(false);
 			break;
 		}

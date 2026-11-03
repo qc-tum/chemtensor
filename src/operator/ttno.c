@@ -2,10 +2,10 @@
 /// \brief Tree tensor network operator (TTNO) data structure and functions.
 
 #include <math.h>
-#include <stdio.h>
 #include "ttno.h"
 #include "abstract_graph.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -309,7 +309,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 
 		#ifndef NDEBUG
 		if (!dense_block_sparse_tensor_allclose(&a_loc, &ttno->a[l], 0.)) {
-			fprintf(stderr, "Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'ttno_from_graph', site %i\n", l);
+			logprint("Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'ttno_from_graph', site %i\n", l);
 		}
 		#endif
 

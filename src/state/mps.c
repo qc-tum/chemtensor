@@ -9,6 +9,7 @@
 #include "mps.h"
 #include "aligned_memory.h"
 #include "hdf5_util.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -1230,7 +1231,7 @@ int save_mps(const char* filename, const struct mps* mps)
 	hid_t file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 	if (file < 0)
 	{
-		fprintf(stderr, "'H5Fcreate' failed for '%s'\n", filename);
+		logerror("'H5Fcreate' failed for '%s'\n", filename);
 		return -1;
 	}
 
@@ -1240,13 +1241,13 @@ int save_mps(const char* filename, const struct mps* mps)
 	// - virtual bond quantum numbers
 	if (write_hdf5_scalar_attribute(file, "nsites", H5T_STD_I32LE, H5T_NATIVE_INT, &mps->nsites) < 0)
 	{
-		fprintf(stderr, "writing 'nsites' attribute data to HDF5 file '%s' failed\n", filename);
+		logerror("writing 'nsites' attribute data to HDF5 file '%s' failed\n", filename);
 		H5Fclose(file);
 		return -1;
 	}
 	if (write_hdf5_vector_attribute(file, "qsite", H5T_STD_I32LE, H5T_NATIVE_INT, mps->d, mps->qsite) < 0)
 	{
-		fprintf(stderr, "writing 'qsite' attribute data to HDF5 file '%s' failed\n", filename);
+		logerror("writing 'qsite' attribute data to HDF5 file '%s' failed\n", filename);
 		H5Fclose(file);
 		return -1;
 	}
@@ -1257,7 +1258,7 @@ int save_mps(const char* filename, const struct mps* mps)
 		const qnumber* qbond = (i < mps->nsites ? mps->a[i].axis_qnums_logical[0] : mps->a[mps->nsites - 1].axis_qnums_logical[2]);
 		if (write_hdf5_vector_attribute(file, varname, H5T_STD_I32LE, H5T_NATIVE_INT, mps_bond_dim(mps, i), qbond) < 0)
 		{
-			fprintf(stderr, "writing '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
+			logerror("writing '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1287,7 +1288,7 @@ int save_mps(const char* filename, const struct mps* mps)
 		delete_dense_tensor(&dt);
 		if (status < 0)
 		{
-			fprintf(stderr, "writing '%s' tensor data to HDF5 file '%s' failed\n", varname, filename);
+			logerror("writing '%s' tensor data to HDF5 file '%s' failed\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1301,7 +1302,7 @@ int save_mps(const char* filename, const struct mps* mps)
 
 	if (H5Fclose(file) < 0)
 	{
-		fprintf(stderr, "'H5Fclose' failed for '%s'\n", filename);
+		logerror("'H5Fclose' failed for '%s'\n", filename);
 		return -1;
 	}
 
@@ -1320,7 +1321,7 @@ int load_mps(const char* filename, struct mps* mps)
 	hid_t file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file < 0)
 	{
-		fprintf(stderr, "'H5Fopen' failed for '%s'\n", filename);
+		logerror("'H5Fopen' failed for '%s'\n", filename);
 		return -1;
 	}
 
@@ -1328,13 +1329,13 @@ int load_mps(const char* filename, struct mps* mps)
 	int nsites;
 	if (read_hdf5_attribute(file, "nsites", H5T_NATIVE_INT, &nsites) < 0)
 	{
-		fprintf(stderr, "reading 'nsites' attribute data from HDF5 file '%s' failed\n", filename);
+		logerror("reading 'nsites' attribute data from HDF5 file '%s' failed\n", filename);
 		H5Fclose(file);
 		return -1;
 	}
 	if (nsites <= 0)
 	{
-		fprintf(stderr, "'nsites' attribute must be positive, read %i in HDF5 file '%s'\n", nsites, filename);
+		logerror("'nsites' attribute must be positive, read %i in HDF5 file '%s'\n", nsites, filename);
 		H5Fclose(file);
 		return -1;
 	}
@@ -1344,7 +1345,7 @@ int load_mps(const char* filename, struct mps* mps)
 		hsize_t dim[1];
 		if (get_hdf5_attribute_dims(file, "qsite", dim) < 0)
 		{
-			fprintf(stderr, "getting dimensions of 'qsite' attribute in HDF5 file '%s' failed\n", filename);
+			logerror("getting dimensions of 'qsite' attribute in HDF5 file '%s' failed\n", filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1352,14 +1353,14 @@ int load_mps(const char* filename, struct mps* mps)
 	}
 	if (d <= 0)
 	{
-		fprintf(stderr, "local physical dimension 'd' must be positive, obtained %li in HDF5 file '%s'\n", d, filename);
+		logerror("local physical dimension 'd' must be positive, obtained %li in HDF5 file '%s'\n", d, filename);
 		H5Fclose(file);
 		return -1;
 	}
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0)
 	{
-		fprintf(stderr, "reading 'qsite' attribute data from HDF5 file '%s' failed\n", filename);
+		logerror("reading 'qsite' attribute data from HDF5 file '%s' failed\n", filename);
 		H5Fclose(file);
 		return -1;
 	}
@@ -1375,7 +1376,7 @@ int load_mps(const char* filename, struct mps* mps)
 		hsize_t dim[1];
 		if (get_hdf5_attribute_dims(file, varname, dim) < 0)
 		{
-			fprintf(stderr, "obtaining dimensions of attribute '%s' from HDF5 file '%s' failed\n", varname, filename);
+			logerror("obtaining dimensions of attribute '%s' from HDF5 file '%s' failed\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1385,7 +1386,7 @@ int load_mps(const char* filename, struct mps* mps)
 
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qbonds[i]) < 0)
 		{
-			fprintf(stderr, "reading '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
+			logerror("reading '%s' attribute data to HDF5 file '%s' failed\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1399,7 +1400,7 @@ int load_mps(const char* filename, struct mps* mps)
 		hid_t dset = H5Dopen(file, varname, H5P_DEFAULT);
 		if (dset < 0)
 		{
-			fprintf(stderr, "'H5Dopen' failed for '%s' in HDF5 file '%s'\n", varname, filename);
+			logerror("'H5Dopen' failed for '%s' in HDF5 file '%s'\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1407,7 +1408,7 @@ int load_mps(const char* filename, struct mps* mps)
 		hid_t hdf5_dtype = H5Dget_type(dset);
 		if (hdf5_dtype < 0)
 		{
-			fprintf(stderr, "'H5Dget_type' failed for '%s' in HDF5 file '%s'\n", varname, filename);
+			logerror("'H5Dget_type' failed for '%s' in HDF5 file '%s'\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1415,7 +1416,7 @@ int load_mps(const char* filename, struct mps* mps)
 		dtype = hdf5_to_numeric_dtype(hdf5_dtype);
 		if (dtype < 0)
 		{
-			fprintf(stderr, "could not determine numeric data type of '%s' in HDF5 file '%s'\n", varname, filename);
+			logerror("could not determine numeric data type of '%s' in HDF5 file '%s'\n", varname, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1444,7 +1445,7 @@ int load_mps(const char* filename, struct mps* mps)
 		sprintf(varname, "tensor_%i", i);
 		if (read_hdf5_dataset(file, varname, hdf5_dtype, dt.data) < 0)
 		{
-			fprintf(stderr, "could read entries of %i-th tensor from HDF5 file '%s'\n", i, filename);
+			logerror("could read entries of %i-th tensor from HDF5 file '%s'\n", i, filename);
 			H5Fclose(file);
 			return -1;
 		}
@@ -1461,7 +1462,7 @@ int load_mps(const char* filename, struct mps* mps)
 
 	if (H5Fclose(file) < 0)
 	{
-		fprintf(stderr, "'H5Fclose' failed for '%s'\n", filename);
+		logerror("'H5Fclose' failed for '%s'\n", filename);
 		return -1;
 	}
 

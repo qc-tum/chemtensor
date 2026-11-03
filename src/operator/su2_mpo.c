@@ -2,9 +2,9 @@
 /// \brief SU(2) symmetric matrix product operator (MPO) data structure and functions.
 
 #include <math.h>
-#include <stdio.h>
 #include "su2_mpo.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -54,7 +54,7 @@ void allocate_su2_mpo(
 		assert(su2_tensor_is_consistent(&mpo->a[l]));
 
 		if (mpo->a[l].charge_sectors.nsec == 0) {
-			printf("Warning: in 'allocate_su2_mpo': SU(2) tensor at site %i has no charge sectors\n", l);
+			logprint("Warning: in 'allocate_su2_mpo': SU(2) tensor at site %i has no charge sectors\n", l);
 		}
 	}
 }

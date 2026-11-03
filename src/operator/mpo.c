@@ -1,10 +1,10 @@
 /// \file mpo.c
 /// \brief Matrix product operator (MPO) data structure and functions.
 
-#include <stdio.h>
 #include <math.h>
 #include "mpo.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -166,7 +166,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 
 		#ifndef NDEBUG
 		if (!dense_block_sparse_tensor_allclose(&a_loc, &mpo->a[l], 0.)) {
-			fprintf(stderr, "Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'mpo_from_assembly', site %i\n", l);
+			logprint("Warning: ignoring non-zero tensor entries due to the quantum number sparsity pattern in 'mpo_from_assembly', site %i\n", l);
 		}
 		#endif
 

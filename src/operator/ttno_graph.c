@@ -1,13 +1,13 @@
 /// \file ttno_graph.c
 /// \brief Tree tensor network operator (TTNO) graph internal data structure.
 
-#include <stdio.h>
 #include "ttno_graph.h"
 #include "hash_table.h"
 #include "linked_list.h"
 #include "integer_linear_algebra.h"
 #include "bipartite_graph.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -360,7 +360,7 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 	int* h_qnums = ct_malloc((nsites - 1) * (nsites - 1) * sizeof(int));
 	int* u_qnums = ct_malloc((nsites - 1) * (nsites - 1) * sizeof(int));
 	if (integer_hermite_normal_form(nsites - 1, m_qnums, h_qnums, u_qnums) < 0) {
-		fprintf(stderr, "Hermite decomposition of quantum number map for given tree topology encountered singular matrix\n");
+		logerror("Hermite decomposition of quantum number map for given tree topology encountered singular matrix\n");
 		return -1;
 	}
 
@@ -402,7 +402,7 @@ static int cluster_assembly_from_opchains(const struct op_chain* chains, const i
 		integer_gemv(nsites - 1, nsites - 1, u_qnums, dq, u_dq);
 		assembly->clusters[c].qnums = ct_malloc((nsites - 1) * sizeof(qnumber));
 		if (integer_backsubstitute(h_qnums, nsites - 1, u_dq, assembly->clusters[c].qnums) < 0) {
-			fprintf(stderr, "integer backsubstitution for obtaining quantum number assignment for given tree topology failed\n");
+			logerror("integer backsubstitution for obtaining quantum number assignment for given tree topology failed\n");
 			return -1;
 		}
 		ct_free(u_dq);
@@ -795,7 +795,7 @@ int ttno_graph_from_opchains(const struct op_chain* chains, const int nchains, c
 	qsort(cluster_hashes, assembly.nclusters, sizeof(hash_type), compare_hashes);
 	for (int k = 0; k < assembly.nclusters - 1; k++) {
 		if (cluster_hashes[k] == cluster_hashes[k + 1]) {
-			fprintf(stderr, "operator chains input to 'ttno_graph_from_opchains' are most likely not unique\n");
+			logerror("operator chains input to 'ttno_graph_from_opchains' are most likely not unique\n");
 			return -2;
 		}
 	}

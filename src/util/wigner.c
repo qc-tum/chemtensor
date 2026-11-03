@@ -3,9 +3,9 @@
 
 #include <math.h>
 #include <complex.h>
-#include <stdio.h>
 #include "wigner.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -191,7 +191,7 @@ void wigner_small_d(const qnumber j, const double theta, double* w)
 		default:
 		{
 			// 'j' not supported yet
-			fprintf(stderr, "quantum number j = %i in Wigner \"small\" d-matrix evaluation not supported yet\n", j);
+			logerror("quantum number j = %i in Wigner \"small\" d-matrix evaluation not supported yet\n", j);
 			assert(false);
 			break;
 		}
@@ -304,7 +304,7 @@ void real_wigner_d(const qnumber j, const double psi, const double theta, const 
 		default:
 		{
 			// 'j' not supported yet
-			fprintf(stderr, "quantum number j = %i in real-valued Wigner D-matrix evaluation not supported yet\n", j);
+			logerror("quantum number j = %i in real-valued Wigner D-matrix evaluation not supported yet\n", j);
 			assert(false);
 			break;
 		}

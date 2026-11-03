@@ -1,7 +1,8 @@
-#include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include "logging.h"
+#include "logo.h"
 
 
 typedef char* (*test_function)();
@@ -163,10 +164,13 @@ char* test_bug_tree_time_step();
 
 int main()
 {
+	logprint(ct_logo);
+	logprint("Git version: %s\n\n", CT_GIT_VERSION);
+
 	#ifdef _OPENMP
-	printf("maximum number of OpenMP threads: %d\n", omp_get_max_threads());
+	logprint("maximum number of OpenMP threads: %d\n", omp_get_max_threads());
 	#else
-	printf("OpenMP not available\n");
+	logprint("OpenMP not available\n");
 	#endif
 
 	struct test tests[] = {
@@ -318,24 +322,24 @@ int main()
 	int num_pass = 0;
 	for (int i = 0; i < num_tests; i++)
 	{
-		printf(".");
+		logprint(".");
 		char* msg = tests[i].func();
 		if (msg == 0) {
 			num_pass++;
 		}
 		else {
-			printf("\nTest '%s' failed: %s\n", tests[i].name, msg);
+			logprint("\nTest '%s' failed: %s\n", tests[i].name, msg);
 		}
 	}
-	printf("\nNumber of successful tests: %i / %i\n", num_pass, num_tests);
+	logprint("\nNumber of successful tests: %i / %i\n", num_pass, num_tests);
 
 	if (num_pass < num_tests)
 	{
-		printf("At least one test failed!\n");
+		logprint("At least one test failed!\n");
 	}
 	else
 	{
-		printf("All tests passed.\n");
+		logprint("All tests passed.\n");
 	}
 
 	return num_pass != num_tests;

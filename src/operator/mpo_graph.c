@@ -1,13 +1,13 @@
 /// \file mpo_graph.c
 /// \brief MPO graph internal data structure for generating MPO representations.
 
-#include <stdio.h>
 #include <assert.h>
 #include "mpo_graph.h"
 #include "hash_table.h"
 #include "linked_list.h"
 #include "bipartite_graph.h"
 #include "aligned_memory.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -438,7 +438,7 @@ int mpo_graph_from_opchains(const struct op_chain* chains, const int nchains, co
 	qsort(halfchain_hashes, nhalfchains, sizeof(hash_type), compare_hashes);
 	for (int k = 0; k < nhalfchains - 1; k++) {
 		if (halfchain_hashes[k] == halfchain_hashes[k + 1]) {
-			fprintf(stderr, "operator chains input to 'mpo_graph_from_opchains' are most likely not unique\n");
+			logerror("operator chains input to 'mpo_graph_from_opchains' are most likely not unique\n");
 			return -1;
 		}
 	}

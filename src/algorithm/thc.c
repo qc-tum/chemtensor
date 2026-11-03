@@ -6,6 +6,8 @@
 #include "hamiltonian.h"
 #include "chain_ops.h"
 #include "aligned_memory.h"
+#include "timing.h"
+#include "logging.h"
 
 
 //________________________________________________________________________________________________________________________
@@ -118,11 +120,19 @@ void delete_thc_spin_molecular_hamiltonian(struct thc_spin_molecular_hamiltonian
 
 //________________________________________________________________________________________________________________________
 ///
-/// \brief Apply a molecular Hamiltonian in tensor hypercontraction representation to a state in MPS form.
+/// \brief Apply a spin molecular Hamiltonian in tensor hypercontraction representation to a state in MPS form.
 ///
 int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamiltonian* hamiltonian,
 	const struct mps* restrict psi, const double tol, const ct_long max_vdim, struct mps* restrict h_psi)
 {
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Applying a spin molecular Hamiltonian in tensor hypercontraction (THC) representation to a state in MPS form (with tol = %g, max_vdim = %li)...\n", tol, max_vdim);
+	}
+
+	// get the tick resolution
+	const double ticks_per_sec = (double)get_tick_resolution();
+	const uint64_t tick_start  = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
 	const int nsites   = (int)hamiltonian->tkin.dim[0];
 	const int thc_rank = (int)hamiltonian->thc_kernel.dim[0];
 	assert(psi->nsites == nsites);
@@ -218,6 +228,15 @@ int apply_thc_spin_molecular_hamiltonian(const struct thc_spin_molecular_hamilto
 	}
 
 	ct_free(info);
+
+	const uint64_t tick_end = (ct_verbosity == CT_VERBOSITY_TIMING ? get_time_ticks() : 0);
+
+	if (ct_verbosity > CT_VERBOSITY_NONE) {
+		logprint("Completed THC spin molecular Hamiltonian application.\n");
+	}
+	if (ct_verbosity == CT_VERBOSITY_TIMING) {
+		logprint("wall clock time for THC Hamiltonian application: %g seconds\n", (tick_end - tick_start) / ticks_per_sec);
+	}
 
 	return 0;
 }
