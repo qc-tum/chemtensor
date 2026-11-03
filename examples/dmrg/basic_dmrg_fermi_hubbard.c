@@ -96,17 +96,6 @@ int main()
 
 	logprint("||psi||: %g\n", mps_norm(&psi));
 
-	logprint("psi bond dimensions: ");
-	for (int l = 0; l < nsites + 1; l++) {
-		logprint("%li ", mps_bond_dim(&psi, l));
-	}
-	logprint("\n");
-	logprint("splitting entropies for each bond: ");
-	for (int l = 0; l < nsites - 1; l++) {
-		logprint("%g ", info.entropy[l]);
-	}
-	logprint("\n");
-
 	// matrix representation of Hamiltonian
 	struct dense_tensor hmat;
 	{
