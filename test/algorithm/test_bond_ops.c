@@ -41,7 +41,7 @@ char* test_split_block_sparse_matrix_svd()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor a;
-	dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+	dense_to_block_sparse_tensor(&a_dns, ABELIAN_SYMMETRY_U1, axis_dir, (const qnumber**)qnums, &a);
 
 	double tol;
 	if (read_hdf5_attribute(file, "tol", H5T_NATIVE_DOUBLE, &tol) < 0) {
@@ -141,7 +141,7 @@ char* test_split_block_sparse_matrix_svd_zero()
 	const qnumber* qnums[2] = { qnums0, qnums1 };
 
 	struct block_sparse_tensor a;
-	allocate_block_sparse_tensor(CT_SINGLE_COMPLEX, 2, dim, axis_dir, qnums, &a);
+	allocate_block_sparse_tensor(CT_SINGLE_COMPLEX, 2, dim, ABELIAN_SYMMETRY_U1, axis_dir, qnums, &a);
 	if (block_sparse_tensor_norm2(&a) != 0) {
 		return "block-sparse matrix should be logically zero";
 	}

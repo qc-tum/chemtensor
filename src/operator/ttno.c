@@ -32,7 +32,7 @@ void delete_ttno_assembly(struct ttno_assembly* assembly)
 ///
 /// \brief Allocate memory for a tree tensor network operator. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
 ///
-void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct ttno* ttno)
+void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct ttno* ttno)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -42,6 +42,7 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 
 	assert(d >= 1);
 	ttno->d = d;
+	ttno->symm = symm;
 	ttno->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(ttno->qsite, qsite, d * sizeof(qnumber));
 
@@ -109,7 +110,7 @@ void allocate_ttno(const enum numeric_type dtype, const int nsites_physical, con
 			assert(site_info_set);
 		}
 
-		allocate_block_sparse_tensor(dtype, ndim, dim, axis_dir, qnums, &ttno->a[l]);
+		allocate_block_sparse_tensor(dtype, ndim, dim, symm, axis_dir, qnums, &ttno->a[l]);
 
 		ct_free(qnums);
 		ct_free(axis_dir);
@@ -129,6 +130,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 	assert(assembly->d >= 1);
 	const ct_long d = assembly->d;
 	ttno->d = d;
+	ttno->symm = assembly->symm;
 	ttno->nsites_physical  = assembly->graph.nsites_physical;
 	ttno->nsites_branching = assembly->graph.nsites_branching;
 
@@ -298,7 +300,7 @@ void ttno_from_assembly(const struct ttno_assembly* assembly, struct ttno* ttno)
 			}
 			assert(site_info_set);
 		}
-		dense_to_block_sparse_tensor(&a_loc, axis_dir, (const qnumber**)qnums, &ttno->a[l]);
+		dense_to_block_sparse_tensor(&a_loc, assembly->symm, axis_dir, (const qnumber**)qnums, &ttno->a[l]);
 		for (int i = 0; i < assembly->graph.topology.num_neighbors[l]; i++)
 		{
 			int k = assembly->graph.topology.neighbor_map[l][i];
@@ -333,7 +335,7 @@ static inline int edge_to_bond_index(const int nsites, const int i, const int j)
 ///
 /// \brief Construct a tree tensor network operator with random normal tensor entries, given a maximum virtual bond dimension.
 ///
-void construct_random_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const qnumber* qsite, const ct_long max_vdim, struct rng_state* rng_state, struct ttno* ttno)
+void construct_random_ttno(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long max_vdim, struct rng_state* rng_state, struct ttno* ttno)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -367,7 +369,7 @@ void construct_random_ttno(const enum numeric_type dtype, const int nsites_physi
 		ct_long dim_full = (i_site < nsites_physical ? d*d : 1);
 		qnumber* qnums_full = ct_calloc(dim_full, sizeof(qnumber));
 		if (i_site < nsites_physical) {
-			qnumber_outer_sum(TENSOR_AXIS_OUT, qsite, d, TENSOR_AXIS_IN, qsite, d, qnums_full);
+			qnumber_outer_sum(symm, TENSOR_AXIS_OUT, qsite, d, TENSOR_AXIS_IN, qsite, d, qnums_full);
 		}
 		for (int n = 0; n < topology->num_neighbors[i_site]; n++)
 		{
@@ -381,7 +383,7 @@ void construct_random_ttno(const enum numeric_type dtype, const int nsites_physi
 			assert(qbonds[ib] != NULL);
 			qnumber* qnums_full_next = ct_malloc(dim_full * dim_bonds[ib] * sizeof(qnumber));
 			// outer sum
-			qnumber_outer_sum(1, qnums_full, dim_full, k < i_site ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN, qbonds[ib], dim_bonds[ib], qnums_full_next);
+			qnumber_outer_sum(symm, 1, qnums_full, dim_full, k < i_site ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN, qbonds[ib], dim_bonds[ib], qnums_full_next);
 			ct_free(qnums_full);
 			qnums_full = qnums_full_next;
 			dim_full *= dim_bonds[ib];
@@ -417,7 +419,7 @@ void construct_random_ttno(const enum numeric_type dtype, const int nsites_physi
 
 	ct_free(sd);
 
-	allocate_ttno(dtype, nsites_physical, topology, d, qsite, dim_bonds, (const qnumber**)qbonds, ttno);
+	allocate_ttno(dtype, nsites_physical, topology, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, ttno);
 
 	for (int l = 0; l < nsites * nsites; l++) {
 		if (qbonds[l] != NULL) {
@@ -560,6 +562,14 @@ bool ttno_is_consistent(const struct ttno* ttno)
 	}
 
 	const int offset_phys = 2;
+
+	// symmetry descriptions must match
+	for (int l = 0; l < nsites; l++)
+	{
+		if (ttno->symm != ttno->a[l].symm) {
+			return false;
+		}
+	}
 
 	for (int l = 0; l < nsites; l++)
 	{

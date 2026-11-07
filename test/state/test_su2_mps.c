@@ -341,7 +341,7 @@ char* test_su2_mps_to_statevector()
 
 	// reference matrix product state
 	struct mps mps_ref;
-	allocate_empty_mps(nsites, d, qsite, &mps_ref);
+	allocate_empty_mps(nsites, d, ABELIAN_SYMMETRY_NONE, qsite, &mps_ref);
 	for (int l = 0; l < nsites; l++)
 	{
 		struct dense_tensor a_loc;
@@ -359,7 +359,7 @@ char* test_su2_mps_to_statevector()
 		qnumber* qbonds_right = ct_calloc(a_loc.dim[2], sizeof(qnumber));
 		const qnumber* qnums[3] = { qbonds_left, qsite, qbonds_right };
 
-		dense_to_block_sparse_tensor(&a_loc, axis_dir, qnums, &mps_ref.a[l]);
+		dense_to_block_sparse_tensor(&a_loc, mps_ref.symm, axis_dir, qnums, &mps_ref.a[l]);
 
 		ct_free(qbonds_right);
 		ct_free(qbonds_left);

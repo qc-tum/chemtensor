@@ -13,14 +13,15 @@
 ///
 struct mpo_assembly
 {
-	struct mpo_graph graph;         //!< MPO graph data structure
-	struct dense_tensor* opmap;     //!< local operator map (look-up table)
-	void* coeffmap;                 //!< coefficient map (look-up table)
-	qnumber* qsite;                 //!< physical quantum numbers at each site
-	ct_long d;                      //!< local physical dimension of each site
-	enum numeric_type dtype;        //!< data type of local operators and coefficients
-	int num_local_ops;              //!< number of local operators (length of 'opmap' array)
-	int num_coeffs;                 //!< number of coefficients (length of 'coeffmap' array)
+	struct mpo_graph graph;      //!< MPO graph data structure
+	struct dense_tensor* opmap;  //!< local operator map (look-up table)
+	void* coeffmap;              //!< coefficient map (look-up table)
+	qnumber* qsite;              //!< physical quantum numbers at each site
+	ct_long d;                   //!< local physical dimension of each site
+	enum abelian_symmetry symm;  //!< abelian symmetry
+	enum numeric_type dtype;     //!< data type of local operators and coefficients
+	int num_local_ops;           //!< number of local operators (length of 'opmap' array)
+	int num_coeffs;              //!< number of coefficients (length of 'coeffmap' array)
 };
 
 
@@ -36,6 +37,7 @@ struct mpo
 	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions \f$D_i \times d \times d \times D_{i+1}\f$; array of length 'nsites'
 	qnumber* qsite;                 //!< physical quantum numbers at each site
 	ct_long d;                      //!< local physical dimension of each site
+	enum abelian_symmetry symm;     //!< abelian symmetry
 	int nsites;                     //!< number of sites
 };
 
@@ -45,13 +47,13 @@ struct mpo
 
 // allocation and construction
 
-void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mpo* mpo);
+void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mpo* mpo);
 
 void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo);
 
 void delete_mpo(struct mpo* mpo);
 
-void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo);
+void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo);
 
 bool mpo_is_consistent(const struct mpo* mpo);
 

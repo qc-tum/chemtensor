@@ -52,6 +52,7 @@ static void construct_bose_hubbard_1d_ttno_assembly_complex(const int nsites_phy
 
 	// physical quantum numbers (particle number)
 	assembly->d = d;
+	assembly->symm = ABELIAN_SYMMETRY_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (ct_long i = 0; i < d; i++) {
 		assembly->qsite[i] = i;
@@ -149,6 +150,9 @@ char* test_bug_flow_update_basis_leaf()
 
 	// local physical dimension
 	ct_long d;
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	qnumber* qsite;
 	if (read_quantum_numbers(file, "qsite", &d, &qsite) < 0) {
@@ -269,7 +273,7 @@ char* test_bug_flow_update_basis_leaf()
 				const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
+				dense_to_block_sparse_tensor(&a_state_0_dns, symm, axis_dir, qnums, &a_state_0);
 			}
 			else if (m == 1)
 			{
@@ -283,7 +287,7 @@ char* test_bug_flow_update_basis_leaf()
 				const enum tensor_axis_direction axis_dir[2] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT };
 
 				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
+				dense_to_block_sparse_tensor(&a_state_0_dns, symm, axis_dir, qnums, &a_state_0);
 			}
 			else
 			{
@@ -301,7 +305,7 @@ char* test_bug_flow_update_basis_leaf()
 				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_state_0_dns, axis_dir, qnums, &a_state_0);
+				dense_to_block_sparse_tensor(&a_state_0_dns, symm, axis_dir, qnums, &a_state_0);
 			}
 
 			// verify that sparsity pattern is correctly described by quantum numbers
@@ -331,7 +335,7 @@ char* test_bug_flow_update_basis_leaf()
 				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_op_dns, axis_dir, qnums, &a_op);
+				dense_to_block_sparse_tensor(&a_op_dns, symm, axis_dir, qnums, &a_op);
 			}
 			else
 			{
@@ -345,7 +349,7 @@ char* test_bug_flow_update_basis_leaf()
 				const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 				// convert dense to block-sparse tensor
-				dense_to_block_sparse_tensor(&a_op_dns, axis_dir, qnums, &a_op);
+				dense_to_block_sparse_tensor(&a_op_dns, symm, axis_dir, qnums, &a_op);
 			}
 
 			// verify that sparsity pattern is correctly described by quantum numbers
@@ -376,7 +380,7 @@ char* test_bug_flow_update_basis_leaf()
 			};
 
 			// convert dense to block-sparse tensor
-			dense_to_block_sparse_tensor(&env_parent_dns, axis_dir, qnums, &env_parent);
+			dense_to_block_sparse_tensor(&env_parent_dns, symm, axis_dir, qnums, &env_parent);
 
 			// verify that sparsity pattern is correctly described by quantum numbers
 			if (!dense_block_sparse_tensor_allclose(&env_parent_dns, &env_parent, 0)) {
@@ -403,7 +407,7 @@ char* test_bug_flow_update_basis_leaf()
 			};
 
 			// convert dense to block-sparse tensor
-			dense_to_block_sparse_tensor(&s0_dns, axis_dir, qnums, &s0);
+			dense_to_block_sparse_tensor(&s0_dns, symm, axis_dir, qnums, &s0);
 
 			// verify that sparsity pattern is correctly described by quantum numbers
 			if (!dense_block_sparse_tensor_allclose(&s0_dns, &s0, 0)) {
@@ -535,6 +539,9 @@ char* test_bug_flow_update_connecting_tensor()
 	// local physical dimension
 	ct_long d;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical and virtual bond quantum numbers
 
 	qnumber* qsite;
@@ -609,7 +616,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[5] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&c0_dns, axis_dir, qnums, &c0);
+		dense_to_block_sparse_tensor(&c0_dns, symm, axis_dir, qnums, &c0);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&c0_dns, &c0, 0)) {
@@ -634,7 +641,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[6] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&a_op_dns, axis_dir, qnums, &a_op);
+		dense_to_block_sparse_tensor(&a_op_dns, symm, axis_dir, qnums, &a_op);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&a_op_dns, &a_op, 0)) {
@@ -659,7 +666,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_IN, TENSOR_AXIS_IN, TENSOR_AXIS_OUT };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&avg_bond_dns, axis_dir, qnums, &avg_bonds[0]);
+		dense_to_block_sparse_tensor(&avg_bond_dns, symm, axis_dir, qnums, &avg_bonds[0]);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&avg_bond_dns, &avg_bonds[0], 0)) {
@@ -682,7 +689,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_IN, TENSOR_AXIS_IN, TENSOR_AXIS_OUT };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&avg_bond_dns, axis_dir, qnums, &avg_bonds[1]);
+		dense_to_block_sparse_tensor(&avg_bond_dns, symm, axis_dir, qnums, &avg_bonds[1]);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&avg_bond_dns, &avg_bonds[1], 0)) {
@@ -705,7 +712,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&avg_bond_dns, axis_dir, qnums, &avg_bonds[3]);
+		dense_to_block_sparse_tensor(&avg_bond_dns, symm, axis_dir, qnums, &avg_bonds[3]);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&avg_bond_dns, &avg_bonds[3], 0)) {
@@ -729,7 +736,7 @@ char* test_bug_flow_update_connecting_tensor()
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&env_parent_dns, axis_dir, qnums, &env_parent);
+		dense_to_block_sparse_tensor(&env_parent_dns, symm, axis_dir, qnums, &env_parent);
 
 		// verify that sparsity pattern is correctly described by quantum numbers
 		if (!dense_block_sparse_tensor_allclose(&env_parent_dns, &env_parent, 0)) {
@@ -906,7 +913,7 @@ char* test_bug_tree_time_step()
 			}
 		}
 
-		allocate_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &state);
+		allocate_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, hamiltonian.symm, qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &state);
 
 		if (!ttns_is_consistent(&state)) {
 			return "internal TTNS consistency check failed";

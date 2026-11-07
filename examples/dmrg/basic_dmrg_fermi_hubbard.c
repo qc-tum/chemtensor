@@ -68,7 +68,7 @@ int main()
 		struct rng_state rng_state;
 		seed_rng_state(42, &rng_state);
 
-		construct_random_mps(hamiltonian.a[0].dtype, hamiltonian.nsites, hamiltonian.d, hamiltonian.qsite, qnum_sector, max_vdim, &rng_state, &psi);
+		construct_random_mps(hamiltonian.a[0].dtype, hamiltonian.nsites, hamiltonian.d, hamiltonian.symm, hamiltonian.qsite, qnum_sector, max_vdim, &rng_state, &psi);
 		if (!mps_is_consistent(&psi)) {
 			logerror("internal MPS consistency check failed");
 			return -1;

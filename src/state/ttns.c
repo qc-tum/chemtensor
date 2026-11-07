@@ -12,7 +12,7 @@
 ///
 /// \brief Allocate memory for a tree tensor network state. 'dim_bonds' and 'qbonds' are indexed by site index tuples (i, j) with i < j.
 ///
-void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
+void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const enum abelian_symmetry symm, const qnumber** qsite, const qnumber qnum_sector, const ct_long* dim_bonds, const qnumber** qbonds, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -22,6 +22,9 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 
 	// tree topology
 	copy_abstract_graph(topology, &ttns->topology);
+
+	// symmetry
+	ttns->symm = symm;
 
 	// allocate tensors at each site
 	ttns->a = ct_calloc(nsites, sizeof(struct block_sparse_tensor));
@@ -97,7 +100,7 @@ void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, con
 			axis_dir[ndim - 1] = TENSOR_AXIS_IN;
 		}
 
-		allocate_block_sparse_tensor(dtype, ndim, dim, axis_dir, qnums, &ttns->a[l]);
+		allocate_block_sparse_tensor(dtype, ndim, dim, symm, axis_dir, qnums, &ttns->a[l]);
 
 		ct_free(qnums);
 		ct_free(axis_dir);
@@ -140,6 +143,8 @@ void copy_ttns(const struct ttns* restrict src, struct ttns* restrict dst)
 	// tree topology
 	copy_abstract_graph(&src->topology, &dst->topology);
 
+	dst->symm = src->symm;
+
 	// copy tensors at each site
 	const int nsites = src->topology.num_nodes;
 	assert(nsites == src->nsites_physical + src->nsites_branching);
@@ -165,7 +170,7 @@ static inline int edge_to_bond_index(const int nsites, const int i, const int j)
 ///
 /// \brief Construct a tree tensor network state with random normal tensor entries, given a maximum virtual bond dimension.
 ///
-void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
+void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const enum abelian_symmetry symm, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns)
 {
 	assert(nsites_physical >= 1);
 	assert(nsites_physical <= topology->num_nodes);
@@ -225,7 +230,7 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 			assert(qbonds[ib] != NULL);
 			qnumber* qnums_full_next = ct_malloc(dim_full * dim_bonds[ib] * sizeof(qnumber));
 			// outer sum
-			qnumber_outer_sum(1, qnums_full, dim_full, k < i_site ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN, qbonds[ib], dim_bonds[ib], qnums_full_next);
+			qnumber_outer_sum(symm, 1, qnums_full, dim_full, k < i_site ? TENSOR_AXIS_OUT : TENSOR_AXIS_IN, qbonds[ib], dim_bonds[ib], qnums_full_next);
 			ct_free(qnums_full);
 			qnums_full = qnums_full_next;
 			dim_full *= dim_bonds[ib];
@@ -261,7 +266,7 @@ void construct_random_ttns(const enum numeric_type dtype, const int nsites_physi
 
 	ct_free(sd);
 
-	allocate_ttns(dtype, nsites_physical, topology, d, qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, ttns);
+	allocate_ttns(dtype, nsites_physical, topology, d, symm, qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, ttns);
 
 	for (int l = 0; l < nsites * nsites; l++) {
 		if (qbonds[l] != NULL) {
@@ -325,6 +330,11 @@ bool ttns_is_consistent(const struct ttns* ttns)
 	for (int l = 0; l < nsites; l++)
 	{
 		if (ttns->a[l].ndim != 1 + ttns->topology.num_neighbors[l] + (l == nsites - 1 ? 1 : 0)) {
+			return false;
+		}
+
+		// symmetry descriptions must match
+		if (ttns->symm != ttns->a[l].symm) {
 			return false;
 		}
 
@@ -514,6 +524,9 @@ void ttns_vdot(const struct ttns* chi, const struct ttns* psi, void* ret)
 
 	// data types must match
 	assert(chi->a[0].dtype == psi->a[0].dtype);
+
+	// symmetries must match
+	assert(chi->symm == psi->symm);
 
 	if (ttns_quantum_number_sector(chi) != ttns_quantum_number_sector(psi))
 	{

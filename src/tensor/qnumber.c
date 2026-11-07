@@ -1,6 +1,7 @@
 /// \file qnumber.c
 /// \brief Quantum numbers and corresponding utility functions.
 
+#include <string.h>
 #include "qnumber.h"
 
 
@@ -18,18 +19,4 @@ bool qnumber_all_equal(const ct_long n, const qnumber* restrict qnums0, const qn
 	}
 
 	return true;
-}
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Enumerate all pairwise sums of tuples formed from the provided quantum number arrays.
-///
-void qnumber_outer_sum(const int sign0, const qnumber* restrict qnums0, const ct_long n0, const int sign1, const qnumber* restrict qnums1, const ct_long n1, qnumber* restrict ret)
-{
-	for (ct_long i = 0; i < n0; i++) {
-		for (ct_long j = 0; j < n1; j++) {
-			ret[i*n1 + j] = sign0 * qnums0[i] + sign1 * qnums1[j];
-		}
-	}
 }

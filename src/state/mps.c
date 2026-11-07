@@ -16,12 +16,14 @@
 ///
 /// \brief Allocate an "empty" matrix product state, without the actual tensors.
 ///
-void allocate_empty_mps(const int nsites, const ct_long d, const qnumber* qsite, struct mps* mps)
+void allocate_empty_mps(const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
 	mps->nsites = nsites;
 	mps->d = d;
+
+	mps->symm = symm;
 
 	mps->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(mps->qsite, qsite, d * sizeof(qnumber));
@@ -34,16 +36,16 @@ void allocate_empty_mps(const int nsites, const ct_long d, const qnumber* qsite,
 ///
 /// \brief Allocate memory for a matrix product state. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
-void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mps* mps)
+void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mps* mps)
 {
-	allocate_empty_mps(nsites, d, qsite, mps);
+	allocate_empty_mps(nsites, d, symm, qsite, mps);
 
 	for (int i = 0; i < nsites; i++)
 	{
 		const ct_long dim[3] = { dim_bonds[i], d, dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[3] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN };
 		const qnumber* qnums[3] = { qbonds[i], qsite, qbonds[i + 1] };
-		allocate_block_sparse_tensor(dtype, 3, dim, axis_dir, qnums, &mps->a[i]);
+		allocate_block_sparse_tensor(dtype, 3, dim, symm, axis_dir, qnums, &mps->a[i]);
 	}
 }
 
@@ -77,6 +79,7 @@ void copy_mps(const struct mps* restrict src, struct mps* restrict dst)
 	dst->nsites = src->nsites;
 	
 	dst->d = src->d;
+	dst->symm = src->symm;
 	dst->qsite = ct_malloc(src->d * sizeof(qnumber));
 	memcpy(dst->qsite, src->qsite, src->d * sizeof(qnumber));
 
@@ -91,7 +94,7 @@ void copy_mps(const struct mps* restrict src, struct mps* restrict dst)
 ///
 /// \brief Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.
 ///
-void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps)
+void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -113,7 +116,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of left bond quantum numbers and local physical quantum numbers
 		const ct_long dim_full = dim_bonds[l - 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		qnumber_outer_sum(1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite, d, qnums_full);
+		qnumber_outer_sum(symm, 1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -136,7 +139,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of right bond quantum numbers and local physical quantum numbers
 		const ct_long dim_full = dim_bonds[l + 1] * d;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		qnumber_outer_sum(1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite, d, qnums_full);
+		qnumber_outer_sum(symm, 1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite, d, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -154,7 +157,7 @@ void construct_random_mps(const enum numeric_type dtype, const int nsites, const
 		ct_free(qnums_full);
 	}
 
-	allocate_mps(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mps);
+	allocate_mps(dtype, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, mps);
 
 	for (int l = 0; l < nsites + 1; l++) {
 		ct_free(qbonds[l]);
@@ -186,6 +189,14 @@ bool mps_is_consistent(const struct mps* mps)
 	}
 	if (mps->d <= 0) {
 		return false;
+	}
+
+	// symmetry descriptions must match
+	for (int i = 0; i < mps->nsites; i++)
+	{
+		if (mps->symm != mps->a[i].symm) {
+			return false;
+		}
 	}
 
 	// quantum numbers for physical legs of individual tensors must agree with 'qsite'
@@ -238,6 +249,10 @@ bool mps_allclose(const struct mps* chi, const struct mps* psi, const double tol
 	}
 
 	if (chi->d != psi->d) {
+		return false;
+	}
+
+	if (chi->symm != psi->symm) {
 		return false;
 	}
 
@@ -315,6 +330,8 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 {
 	assert(psi->nsites == chi->nsites);
 	assert(psi->nsites >= 1);
+	// symmetries must agree
+	assert(psi->symm == chi->symm);
 	// for now requiring dummy leading and trailing virtual bond dimensions
 	assert(chi->a[              0].dim_logical[0] == 1);
 	assert(psi->a[              0].dim_logical[0] == 1);
@@ -334,7 +351,7 @@ void mps_vdot(const struct mps* chi, const struct mps* psi, void* ret)
 			psi->a[psi->nsites - 1].axis_qnums_logical[2],
 			chi->a[chi->nsites - 1].axis_qnums_logical[2], };
 		struct block_sparse_tensor t;
-		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
+		allocate_block_sparse_tensor(dtype, 4, dim, psi->symm, axis_dir, qnums, &t);
 		assert(t.nelem == 1);
 		assert(t.nblocks == 1);
 		memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
@@ -435,6 +452,9 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 
 	const int nsites = chi->nsites;
 
+	// symmetries must agree
+	assert(chi->symm == psi->symm);
+
 	// physical quantum numbers must agree
 	assert(chi->d == psi->d);
 	assert(qnumber_all_equal(chi->d, chi->qsite, psi->qsite));
@@ -454,7 +474,7 @@ void mps_add(const struct mps* chi, const struct mps* psi, struct mps* ret)
 			psi->a[nsites - 1].axis_qnums_logical[2]));
 
 	// initialize return MPS
-	allocate_empty_mps(nsites, chi->d, chi->qsite, ret);
+	allocate_empty_mps(nsites, chi->d, chi->symm, chi->qsite, ret);
 
 	if (nsites == 1)
 	{
@@ -629,7 +649,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		qnumber qsite_tail[1] = { 0 };
 		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
-		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
+		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, mps->a[i].symm, axis_dir_tail, qnums_tail, &a_tail);
 		assert(a_tail.dim_sorted[0] == 1 && a_tail.dim_sorted[1] == 1 && a_tail.dim_sorted[2] == 1);
 		// set single entry to 1
 		assert(a_tail.nelem == 1);
@@ -704,7 +724,7 @@ double mps_orthonormalize_qr(struct mps* mps, const enum mps_orthonormalization_
 		qnumber qsite_head[1] = { 0 };
 		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
-		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
+		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, mps->a[0].symm, axis_dir_head, qnums_head, &a_head);
 		assert(a_head.dim_sorted[0] == 1 && a_head.dim_sorted[1] == 1 && a_head.dim_sorted[2] == 1);
 		// set single entry to 1
 		assert(a_head.nelem == 1);
@@ -899,7 +919,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		qnumber qsite_tail[1] = { 0 };
 		const qnumber* qnums_tail[3] = { mps->a[i].axis_qnums_logical[2], qsite_tail, mps->a[i].axis_qnums_logical[2] };
 		struct block_sparse_tensor a_tail;
-		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, axis_dir_tail, qnums_tail, &a_tail);
+		allocate_block_sparse_tensor(mps->a[i].dtype, 3, dim_tail, mps->a[i].symm, axis_dir_tail, qnums_tail, &a_tail);
 		assert(a_tail.dim_sorted[0] == 1 && a_tail.dim_sorted[1] == 1 && a_tail.dim_sorted[2] == 1);
 		// set single entry to 1
 		assert(a_tail.nelem == 1);
@@ -995,7 +1015,7 @@ int mps_compress(const double tol, const ct_long max_vdim, const enum mps_orthon
 		qnumber qsite_head[1] = { 0 };
 		const qnumber* qnums_head[3] = { mps->a[0].axis_qnums_logical[0], qsite_head, mps->a[0].axis_qnums_logical[0] };
 		struct block_sparse_tensor a_head;
-		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, axis_dir_head, qnums_head, &a_head);
+		allocate_block_sparse_tensor(mps->a[0].dtype, 3, dim_head, mps->a[0].symm, axis_dir_head, qnums_head, &a_head);
 		assert(a_head.dim_sorted[0] == 1 && a_head.dim_sorted[1] == 1 && a_head.dim_sorted[2] == 1);
 		// set single entry to 1
 		assert(a_head.nelem == 1);
@@ -1237,11 +1257,18 @@ int save_mps(const char* filename, const struct mps* mps)
 
 	// create global attributes describing:
 	// - number of sites
+	// - symmetry
 	// - quantum numbers at each physical site
 	// - virtual bond quantum numbers
 	if (write_hdf5_scalar_attribute(file, "nsites", H5T_STD_I32LE, H5T_NATIVE_INT, &mps->nsites) < 0)
 	{
 		logerror("writing 'nsites' attribute data to HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
+	if (write_hdf5_scalar_attribute(file, "symm", H5T_STD_I32LE, H5T_NATIVE_INT, &mps->symm) < 0)
+	{
+		logerror("writing 'symm' attribute data to HDF5 file '%s' failed\n", filename);
 		H5Fclose(file);
 		return -1;
 	}
@@ -1339,6 +1366,13 @@ int load_mps(const char* filename, struct mps* mps)
 		H5Fclose(file);
 		return -1;
 	}
+	enum abelian_symmetry symm;
+	if (read_hdf5_attribute(file, "symm", H5T_NATIVE_INT, &symm) < 0)
+	{
+		logerror("reading 'symm' attribute data from HDF5 file '%s' failed\n", filename);
+		H5Fclose(file);
+		return -1;
+	}
 	// local physical dimension of each site
 	ct_long d;
 	{
@@ -1424,7 +1458,7 @@ int load_mps(const char* filename, struct mps* mps)
 		H5Dclose(dset);
 	}
 
-	allocate_mps(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mps);
+	allocate_mps(dtype, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, mps);
 
 	for (int i = 0; i < nsites + 1; i++) {
 		ct_free(qbonds[i]);

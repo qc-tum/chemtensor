@@ -9,8 +9,9 @@
 
 char* test_ttno_inner_product()
 {
-	// local physical dimension and quantum numbers
+	// local physical dimension, symmetry and quantum numbers
 	const ct_long d = 2;
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 	const qnumber qsite[2] = { -1, 2 };
 	const qnumber qzero[1] = { 0 };
 
@@ -67,8 +68,8 @@ char* test_ttno_inner_product()
 	// using uniform local dimensions and quantum numbers in accordance with the TTNO
 	const ct_long d_list[10] = { d, d, d, d, d, d, d, 1, 1, 1, };
 	const qnumber* qsite_list[10] = { qsite, qsite, qsite, qsite, qsite, qsite, qsite, qzero, qzero, qzero, };
-	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, qsite_list, qnum_sector, 13, &rng_state, &chi);
-	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, qsite_list, qnum_sector, 17, &rng_state, &psi);
+	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, symm, qsite_list, qnum_sector, 13, &rng_state, &chi);
+	construct_random_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d_list, symm, qsite_list, qnum_sector, 17, &rng_state, &psi);
 
 	if (!ttns_is_consistent(&chi) || !ttns_is_consistent(&psi)) {
 		return "internal TTNS consistency check failed";
@@ -78,7 +79,7 @@ char* test_ttno_inner_product()
 	}
 
 	struct ttno op;
-	construct_random_ttno(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, qsite, 22, &rng_state, &op);
+	construct_random_ttno(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, symm, qsite, 22, &rng_state, &op);
 	if (!ttno_is_consistent(&op)) {
 		return "internal TTNO consistency check failed";
 	}

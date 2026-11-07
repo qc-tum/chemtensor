@@ -20,6 +20,9 @@ char* test_dmrg_singlesite()
 	// local physical dimension
 	const ct_long d = 3;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -47,7 +50,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
+		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -99,7 +102,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -181,7 +184,7 @@ char* test_dmrg_singlesite()
 			}
 		}
 
-		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -247,6 +250,9 @@ char* test_dmrg_twosite()
 	// local physical dimension
 	const ct_long d = 4;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -274,7 +280,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
+		allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &hamiltonian);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -326,7 +332,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &psi);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{
@@ -411,7 +417,7 @@ char* test_dmrg_twosite()
 			}
 		}
 
-		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
+		allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &psi_ref);
 
 		for (int i = 0; i < nsites + 1; i++)
 		{

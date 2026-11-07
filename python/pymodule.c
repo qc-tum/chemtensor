@@ -49,6 +49,82 @@ static inline enum NPY_TYPES numeric_to_numpy_type(const enum numeric_type dtype
 }
 
 
+static inline int parse_data_type(const char* dtype_string, const char* err_string, enum numeric_type* dtype)
+{
+	if ((strcmp(dtype_string, "float32") == 0)
+	 || (strcmp(dtype_string, "float") == 0))
+	{
+		*dtype = CT_SINGLE_REAL;
+		return 0;
+	}
+	if ((strcmp(dtype_string, "float64") == 0)
+	 || (strcmp(dtype_string, "double") == 0))
+	{
+		*dtype = CT_DOUBLE_REAL;
+		return 0;
+	}
+	if ((strcmp(dtype_string, "complex64") == 0)
+	 || (strcmp(dtype_string, "float complex") == 0))
+	{
+		*dtype = CT_SINGLE_COMPLEX;
+		return 0;
+	}
+	if ((strcmp(dtype_string, "complex128") == 0)
+	 || (strcmp(dtype_string, "double complex") == 0))
+	{
+		*dtype = CT_DOUBLE_COMPLEX;
+		return 0;
+	}
+
+	char msg[1024];
+	sprintf(msg, "%s; use \"float32\", \"float64\", \"complex64\" or \"complex128\"", err_string);
+	PyErr_SetString(PyExc_ValueError, msg);
+	return -1;
+}
+
+
+static inline int parse_abelian_symmetry(const char* symm_string, const char* err_string, enum abelian_symmetry* symm)
+{
+	if ((strcmp(symm_string, "none") == 0)
+	 || (strcmp(symm_string, "None") == 0))
+	{
+		*symm = ABELIAN_SYMMETRY_NONE;
+		return 0;
+	}
+	if ((strcmp(symm_string, "U1") == 0)
+	 || (strcmp(symm_string, "U(1)") == 0))
+	{
+		*symm = ABELIAN_SYMMETRY_U1;
+		return 0;
+	}
+	if ((strcmp(symm_string, "Z2") == 0)
+	 || (strcmp(symm_string, "Z_2") == 0))
+	{
+		*symm = ABELIAN_SYMMETRY_Z2;
+		return 0;
+	}
+	if ((strcmp(symm_string, "U1xU1") == 0) || (strcmp(symm_string, "U1 x U1") == 0)
+	 || (strcmp(symm_string, "U(1)xU(1)") == 0) || (strcmp(symm_string, "U(1) x U(1)") == 0))
+	{
+		*symm = ABELIAN_SYMMETRY_U1_U1;
+		return 0;
+	}
+
+	char msg[1024];
+	sprintf(msg, "%s; use \"None\", \"U(1)\", \"Z_2\" or \"U(1) x U(1)\"", err_string);
+	PyErr_SetString(PyExc_ValueError, msg);
+	return -1;
+}
+
+
+static const char* abelian_symmetry_strings[NUM_ABELIAN_SYMMETRIES] = {
+	"None",
+	"U(1)",
+	"Z_2",
+	"U(1) x U(1)",
+};
+
+
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Python MPS object.
@@ -186,6 +262,17 @@ static PyObject* PyMPS_d(PyMPSObject* self, void* Py_UNUSED(closure))
 }
 
 
+static PyObject* PyMPS_symm(PyMPSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->mps.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyUnicode_FromString(abelian_symmetry_strings[self->mps.symm]);
+}
+
+
 static PyObject* PyMPS_qsite(PyMPSObject* self, void* Py_UNUSED(closure))
 {
 	if (self->mps.a == NULL) {
@@ -292,6 +379,13 @@ static struct PyGetSetDef PyMPS_getset[] = {
 		.get     = (getter)PyMPS_d,
 		.set     = NULL,
 		.doc     = "local physical dimension of each site",
+		.closure = NULL,
+	},
+	{
+		.name    = "symm",
+		.get     = (getter)PyMPS_symm,
+		.set     = NULL,
+		.doc     = "symmetry description",
 		.closure = NULL,
 	},
 	{
@@ -750,6 +844,17 @@ static PyObject* PyMPO_d(PyMPOObject* self, void* Py_UNUSED(closure))
 }
 
 
+static PyObject* PyMPO_symm(PyMPOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->mpo.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "MPO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyUnicode_FromString(abelian_symmetry_strings[self->mpo.symm]);
+}
+
+
 static PyObject* PyMPO_qsite(PyMPOObject* self, void* Py_UNUSED(closure))
 {
 	if (self->mpo.a == NULL) {
@@ -979,6 +1084,13 @@ static struct PyGetSetDef PyMPO_getset[] = {
 		.get     = (getter)PyMPO_d,
 		.set     = NULL,
 		.doc     = "local physical dimension of each site",
+		.closure = NULL,
+	},
+	{
+		.name    = "symm",
+		.get     = (getter)PyMPO_symm,
+		.set     = NULL,
+		.doc     = "symmetry description",
 		.closure = NULL,
 	},
 	{
@@ -1274,6 +1386,17 @@ static PyMethodDef PyTTNS_methods[] = {
 };
 
 
+static PyObject* PyTTNS_symm(PyTTNSObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttns.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNS has not been initialized yet");
+		return NULL;
+	}
+
+	return PyUnicode_FromString(abelian_symmetry_strings[self->ttns.symm]);
+}
+
+
 static PyObject* PyTTNS_quantum_number_sector(PyTTNSObject* self, void* Py_UNUSED(closure))
 {
 	if (self->ttns.a == NULL) {
@@ -1376,6 +1499,13 @@ static PyObject* PyTTNS_a(PyTTNSObject* self, void* Py_UNUSED(closure))
 
 
 static struct PyGetSetDef PyTTNS_getset[] = {
+	{
+		.name    = "symm",
+		.get     = (getter)PyTTNS_symm,
+		.set     = NULL,
+		.doc     = "symmetry description",
+		.closure = NULL,
+	},
 	{
 		.name    = "quantum_number_sector",
 		.get     = (getter)PyTTNS_quantum_number_sector,
@@ -1655,6 +1785,17 @@ static PyObject* PyTTNO_d(PyTTNOObject* self, void* Py_UNUSED(closure))
 }
 
 
+static PyObject* PyTTNO_symm(PyTTNOObject* self, void* Py_UNUSED(closure))
+{
+	if (self->ttno.a == NULL) {
+		PyErr_SetString(PyExc_ValueError, "TTNO has not been initialized yet");
+		return NULL;
+	}
+
+	return PyUnicode_FromString(abelian_symmetry_strings[self->ttno.symm]);
+}
+
+
 static PyObject* PyTTNO_qsite(PyTTNOObject* self, void* Py_UNUSED(closure))
 {
 	if (self->ttno.a == NULL) {
@@ -1890,6 +2031,13 @@ static struct PyGetSetDef PyTTNO_getset[] = {
 		.closure = NULL,
 	},
 	{
+		.name    = "symm",
+		.get     = (getter)PyTTNO_symm,
+		.set     = NULL,
+		.doc     = "symmetry description",
+		.closure = NULL,
+	},
+	{
 		.name    = "qsite",
 		.get     = (getter)PyTTNO_qsite,
 		.set     = NULL,
@@ -1997,6 +2145,8 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 	const char* dtype_string;
 	// number of lattice sites
 	int nsites;
+	// symmetry
+	const char* symm_string;
 	// physical quantum numbers at each site
 	PyObject* py_obj_qsite;
 	// quantum number sector
@@ -2009,39 +2159,29 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 	int normalize = 1;
 
 	// parse input arguments
-	char* kwlist[] = { "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siOi|llp", kwlist,
+	char* kwlist[] = { "", "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sisOi|llp", kwlist,
 			&dtype_string,
 			&nsites,
+			&symm_string,
 			&py_obj_qsite,
 			&qnum_sector,
 			&max_vdim,
 			&rng_seed,
 			&normalize)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_mps(dtype, nsites, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_mps(dtype, nsites, symm, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
 		return NULL;
 	}
 
 	// data type
 	enum numeric_type dtype;
-	if ((strcmp(dtype_string, "float32") == 0)
-	 || (strcmp(dtype_string, "float") == 0)) {
-		dtype = CT_SINGLE_REAL;
+	if (parse_data_type(dtype_string, "unrecognized 'dtype' argument", &dtype) < 0) {
+		return NULL;
 	}
-	else if ((strcmp(dtype_string, "float64") == 0)
-	      || (strcmp(dtype_string, "double") == 0)) {
-		dtype = CT_DOUBLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "complex64") == 0) ||
-	         (strcmp(dtype_string, "float complex") == 0)) {
-		dtype = CT_SINGLE_COMPLEX;
-	}
-	else if ((strcmp(dtype_string, "complex128") == 0)
-	      || (strcmp(dtype_string, "double complex") == 0)) {
-		dtype = CT_DOUBLE_COMPLEX;
-	}
-	else {
-		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+
+	// symmetry
+	enum abelian_symmetry symm;
+	if (parse_abelian_symmetry(symm_string, "unrecognized 'symm' argument", &symm) < 0) {
 		return NULL;
 	}
 
@@ -2087,7 +2227,7 @@ static PyObject* Py_construct_random_mps(PyObject* Py_UNUSED(self), PyObject* ar
 		return NULL;
 	}
 	// actually construct the random MPS
-	construct_random_mps(dtype, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
+	construct_random_mps(dtype, nsites, d, symm, qsite, qnum_sector, max_vdim, &rng_state, &py_psi->mps);
 
 	if (normalize)
 	{
@@ -2116,6 +2256,8 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 	int nsites_physical;
 	// neighbor map for tree topology
 	PyObject* py_obj_tree_neighbors;
+	// symmetry
+	const char* symm_string;
 	// physical quantum numbers at each site
 	PyObject* py_obj_qsites;
 	// quantum number sector
@@ -2128,40 +2270,24 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 	int normalize = 1;
 
 	// parse input arguments
-	char* kwlist[] = { "", "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siOOi|llp", kwlist,
+	char* kwlist[] = { "", "", "", "", "", "", "max_vdim", "rng_seed", "normalize", NULL };
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siOsOi|llp", kwlist,
 			&dtype_string,
 			&nsites_physical,
 			&py_obj_tree_neighbors,
+			&symm_string,
 			&py_obj_qsites,
 			&qnum_sector,
 			&max_vdim,
 			&rng_seed,
 			&normalize)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, symm, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)");
 		return NULL;
 	}
 
 	// data type
 	enum numeric_type dtype;
-	if ((strcmp(dtype_string, "float32") == 0)
-	 || (strcmp(dtype_string, "float") == 0)) {
-		dtype = CT_SINGLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "float64") == 0)
-	      || (strcmp(dtype_string, "double") == 0)) {
-		dtype = CT_DOUBLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "complex64") == 0) ||
-	         (strcmp(dtype_string, "float complex") == 0)) {
-		dtype = CT_SINGLE_COMPLEX;
-	}
-	else if ((strcmp(dtype_string, "complex128") == 0)
-	      || (strcmp(dtype_string, "double complex") == 0)) {
-		dtype = CT_DOUBLE_COMPLEX;
-	}
-	else {
-		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+	if (parse_data_type(dtype_string, "unrecognized 'dtype' argument", &dtype) < 0) {
 		return NULL;
 	}
 
@@ -2216,6 +2342,12 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 	}
 	if (!abstract_graph_is_connected_tree(&topology)) {
 		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a connected tree");
+		return NULL;
+	}
+
+	// symmetry
+	enum abelian_symmetry symm;
+	if (parse_abelian_symmetry(symm_string, "unrecognized 'symm' argument", &symm) < 0) {
 		return NULL;
 	}
 
@@ -2302,7 +2434,7 @@ static PyObject* Py_construct_random_ttns(PyObject* Py_UNUSED(self), PyObject* a
 		return NULL;
 	}
 	// actually construct the random TTNS
-	construct_random_ttns(dtype, nsites_physical, &topology, d, (const qnumber**)qsite, qnum_sector, max_vdim, &rng_state, &py_psi->ttns);
+	construct_random_ttns(dtype, nsites_physical, &topology, d, symm, (const qnumber**)qsite, qnum_sector, max_vdim, &rng_state, &py_psi->ttns);
 
 	for (int l = 0; l < topology.num_nodes; l++) {
 		ct_free(qsite[l]);
@@ -2713,6 +2845,9 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	const char* dtype_string;
 	// number of lattice sites
 	int nsites;
+	// symmetry
+	const char* symm_string;
+	// operator chains
 	PyObject* py_obj_chains;
 	// local operator map (look-up table)
 	PyObject* py_obj_opmap;
@@ -2722,37 +2857,21 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	PyObject* py_obj_qsite;
 
 	// parse input arguments
-	if (!PyArg_ParseTuple(args, "siOOOO",
+	if (!PyArg_ParseTuple(args, "sisOOOO",
 			&dtype_string,
 			&nsites,
+			&symm_string,
 			&py_obj_chains,
 			&py_obj_opmap,
 			&py_obj_coeffmap,
 			&py_obj_qsite)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_mpo_from_opchains(dtype: str, nsites: int, chains, opmap, coeffmap, qsite)");
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_mpo_from_opchains(dtype: str, nsites: int, symm: str, chains, opmap, coeffmap, qsite)");
 		return NULL;
 	}
 
 	// data type
 	enum numeric_type dtype;
-	if ((strcmp(dtype_string, "float32") == 0)
-	 || (strcmp(dtype_string, "float") == 0)) {
-		dtype = CT_SINGLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "float64") == 0)
-	      || (strcmp(dtype_string, "double") == 0)) {
-		dtype = CT_DOUBLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "complex64") == 0) ||
-	         (strcmp(dtype_string, "float complex") == 0)) {
-		dtype = CT_SINGLE_COMPLEX;
-	}
-	else if ((strcmp(dtype_string, "complex128") == 0)
-	      || (strcmp(dtype_string, "double complex") == 0)) {
-		dtype = CT_DOUBLE_COMPLEX;
-	}
-	else {
-		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+	if (parse_data_type(dtype_string, "unrecognized 'dtype' argument", &dtype) < 0) {
 		return NULL;
 	}
 
@@ -2761,6 +2880,12 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 		char msg[1024];
 		sprintf(msg, "'nsites' must be a positive integer, received %i", nsites);
 		PyErr_SetString(PyExc_ValueError, msg);
+		return NULL;
+	}
+
+	// symmetry
+	enum abelian_symmetry symm;
+	if (parse_abelian_symmetry(symm_string, "unrecognized 'symm' argument", &symm) < 0) {
 		return NULL;
 	}
 
@@ -2925,6 +3050,7 @@ static PyObject* Py_construct_mpo_from_opchains(PyObject* Py_UNUSED(self), PyObj
 	py_mpo->assembly.coeffmap      = coeffmap;
 	py_mpo->assembly.qsite         = qsite;
 	py_mpo->assembly.d             = d;
+	py_mpo->assembly.symm          = symm;
 	py_mpo->assembly.dtype         = dtype;
 	py_mpo->assembly.num_local_ops = num_local_ops;
 	py_mpo->assembly.num_coeffs    = num_coeffs;
@@ -2949,9 +3075,12 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	const char* dtype_string;
 	// number of physical lattice sites
 	int nsites_physical;
-	PyObject* py_obj_chains;
 	// neighbor map for tree topology
 	PyObject* py_obj_tree_neighbors;
+	// symmetry
+	const char* symm_string;
+	// operator chains
+	PyObject* py_obj_chains;
 	// local operator map (look-up table)
 	PyObject* py_obj_opmap;
 	// coefficient map (look-up table)
@@ -2960,38 +3089,22 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	PyObject* py_obj_qsite;
 
 	// parse input arguments
-	if (!PyArg_ParseTuple(args, "siOOOOO",
+	if (!PyArg_ParseTuple(args, "siOsOOOO",
 			&dtype_string,
 			&nsites_physical,
 			&py_obj_tree_neighbors,
+			&symm_string,
 			&py_obj_chains,
 			&py_obj_opmap,
 			&py_obj_coeffmap,
 			&py_obj_qsite)) {
-		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, chains, opmap, coeffmap, qsite)");
+		PyErr_SetString(PyExc_SyntaxError, "error parsing input; syntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, symm: str, chains, opmap, coeffmap, qsite)");
 		return NULL;
 	}
 
 	// data type
 	enum numeric_type dtype;
-	if ((strcmp(dtype_string, "float32") == 0)
-	 || (strcmp(dtype_string, "float") == 0)) {
-		dtype = CT_SINGLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "float64") == 0)
-	      || (strcmp(dtype_string, "double") == 0)) {
-		dtype = CT_DOUBLE_REAL;
-	}
-	else if ((strcmp(dtype_string, "complex64") == 0) ||
-	         (strcmp(dtype_string, "float complex") == 0)) {
-		dtype = CT_SINGLE_COMPLEX;
-	}
-	else if ((strcmp(dtype_string, "complex128") == 0)
-	      || (strcmp(dtype_string, "double complex") == 0)) {
-		dtype = CT_DOUBLE_COMPLEX;
-	}
-	else {
-		PyErr_SetString(PyExc_ValueError, "unrecognized 'dtype' argument; use \"float32\", \"float64\", \"complex64\" or \"complex128\"");
+	if (parse_data_type(dtype_string, "unrecognized 'dtype' argument", &dtype) < 0) {
 		return NULL;
 	}
 
@@ -3047,6 +3160,12 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	}
 	if (!abstract_graph_is_connected_tree(&topology)) {
 		PyErr_SetString(PyExc_ValueError, "'tree_neighbors' does not define a connected tree");
+		return NULL;
+	}
+
+	// symmetry
+	enum abelian_symmetry symm;
+	if (parse_abelian_symmetry(symm_string, "unrecognized 'symm' argument", &symm) < 0) {
 		return NULL;
 	}
 
@@ -3211,6 +3330,7 @@ static PyObject* Py_construct_ttno_from_opchains(PyObject* Py_UNUSED(self), PyOb
 	py_ttno->assembly.coeffmap      = coeffmap;
 	py_ttno->assembly.qsite         = qsite;
 	py_ttno->assembly.d             = d;
+	py_ttno->assembly.symm          = symm;
 	py_ttno->assembly.dtype         = dtype;
 	py_ttno->assembly.num_local_ops = num_local_ops;
 	py_ttno->assembly.num_coeffs    = num_coeffs;
@@ -3317,7 +3437,7 @@ static PyObject* Py_dmrg(PyObject* Py_UNUSED(self), PyObject* args, PyObject* kw
 	// initial state vector as MPS
 	struct rng_state rng_state;
 	seed_rng_state(rng_seed, &rng_state);
-	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.qsite, qnum_sector, options.max_vdim, &rng_state, &py_psi->mps);
+	construct_random_mps(py_mpo->mpo.a[0].dtype, py_mpo->mpo.nsites, py_mpo->mpo.d, py_mpo->mpo.symm, py_mpo->mpo.qsite, qnum_sector, options.max_vdim, &rng_state, &py_psi->mps);
 	if (mps_norm(&py_psi->mps) == 0) {
 		PyErr_WarnEx(PyExc_RuntimeWarning, "initial random MPS has norm zero (possibly due to mismatching quantum numbers)", 1);
 	}
@@ -3404,6 +3524,11 @@ static PyObject* Py_operator_average_coefficient_gradient(PyObject* Py_UNUSED(se
 	if ((py_op->assembly.d != py_psi->mps.d) ||
 	    (py_op->assembly.d != py_chi->mps.d)) {
 		PyErr_SetString(PyExc_ValueError, "local Hilbert space dimensions of 'op', 'psi' and 'chi' do not agree");
+		return NULL;
+	}
+	if ((py_op->assembly.symm != py_psi->mps.symm) ||
+	    (py_op->assembly.symm != py_chi->mps.symm)) {
+		PyErr_SetString(PyExc_ValueError, "abelian symmetries of 'op', 'psi' and 'chi' do not agree");
 		return NULL;
 	}
 	if (!qnumber_all_equal(py_op->assembly.d, py_op->assembly.qsite, py_psi->mps.qsite) ||
@@ -3613,13 +3738,13 @@ static PyMethodDef methods[] = {
 		.ml_name  = "construct_random_mps",
 		.ml_meth  = (PyCFunction)Py_construct_random_mps,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
-		.ml_doc   = "Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_mps(dtype, nsites, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
+		.ml_doc   = "Construct a matrix product state with random normal tensor entries, given an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_mps(dtype, nsites, symm, qsite, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
 	},
 	{
 		.ml_name  = "construct_random_ttns",
 		.ml_meth  = (PyCFunction)Py_construct_random_ttns,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
-		.ml_doc   = "Construct a tree tensor network state with random normal tensor entries, given the tree topology, an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
+		.ml_doc   = "Construct a tree tensor network state with random normal tensor entries, given the tree topology, an overall quantum number sector and maximum virtual bond dimension.\nSyntax: construct_random_ttns(dtype, nsites_physical, tree_neighbors, symm, qsites, qnum_sector, max_vdim=256, rng_seed=42, normalize=True)",
 	},
 	{
 		.ml_name  = "construct_ising_1d_mpo",
@@ -3661,13 +3786,13 @@ static PyMethodDef methods[] = {
 		.ml_name  = "construct_mpo_from_opchains",
 		.ml_meth  = Py_construct_mpo_from_opchains,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Construct an MPO from a list of operator chains.\nSyntax: construct_mpo_from_opchains(dtype: str, nsites: int, chains, opmap, coeffmap, qsite)",
+		.ml_doc   = "Construct an MPO from a list of operator chains.\nSyntax: construct_mpo_from_opchains(dtype: str, nsites: int, symm: str, chains, opmap, coeffmap, qsite)",
 	},
 	{
 		.ml_name  = "construct_ttno_from_opchains",
 		.ml_meth  = Py_construct_ttno_from_opchains,
 		.ml_flags = METH_VARARGS,
-		.ml_doc   = "Construct a TTNO from a list of operator chains.\nSyntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, chains, opmap, coeffmap, qsite)",
+		.ml_doc   = "Construct a TTNO from a list of operator chains.\nSyntax: construct_ttno_from_opchains(dtype: str, nsites_physical: int, tree_neighbors, symm: str, chains, opmap, coeffmap, qsite)",
 	},
 	{
 		.ml_name  = "dmrg",

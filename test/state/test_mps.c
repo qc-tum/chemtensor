@@ -15,6 +15,9 @@ char* test_copy_mps()
 	// local physical dimension
 	const ct_long d = 4;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	const qnumber qsite[4] = { 0, 2, 0, -1 };
 
 	struct rng_state rng_state;
@@ -23,7 +26,7 @@ char* test_copy_mps()
 	struct mps src;
 	const ct_long max_vdim = 16;
 	const qnumber qnum_sector = 1;
-	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &src);
+	construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, qnum_sector, max_vdim, &rng_state, &src);
 
 	struct mps dst;
 	copy_mps(&src, &dst);
@@ -52,6 +55,9 @@ char* test_mps_vdot()
 	const int nsites = 4;
 	// local physical dimension
 	const ct_long d = 3;
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -86,7 +92,7 @@ char* test_mps_vdot()
 	}
 
 	struct mps psi;
-	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -110,7 +116,7 @@ char* test_mps_vdot()
 	}
 
 	struct mps chi;
-	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -168,8 +174,6 @@ char* test_mps_vdot()
 char* test_mps_add()
 {
 	const ct_long d = 3;
-	const qnumber qsite[3] = { 1, 0, -2 };
-
 	const int nsites_list[] = { 1, 3, 5, 8, 12 };
 
 	struct rng_state rng_state;
@@ -179,45 +183,80 @@ char* test_mps_add()
 	{
 		const int nsites = nsites_list[i];
 
-		struct mps chi, psi;
-		const qnumber qnum_sector = (i % 4);
-		const ct_long max_vdim = 16;
-		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &chi);
-		construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &psi);
+		for (int isymm = 0; isymm < NUM_ABELIAN_SYMMETRIES; isymm++)
+		{
+			qnumber qsite[3] = { 0 };
+			qnumber qnum_sector = 0;
+			if (isymm == ABELIAN_SYMMETRY_NONE)
+			{
+				// entries are already zero
+			}
+			else if (isymm == ABELIAN_SYMMETRY_U1)
+			{
+				qsite[0] =  1;
+				qsite[1] =  0;
+				qsite[2] = -2;
+				qnum_sector = (i % 4);
+			}
+			else if (isymm == ABELIAN_SYMMETRY_Z2)
+			{
+				qsite[0] = 1;
+				qsite[1] = 0;
+				qsite[2] = 1;
+				qnum_sector = (i + 1) % 2;
+			}
+			else if (isymm == ABELIAN_SYMMETRY_U1_U1)
+			{
+				qsite[0] = encode_quantum_number_pair( 0, -2);
+				qsite[1] = encode_quantum_number_pair( 1,  1);
+				qsite[2] = encode_quantum_number_pair(-1,  1);
+				qnum_sector = encode_quantum_number_pair(-1,  1);
+			}
+			else
+			{
+				// unknown symmetry
+				assert(false);
+			}
 
-		// perform logical addition
-		struct mps res;
-		mps_add(&chi, &psi, &res);
+			struct mps chi, psi;
+			const ct_long max_vdim = 16;
+			construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, isymm, qsite, qnum_sector, max_vdim, &rng_state, &chi);
+			construct_random_mps(CT_DOUBLE_COMPLEX, nsites, d, isymm, qsite, qnum_sector, max_vdim, &rng_state, &psi);
 
-		struct block_sparse_tensor chi_vec, psi_vec, res_vec;
-		mps_to_statevector(&chi, &chi_vec);
-		mps_to_statevector(&psi, &psi_vec);
-		mps_to_statevector(&res, &res_vec);
+			// perform logical addition
+			struct mps res;
+			mps_add(&chi, &psi, &res);
 
-		struct dense_tensor chi_vec_dns, psi_vec_dns, res_vec_dns;
-		block_sparse_to_dense_tensor(&chi_vec, &chi_vec_dns);
-		block_sparse_to_dense_tensor(&psi_vec, &psi_vec_dns);
-		block_sparse_to_dense_tensor(&res_vec, &res_vec_dns);
+			struct block_sparse_tensor chi_vec, psi_vec, res_vec;
+			mps_to_statevector(&chi, &chi_vec);
+			mps_to_statevector(&psi, &psi_vec);
+			mps_to_statevector(&res, &res_vec);
 
-		dense_tensor_scalar_multiply_add(numeric_one(chi_vec.dtype), &psi_vec_dns, &chi_vec_dns);
+			struct dense_tensor chi_vec_dns, psi_vec_dns, res_vec_dns;
+			block_sparse_to_dense_tensor(&chi_vec, &chi_vec_dns);
+			block_sparse_to_dense_tensor(&psi_vec, &psi_vec_dns);
+			block_sparse_to_dense_tensor(&res_vec, &res_vec_dns);
 
-		// compare dense tensors
-		if (!dense_tensor_allclose(&res_vec_dns, &chi_vec_dns, 1e-13)) {
-			return "logical addition of two MPS does not match reference";
+			dense_tensor_scalar_multiply_add(numeric_one(chi_vec.dtype), &psi_vec_dns, &chi_vec_dns);
+
+			// compare dense tensors
+			if (!dense_tensor_allclose(&res_vec_dns, &chi_vec_dns, 1e-13)) {
+				return "logical addition of two MPS does not match reference";
+			}
+
+			// free memory
+			delete_dense_tensor(&res_vec_dns);
+			delete_dense_tensor(&psi_vec_dns);
+			delete_dense_tensor(&chi_vec_dns);
+
+			delete_block_sparse_tensor(&res_vec);
+			delete_block_sparse_tensor(&psi_vec);
+			delete_block_sparse_tensor(&chi_vec);
+			
+			delete_mps(&res);
+			delete_mps(&psi);
+			delete_mps(&chi);
 		}
-
-		// free memory
-		delete_dense_tensor(&res_vec_dns);
-		delete_dense_tensor(&psi_vec_dns);
-		delete_dense_tensor(&chi_vec_dns);
-
-		delete_block_sparse_tensor(&res_vec);
-		delete_block_sparse_tensor(&psi_vec);
-		delete_block_sparse_tensor(&chi_vec);
-		
-		delete_mps(&res);
-		delete_mps(&psi);
-		delete_mps(&chi);
 	}
 
 	return 0;
@@ -237,6 +276,9 @@ char* test_mps_orthonormalize_qr()
 	const int nsites = 6;
 	// local physical dimension
 	const ct_long d = 3;
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
@@ -260,7 +302,7 @@ char* test_mps_orthonormalize_qr()
 	for (int m = 0; m < 2; m++)
 	{
 		struct mps mps;
-		allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+		allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 		// read MPS tensors from disk
 		for (int i = 0; i < nsites; i++)
@@ -375,6 +417,9 @@ char* test_mps_compress()
 	// local physical dimension
 	const ct_long d = 3;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -401,7 +446,7 @@ char* test_mps_compress()
 		for (int m = 0; m < 2; m++)
 		{
 			struct mps mps;
-			allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+			allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 			// read MPS tensors from disk
 			for (int i = 0; i < nsites; i++)
@@ -528,6 +573,9 @@ char* test_mps_split_tensor_svd()
 	const ct_long dim_bonds[2] = { 13, 17 };
 	const ct_long max_vdim = 100;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite[2];
 	for (int i = 0; i < 2; i++)
@@ -575,7 +623,7 @@ char* test_mps_split_tensor_svd()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor a_pair;
-	dense_to_block_sparse_tensor(&a_pair_dns, axis_dir, qnums, &a_pair);
+	dense_to_block_sparse_tensor(&a_pair_dns, symm, axis_dir, qnums, &a_pair);
 
 	delete_dense_tensor(&a_pair_dns);
 
@@ -657,6 +705,9 @@ char* test_mps_to_statevector()
 	// local physical dimension
 	const ct_long d = 3;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -677,7 +728,7 @@ char* test_mps_to_statevector()
 	}
 
 	struct mps mps;
-	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, &mps);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -746,6 +797,8 @@ char* test_save_mps()
 	const ct_long nsites = 7;
 	// local physical dimension
 	const ct_long d = 4;
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 	// local quantum numbers at each physical site
 	const qnumber qsite[4] = { 0, 2, 0, -1 };
 
@@ -755,7 +808,7 @@ char* test_save_mps()
 	struct mps mps;
 	const ct_long max_vdim = 14;
 	const qnumber qnum_sector = 1;
-	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, qnum_sector, max_vdim, &rng_state, &mps);
+	construct_random_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, qnum_sector, max_vdim, &rng_state, &mps);
 	if (mps_norm(&mps) == 0) {
 		return "requiring a non-zero MPS";
 	}

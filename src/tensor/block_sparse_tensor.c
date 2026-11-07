@@ -50,17 +50,26 @@ static int compare_qnumber_count(const void* a, const void* b)
 {
 	const struct qnumber_count* x = (const struct qnumber_count*)a;
 	const struct qnumber_count* y = (const struct qnumber_count*)b;
-	// assuming that quantum numbers are distinct
-	return x->qnum - y->qnum;
+
+	if (x->qnum < y->qnum) {
+		return -1;
+	}
+	else if (x->qnum == y->qnum) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
 }
 
 //________________________________________________________________________________________________________________________
 ///
 /// \brief Allocate memory for a block-sparse tensor, including the dense blocks for conserved quantum numbers.
 ///
-void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* restrict dim, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict t)
+void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, const enum abelian_symmetry symm, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* t)
 {
 	t->dtype = dtype;
+	t->symm  = symm;
 
 	assert(ndim >= 0);
 	t->ndim = ndim;
@@ -120,6 +129,9 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		ct_long nqc = 0;
 		for (ct_long j = 0; j < dim[i]; j++)
 		{
+			// quantum number symmetry consistency check
+			assert(qnums[i][j] == abelian_qnumber_addition_functions[symm](0, 1, qnums[i][j]));
+
 			int k;
 			for (k = 0; k < nqc; k++)
 			{
@@ -161,7 +173,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 		qnumber qsum = 0;
 		for (int i = 0; i < ndim; i++)
 		{
-			qsum += axis_dir[i] * t->axis_qnums_sorted[i][index_block[i]];
+			qsum = abelian_qnumber_addition_functions[symm](qsum, axis_dir[i], t->axis_qnums_sorted[i][index_block[i]]);
 		}
 		if (qsum != 0) {
 			continue;
@@ -183,6 +195,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 	ct_free(index_block);
 	assert(t->nblocks <= max_nblocks);
 
+	// block list and table indices
 	t->block_list = ct_malloc(t->nblocks * sizeof(struct dense_tensor*)); 
 	t->table_index_list = ct_malloc(t->nblocks * ndim * sizeof(ct_long));
 	block_sparse_tensor_fill_block_list_indices(t);
@@ -220,7 +233,7 @@ void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim,
 ///
 void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* restrict s, struct block_sparse_tensor* restrict t)
 {
-	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->axis_dir, (const qnumber**)s->axis_qnums_logical, t);
+	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->symm, s->axis_dir, (const qnumber**)s->axis_qnums_logical, t);
 }
 
 
@@ -275,6 +288,7 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 	dst->nblocks = src->nblocks;
 	dst->dtype   = src->dtype;
 	dst->ndim    = src->ndim;
+	dst->symm    = src->symm;
 
 	const int ndim = src->ndim;
 
@@ -336,8 +350,7 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 	// copy dense tensor blocks
 	const ct_long max_nblocks = integer_product(src->dim_sorted, ndim);
 	dst->block_table = ct_calloc(max_nblocks,  sizeof(struct dense_tensor*));
-	ct_long* index_block = ct_calloc(ndim, sizeof(ct_long));
-	for (ct_long k = 0; k < max_nblocks; k++, next_tensor_index(ndim, dst->dim_sorted, index_block))
+	for (ct_long k = 0; k < max_nblocks; k++)
 	{
 		if (src->block_table[k] == NULL) {
 			continue;
@@ -350,7 +363,6 @@ void copy_block_sparse_tensor(const struct block_sparse_tensor* restrict src, st
 		b->data = dst->data + (src->block_table[k]->data - src->data);
 		dst->block_table[k] = b;
 	}
-	ct_free(index_block);
 
 	// block list and table indices
 	dst->block_list = ct_malloc(dst->nblocks * sizeof(struct dense_tensor*));
@@ -447,11 +459,69 @@ void block_sparse_tensor_reverse_axis_directions(struct block_sparse_tensor* t)
 
 //________________________________________________________________________________________________________________________
 ///
+/// \brief Temporary data structure storing a quantum number and an index.
+///
+struct qnumber_index_tuple
+{
+	qnumber qnum;  //!< quantum number
+	ct_long idx;   //!< index
+};
+
+//________________________________________________________________________________________________________________________
+///
+/// \brief Comparison function for sorting.
+///
+static int compare_qnumber_index_tuples(const void* a, const void* b)
+{
+	const struct qnumber_index_tuple* x = (const struct qnumber_index_tuple*)a;
+	const struct qnumber_index_tuple* y = (const struct qnumber_index_tuple*)b;
+
+	if (x->qnum < y->qnum) {
+		return -1;
+	}
+	else if (x->qnum == y->qnum) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
+}
+
+//________________________________________________________________________________________________________________________
+///
 /// \brief Flip the signs of the quantum numbers associated with a single tensor axis and reverse the direction of this axis.
 ///
 void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor* t, const int i_ax)
 {
 	assert(0 <= i_ax && i_ax < t->ndim);
+
+	// inverted quantum numbers and indices along axis 'i_ax'
+	struct qnumber_index_tuple* iqtuples = ct_malloc(t->dim_sorted[i_ax] * sizeof(struct qnumber_index_tuple));
+	for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++)
+	{
+		// invert quantum number
+		iqtuples[j].qnum = abelian_qnumber_addition_functions[t->symm](0, -1, t->axis_qnums_sorted[i_ax][j]);
+		iqtuples[j].idx  = j;
+	}
+	// sort by inverted quantum numbers
+	qsort(iqtuples, t->dim_sorted[i_ax], sizeof(struct qnumber_index_tuple), compare_qnumber_index_tuples);
+
+	// index map from original quantum numbers to inverted ones
+	ct_long* inverted_qnum_map = ct_malloc(t->dim_sorted[i_ax] * sizeof(ct_long));
+	for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++)
+	{
+		inverted_qnum_map[iqtuples[j].idx] = j;
+	}
+
+	// list of sorted inverted block quantum numbers along axis 'i_ax'
+	qnumber* i_ax_qnums_sorted_new = ct_malloc(t->dim_sorted[i_ax] * sizeof(qnumber));
+	for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++) {
+		i_ax_qnums_sorted_new[j] = iqtuples[j].qnum;
+	}
+	ct_free(t->axis_qnums_sorted[i_ax]);
+	t->axis_qnums_sorted[i_ax] = i_ax_qnums_sorted_new;
+
+	ct_free(iqtuples);
 
 	// allocate new dense tensor block table
 	const ct_long max_nblocks = integer_product(t->dim_sorted, t->ndim);
@@ -465,7 +535,7 @@ void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor*
 
 		const ct_long ib_i_ax_ref = index_block[i_ax];
 		// new index after sign flip
-		index_block[i_ax] = t->dim_sorted[i_ax] - ib_i_ax_ref - 1;
+		index_block[i_ax] = inverted_qnum_map[ib_i_ax_ref];
 		const ct_long k_new = tensor_index_to_offset(t->ndim, t->dim_sorted, index_block);
 		index_block[i_ax] = ib_i_ax_ref;  // restore
 
@@ -476,21 +546,14 @@ void block_sparse_tensor_invert_axis_quantum_numbers(struct block_sparse_tensor*
 	ct_free(t->block_table);
 	t->block_table = block_table_new;
 
+	ct_free(inverted_qnum_map);
+
 	// re-create linear block list and table indices
 	block_sparse_tensor_fill_block_list_indices(t);
 
-	// flip block quantum number signs along axis 'i_ax'
-	qnumber* qnums_blocks_i_ax_new = ct_malloc(t->dim_sorted[i_ax] * sizeof(qnumber));
-	for (ct_long j = 0; j < t->dim_sorted[i_ax]; j++) {
-		// ensure that block quantum numbers remain sorted
-		qnums_blocks_i_ax_new[j] = -t->axis_qnums_sorted[i_ax][t->dim_sorted[i_ax] - j - 1];
-	}
-	ct_free(t->axis_qnums_sorted[i_ax]);
-	t->axis_qnums_sorted[i_ax] = qnums_blocks_i_ax_new;
-
 	// flip logical quantum number signs along axis 'i_ax'
 	for (ct_long j = 0; j < t->dim_logical[i_ax]; j++) {
-		t->axis_qnums_logical[i_ax][j] = -t->axis_qnums_logical[i_ax][j];
+		t->axis_qnums_logical[i_ax][j] = abelian_qnumber_addition_functions[t->symm](0, -1, t->axis_qnums_logical[i_ax][j]);
 	}
 
 	// flip tensor axis direction
@@ -828,9 +891,9 @@ void block_sparse_to_dense_tensor(const struct block_sparse_tensor* restrict s, 
 ///
 /// Entries in the dense tensor not adhering to the quantum number sparsity pattern are ignored.
 ///
-void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s)
+void dense_to_block_sparse_tensor(const struct dense_tensor* restrict t, const enum abelian_symmetry symm, const enum tensor_axis_direction* axis_dir, const qnumber** restrict qnums, struct block_sparse_tensor* restrict s)
 {
-	allocate_block_sparse_tensor(t->dtype, t->ndim, t->dim, axis_dir, qnums, s);
+	allocate_block_sparse_tensor(t->dtype, t->ndim, t->dim, symm, axis_dir, qnums, s);
 
 	dense_to_block_sparse_tensor_entries(t, s);
 }
@@ -971,6 +1034,7 @@ void block_sparse_tensor_transpose(const int* restrict perm, const struct block_
 {
 	r->nelem   = t->nelem;
 	r->nblocks = t->nblocks;
+	r->symm    = t->symm;
 	r->dtype   = t->dtype;
 	r->ndim    = t->ndim;
 
@@ -1218,8 +1282,10 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 			for (ct_long k = 0; k < t->dim_logical[i_ax + 1]; k++)
 			{
 				r_qnums_ax_flat[j*t->dim_logical[i_ax + 1] + k] =
-					new_axis_dir * (t->axis_dir[i_ax    ] * t->axis_qnums_logical[i_ax    ][j] +
-					                t->axis_dir[i_ax + 1] * t->axis_qnums_logical[i_ax + 1][k]);
+					abelian_qnumber_addition_functions[t->symm](
+					abelian_qnumber_addition_functions[t->symm](
+						0, new_axis_dir * t->axis_dir[i_ax    ], t->axis_qnums_logical[i_ax    ][j]),
+						   new_axis_dir * t->axis_dir[i_ax + 1], t->axis_qnums_logical[i_ax + 1][k]);
 			}
 		}
 		qnumber** r_qnums_logical = ct_malloc((t->ndim - 1) * sizeof(qnumber*));
@@ -1236,7 +1302,7 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 		}
 
 		// allocate new block-sparse tensor 'r'
-		allocate_block_sparse_tensor(t->dtype, t->ndim - 1, r_dim_logical, r_axis_dir, (const qnumber**)r_qnums_logical, r);
+		allocate_block_sparse_tensor(t->dtype, t->ndim - 1, r_dim_logical, t->symm, r_axis_dir, (const qnumber**)r_qnums_logical, r);
 
 		ct_free(r_qnums_logical);
 		ct_free(r_qnums_ax_flat);
@@ -1271,8 +1337,10 @@ void block_sparse_tensor_flatten_axes(const struct block_sparse_tensor* restrict
 			t->axis_qnums_sorted[i_ax + 1][index_block_t[i_ax + 1]] };
 
 		const qnumber qnum_flat =
-			new_axis_dir * (t->axis_dir[i_ax    ] * qnums_i_ax[0] +
-			                t->axis_dir[i_ax + 1] * qnums_i_ax[1]);
+			abelian_qnumber_addition_functions[t->symm](
+			abelian_qnumber_addition_functions[t->symm](
+				0, new_axis_dir * t->axis_dir[i_ax    ], qnums_i_ax[0]),
+				   new_axis_dir * t->axis_dir[i_ax + 1], qnums_i_ax[1]);
 
 		// corresponding block index in 'r'
 		ct_long* index_block_r = ct_malloc(r->ndim * sizeof(ct_long));
@@ -1365,8 +1433,11 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 	// consistency check of provided quantum numbers
 	for (ct_long j = 0; j < new_dim_logical[0]; j++) {
 		for (ct_long k = 0; k < new_dim_logical[1]; k++) {
-			assert(t->axis_dir[i_ax] * t->axis_qnums_logical[i_ax][j*new_dim_logical[1] + k]
-				== new_axis_dir[0] * new_qnums_logical[0][j] + new_axis_dir[1] * new_qnums_logical[1][k]);
+			assert(abelian_qnumber_addition_functions[t->symm](0, t->axis_dir[i_ax], t->axis_qnums_logical[i_ax][j*new_dim_logical[1] + k])
+				== abelian_qnumber_addition_functions[t->symm](
+				   abelian_qnumber_addition_functions[t->symm](
+					    0, new_axis_dir[0], new_qnums_logical[0][j]),
+					       new_axis_dir[1], new_qnums_logical[1][k]));
 		}
 	}
 
@@ -1404,7 +1475,7 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 		}
 
 		// allocate new block-sparse tensor 'r'
-		allocate_block_sparse_tensor(t->dtype, t->ndim + 1, r_dim_logical, r_axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(t->dtype, t->ndim + 1, r_dim_logical, t->symm, r_axis_dir, r_qnums_logical, r);
 
 		ct_free(r_qnums_logical);
 		ct_free(r_axis_dir);
@@ -1438,8 +1509,10 @@ void block_sparse_tensor_split_axis(const struct block_sparse_tensor* restrict t
 			r->axis_qnums_sorted[i_ax + 1][index_block_r[i_ax + 1]] };
 
 		const qnumber qnum_flat =
-			t->axis_dir[i_ax] * (r->axis_dir[i_ax    ] * qnums_i_ax[0] +
-			                     r->axis_dir[i_ax + 1] * qnums_i_ax[1]);
+			abelian_qnumber_addition_functions[t->symm](
+			abelian_qnumber_addition_functions[t->symm](
+				0, t->axis_dir[i_ax] * r->axis_dir[i_ax    ], qnums_i_ax[0]),
+				   t->axis_dir[i_ax] * r->axis_dir[i_ax + 1], qnums_i_ax[1]);
 
 		// corresponding block index in 't'
 		ct_long* index_block_t = ct_malloc(t->ndim * sizeof(ct_long));
@@ -1699,7 +1772,7 @@ void block_sparse_tensor_slice(const struct block_sparse_tensor* restrict t, con
 		}
 
 		// allocate new block-sparse tensor 'r'
-		allocate_block_sparse_tensor(t->dtype, t->ndim, r_dim_logical, t->axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(t->dtype, t->ndim, r_dim_logical, t->symm, t->axis_dir, r_qnums_logical, r);
 
 		ct_free(r_qnums_logical);
 		ct_free(r_qnums_logical_i_ax);
@@ -1800,7 +1873,7 @@ void block_sparse_tensor_cyclic_partial_trace(const struct block_sparse_tensor* 
 	}
 
 	// construct new block-sparse tensor 'r'
-	allocate_block_sparse_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim_logical + ndim_trace, t->axis_dir + ndim_trace, (const qnumber**)(t->axis_qnums_logical + ndim_trace), r);
+	allocate_block_sparse_tensor(t->dtype, t->ndim - 2 * ndim_trace, t->dim_logical + ndim_trace, t->symm, t->axis_dir + ndim_trace, (const qnumber**)(t->axis_qnums_logical + ndim_trace), r);
 
 	// for each block in 'r'...
 	const ct_long max_nblocks_p = integer_product(t->dim_sorted, ndim_trace);
@@ -1840,6 +1913,7 @@ void block_sparse_tensor_scalar_multiply_add(const void* alpha, const struct blo
 {
 	assert(s->dtype == t->dtype);
 	assert(s->ndim  == t->ndim);
+	assert(s->symm  == t->symm);
 	for (int i = 0; i < t->ndim; i++)
 	{
 		assert(s->dim_logical[i] == t->dim_logical[i]);
@@ -1879,7 +1953,7 @@ void block_sparse_tensor_multiply_pointwise_vector(const struct block_sparse_ten
 	assert(t->dim[0] == s->dim_logical[i_ax]);
 
 	// allocate new block-sparse tensor 'r' with same layout as 's'
-	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->axis_dir, (const qnumber**)s->axis_qnums_logical, r);
+	allocate_block_sparse_tensor(s->dtype, s->ndim, s->dim_logical, s->symm, s->axis_dir, (const qnumber**)s->axis_qnums_logical, r);
 
 	// for each block with matching quantum numbers...
 	const ct_long max_nblocks = integer_product(r->dim_sorted, r->ndim);
@@ -1936,6 +2010,8 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 
 	// data types must agree
 	assert(s->dtype == t->dtype);
+	// symmetry must match
+	assert(s->symm == t->symm);
 	// 't' must have a degree of at least 'ndim_mult'
 	assert(t->ndim >= ndim_mult);
 	// to-be contracted axes indices must be valid for 's'
@@ -1971,7 +2047,7 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 		memcpy(&r_qnums_logical[i_ax_start], &t->axis_qnums_logical[offset_t], (t->ndim - ndim_mult) * sizeof(qnumber*));
 		memcpy(&r_qnums_logical[i_ax_start + t->ndim - ndim_mult], &s->axis_qnums_logical[i_ax_start + ndim_mult], (s->ndim - i_ax_start - ndim_mult) * sizeof(qnumber*));
 		// create new tensor 'r'
-		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, r_axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, s->symm, r_axis_dir, r_qnums_logical, r);
 		ct_free(r_qnums_logical);
 		ct_free(r_axis_dir);
 		ct_free(r_dim_logical);
@@ -2006,7 +2082,7 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 			qnumber qsum = 0;
 			for (int i = 0; i < s->ndim; i++)
 			{
-				qsum += s->axis_dir[i] * s->axis_qnums_sorted[i][index_block_s[i]];
+				qsum = abelian_qnumber_addition_functions[s->symm](qsum, s->axis_dir[i], s->axis_qnums_sorted[i][index_block_s[i]]);
 			}
 			if (qsum != 0) {
 				continue;
@@ -2017,7 +2093,7 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 			qsum = 0;
 			for (int i = 0; i < t->ndim; i++)
 			{
-				qsum += t->axis_dir[i] * t->axis_qnums_sorted[i][index_block_t[i]];
+				qsum = abelian_qnumber_addition_functions[t->symm](qsum, t->axis_dir[i], t->axis_qnums_sorted[i][index_block_t[i]]);
 			}
 			assert(qsum == 0);
 			#endif
@@ -2049,6 +2125,7 @@ void block_sparse_tensor_multiply_axes(const struct block_sparse_tensor* restric
 void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const enum tensor_axis_range axrange_s, const struct block_sparse_tensor* restrict t, const enum tensor_axis_range axrange_t, const int ndim_mult, struct block_sparse_tensor* restrict r)
 {
 	assert(s->dtype == t->dtype);
+	assert(s->symm  == t->symm);
 
 	const int shift_s = (axrange_s == TENSOR_AXIS_RANGE_LEADING ? 0 : s->ndim - ndim_mult);
 	const int shift_t = (axrange_t == TENSOR_AXIS_RANGE_LEADING ? 0 : t->ndim - ndim_mult);
@@ -2074,7 +2151,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 
 		assert(s->ndim == ndim_mult && t->ndim == ndim_mult);
 
-		allocate_block_sparse_tensor(s->dtype, 0, NULL, NULL, NULL, r);
+		allocate_block_sparse_tensor(s->dtype, 0, NULL, s->symm, NULL, NULL, r);
 		assert(r->block_table[0] != NULL);
 
 		// for each quantum number combination of the to-be contracted axes...
@@ -2086,7 +2163,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			qnumber qsum = 0;
 			for (int i = 0; i < s->ndim; i++)
 			{
-				qsum += s->axis_dir[i] * s->axis_qnums_sorted[i][index_contract[i]];
+				qsum = abelian_qnumber_addition_functions[s->symm](qsum, s->axis_dir[i], s->axis_qnums_sorted[i][index_contract[i]]);
 			}
 			if (qsum != 0) {
 				continue;
@@ -2147,7 +2224,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			r_qnums_logical[(s->ndim - ndim_mult) + i] = t->axis_qnums_logical[offset_t + i];
 		}
 		// create new tensor 'r'
-		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, r_axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(s->dtype, ndimr, r_dim_logical, s->symm, r_axis_dir, r_qnums_logical, r);
 		ct_free(r_qnums_logical);
 		ct_free(r_axis_dir);
 		ct_free(r_dim_logical);
@@ -2179,7 +2256,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			qnumber qsum = 0;
 			for (int i = 0; i < s->ndim; i++)
 			{
-				qsum += s->axis_dir[i] * s->axis_qnums_sorted[i][index_block_s[i]];
+				qsum = abelian_qnumber_addition_functions[s->symm](qsum, s->axis_dir[i], s->axis_qnums_sorted[i][index_block_s[i]]);
 			}
 			if (qsum != 0) {
 				continue;
@@ -2196,7 +2273,7 @@ void block_sparse_tensor_dot(const struct block_sparse_tensor* restrict s, const
 			qsum = 0;
 			for (int i = 0; i < t->ndim; i++)
 			{
-				qsum += t->axis_dir[i] * t->axis_qnums_sorted[i][index_block_t[i]];
+				qsum = abelian_qnumber_addition_functions[t->symm](qsum, t->axis_dir[i], t->axis_qnums_sorted[i][index_block_t[i]]);
 			}
 			assert(qsum == 0);
 			#endif
@@ -2235,6 +2312,8 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 		assert(tlist[j].dtype == tlist[j + 1].dtype);
 		// degrees must match
 		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		// symmetry must match
+		assert(tlist[j].symm == tlist[j + 1].symm);
 		for (int i = 0; i < tlist[j].ndim; i++)
 		{
 			// axis directions must match
@@ -2287,7 +2366,7 @@ void block_sparse_tensor_concatenate(const struct block_sparse_tensor* restrict 
 			}
 		}
 
-		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].axis_dir, r_qnums_logical, r);
+		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].symm, tlist[0].axis_dir, r_qnums_logical, r);
 
 		ct_free(r_qnums_logical);
 		ct_free(r_qnums_logical_i_ax);
@@ -2429,6 +2508,8 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 		assert(tlist[j].dtype == tlist[j + 1].dtype);
 		// degrees must match
 		assert(tlist[j].ndim == tlist[j + 1].ndim);
+		// symmetry must match
+		assert(tlist[j].symm == tlist[j + 1].symm);
 		for (int i = 0; i < tlist[j].ndim; i++)
 		{
 			// axis directions must match
@@ -2483,7 +2564,7 @@ void block_sparse_tensor_block_diag(const struct block_sparse_tensor* restrict t
 			}
 		}
 
-		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].axis_dir, (const qnumber**)r_qnums_logical, r);
+		allocate_block_sparse_tensor(tlist[0].dtype, ndim, r_dim_logical, tlist[0].symm, tlist[0].axis_dir, (const qnumber**)r_qnums_logical, r);
 
 		for (int i = 0; i < ndim; i++) {
 			if (i_ax_indicator[i]) {
@@ -2620,7 +2701,11 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 		for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 		{
 			// probe whether quantum numbers sum to zero
-			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
+			qnumber qsum =
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]);
 			if (qsum != 0) {
 				continue;
 			}
@@ -2652,20 +2737,20 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'q'
 		const qnumber qnum_ax0 = a->axis_qnums_sorted[0][0];
-		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		const qnumber qnum_ax1 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax0);
 		qnums_interm[0] = qnum_ax1;
 	}
 
 	// allocate the 'q' matrix
 	const ct_long dim_q[2] = { a->dim_logical[0], dim_interm };
 	const qnumber* qnums_q[2] = { a->axis_qnums_logical[0], qnums_interm };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->axis_dir, qnums_q, q);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->symm, a->axis_dir, qnums_q, q);
 
 	// allocate the 'r' matrix
 	const ct_long dim_r[2] = { dim_interm, a->dim_logical[1] };
 	const enum tensor_axis_direction axis_dir_r[2] = { -a->axis_dir[1], a->axis_dir[1] };
 	const qnumber* qnums_r[2] = { qnums_interm, a->axis_qnums_logical[1] };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_r, axis_dir_r, qnums_r, r);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_r, a->symm, axis_dir_r, qnums_r, r);
 
 	ct_free(qnums_interm);
 
@@ -2675,7 +2760,7 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'q'
 		const qnumber qnum_ax0 = a->axis_qnums_sorted[0][0];
-		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		const qnumber qnum_ax1 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax0);
 		const qnumber qnums_block[2] = { qnum_ax0, qnum_ax1 };
 		struct dense_tensor* bq = block_sparse_tensor_get_block(q, qnums_block);
 		assert(bq != NULL);
@@ -2700,7 +2785,11 @@ int block_sparse_tensor_qr(const struct block_sparse_tensor* restrict a, const e
 			}
 			assert(ba->ndim == 2);
 			assert(ba->dtype == a->dtype);
-			assert(a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j] == 0);
+			assert(
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]) == 0);
 
 			// find corresponding blocks in 'q' and 'r'
 			assert(q->axis_qnums_sorted[0][i] == a->axis_qnums_sorted[0][i]);
@@ -2762,7 +2851,11 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 		for (ct_long j = 0; j < a->dim_sorted[1]; j++)
 		{
 			// probe whether quantum numbers sum to zero
-			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
+			qnumber qsum =
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]);
 			if (qsum != 0) {
 				continue;
 			}
@@ -2794,7 +2887,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'q'
 		const qnumber qnum_ax1 = a->axis_qnums_sorted[1][0];
-		const qnumber qnum_ax0 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax1;
+		const qnumber qnum_ax0 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax1);
 		qnums_interm[0] = qnum_ax0;
 	}
 
@@ -2802,12 +2895,12 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 	const ct_long dim_r[2] = { a->dim_logical[0], dim_interm };
 	const enum tensor_axis_direction axis_dir_r[2] = { a->axis_dir[0], -a->axis_dir[0] };
 	const qnumber* qnums_r[2] = { a->axis_qnums_logical[0], qnums_interm };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_r, axis_dir_r, qnums_r, r);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_r, a->symm, axis_dir_r, qnums_r, r);
 
 	// allocate the 'q' matrix
 	const ct_long dim_q[2] = { dim_interm, a->dim_logical[1] };
 	const qnumber* qnums_q[2] = { qnums_interm, a->axis_qnums_logical[1] };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->axis_dir, qnums_q, q);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_q, a->symm, a->axis_dir, qnums_q, q);
 
 	ct_free(qnums_interm);
 
@@ -2817,7 +2910,7 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'q'
 		const qnumber qnum_ax1 = a->axis_qnums_sorted[1][0];
-		const qnumber qnum_ax0 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax1;
+		const qnumber qnum_ax0 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax1);
 		const qnumber qnums_block[2] = { qnum_ax0, qnum_ax1 };
 		struct dense_tensor* bq = block_sparse_tensor_get_block(q, qnums_block);
 		assert(bq != NULL);
@@ -2842,7 +2935,11 @@ int block_sparse_tensor_rq(const struct block_sparse_tensor* restrict a, const e
 			}
 			assert(ba->ndim == 2);
 			assert(ba->dtype == a->dtype);
-			assert(a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j] == 0);
+			assert(
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]) == 0);
 
 			// find corresponding blocks in 'q' and 'r'
 			assert(r->axis_qnums_sorted[0][i] == a->axis_qnums_sorted[0][i]);
@@ -2904,7 +3001,11 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 		for (ct_long i = 0; i < a->dim_sorted[0]; i++)
 		{
 			// probe whether quantum numbers sum to zero
-			qnumber qsum = a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j];
+			qnumber qsum =
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]);
 			if (qsum != 0) {
 				continue;
 			}
@@ -2936,14 +3037,14 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'u'
 		const qnumber qnum_ax0 = a->axis_qnums_sorted[0][0];
-		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		const qnumber qnum_ax1 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax0);
 		qnums_interm[0] = qnum_ax1;
 	}
 
 	// allocate the 'u' matrix
 	const ct_long dim_u[2] = { a->dim_logical[0], dim_interm };
 	const qnumber* qnums_u[2] = { a->axis_qnums_logical[0], qnums_interm };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_u, a->axis_dir, qnums_u, u);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_u, a->symm, a->axis_dir, qnums_u, u);
 
 	// allocate the 's' vector
 	const ct_long dim_s[1] = { dim_interm };
@@ -2953,7 +3054,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 	const ct_long dim_vh[2] = { dim_interm, a->dim_logical[1] };
 	const enum tensor_axis_direction axis_dir_vh[2] = { -a->axis_dir[1], a->axis_dir[1] };
 	const qnumber* qnums_vh[2] = { qnums_interm, a->axis_qnums_logical[1] };
-	allocate_block_sparse_tensor(a->dtype, 2, dim_vh, axis_dir_vh, qnums_vh, vh);
+	allocate_block_sparse_tensor(a->dtype, 2, dim_vh, a->symm, axis_dir_vh, qnums_vh, vh);
 
 	ct_free(qnums_interm);
 
@@ -2963,7 +3064,7 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 
 		// use first block quantum number in 'a' to create a non-zero entry in 'u'
 		const qnumber qnum_ax0 = a->axis_qnums_sorted[0][0];
-		const qnumber qnum_ax1 = -a->axis_dir[0]*a->axis_dir[1] * qnum_ax0;
+		const qnumber qnum_ax1 = abelian_qnumber_addition_functions[a->symm](0, -a->axis_dir[0]*a->axis_dir[1], qnum_ax0);
 		const qnumber qnums_block[2] = { qnum_ax0, qnum_ax1 };
 		struct dense_tensor* bu = block_sparse_tensor_get_block(u, qnums_block);
 		assert(bu != NULL);
@@ -2990,7 +3091,11 @@ int block_sparse_tensor_svd(const struct block_sparse_tensor* restrict a, struct
 			}
 			assert(ba->ndim == 2);
 			assert(ba->dtype == a->dtype);
-			assert(a->axis_dir[0] * a->axis_qnums_sorted[0][i] + a->axis_dir[1] * a->axis_qnums_sorted[1][j] == 0);
+			assert(
+				abelian_qnumber_addition_functions[a->symm](
+				abelian_qnumber_addition_functions[a->symm](
+					0, a->axis_dir[0], a->axis_qnums_sorted[0][i]),
+					   a->axis_dir[1], a->axis_qnums_sorted[1][j]) == 0);
 
 			// find corresponding blocks in 'u' and 'vh'
 			assert( u->axis_qnums_sorted[0][i] == a->axis_qnums_sorted[0][i]);
@@ -3072,6 +3177,11 @@ bool block_sparse_tensor_allclose(const struct block_sparse_tensor* restrict s, 
 		if (s->dim_logical[i] != t->dim_logical[i]) {
 			return false;
 		}
+	}
+
+	// compare symmetries
+	if (s->symm != t->symm) {
+		return false;
 	}
 
 	// compare logical quantum numbers
@@ -3182,8 +3292,10 @@ bool block_sparse_tensor_is_identity(const struct block_sparse_tensor* t, const 
 	{
 		// probe whether quantum numbers sum to zero
 		const qnumber qsum =
-			  t->axis_dir[0] * t->axis_qnums_sorted[0][index_block[0]]
-			+ t->axis_dir[1] * t->axis_qnums_sorted[1][index_block[1]];
+			abelian_qnumber_addition_functions[t->symm](
+			abelian_qnumber_addition_functions[t->symm](
+				0, t->axis_dir[0], t->axis_qnums_sorted[0][index_block[0]]),
+				   t->axis_dir[1], t->axis_qnums_sorted[1][index_block[1]]);
 		if (qsum != 0)
 		{
 			assert(t->block_table[k] == NULL);
@@ -3312,7 +3424,7 @@ void block_sparse_tensor_augment_identity_blocks(const struct block_sparse_tenso
 	struct block_sparse_tensor tlist[2];
 	tlist[0] = *t;  // copy internal data pointers
 
-	allocate_block_sparse_tensor(t->dtype, 2, dim, t->axis_dir, (const qnumber**)axis_qnums_logical, &tlist[1]);
+	allocate_block_sparse_tensor(t->dtype, 2, dim, t->symm, t->axis_dir, (const qnumber**)axis_qnums_logical, &tlist[1]);
 	block_sparse_tensor_set_identity_blocks(&tlist[1]);
 
 	block_sparse_tensor_concatenate(tlist, 2, 1 - i_ax, ret);

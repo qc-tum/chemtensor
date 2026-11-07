@@ -52,6 +52,9 @@ char* test_ttns_vdot()
 	};
 	assert(abstract_graph_is_connected_tree(&topology));
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// local physical dimensions and quantum numbers
 	const ct_long d[8] = { 3, 1, 7, 2, 4, 1, 1, 1 };
 	const qnumber qsite0[3] = { 1, 2, -1 };
@@ -70,8 +73,8 @@ char* test_ttns_vdot()
 	const qnumber qnum_sector = 3;
 
 	struct ttns chi, psi;
-	construct_random_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, qsite, qnum_sector, 13, &rng_state, &chi);
-	construct_random_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, qsite, qnum_sector, 17, &rng_state, &psi);
+	construct_random_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, symm, qsite, qnum_sector, 13, &rng_state, &chi);
+	construct_random_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, symm, qsite, qnum_sector, 17, &rng_state, &psi);
 
 	if (!ttns_is_consistent(&chi) || !ttns_is_consistent(&psi)) {
 		return "internal TTNS consistency check failed";
@@ -201,8 +204,9 @@ char* test_ttns_orthonormalize_qr()
 		};
 		assert(abstract_graph_is_connected_tree(&topology));
 
-		// local physical dimensions and quantum numbers
+		// local physical dimensions, symmetry and quantum numbers
 		ct_long* d = ct_malloc(nsites * sizeof(ct_long));
+		const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 		qnumber** qsite = ct_malloc(nsites * sizeof(qnumber*));
 		for (int l = 0; l < nsites; l++)
 		{
@@ -258,7 +262,7 @@ char* test_ttns_orthonormalize_qr()
 			}
 		}
 
-		allocate_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, (const qnumber**)qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &ttns_ref);
+		allocate_ttns(CT_SINGLE_COMPLEX, nsites_physical, &topology, d, symm, (const qnumber**)qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &ttns_ref);
 
 		// read TTNS tensors from disk
 		for (int l = 0; l < nsites; l++)
@@ -406,8 +410,9 @@ char* test_ttns_compress()
 	};
 	assert(abstract_graph_is_connected_tree(&topology));
 
-	// local physical dimensions and quantum numbers
+	// local physical dimensions, symmetry and quantum numbers
 	ct_long* d = ct_malloc(nsites * sizeof(ct_long));
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 	qnumber** qsite = ct_malloc(nsites * sizeof(qnumber*));
 	for (int l = 0; l < nsites; l++)
 	{
@@ -466,7 +471,7 @@ char* test_ttns_compress()
 	for (int j = 0; j < 2; j++)  // determines compression tolerance
 	{
 		struct ttns ttns;
-		allocate_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, (const qnumber**)qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &ttns);
+		allocate_ttns(CT_DOUBLE_COMPLEX, nsites_physical, &topology, d, symm, (const qnumber**)qsite, qnum_sector, dim_bonds, (const qnumber**)qbonds, &ttns);
 
 		// read TTNS tensors from disk
 		for (int l = 0; l < nsites; l++)

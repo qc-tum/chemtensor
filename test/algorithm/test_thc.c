@@ -67,7 +67,7 @@ char* test_apply_thc_spin_molecular_hamiltonian()
 	}
 
 	struct mps psi;
-	allocate_mps(CT_DOUBLE_REAL, nsites, 4, qsite, psi_dim_bonds, (const qnumber**)psi_qbonds, &psi);
+	allocate_mps(CT_DOUBLE_REAL, nsites, 4, ABELIAN_SYMMETRY_U1_U1, qsite, psi_dim_bonds, (const qnumber**)psi_qbonds, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)

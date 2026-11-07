@@ -22,7 +22,7 @@ static void su2_to_block_sparse_tensor(const struct su2_tensor* s, struct block_
 		qnums[i] = ct_calloc(s_dns.dim[i], sizeof(qnumber));
 	}
 	
-	allocate_block_sparse_tensor(s->dtype, s->ndim_logical, s_dns.dim, axis_dir, (const qnumber**)qnums, t);
+	allocate_block_sparse_tensor(s->dtype, s->ndim_logical, s_dns.dim, ABELIAN_SYMMETRY_NONE, axis_dir, (const qnumber**)qnums, t);
 
 	assert(t->nblocks == 1);
 	memcpy(t->data, s_dns.data, dense_tensor_num_elements(&s_dns) * sizeof_numeric_type(s_dns.dtype));

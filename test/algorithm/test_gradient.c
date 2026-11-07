@@ -39,6 +39,7 @@ static void mpo_inner_product_wrapper(const scomplex* restrict x, void* p, scomp
 		.coeffmap      = coeffmap,
 		.qsite         = params->psi->qsite,  // copy pointer
 		.d             = params->psi->d,
+		.symm          = params->psi->symm,
 		.dtype         = params->opmap[0].dtype,
 		.num_local_ops = params->num_local_ops,
 		.num_coeffs    = params->num_coeffs,
@@ -68,6 +69,9 @@ char* test_operator_average_coefficient_gradient()
 	const int nsites = 4;
 	// local physical dimension
 	const ct_long d = 3;
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	// physical quantum numbers
 	const qnumber qsite[3] = { -1, 1, 0 };
@@ -99,7 +103,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	struct mps psi;
-	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -123,7 +127,7 @@ char* test_operator_average_coefficient_gradient()
 	}
 
 	struct mps chi;
-	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -260,6 +264,7 @@ char* test_operator_average_coefficient_gradient()
 		.coeffmap      = coeffmap,
 		.qsite         = (qnumber*)qsite,
 		.d             = d,
+		.symm          = symm,
 		.dtype         = CT_SINGLE_COMPLEX,
 		.num_local_ops = num_local_ops,
 		.num_coeffs    = num_coeffs,

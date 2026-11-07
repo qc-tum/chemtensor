@@ -4,6 +4,9 @@
 #include "hdf5_util.h"
 
 
+#define ARRLEN(a) (sizeof(a) / sizeof(a[0]))
+
+
 char* test_block_sparse_tensor_copy()
 {
 	hid_t file = H5Fopen("../test/tensor/data/test_block_sparse_tensor_copy.hdf5", H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -16,12 +19,15 @@ char* test_block_sparse_tensor_copy()
 	const int ndim = 4;
 	const ct_long dims[4] = { 5, 13, 4, 7 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 4, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
@@ -41,7 +47,7 @@ char* test_block_sparse_tensor_copy()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// copy the block-sparse tensor
 	struct block_sparse_tensor t2;
@@ -82,12 +88,15 @@ char* test_block_sparse_tensor_get_block()
 	const int ndim = 5;
 	const ct_long dims[5] = { 7, 4, 11, 5, 7 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, ndim, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
@@ -107,7 +116,7 @@ char* test_block_sparse_tensor_get_block()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	const ct_long max_nblocks = integer_product(t.dim_sorted, t.ndim);
 	ct_long* index_block = ct_calloc(t.ndim, sizeof(ct_long));
@@ -180,6 +189,9 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -198,7 +210,7 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// compute cyclic partial trace
 	struct block_sparse_tensor t_tr;
@@ -213,7 +225,7 @@ char* test_block_sparse_tensor_cyclic_partial_trace()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t_tr_ref;
-	dense_to_block_sparse_tensor(&t_tr_ref_dns, axis_dir + ndim_trace, (const qnumber**)(qnums + ndim_trace), &t_tr_ref);
+	dense_to_block_sparse_tensor(&t_tr_ref_dns, symm, axis_dir + ndim_trace, (const qnumber**)(qnums + ndim_trace), &t_tr_ref);
 
 	// compare
 	if (!block_sparse_tensor_allclose(&t_tr, &t_tr_ref, 5e-6)) {
@@ -259,6 +271,9 @@ char* test_block_sparse_tensor_norm2()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -277,7 +292,7 @@ char* test_block_sparse_tensor_norm2()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	double nrm = block_sparse_tensor_norm2(&t);
 
@@ -318,63 +333,83 @@ char* test_block_sparse_tensor_invert_axis_quantum_numbers()
 	const int ndim = 4;
 	const ct_long dim[4] = { 13, 8, 11, 10 };
 
-	// read dense tensors from disk
-	struct dense_tensor t_dns;
-	allocate_dense_tensor(CT_SINGLE_REAL, 4, dim, &t_dns);
-	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
-		return "reading tensor entries from disk failed";
-	}
-
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
 	}
 
-	qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
+	qnumber** qnums_base = ct_malloc(ndim * sizeof(qnumber*));
 	for (int i = 0; i < ndim; i++)
 	{
-		qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
+		qnums_base[i] = ct_malloc(dim[i] * sizeof(qnumber));
 		char varname[1024];
 		sprintf(varname, "qnums%i", i);
-		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums[i]) < 0) {
+		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, qnums_base[i]) < 0) {
 			return "reading quantum numbers from disk failed";
 		}
 	}
 
-	// convert dense to block-sparse tensor
-	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
-
-	struct block_sparse_tensor t_orig;
-	copy_block_sparse_tensor(&t, &t_orig);
-
-	for (int i_ax = 0; i_ax < t.ndim; i_ax++)
+	// symmetries
+	enum abelian_symmetry symm[] = { ABELIAN_SYMMETRY_NONE, ABELIAN_SYMMETRY_Z2, ABELIAN_SYMMETRY_U1 };
+	for (int is = 0; is < (int)ARRLEN(symm); is++)
 	{
-		block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
-
-		// dense tensor form must remain unchanged
-		if (!dense_block_sparse_tensor_allclose(&t_dns, &t, 0.)) {
-			return "block-sparse tensor after inverting axis quantum numbers does not match original dense tensor";
+		qnumber** qnums = ct_malloc(ndim * sizeof(qnumber*));
+		for (int i = 0; i < ndim; i++)
+		{
+			qnums[i] = ct_malloc(dim[i] * sizeof(qnumber));
+			for (ct_long j = 0; j < dim[i]; j++) {
+				qnums[i][j] = abelian_qnumber_addition_functions[symm[is]](0, 1, qnums_base[i][j]);
+			}
 		}
 
-		// invert again
-		block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
-
-		if (!block_sparse_tensor_allclose(&t, &t_orig, 0.)) {
-			return "block-sparse tensor after inverting axis quantum numbers twice is not equal to original tensor";
+		// read dense tensor from disk
+		struct dense_tensor t_dns;
+		allocate_dense_tensor(CT_SINGLE_REAL, 4, dim, &t_dns);
+		char varname[1024];
+		sprintf(varname, "t%i", is);
+		if (read_hdf5_dataset(file, varname, H5T_NATIVE_FLOAT, t_dns.data) < 0) {
+			return "reading tensor entries from disk failed";
 		}
+
+		// convert dense to block-sparse tensor
+		struct block_sparse_tensor t;
+		dense_to_block_sparse_tensor(&t_dns, symm[is], axis_dir, (const qnumber**)qnums, &t);
+
+		struct block_sparse_tensor t_orig;
+		copy_block_sparse_tensor(&t, &t_orig);
+
+		for (int i_ax = 0; i_ax < t.ndim; i_ax++)
+		{
+			block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
+
+			// dense tensor form must remain unchanged
+			if (!dense_block_sparse_tensor_allclose(&t_dns, &t, 0.)) {
+				return "block-sparse tensor after inverting axis quantum numbers does not match original dense tensor";
+			}
+
+			// invert again
+			block_sparse_tensor_invert_axis_quantum_numbers(&t, i_ax);
+
+			if (!block_sparse_tensor_allclose(&t, &t_orig, 0.)) {
+				return "block-sparse tensor after inverting axis quantum numbers twice is not equal to original tensor";
+			}
+		}
+
+		for (int i = 0; i < ndim; i++) {
+			ct_free(qnums[i]);
+		}
+		ct_free(qnums);
+		delete_block_sparse_tensor(&t_orig);
+		delete_block_sparse_tensor(&t);
+		delete_dense_tensor(&t_dns);
 	}
 
 	// clean up
-	for (int i = 0; i < ndim; i++)
-	{
-		ct_free(qnums[i]);
+	for (int i = 0; i < ndim; i++) {
+		ct_free(qnums_base[i]);
 	}
-	ct_free(qnums);
+	ct_free(qnums_base);
 	ct_free(axis_dir);
-	delete_block_sparse_tensor(&t_orig);
-	delete_block_sparse_tensor(&t);
-	delete_dense_tensor(&t_dns);
 
 	H5Fclose(file);
 
@@ -405,6 +440,9 @@ char* test_block_sparse_tensor_transpose()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -423,7 +461,7 @@ char* test_block_sparse_tensor_transpose()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// transpose the block-sparse tensor
 	const int perm[4] = { 1, 3, 2, 0 };
@@ -465,12 +503,15 @@ char* test_block_sparse_tensor_reshape()
 	const int ndim = 5;
 	const ct_long dim[5] = { 5, 7, 4, 11, 3 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(CT_DOUBLE_COMPLEX, 5, dim, &t_dns);
 	if (read_hdf5_dataset(file, "t", hdf5_dcomplex_id, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
@@ -490,7 +531,7 @@ char* test_block_sparse_tensor_reshape()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// flatten axes
 	const int i_ax = 1;
@@ -560,6 +601,9 @@ char* test_block_sparse_tensor_matricize_axis()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_Z2;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -578,7 +622,7 @@ char* test_block_sparse_tensor_matricize_axis()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// isolated axis index
 	for (int i_ax_tns = 0; i_ax_tns < ndim; i_ax_tns++)
@@ -673,6 +717,9 @@ char* test_block_sparse_tensor_slice()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -691,7 +738,7 @@ char* test_block_sparse_tensor_slice()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// slicing indices
 	const ct_long nind = 17;
@@ -754,6 +801,9 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -772,7 +822,7 @@ char* test_block_sparse_tensor_multiply_pointwise_vector()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor s;
-	dense_to_block_sparse_tensor(&s_dns, axis_dir, (const qnumber**)qnums, &s);
+	dense_to_block_sparse_tensor(&s_dns, symm, axis_dir, (const qnumber**)qnums, &s);
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -834,6 +884,9 @@ char* test_block_sparse_tensor_multiply_axes()
 
 	const hid_t hdf5_dcomplex_id = construct_hdf5_double_complex_dtype(false);
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	struct block_sparse_tensor s;
 	{
 		// read dense tensor from disk
@@ -861,7 +914,7 @@ char* test_block_sparse_tensor_multiply_axes()
 		}
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&s_dns, s_axis_dir, (const qnumber**)s_qnums, &s);
+		dense_to_block_sparse_tensor(&s_dns, symm, s_axis_dir, (const qnumber**)s_qnums, &s);
 
 		for (int i = 0; i < s_dns.ndim; i++) {
 			ct_free(s_qnums[i]);
@@ -901,7 +954,7 @@ char* test_block_sparse_tensor_multiply_axes()
 		}
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&t_dns, t_axis_dir, (const qnumber**)t_qnums, &t[i]);
+		dense_to_block_sparse_tensor(&t_dns, symm, t_axis_dir, (const qnumber**)t_qnums, &t[i]);
 
 		for (int j = 0; j < t_dns.ndim; j++) {
 			ct_free(t_qnums[j]);
@@ -967,6 +1020,7 @@ char* test_block_sparse_tensor_concatenate()
 		{ 13,  3, 11, 7 },
 		{ 13, 19, 11, 7 },
 	};
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 	enum tensor_axis_direction axis_dir[4];
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -993,7 +1047,7 @@ char* test_block_sparse_tensor_concatenate()
 		}
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)t_qnums, &tlist[j]);
+		dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)t_qnums, &tlist[j]);
 
 		for (int i = 0; i < t_dns.ndim; i++) {
 			ct_free(t_qnums[i]);
@@ -1050,6 +1104,7 @@ char* test_block_sparse_tensor_block_diag()
 		{ 4,  4,  5,  1,  4 },
 		{ 4,  5,  5,  2,  7 },
 	};
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 	enum tensor_axis_direction axis_dir[5];
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -1076,7 +1131,7 @@ char* test_block_sparse_tensor_block_diag()
 		}
 
 		// convert dense to block-sparse tensor
-		dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)t_qnums, &tlist[j]);
+		dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)t_qnums, &tlist[j]);
 
 		for (int i = 0; i < t_dns.ndim; i++) {
 			ct_free(t_qnums[i]);
@@ -1147,6 +1202,9 @@ char* test_block_sparse_tensor_dot()
 	}
 	assert(s_dns.ndim + t_dns.ndim - ndim_mult == ndim);
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -1165,14 +1223,14 @@ char* test_block_sparse_tensor_dot()
 
 	// convert dense to block-sparse tensors
 	struct block_sparse_tensor s;
-	dense_to_block_sparse_tensor(&s_dns, axis_dir, (const qnumber**)qnums, &s);
+	dense_to_block_sparse_tensor(&s_dns, symm, axis_dir, (const qnumber**)qnums, &s);
 	// the axis directions of the to-be contracted axes are reversed for the 't' tensor
 	enum tensor_axis_direction* axis_dir_t = ct_malloc(t_dns.ndim * sizeof(enum tensor_axis_direction));
 	for (int i = 0; i < t_dns.ndim; i++) {
 		axis_dir_t[i] = (i < ndim_mult ? -1 : 1) * axis_dir[s_dns.ndim - ndim_mult + i];
 	}
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir_t, (const qnumber**)(qnums + (s_dns.ndim - ndim_mult)), &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir_t, (const qnumber**)(qnums + (s_dns.ndim - ndim_mult)), &t);
 	ct_free(axis_dir_t);
 
 	for (enum tensor_axis_range axrange_s = 0; axrange_s < TENSOR_AXIS_RANGE_NUM; axrange_s++)
@@ -1256,6 +1314,9 @@ char* test_block_sparse_tensor_qr()
 			return "reading tensor entries from disk failed";
 		}
 
+		// symmetry
+		const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 		enum tensor_axis_direction axis_dir[2];
 		sprintf(varname, "axis_dir%i", c);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, axis_dir) < 0) {
@@ -1275,7 +1336,7 @@ char* test_block_sparse_tensor_qr()
 
 		// convert dense to block-sparse tensor
 		struct block_sparse_tensor a;
-		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+		dense_to_block_sparse_tensor(&a_dns, symm, axis_dir, (const qnumber**)qnums, &a);
 
 		// decomposition modes
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
@@ -1340,6 +1401,9 @@ char* test_block_sparse_tensor_rq()
 			return "reading tensor entries from disk failed";
 		}
 
+		// symmetry
+		const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 		enum tensor_axis_direction axis_dir[2];
 		sprintf(varname, "axis_dir%i", c);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, axis_dir) < 0) {
@@ -1359,7 +1423,7 @@ char* test_block_sparse_tensor_rq()
 
 		// convert dense to block-sparse tensor
 		struct block_sparse_tensor a;
-		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+		dense_to_block_sparse_tensor(&a_dns, symm, axis_dir, (const qnumber**)qnums, &a);
 
 		// decomposition modes
 		for (int mode = 0; mode < QR_NUM_MODES; mode++)
@@ -1424,6 +1488,9 @@ char* test_block_sparse_tensor_svd()
 			return "reading tensor entries from disk failed";
 		}
 
+		// symmetry
+		const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 		enum tensor_axis_direction axis_dir[2];
 		sprintf(varname, "axis_dir%i", c);
 		if (read_hdf5_attribute(file, varname, H5T_NATIVE_INT, axis_dir) < 0) {
@@ -1443,7 +1510,7 @@ char* test_block_sparse_tensor_svd()
 
 		// convert dense to block-sparse tensor
 		struct block_sparse_tensor a;
-		dense_to_block_sparse_tensor(&a_dns, axis_dir, (const qnumber**)qnums, &a);
+		dense_to_block_sparse_tensor(&a_dns, symm, axis_dir, (const qnumber**)qnums, &a);
 
 		// perform SVD
 		struct block_sparse_tensor u, vh;
@@ -1520,6 +1587,9 @@ char* test_block_sparse_tensor_augment_identity_blocks()
 		return "reading tensor entries from disk failed";
 	}
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -1538,7 +1608,7 @@ char* test_block_sparse_tensor_augment_identity_blocks()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	for (int i = 0; i < ndim; i++)
 	{
@@ -1597,12 +1667,15 @@ char* test_block_sparse_tensor_get_entry()
 	const int ndim = 4;
 	const ct_long dims[4] = { 7, 6, 13, 4 };
 
-	// read dense tensors from disk
+	// read dense tensor from disk
 	struct dense_tensor t_dns;
 	allocate_dense_tensor(CT_SINGLE_REAL, 4, dims, &t_dns);
 	if (read_hdf5_dataset(file, "t", H5T_NATIVE_FLOAT, t_dns.data) < 0) {
 		return "reading tensor entries from disk failed";
 	}
+
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
 
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
@@ -1622,7 +1695,7 @@ char* test_block_sparse_tensor_get_entry()
 
 	// convert dense to block-sparse tensor
 	struct block_sparse_tensor t;
-	dense_to_block_sparse_tensor(&t_dns, axis_dir, (const qnumber**)qnums, &t);
+	dense_to_block_sparse_tensor(&t_dns, symm, axis_dir, (const qnumber**)qnums, &t);
 
 	// entry accessor
 	struct block_sparse_tensor_entry_accessor acc;

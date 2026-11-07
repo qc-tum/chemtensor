@@ -16,6 +16,7 @@ struct mps
 	struct block_sparse_tensor* a;  //!< tensors associated with sites, with dimensions \f$D_i \times d \times D_{i+1}\f$; array of length 'nsites'
 	qnumber* qsite;                 //!< physical quantum numbers at each site
 	ct_long d;                      //!< local physical dimension of each site
+	enum abelian_symmetry symm;     //!< abelian symmetry
 	int nsites;                     //!< number of sites
 };
 
@@ -25,15 +26,15 @@ struct mps
 
 // allocation and construction
 
-void allocate_empty_mps(const int nsites, const ct_long d, const qnumber* qsite, struct mps* mps);
+void allocate_empty_mps(const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, struct mps* mps);
 
-void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mps* mps);
+void allocate_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mps* mps);
 
 void delete_mps(struct mps* mps);
 
 void copy_mps(const struct mps* src, struct mps* dst);
 
-void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps);
+void construct_random_mps(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct mps* mps);
 
 bool mps_is_consistent(const struct mps* mps);
 

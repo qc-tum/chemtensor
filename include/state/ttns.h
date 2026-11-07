@@ -21,6 +21,7 @@ struct ttns
 {
 	struct block_sparse_tensor* a;   //!< tensors associated with sites, with interleaved physical and virtual bond dimensions (ordered by site indices)
 	struct abstract_graph topology;  //!< logical tree topology; nodes correspond to physical and branching sites
+	enum abelian_symmetry symm;      //!< abelian symmetry
 	int nsites_physical;             //!< number of physical sites
 	int nsites_branching;            //!< number of branching sites
 };
@@ -31,13 +32,13 @@ struct ttns
 
 // allocation and construction
 
-void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long* dim_bonds, const qnumber** qbonds, struct ttns* ttns);
+void allocate_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const enum abelian_symmetry symm, const qnumber** qsite, const qnumber qnum_sector, const ct_long* dim_bonds, const qnumber** qbonds, struct ttns* ttns);
 
 void delete_ttns(struct ttns* ttns);
 
 void copy_ttns(const struct ttns* src, struct ttns* dst);
 
-void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
+void construct_random_ttns(const enum numeric_type dtype, const int nsites_physical, const struct abstract_graph* topology, const ct_long* d, const enum abelian_symmetry symm, const qnumber** qsite, const qnumber qnum_sector, const ct_long max_vdim, struct rng_state* rng_state, struct ttns* ttns);
 
 bool ttns_is_consistent(const struct ttns* ttns);
 

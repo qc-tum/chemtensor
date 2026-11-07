@@ -1,10 +1,13 @@
 import numpy as np
 
 
-def qnumber_outer_sum(qnums):
+def qnumber_outer_sum(qnums, m: int | None = None):
     """
     Compute the sum of all combinations of quantum numbers in `qnums`,
     and return the result as a tensor.
+
+    The (optional) parameter 'm' specifies the
+    modulo operation applied to the quantum numbers.
 
     Example:
         >>> qnumber_outer_sum([[0, 2, -1], [0, 1]])
@@ -15,9 +18,11 @@ def qnumber_outer_sum(qnums):
     if len(qnums) == 0:
         return np.array(0)
 
-    t = qnums[0]
+    t = np.asarray(qnums[0])
     for i in range(1, len(qnums)):
         t = np.add.outer(t, qnums[i])
+    if m is not None:
+        t = t % m
     return t
 
 
@@ -28,27 +33,27 @@ def common_qnumbers(qnums0, qnums1):
     return np.intersect1d(qnums0, qnums1)
 
 
-def qnumber_flatten(qnums):
+def qnumber_flatten(qnums, m: int | None = None):
     """
     Combine quantum numbers into a single vector.
     """
-    return qnumber_outer_sum(qnums).reshape(-1)
+    return qnumber_outer_sum(qnums, m).reshape(-1)
 
 
-def is_qsparse(a, qnums):
+def is_qsparse(a, qnums, m: int | None = None):
     """
     Test whether sparsity structure of `a` matches quantum numbers, i.e., if the
     quantum numbers corresponding to non-zero entries in `a` sum to zero.
     """
-    mask = qnumber_outer_sum(qnums)
+    mask = qnumber_outer_sum(qnums, m)
     return not np.any(np.where(mask == 0, 0, a))
 
 
-def enforce_qsparsity(a, qnums):
+def enforce_qsparsity(a, qnums, m: int | None = None):
     """
     Enforce sparsity pattern on `a` based on quantum numbers.
     """
-    mask = qnumber_outer_sum(qnums)
+    mask = qnumber_outer_sum(qnums, m)
     it = np.nditer(a, flags=["multi_index"], op_flags=["readwrite"])
     for x in it:
         if mask[it.multi_index] != 0:

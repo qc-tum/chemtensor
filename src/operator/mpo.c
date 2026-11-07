@@ -31,12 +31,13 @@ void delete_mpo_assembly(struct mpo_assembly* assembly)
 ///
 /// \brief Allocate memory for a matrix product operator. 'dim_bonds' and 'qbonds' must be arrays of length 'nsites + 1'.
 ///
-void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
+void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const ct_long* dim_bonds, const qnumber** qbonds, struct mpo* mpo)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
 	mpo->nsites = nsites;
 	mpo->d = d;
+	mpo->symm = symm;
 
 	mpo->qsite = ct_malloc(d * sizeof(qnumber));
 	memcpy(mpo->qsite, qsite, d * sizeof(qnumber));
@@ -48,7 +49,7 @@ void allocate_mpo(const enum numeric_type dtype, const int nsites, const ct_long
 		const ct_long dim[4] = { dim_bonds[i], d, d, dim_bonds[i + 1] };
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 		const qnumber* qnums[4] = { qbonds[i], qsite, qsite, qbonds[i + 1] };
-		allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &mpo->a[i]);
+		allocate_block_sparse_tensor(dtype, 4, dim, symm, axis_dir, qnums, &mpo->a[i]);
 	}
 }
 
@@ -64,6 +65,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 	const ct_long d = assembly->d;
 	mpo->nsites = assembly->graph.nsites;
 	mpo->d = assembly->d;
+	mpo->symm = assembly->symm;
 
 	assert(coefficient_map_is_valid(assembly->dtype, assembly->coeffmap));
 
@@ -158,7 +160,7 @@ void mpo_from_assembly(const struct mpo_assembly* assembly, struct mpo* mpo)
 		}
 		const enum tensor_axis_direction axis_dir[4] = { TENSOR_AXIS_OUT, TENSOR_AXIS_OUT, TENSOR_AXIS_IN, TENSOR_AXIS_IN };
 		const qnumber* qnums[4] = { qbonds[0], assembly->qsite, assembly->qsite, qbonds[1] };
-		dense_to_block_sparse_tensor(&a_loc, axis_dir, qnums, &mpo->a[l]);
+		dense_to_block_sparse_tensor(&a_loc, assembly->symm, axis_dir, qnums, &mpo->a[l]);
 		for (int i = 0; i < 2; i++)
 		{
 			ct_free(qbonds[i]);
@@ -199,7 +201,7 @@ void delete_mpo(struct mpo* mpo)
 ///
 /// \brief Construct a matrix product operator with random normal tensor entries, given left and right (dummy) virtual bond quantum numbers and a maximum virtual bond dimension.
 ///
-void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo)
+void construct_random_mpo(const enum numeric_type dtype, const int nsites, const ct_long d, const enum abelian_symmetry symm, const qnumber* qsite, const qnumber qbond_left, const qnumber qbond_right, const ct_long max_vdim, struct rng_state* rng_state, struct mpo* mpo)
 {
 	assert(nsites >= 1);
 	assert(d >= 1);
@@ -207,7 +209,7 @@ void construct_random_mpo(const enum numeric_type dtype, const int nsites, const
 	// quantum number differences between physical output and input axes, according to the axis directions (out, out, in, in) of an MPO tensor
 	const ct_long d2 = d * d;
 	qnumber* qsite_paired = ct_malloc(d2 * sizeof(qnumber));
-	qnumber_outer_sum(1, qsite, d, -1, qsite, d, qsite_paired);
+	qnumber_outer_sum(symm, 1, qsite, d, -1, qsite, d, qsite_paired);
 
 	// virtual bond quantum numbers
 	ct_long* dim_bonds = ct_malloc((nsites + 1) * sizeof(ct_long));
@@ -226,7 +228,7 @@ void construct_random_mpo(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of left bond quantum numbers and local physical quantum number differences
 		const ct_long dim_full = dim_bonds[l - 1] * d2;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		qnumber_outer_sum(1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite_paired, d2, qnums_full);
+		qnumber_outer_sum(symm, 1, qbonds[l - 1], dim_bonds[l - 1], 1, qsite_paired, d2, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -249,7 +251,7 @@ void construct_random_mpo(const enum numeric_type dtype, const int nsites, const
 		// enumerate all combinations of right bond quantum numbers and local physical quantum number differences
 		const ct_long dim_full = dim_bonds[l + 1] * d2;
 		qnumber* qnums_full = ct_malloc(dim_full * sizeof(qnumber));
-		qnumber_outer_sum(1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite_paired, d2, qnums_full);
+		qnumber_outer_sum(symm, 1, qbonds[l + 1], dim_bonds[l + 1], -1, qsite_paired, d2, qnums_full);
 		dim_bonds[l] = lmin(dim_full, max_vdim);
 		qbonds[l] = ct_malloc(dim_bonds[l] * sizeof(qnumber));
 		if (dim_full <= max_vdim) {
@@ -269,7 +271,7 @@ void construct_random_mpo(const enum numeric_type dtype, const int nsites, const
 
 	ct_free(qsite_paired);
 
-	allocate_mpo(dtype, nsites, d, qsite, dim_bonds, (const qnumber**)qbonds, mpo);
+	allocate_mpo(dtype, nsites, d, symm, qsite, dim_bonds, (const qnumber**)qbonds, mpo);
 
 	for (int l = 0; l < nsites + 1; l++) {
 		ct_free(qbonds[l]);
@@ -301,6 +303,14 @@ bool mpo_is_consistent(const struct mpo* mpo)
 	}
 	if (mpo->d <= 0) {
 		return false;
+	}
+
+	// symmetry descriptions must match
+	for (int i = 0; i < mpo->nsites; i++)
+	{
+		if (mpo->symm != mpo->a[i].symm) {
+			return false;
+		}
 	}
 
 	// quantum numbers for physical legs of individual tensors must agree with 'qsite'

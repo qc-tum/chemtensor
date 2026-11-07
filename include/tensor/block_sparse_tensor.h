@@ -6,6 +6,8 @@
 #include <assert.h>
 #include "dense_tensor.h"
 #include "qnumber.h"
+#include "abelian_symmetry.h"
+#include "tensor_axis.h"
 #include "util.h"
 
 
@@ -18,19 +20,20 @@
 ///
 struct block_sparse_tensor
 {
-	void* data;                             //!< serialized data entries of dense blocks
-	struct dense_tensor** block_table;      //!< table of dense block pointers, array of size dim_sorted[0] x ... x dim_sorted[ndim-1]; contains NULL pointers for non-conserved quantum numbers
-	struct dense_tensor** block_list;       //!< linear array of non-zero block pointers
-	ct_long* table_index_list;              //!< table indices for each non-zero block (determining its quantum numbers); array of size nblocks x ndim
-	ct_long* dim_logical;                   //!< logical dimensions of the overall tensor
-	ct_long* dim_sorted;                    //!< number of unique quantum numbers along each axis, specifying block table dimensions
-	enum tensor_axis_direction* axis_dir;   //!< tensor axis directions
-	qnumber** axis_qnums_logical;           //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
-	qnumber** axis_qnums_sorted;            //!< unique quantum numbers along each axis (must be sorted and pairwise different)
-	ct_long nelem;                          //!< cumulative number of entries in all blocks (length of 'data' array)
-	ct_long nblocks;                        //!< number of non-zero blocks (length of 'block_list' array)
-	enum numeric_type dtype;                //!< numeric data type
-	int ndim;                               //!< number of dimensions (degree)
+	void* data;                            //!< serialized data entries of dense blocks
+	struct dense_tensor** block_table;     //!< table of block pointers, array of size dim_sorted[0] x ... x dim_sorted[ndim-1]; contains NULL pointers for non-conserved quantum numbers
+	struct dense_tensor** block_list;      //!< linear array of non-zero block pointers
+	ct_long* table_index_list;             //!< table indices for each non-zero block (determining its quantum numbers); array of size nblocks x ndim
+	ct_long* dim_logical;                  //!< logical dimensions of the overall tensor
+	ct_long* dim_sorted;                   //!< number of unique quantum numbers along each axis, specifying the block table dimensions
+	enum tensor_axis_direction* axis_dir;  //!< tensor axis directions
+	qnumber** axis_qnums_logical;          //!< logical quantum numbers along each axis (not necessarily sorted, can be duplicate)
+	qnumber** axis_qnums_sorted;           //!< unique quantum numbers along each axis (must be sorted and pairwise different)
+	ct_long nelem;                         //!< cumulative number of entries in all blocks (length of 'data' array)
+	ct_long nblocks;                       //!< number of non-zero blocks (length of 'block_list' array)
+	enum abelian_symmetry symm;            //!< abelian symmetry
+	enum numeric_type dtype;               //!< numeric data type
+	int ndim;                              //!< number of dimensions (degree)
 };
 
 
@@ -39,7 +42,7 @@ struct block_sparse_tensor
 
 // allocation and construction
 
-void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* t);
+void allocate_block_sparse_tensor(const enum numeric_type dtype, const int ndim, const ct_long* dim, const enum abelian_symmetry symm, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* t);
 
 void allocate_block_sparse_tensor_like(const struct block_sparse_tensor* s, struct block_sparse_tensor* t);
 
@@ -94,7 +97,7 @@ void block_sparse_tensor_redirect_data_pointer(struct block_sparse_tensor* t, vo
 
 void block_sparse_to_dense_tensor(const struct block_sparse_tensor* s, struct dense_tensor* t);
 
-void dense_to_block_sparse_tensor(const struct dense_tensor* t, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* s);
+void dense_to_block_sparse_tensor(const struct dense_tensor* t, const enum abelian_symmetry symm, const enum tensor_axis_direction* axis_dir, const qnumber** qnums, struct block_sparse_tensor* s);
 
 void dense_to_block_sparse_tensor_entries(const struct dense_tensor* t, struct block_sparse_tensor* s);
 

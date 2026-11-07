@@ -1,5 +1,6 @@
 /// \file qnumber.h
 /// \brief Quantum numbers and corresponding utility functions.
+/// The quantum number zero is regarded as the neutral element.
 
 #pragma once
 
@@ -67,17 +68,3 @@ static inline void decode_quantum_number_pair(const qnumber qnum, qnumber* qa, q
 	(*qa) = q0;
 	(*qb) = q1;
 }
-
-
-//________________________________________________________________________________________________________________________
-///
-/// \brief Tensor axis direction (orientation), equivalent to endowing quantum numbers with a sign factor.
-///
-enum tensor_axis_direction
-{
-	TENSOR_AXIS_IN  = -1,  //!< logical input axis
-	TENSOR_AXIS_OUT =  1,  //!< logical output axis
-};
-
-
-void qnumber_outer_sum(const int sign0, const qnumber* qnums0, const ct_long n0, const int sign1, const qnumber* qnums1, const ct_long n1, qnumber* ret);

@@ -42,6 +42,8 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 	assert(a->ndim == 3);
 	assert(b->ndim == 3);
 	assert(w->ndim == 4);
+	assert(a->symm == w->symm);
+	assert(b->symm == w->symm);
 
 	// for now requiring dummy trailing virtual bond dimensions
 	assert(a->dim_logical[2] == 1);
@@ -60,7 +62,7 @@ void create_dummy_operator_block_right(const struct block_sparse_tensor* restric
 		a->axis_qnums_logical[2], w->axis_qnums_logical[3], b->axis_qnums_logical[2],
 	};
 	struct block_sparse_tensor s;
-	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
+	allocate_block_sparse_tensor(dtype, 6, dim, w->symm, axis_dir, qnums, &s);
 	assert(s.nelem == 1);
 	assert(s.nblocks == 1);
 	memcpy(s.data, numeric_one(dtype), sizeof_numeric_type(dtype));
@@ -95,6 +97,7 @@ static void create_dummy_operator_block_right_reduced(const struct block_sparse_
 {
 	assert(a->ndim == 3);
 	assert(w->ndim == 4);
+	assert(a->symm == w->symm);
 
 	// for now requiring dummy trailing virtual bond dimensions
 	assert(a->dim_logical[2] == 1);
@@ -112,7 +115,7 @@ static void create_dummy_operator_block_right_reduced(const struct block_sparse_
 		a->axis_qnums_logical[2], w->axis_qnums_logical[3],
 	};
 	struct block_sparse_tensor t;
-	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
+	allocate_block_sparse_tensor(dtype, 4, dim, w->symm, axis_dir, qnums, &t);
 	assert(t.nelem == 1);
 	assert(t.nblocks == 1);
 	memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
@@ -156,6 +159,8 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 	assert(a->ndim == 3);
 	assert(b->ndim == 3);
 	assert(w->ndim == 4);
+	assert(a->symm == w->symm);
+	assert(b->symm == w->symm);
 
 	// for now requiring dummy leading virtual bond dimensions
 	assert(a->dim_logical[0] == 1);
@@ -174,7 +179,7 @@ void create_dummy_operator_block_left(const struct block_sparse_tensor* restrict
 		a->axis_qnums_logical[0], w->axis_qnums_logical[0], b->axis_qnums_logical[0],
 	};
 	struct block_sparse_tensor s;
-	allocate_block_sparse_tensor(dtype, 6, dim, axis_dir, qnums, &s);
+	allocate_block_sparse_tensor(dtype, 6, dim, w->symm, axis_dir, qnums, &s);
 	assert(s.nelem == 1);
 	assert(s.nblocks == 1);
 	memcpy(s.data, numeric_one(dtype), sizeof_numeric_type(dtype));
@@ -211,6 +216,7 @@ static void create_dummy_reduced_operator_block_left(const struct block_sparse_t
 {
 	assert(a->ndim == 3);
 	assert(w->ndim == 4);
+	assert(a->symm == w->symm);
 
 	// for now requiring dummy leading virtual bond dimensions
 	assert(a->dim_logical[0] == 1);
@@ -228,7 +234,7 @@ static void create_dummy_reduced_operator_block_left(const struct block_sparse_t
 		w->axis_qnums_logical[0], a->axis_qnums_logical[0],
 	};
 	struct block_sparse_tensor t;
-	allocate_block_sparse_tensor(dtype, 4, dim, axis_dir, qnums, &t);
+	allocate_block_sparse_tensor(dtype, 4, dim, w->symm, axis_dir, qnums, &t);
 	assert(t.nelem == 1);
 	assert(t.nblocks == 1);
 	memcpy(t.data, numeric_one(dtype), sizeof_numeric_type(dtype));
@@ -773,13 +779,14 @@ void compute_local_hamiltonian_environment(const struct block_sparse_tensor* res
 ///
 void apply_mpo_direct(const struct mpo* op, const struct mps* psi, struct mps* op_psi)
 {
-	// quantum numbers on physical sites must match
+	// symmetry and quantum numbers on physical sites must match
+	assert(psi->symm == op->symm);
 	assert(psi->d == op->d);
 	assert(qnumber_all_equal(psi->d, psi->qsite, op->qsite));
 	assert(psi->nsites == op->nsites);
 	assert(psi->nsites >= 1);
 
-	allocate_empty_mps(psi->nsites, psi->d, psi->qsite, op_psi);
+	allocate_empty_mps(psi->nsites, psi->d, psi->symm, psi->qsite, op_psi);
 
 	for (int i = 0; i < psi->nsites; i++)
 	{
@@ -862,7 +869,8 @@ static int mps_tensor_right_isometry(const struct block_sparse_tensor* restrict 
 ///
 int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol, const ct_long max_vdim, struct mps* op_psi)
 {
-	// quantum numbers on physical sites must match
+	// symmetry and quantum numbers on physical sites must match
+	assert(psi->symm == op->symm);
 	assert(psi->d == op->d);
 	assert(qnumber_all_equal(psi->d, psi->qsite, op->qsite));
 	assert(psi->nsites == op->nsites);
@@ -877,7 +885,7 @@ int apply_mpo_cbc(const struct mpo* op, const struct mps* psi, const double tol,
 		return 0;
 	}
 
-	allocate_empty_mps(nsites, psi->d, psi->qsite, op_psi);
+	allocate_empty_mps(nsites, psi->d, psi->symm, psi->qsite, op_psi);
 
 	// left blocks, with axis ordering (outer dummy bond, bond of 'op_psi', bond of 'op', bond of 'psi')
 	struct block_sparse_tensor* lblocks = ct_malloc(nsites * sizeof(struct block_sparse_tensor));

@@ -68,6 +68,9 @@ char* test_runge_kutta_4_block_sparse()
 	const int ndim = 3;
 	const ct_long dims[3] = { 14, 13, 17 };
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	enum tensor_axis_direction* axis_dir = ct_malloc(ndim * sizeof(enum tensor_axis_direction));
 	if (read_hdf5_attribute(file, "axis_dir", H5T_NATIVE_INT, axis_dir) < 0) {
 		return "reading axis directions from disk failed";
@@ -100,8 +103,8 @@ char* test_runge_kutta_4_block_sparse()
 		}
 
 		// convert dense to block-sparse tensors
-		dense_to_block_sparse_tensor(&y0_dns, axis_dir, (const qnumber**)qnums, &y0);
-		dense_to_block_sparse_tensor(&y1_ref_dns, axis_dir, (const qnumber**)qnums, &y1_ref);
+		dense_to_block_sparse_tensor(&y0_dns, symm, axis_dir, (const qnumber**)qnums, &y0);
+		dense_to_block_sparse_tensor(&y1_ref_dns, symm, axis_dir, (const qnumber**)qnums, &y1_ref);
 
 		delete_dense_tensor(&y1_ref_dns);
 		delete_dense_tensor(&y0_dns);
@@ -122,7 +125,7 @@ char* test_runge_kutta_4_block_sparse()
 		}
 
 		// convert dense to block-sparse tensors
-		dense_to_block_sparse_tensor(&lintensor_dns, axis_dir_lin, qnums_lin, &lintensor);
+		dense_to_block_sparse_tensor(&lintensor_dns, symm, axis_dir_lin, qnums_lin, &lintensor);
 
 		delete_dense_tensor(&lintensor_dns);
 	}
@@ -146,7 +149,7 @@ char* test_runge_kutta_4_block_sparse()
 		}
 
 		// convert dense to block-sparse tensors
-		dense_to_block_sparse_tensor(&nonlintensor_dns, axis_dir_nonlin, qnums_nonlin, &nonlintensors[i]);
+		dense_to_block_sparse_tensor(&nonlintensor_dns, symm, axis_dir_nonlin, qnums_nonlin, &nonlintensors[i]);
 
 		delete_dense_tensor(&nonlintensor_dns);
 	}

@@ -21,6 +21,9 @@ char* test_mpo_from_assembly()
 	// local physical dimension
 	const ct_long d = 4;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	const qnumber qsite[4] = { -1, 0, 2, 0 };
 
 	int v0_eids_1[] = { 0, 1 };
@@ -135,6 +138,7 @@ char* test_mpo_from_assembly()
 		.opmap         = opmap,
 		.coeffmap      = (dcomplex*)coeffmap,
 		.qsite         = (qnumber*)qsite,
+		.symm          = symm,
 		.d             = d,
 		.dtype         = CT_DOUBLE_COMPLEX,
 		.num_local_ops = num_local_ops,

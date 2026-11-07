@@ -18,6 +18,9 @@ char* test_mpo_inner_product()
 	// local physical dimension
 	const ct_long d = 2;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -64,7 +67,7 @@ char* test_mpo_inner_product()
 	}
 
 	struct mps psi;
-	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -88,7 +91,7 @@ char* test_mpo_inner_product()
 	}
 
 	struct mps chi;
-	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
+	allocate_mps(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_chi, (const qnumber**)qbonds_chi, &chi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -112,7 +115,7 @@ char* test_mpo_inner_product()
 	}
 
 	struct mpo op;
-	allocate_mpo(CT_SINGLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
+	allocate_mpo(CT_SINGLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
 
 	// read MPO tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -184,6 +187,8 @@ char* test_apply_mpo_direct()
 	// local physical dimension
 	const ct_long d = 3;
 
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	// physical quantum numbers
 	qnumber* qsite = ct_malloc(d * sizeof(qnumber));
 	if (read_hdf5_attribute(file, "qsite", H5T_NATIVE_INT, qsite) < 0) {
@@ -217,7 +222,7 @@ char* test_apply_mpo_direct()
 	}
 
 	struct mps psi;
-	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
+	allocate_mps(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_psi, (const qnumber**)qbonds_psi, &psi);
 
 	// read MPS tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -241,7 +246,7 @@ char* test_apply_mpo_direct()
 	}
 
 	struct mpo op;
-	allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
+	allocate_mpo(CT_DOUBLE_COMPLEX, nsites, d, symm, qsite, dim_bonds_op, (const qnumber**)qbonds_op, &op);
 
 	// read MPO tensors from disk
 	for (int i = 0; i < nsites; i++)
@@ -378,6 +383,9 @@ char* test_apply_mpo_cbc()
 	const ct_long d = 3;
 	const qnumber qsite[3] = { 0, 1, -1 };
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	for (int idtype = 0; idtype < CT_NUM_NUMERIC_TYPES; idtype++)
 	{
 		const double err_tol = (numeric_real_type(idtype) == CT_SINGLE_REAL ? 1e-5 : 1e-13);
@@ -387,7 +395,7 @@ char* test_apply_mpo_cbc()
 		for (int nsites = 1; nsites <= 6; nsites++)
 		{
 			struct mps psi;
-			construct_random_mps((enum numeric_type)idtype, nsites, d, qsite, 1, 13, &rng_state, &psi);
+			construct_random_mps((enum numeric_type)idtype, nsites, d, symm, qsite, 1, 13, &rng_state, &psi);
 			// rescale tensors such that overall norm is around 1
 			for (int i = 0; i < nsites; i++)
 			{
@@ -400,7 +408,7 @@ char* test_apply_mpo_cbc()
 			}
 
 			struct mpo op;
-			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, 1, -1, 27, &rng_state, &op);
+			construct_random_mpo((enum numeric_type)idtype, nsites, d, symm, qsite, 1, -1, 27, &rng_state, &op);
 			// rescale tensors such that overall norm is around 1
 			for (int i = 0; i < nsites; i++)
 			{
@@ -464,7 +472,7 @@ char* test_apply_mpo_cbc()
 			const int nsites = 6;
 
 			struct mpo op;
-			construct_random_mpo((enum numeric_type)idtype, nsites, d, qsite, -1, 1, 32, &rng_state, &op);
+			construct_random_mpo((enum numeric_type)idtype, nsites, d, symm, qsite, -1, 1, 32, &rng_state, &op);
 			// rescale tensors such that overall norm is around 1
 			for (int i = 0; i < nsites; i++)
 			{
@@ -477,7 +485,7 @@ char* test_apply_mpo_cbc()
 			}
 
 			struct mps psi;
-			construct_random_mps((enum numeric_type)idtype, nsites, d, qsite, 1, 19, &rng_state, &psi);
+			construct_random_mps((enum numeric_type)idtype, nsites, d, symm, qsite, 1, 19, &rng_state, &psi);
 			// rescale tensors such that overall norm is around 1
 			for (int i = 0; i < nsites; i++)
 			{

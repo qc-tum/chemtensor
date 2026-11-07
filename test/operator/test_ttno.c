@@ -20,6 +20,9 @@ char* test_ttno_from_assembly()
 	// local physical dimension
 	const ct_long d = 3;
 
+	// symmetry
+	const enum abelian_symmetry symm = ABELIAN_SYMMETRY_U1;
+
 	const qnumber qsite[3] = { 0, -1, 1 };
 
 	// tree topology:
@@ -249,6 +252,7 @@ char* test_ttno_from_assembly()
 		.coeffmap      = (double*)coeffmap,
 		.qsite         = (qnumber*)qsite,
 		.d             = d,
+		.symm          = symm,
 		.dtype         = CT_DOUBLE_REAL,
 		.num_local_ops = num_local_ops,
 		.num_coeffs    = ARRLEN(coeffmap),

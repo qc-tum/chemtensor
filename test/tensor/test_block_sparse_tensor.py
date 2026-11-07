@@ -151,12 +151,18 @@ def block_sparse_tensor_invert_axis_quantum_numbers_data():
     qnums = [rng.integers(-5, 6, size=d).astype(np.int32) for d in dims]
 
     # dense tensor
-    t = rng.standard_normal(dims).astype(np.float32)
-    # enforce sparsity pattern based on quantum numbers
-    enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
+    t_base = rng.standard_normal(dims).astype(np.float32)
+
+    t_list = []
+    for m in [1, 2, None]:
+        t = t_base.copy()
+        # enforce sparsity pattern based on quantum numbers
+        enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)], m)
+        t_list.append(t)
 
     with h5py.File("data/test_block_sparse_tensor_invert_axis_quantum_numbers.hdf5", "w") as file:
-        file["t"] = t
+        for i, t in enumerate(t_list):
+            file[f"t{i}"] = t
         file.attrs["axis_dir"] = axis_dir
         for i, qn in enumerate(qnums):
             file.attrs[f"qnums{i}"] = qn
@@ -249,13 +255,13 @@ def block_sparse_tensor_matricize_axis_data():
     # axis directions
     axis_dir = rng.choice((1, -1), size=ndim)
 
-    # quantum numbers
-    qnums = [rng.integers(-2, 3, size=d).astype(np.int32) for d in dims]
+    # Z_2 quantum numbers
+    qnums = [rng.integers(0, 2, size=d).astype(np.int32) for d in dims]
 
     # tensor with random entries
     t = rng.standard_normal(dims).astype(np.float32)
     # enforce sparsity pattern based on quantum numbers
-    enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)])
+    enforce_qsparsity(t, [axis_dir[i] * qnums[i] for i in range(ndim)], m=2)
 
     # matricize 't' along each possible axis
     mat = [matricize(t, i) for i in range(ndim)]

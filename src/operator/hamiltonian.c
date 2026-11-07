@@ -54,6 +54,7 @@ void construct_ising_1d_mpo_assembly(const int nsites, const double J, const dou
 
 	// set physical quantum numbers to zero
 	assembly->d = 2;
+	assembly->symm = ABELIAN_SYMMETRY_NONE;
 	assembly->qsite = ct_calloc(assembly->d, sizeof(qnumber));
 
 	assembly->dtype = CT_DOUBLE_REAL;
@@ -105,6 +106,7 @@ void construct_heisenberg_xxz_1d_mpo_assembly(const int nsites, const double J, 
 
 	// physical quantum numbers (multiplied by 2)
 	assembly->d = 2;
+	assembly->symm = ABELIAN_SYMMETRY_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	assembly->qsite[0] =  1;
 	assembly->qsite[1] = -1;
@@ -166,6 +168,7 @@ void construct_bose_hubbard_1d_mpo_assembly(const int nsites, const ct_long d, c
 
 	// physical quantum numbers (particle number)
 	assembly->d = d;
+	assembly->symm = ABELIAN_SYMMETRY_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (ct_long i = 0; i < d; i++) {
 		assembly->qsite[i] = i;
@@ -243,6 +246,7 @@ void construct_fermi_hubbard_1d_mpo_assembly(const int nsites, const double t, c
 	const qnumber qn[4] = { 0,  1,  1,  2 };
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
+	assembly->symm = ABELIAN_SYMMETRY_U1_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
@@ -1299,6 +1303,7 @@ void construct_molecular_hamiltonian_mpo_assembly(const struct dense_tensor* res
 
 	// physical quantum numbers (particle number)
 	assembly->d = 2;
+	assembly->symm = ABELIAN_SYMMETRY_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	assembly->qsite[0] = 0;
 	assembly->qsite[1] = 1;
@@ -2790,6 +2795,7 @@ void construct_spin_molecular_hamiltonian_mpo_assembly(const struct dense_tensor
 	const qnumber qn[4] = { 0,  1,  1,  2 };
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
+	assembly->symm = ABELIAN_SYMMETRY_U1_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
@@ -2992,6 +2998,7 @@ void construct_quadratic_fermionic_mpo_assembly(const int nsites, const double* 
 
 	// physical quantum numbers (particle number)
 	assembly->d = 2;
+	assembly->symm = ABELIAN_SYMMETRY_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	assembly->qsite[0] = 0;
 	assembly->qsite[1] = 1;
@@ -3170,6 +3177,7 @@ void construct_quadratic_spin_fermionic_mpo_assembly(const int nsites, const dou
 	const qnumber qn[4] = { 0,  1,  1,  2 };
 	const qnumber qs[4] = { 0, -1,  1,  0 };
 	assembly->d = 4;
+	assembly->symm = ABELIAN_SYMMETRY_U1_U1;
 	assembly->qsite = ct_malloc(assembly->d * sizeof(qnumber));
 	for (ct_long i = 0; i < assembly->d; i++) {
 		assembly->qsite[i] = encode_quantum_number_pair(qn[i], qs[i]);
